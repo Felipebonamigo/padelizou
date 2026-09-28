@@ -1,6 +1,6 @@
 // Partes puras da sessão online: numeração dos assentos globais e a corrida montada da largada.
 import { describe, expect, it } from 'vitest';
-import { SEAT_COLORS } from '../src/core/data/drivers';
+import { seatColor } from '../src/core/data/drivers';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
 import { CONTENT_FINGERPRINT, assignSeats, contentFingerprint, raceConfigFrom, seatName } from '../src/game/online-session';
 import { sanitizeSettings } from '../src/game/settings';
@@ -59,8 +59,8 @@ describe('corrida da largada', () => {
     const rc = raceConfigFrom(cfg);
     expect(rc).toMatchObject({ trackId: 'copacabana', laps: 2, difficulty: 'campeao', manualGear: true, seed: 1234, totalCars: 2 });
     expect(rc.humans).toEqual([
-      { seat: 0, name: 'Ana', carId: 'falcao', teamId: 0, color: SEAT_COLORS[0] },
-      { seat: 1, name: 'Bia', carId: 'trovao', teamId: 1, color: SEAT_COLORS[1] },
+      { seat: 0, name: 'Ana', carId: 'falcao', teamId: 0, color: seatColor(0) },
+      { seat: 1, name: 'Bia', carId: 'trovao', teamId: 1, color: seatColor(1) },
     ]);
     expect(raceConfigFrom({ ...cfg, versus: false }).humans.map((h) => h.teamId)).toEqual([0, 0]);
     expect(JSON.stringify(raceConfigFrom(cfg))).toBe(JSON.stringify(raceConfigFrom(JSON.parse(JSON.stringify(cfg)) as StartConfig)));

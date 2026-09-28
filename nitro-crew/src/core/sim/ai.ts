@@ -2,7 +2,7 @@
 import { CATCHUP_DISTANCE, SEGMENT_LENGTH } from '../constants';
 import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
-import type { AiBrain, CarState, Difficulty, PlayerInput, RaceState, Track } from '../types';
+import type { AiBrain, CarState, CarStats, Difficulty, PlayerInput, RaceState, Track } from '../types';
 import { wrappedDelta } from './collisions';
 import { distanceToFinish, fuelTight, fuelToSkipPit, markFuel, measuredBurn, PIT_LOOKAHEAD } from './fuel';
 import { centrifugalRate, holdableSpeedFraction, PIT_LANE_X, steerRate } from './physics';
@@ -25,7 +25,7 @@ export function createBrain(state: RaceState, difficulty: Difficulty, slot: numb
 }
 
 /** Distância (em unidades, positiva = à frente) até o carro mais próximo na mesma faixa. */
-function nearestAhead(state: RaceState, track: Track, car: CarState, lateral: number, range: number): CarState | null {
+export function nearestAhead(state: RaceState, track: Track, car: CarState, lateral: number, range: number): CarState | null {
   let best: CarState | null = null;
   let bestD = range;
   for (const o of state.cars) {
@@ -44,6 +44,29 @@ function bestHumanProgress(state: RaceState): number {
   return best;
 }
 
+/**
+ * Ponto de frenagem: a maior fração da velocidade máxima (até `cap`) com que dá para chegar a cada
+ * curva forte dos próximos `lookahead` segmentos freando a partir de agora. `grip` escala o limite
+ * de cada curva (holdableSpeedFraction). Usado pela IA e pela direção assistida (sim/assist.ts).
+ */
+export function brakingTarget(track: Track, z: number, def: CarStats, grip: number, lookahead: number, cap: number): number {
+  let target = cap;
+  const brakeDecel = def.brake * 0.8 + def.accel * 0.45;
+  for (let i = 0; i < lookahead; i++) {
+    const seg = segmentAt(track, z + i * SEGMENT_LENGTH);
+    if (Math.abs(seg.curve) < 1.5) continue;
+    const limit = holdableSpeedFraction(def, seg.curve) * grip * def.topSpeed;
+    const allowed = Math.sqrt(limit * limit + 2 * brakeDecel * i * SEGMENT_LENGTH) / def.topSpeed;
+    if (allowed < target) target = allowed;
+  }
+  return target;
+}
+
+/** Contra-esterço que anula o empurrão da curva `curve` na fração de velocidade `sf` (0..1). */
+export function counterSteer(def: CarStats, sf: number, curve: number): number {
+  return sf > 0.05 ? (centrifugalRate(def) * sf * curve) / steerRate(def) : 0;
+}
+
 export function aiInput(state: RaceState, track: Track, car: CarState): PlayerInput {
   const brain = car.ai!;
   const def = carStats(car);
@@ -58,15 +81,7 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
   // velocidade que dá para chegar nela freando a partir de agora (ponto de frenagem).
   const lookahead = brain.lookahead + Math.floor(speedFrac * 30);
   const straightLimit = brain.skill * DIFFICULTY_SPEED[difficulty];
-  let target = straightLimit;
-  const brakeDecel = def.brake * 0.8 + def.accel * 0.45;
-  for (let i = 0; i < lookahead; i++) {
-    const seg = segmentAt(track, car.z + i * SEGMENT_LENGTH);
-    if (Math.abs(seg.curve) < 1.5) continue;
-    const limit = holdableSpeedFraction(def, seg.curve) * (0.9 + 0.12 * brain.skill) * def.topSpeed;
-    const allowed = Math.sqrt(limit * limit + 2 * brakeDecel * i * SEGMENT_LENGTH) / def.topSpeed;
-    if (allowed < target) target = allowed;
-  }
+  let target = brakingTarget(track, car.z, def, 0.9 + 0.12 * brain.skill, lookahead, straightLimit);
   const curveAhead = maxCurveAhead(track, car.z, 12);
 
   // Elástico: quem ficou para trás do melhor humano acelera um pouco (menos com o tanque justo, que
@@ -122,7 +137,7 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
 
   // ── Volante: vai para a faixa e compensa o empurrão da curva.
   const sf = Math.min(1, speedFrac);
-  const counter = sf > 0.05 ? (centrifugalRate(def) * sf * seg.curve) / steerRate(def) : 0;
+  const counter = counterSteer(def, sf, seg.curve);
   const toLane = (laneTarget - car.x) * 5;
   input.steer = Math.max(-1, Math.min(1, toLane + counter));
 

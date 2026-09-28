@@ -4,7 +4,7 @@ import { TICK_RATE } from '../src/core/constants';
 import { createRace, stepRace, formatTicks } from '../src/core/sim/race';
 import { aiInput } from '../src/core/sim/ai';
 import { getTrack } from '../src/core/track';
-import { SEAT_COLORS } from '../src/core/data/drivers';
+import { seatColor } from '../src/core/data/drivers';
 import { CARS } from '../src/core/data/cars';
 import { createChampionship, applyRaceResult, teamRaceRank } from '../src/core/championship';
 import type { Difficulty, HumanEntry, PlayerInput } from '../src/core/types';
@@ -15,7 +15,7 @@ const difficulty = (process.argv[4] ?? 'profissional') as Difficulty;
 const seed = Number(process.argv[5] ?? 42);
 
 const track = getTrack(trackId);
-const humans: HumanEntry[] = Array.from({ length: humanCount }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: CARS[i % CARS.length].id, teamId: 0, color: SEAT_COLORS[i] }));
+const humans: HumanEntry[] = Array.from({ length: humanCount }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: CARS[i % CARS.length].id, teamId: 0, color: seatColor(i) }));
 const state = createRace({ trackId, laps: track.def.laps, humans, totalCars: 20, difficulty, manualGear: false, assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, seed }, track);
 
 // Humanos em "piloto automático": o mesmo cérebro da IA, com habilidade alta (representa um jogador competente).

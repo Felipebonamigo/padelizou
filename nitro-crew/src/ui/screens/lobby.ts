@@ -4,7 +4,10 @@
 // e do gamepad (`navigate`), sempre com o `device` que apertou.
 import '../../career/strings';
 import './garage.css';
-import { SEAT_COLORS } from '../../core/data/drivers';
+import '../../access/strings';
+import { assistedHumans } from '../../access/humans';
+import { seatColor } from '../../core/data/drivers';
+import { ASSIST_LEVELS } from '../../core/sim/assist';
 import type { CarDef, HumanEntry } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav, SaveData } from '../../game/contracts';
 import { NAME_MAX_LENGTH } from '../../game/save';
@@ -49,16 +52,17 @@ export function canStart(lobby: LobbyState, save?: SaveData): boolean {
   return lobby.seats[0] !== null && seats.length > 0 && seats.every((s) => s.ready);
 }
 
-/** Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento. */
+/** Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento; a direção assistida de cada assento. */
 export function lobbyHumans(api: ScreenApi): HumanEntry[] {
   const cars = availableCars(api.ctx);
-  return occupiedSeats(api.lobby).map((s) => ({
+  const { settings } = api.ctx;
+  return assistedHumans(occupiedSeats(api.lobby).map((s) => ({
     seat: s.seat,
     name: s.name.trim() || `P${s.seat + 1}`,
     carId: (cars[s.carIndex] ?? cars[0]).id,
     teamId: api.lobby.versus ? s.seat : 0,
-    color: SEAT_COLORS[s.seat] ?? '#ffffff',
-  }));
+    color: seatColor(s.seat, settings.colorPalette),
+  })), settings.seatAssists);
 }
 
 function newSeat(api: ScreenApi, seat: number, device: DeviceId): LobbySeat {
@@ -166,7 +170,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   };
 
   function occupiedSlot(s: LobbySeat): { el: HTMLElement; items: FocusItem[] } {
-    const color = SEAT_COLORS[s.seat];
+    const color = seatColor(s.seat, ctx.settings.colorPalette);
     const nameInput = h('input', {
       class: 'name-input',
       attrs: { type: 'text', maxlength: String(NAME_MAX_LENGTH), value: s.name, spellcheck: 'false', autocomplete: 'off' },
@@ -197,6 +201,15 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     const carEl = carItem ? carItem.el
       : career ? h('div', { class: 'car-hero locked lobby-note' }, icon('flag'), h('span', { text: t('career.lobby.carNote') }))
       : h('div', { class: 'car-hero locked' }, heroBody);
+    // Direção assistida do assento (grava nas opções); confirmar aqui é PRONTO, como no carro.
+    // (A sessão troca o array a cada mudança de opções: sempre lido de ctx.settings, nunca guardado.)
+    const assistOf = () => ctx.settings.seatAssists[s.seat] ?? 'none';
+    const assistItem = selector(t('access.lobby.assist'), () => t(`access.level.${assistOf()}`), (dir) => {
+      if (s.ready) return;
+      const i = ASSIST_LEVELS.indexOf(assistOf());
+      ctx.settings.seatAssists[s.seat] = ASSIST_LEVELS[(i + dir + ASSIST_LEVELS.length) % ASSIST_LEVELS.length];
+      commitSettings(api);
+    }, { sfx: api.sfx, onActivate: () => toggleReady(s), cls: `sel-assist${s.ready ? ' locked' : ''}` });
     const ready = button(t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
     if (s.ready) ready.el.prepend(icon('check'));
     const team = lobby.versus ? t('ui.lobby.teamN', { n: s.seat + 1 }) : t('core.team.human');
@@ -208,16 +221,17 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       ),
       nameEl,
       carEl,
+      assistItem.el,
       h('div', { class: 'slot-foot' },
         h('span', { class: 'slot-team' }, icon('users'), h('span', { text: team })),
         ready.el,
       ),
     );
-    return { el: slot, items: [nameRow, carItem, ready].filter((x): x is FocusItem => x !== null) };
+    return { el: slot, items: [nameRow, carItem, assistItem, ready].filter((x): x is FocusItem => x !== null) };
   }
 
   function emptySlot(seat: number): HTMLElement {
-    const slot = h('div', { class: 'slot empty glass', style: `--seat:${SEAT_COLORS[seat]}` },
+    const slot = h('div', { class: 'slot empty glass', style: `--seat:${seatColor(seat, ctx.settings.colorPalette)}` },
       h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
       h('span', { class: 'slot-empty-icons' }, icon('keyboard'), icon('gamepad')),
       h('p', { class: 'slot-join', text: t('ui.lobby.join') }),

@@ -2,6 +2,7 @@
 import type { CoopAssists } from '../../core/types';
 import type { Settings } from '../../game/contracts';
 import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, QUICK_LAPS_MIN, TOTAL_CARS_MAX, TOTAL_CARS_MIN, saveSettings } from '../../game/settings';
+import { accessEntry } from '../../access/screen';
 import { optionsFooter } from '../../errors/options';
 import { getLanguage, setLanguage, t, type Lang } from '../../i18n';
 import '../remap/strings';
@@ -85,14 +86,16 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
     selector(t('ui.options.track'), () => musicTitle(s.music), (d) => { s.music = cycle(musicIds, s.music, d); commit(); }, { sfx }),
   ];
   const race = raceOptionSelectors(api, commit, { difficulty: true, gear: true, totalCars: true, quickLaps: true, assists: true });
+  // Acessibilidade: tela própria (src/access/screen.ts), aberta pelo último item da coluna de corrida.
+  const access = accessEntry(api);
   const back = button(t('ui.common.back'), () => api.back());
   // Rodapé: relatório de erros · Voltar · telemetria (src/errors/options.ts).
   const footer = optionsFooter(api, commit, back);
-  const list = createFocusList([...general, ...race, ...footer.items], { sfx });
+  const list = createFocusList([...general, ...race, access, ...footer.items], { sfx });
   const el = screenFrame('options', t('ui.options.title'),
     h('div', { class: 'options-columns' },
       h('div', { class: 'options-col' }, h('h2', { class: 'sub-title', text: t('ui.options.general') }), general.map((i) => i.el)),
-      h('div', { class: 'options-col' }, h('h2', { class: 'sub-title', text: t('ui.options.race') }), race.map((i) => i.el)),
+      h('div', { class: 'options-col' }, h('h2', { class: 'sub-title', text: t('ui.options.race') }), race.map((i) => i.el), access.el),
     ),
     footer.el,
   );

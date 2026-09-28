@@ -1,5 +1,6 @@
 // Resultado da corrida e classificação do campeonato.
 import { isCoop, nextTrackId, teamRaceRank, teamRaceScore } from '../../core/championship';
+import { seatColor, type ColorPalette } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import type { HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
 import { achievementDescription, achievementName } from '../../game/achievements';
@@ -16,12 +17,13 @@ function titleRow(title: string, chip: string): HTMLElement {
 }
 import { icon, medal } from './icons';
 
-function humanColor(humans: HumanEntry[], seat: number): string | null {
-  return humans.find((x) => x.seat === seat)?.color ?? null;
+/** Cor do humano do assento na paleta das opções (a da HumanEntry é a de quem montou a corrida). */
+function humanColor(humans: HumanEntry[], seat: number, palette: ColorPalette): string | null {
+  return humans.some((x) => x.seat === seat) ? seatColor(seat, palette) : null;
 }
 
-function rowStyle(humans: HumanEntry[], seat: number): string {
-  const color = seat >= 0 ? humanColor(humans, seat) : null;
+function rowStyle(humans: HumanEntry[], seat: number, palette: ColorPalette): string {
+  const color = seat >= 0 ? humanColor(humans, seat, palette) : null;
   return color ? `--seat:${color}` : '';
 }
 
@@ -49,7 +51,7 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
       h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { text: t('ui.results.car') }),
       h('th', { text: t('ui.results.time') }), h('th', { text: t('ui.results.bestLap') }), h('th', { class: 'num', text: t('ui.results.points') }),
     )),
-    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 ? 'human' : '', style: rowStyle(d.humans, r.seat) },
+    h('tbody', {}, rows.map((r: RaceResultRow) => h('tr', { class: r.seat >= 0 ? 'human' : '', style: rowStyle(d.humans, r.seat, ctx.settings.colorPalette) },
       positionCell(r.position),
       h('td', { text: r.name }),
       h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
@@ -82,7 +84,7 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
   }
   const list = createFocusList(items, { sfx: api.sfx });
-  const unlocked = achievementsPanel(d);
+  const unlocked = achievementsPanel(d, ctx.settings.colorPalette);
   const wrap = h('div', { class: 'table-wrap glass' }, table);
   const el = screenFrame('results', null,
     titleRow(t('ui.results.title'), d.trackDef.name),
@@ -119,7 +121,7 @@ function revealRow(wrap: HTMLElement, row: Element | null): void {
 const FULL_CHIPS_MAX = 4;
 
 /** Conquistas desbloqueadas nesta corrida, com a cor de quem as ganhou. */
-function achievementsPanel(d: ResultsScreenData): HTMLElement | null {
+function achievementsPanel(d: ResultsScreenData, palette: ColorPalette): HTMLElement | null {
   const list = d.achievements ?? [];
   if (list.length === 0) return null;
   const many = list.length > FULL_CHIPS_MAX;
@@ -127,7 +129,7 @@ function achievementsPanel(d: ResultsScreenData): HTMLElement | null {
     h('span', { class: 'results-ach-title' }, icon('trophy'), h('span', { text: t('stats.results.title') })),
     h('div', { class: 'results-ach-list' }, list.map((u) => h('div', { class: 'ach-chip', attrs: { title: achievementDescription(u.id) } },
       h('span', { class: 'ach-chip-seats' }, u.seats.map((seat) => h('i', {
-        class: 'seat-dot', style: `--seat:${humanColor(d.humans, seat) ?? 'var(--accent)'}`,
+        class: 'seat-dot', style: `--seat:${humanColor(d.humans, seat, palette) ?? 'var(--accent)'}`,
         title: d.humans.find((x) => x.seat === seat)?.name ?? '',
       }))),
       h('span', { class: 'ach-chip-text' },
@@ -153,7 +155,7 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
       h('th', { text: '#' }), h('th', { text: t('ui.results.name') }), h('th', { class: 'num', text: t('ui.standings.points') }), h('th', { class: 'num', text: t('ui.standings.wins') }),
       Array.from({ length: raceCount }, (_, i) => h('th', { class: 'num', text: t('ui.standings.race', { n: i + 1 }) })),
     )),
-    h('tbody', {}, top.map((s: StandingRow) => h('tr', { class: s.seat >= 0 ? 'human' : '', style: rowStyle(humans, s.seat) },
+    h('tbody', {}, top.map((s: StandingRow) => h('tr', { class: s.seat >= 0 ? 'human' : '', style: rowStyle(humans, s.seat, api.ctx.settings.colorPalette) },
       positionCell(champ.standings.indexOf(s) + 1),
       h('td', { text: s.name }),
       h('td', { class: 'mono num strong', text: String(s.points) }),
@@ -163,7 +165,7 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   );
   const teamTable = h('table', { class: 'table teams-table' },
     h('thead', {}, h('tr', {}, h('th', { text: '#' }), h('th', { text: t('ui.standings.teams') }), h('th', { class: 'num', text: t('ui.standings.points') }))),
-    h('tbody', {}, champ.teams.map((tm, i) => h('tr', { class: tm.isHuman ? 'human' : '', style: tm.isHuman && humans.length > 0 ? `--seat:${humans[0].color}` : '' },
+    h('tbody', {}, champ.teams.map((tm, i) => h('tr', { class: tm.isHuman ? 'human' : '', style: tm.isHuman && humans.length > 0 ? `--seat:${seatColor(humans[0].seat, api.ctx.settings.colorPalette)}` : '' },
       positionCell(i + 1),
       h('td', { text: tm.name }),
       h('td', { class: 'mono num strong', text: String(tm.points) }),

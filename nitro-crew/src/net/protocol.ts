@@ -2,7 +2,8 @@
 // por aqui antes de ser usado: `parseServerMessage` devolve uma mensagem tipada e validada, ou
 // `null` (a mensagem é descartada e contada). O servidor (server/relay.mjs) espelha as mesmas
 // regras de forma e de tamanho, mas não entende o jogo; quem valida o conteúdo é o cliente.
-import type { CoopAssists, Difficulty, PlayerInput } from '../core/types';
+import { ASSIST_LEVELS } from '../core/sim/assist';
+import type { AssistLevel, CoopAssists, Difficulty, PlayerInput } from '../core/types';
 
 export const PROTOCOL_VERSION = 1;
 export const DEFAULT_SERVER_URL = 'ws://localhost:8787';
@@ -111,6 +112,8 @@ export interface LobbyPlayer {
   name: string;
   /** Id do carro (core/data/cars). */
   car: string;
+  /** Direção assistida escolhida por este jogador; ausente = nenhuma (sim/assist.ts). */
+  assist?: AssistLevel;
 }
 
 /** O que cada cliente publica sobre si no lobby. */
@@ -154,6 +157,8 @@ export interface SeatAssignment {
   client: number;
   name: string;
   car: string;
+  /** Direção assistida do jogador do assento (vai para HumanEntry.assist); ausente = nenhuma. */
+  assist?: AssistLevel;
 }
 
 /** Tudo que um cliente precisa para montar a mesma corrida que os outros. */
@@ -262,6 +267,17 @@ export function cleanName(v: unknown): string | null {
   return s.length > 0 ? s : null;
 }
 
+/** Assistência vinda da rede: ausente vale 'none'; valor desconhecido invalida a mensagem (null). */
+function parseAssistLevel(v: unknown): AssistLevel | null {
+  if (v === undefined) return 'none';
+  return typeof v === 'string' && (ASSIST_LEVELS as readonly string[]).includes(v) ? (v as AssistLevel) : null;
+}
+
+/** O campo `assist` só aparece quando há assistência (a mensagem de quem não usa fica como antes). */
+export function withAssist<T extends object>(base: T, assist: AssistLevel | undefined): T & { assist?: AssistLevel } {
+  return assist && assist !== 'none' ? { ...base, assist } : base;
+}
+
 export function parseClientInfo(v: unknown, rules: ContentRules): ClientInfo | null {
   if (!isRecord(v) || !Array.isArray(v.players) || typeof v.ready !== 'boolean') return null;
   if (v.players.length < 1 || v.players.length > MAX_LOCAL_PLAYERS) return null;
@@ -269,8 +285,9 @@ export function parseClientInfo(v: unknown, rules: ContentRules): ClientInfo | n
   for (const p of v.players) {
     if (!isRecord(p)) return null;
     const name = cleanName(p.name);
-    if (!name || typeof p.car !== 'string' || !rules.cars.includes(p.car)) return null;
-    players.push({ name, car: p.car });
+    const assist = parseAssistLevel(p.assist);
+    if (!name || typeof p.car !== 'string' || !rules.cars.includes(p.car) || !assist) return null;
+    players.push(withAssist({ name, car: p.car }, assist));
   }
   return { players, ready: v.ready };
 }
@@ -305,9 +322,10 @@ export function parseStartConfig(v: unknown, rules: ContentRules): StartConfig |
   for (const s of v.seats) {
     if (!isRecord(s) || !isInt(s.seat, 0, MAX_HUMANS - 1) || !isInt(s.client, 0, 0x7fffffff)) return null;
     const name = cleanName(s.name);
-    if (!name || typeof s.car !== 'string' || !rules.cars.includes(s.car) || used.has(s.seat)) return null;
+    const assist = parseAssistLevel(s.assist);
+    if (!name || typeof s.car !== 'string' || !rules.cars.includes(s.car) || used.has(s.seat) || !assist) return null;
     used.add(s.seat);
-    seats.push({ seat: s.seat, client: s.client, name, car: s.car });
+    seats.push(withAssist({ seat: s.seat, client: s.client, name, car: s.car }, assist));
   }
   // Nenhum cliente com mais assentos que o limite local.
   const perClient = new Map<number, number>();

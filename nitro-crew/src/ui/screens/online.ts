@@ -4,7 +4,7 @@
 // (src/game/online-session.ts); esta tela só desenha e repassa o que o jogador faz.
 // Também exporta o aviso por cima da corrida (ping/atraso, "aguardando", dessincronia).
 import { CARS } from '../../core/data/cars';
-import { SEAT_COLORS } from '../../core/data/drivers';
+import { seatColor } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import { TRACKS } from '../../core/track';
 import type { DeviceId, MenuNav } from '../../game/contracts';
@@ -198,7 +198,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       refreshers.push(() => {
         const seat = localSeatPreview(i);
         badge.textContent = `P${seat + 1}`;
-        box.style.setProperty('--seat', SEAT_COLORS[seat] ?? '#fff');
+        box.style.setProperty('--seat', seatColor(seat, ctx.settings.colorPalette));
         // Nome padrão acompanha o assento (fora de quando o jogador está digitando).
         const name = online!.locals[i]?.name ?? '';
         if (document.activeElement !== nameInput && seatName(name, seat) !== nameInput.value && seatName(name, seat) !== name) nameInput.value = seatName(name, seat);
@@ -339,7 +339,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
         h('div', { class: 'online-client-tags' }, icon(c.id === room.host ? 'trophy' : 'users'), tags),
         players.map((p, i) => {
           const seat = seats.filter((s) => s.client === c.id)[i]?.seat ?? 0;
-          return h('div', { class: 'online-player', style: `--seat:${SEAT_COLORS[seat] ?? '#fff'}` },
+          return h('div', { class: 'online-player', style: `--seat:${seatColor(seat, ctx.settings.colorPalette)}` },
             h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
             h('span', { class: 'online-player-name', text: seatName(p.name, seat) }),
             h('span', { class: 'online-player-car', text: carName(p.car) }),
@@ -369,7 +369,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
     const leave = button(t('online.results.leave'), () => online!.leave());
     const items = [back, leave];
     if (!d) return { body: h('div', { class: 'online-panel glass' }, back.el, leave.el), items };
-    const colorOf = (seat: number) => d.humans.find((x) => x.seat === seat)?.color ?? null;
+    const colorOf = (seat: number) => (d.humans.some((x) => x.seat === seat) ? seatColor(seat, ctx.settings.colorPalette) : null);
     const rows = [...d.results].sort((a, b) => a.position - b.position);
     const mine = new Set(online!.localSeats);
     const ai = new Set(online!.aiSeats);

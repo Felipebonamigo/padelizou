@@ -2,8 +2,9 @@
 // (src/game/session.ts) liga as implementações. Cada camada mora numa pasta própria:
 //   src/render  → Renderer            src/ui     → Menus + InputProvider
 //   src/audio   → AudioEngine         src/game   → settings.ts, save.ts, desktop.ts, session.ts
+import type { ColorPalette } from '../core/data/drivers';
 import type {
-  CarDef, ChampionshipState, CoopAssists, CupDef, Difficulty, HumanEntry, PlayerInput, RaceResultRow, RaceState,
+  AssistLevel, CarDef, ChampionshipState, CoopAssists, CupDef, Difficulty, HumanEntry, PlayerInput, RaceResultRow, RaceState,
   SimEvent, Track, TrackDef,
 } from '../core/types';
 import type { CareerState } from '../core/career';
@@ -97,6 +98,17 @@ export interface Settings {
   vibration: boolean;
   /** Endereço do servidor de retransmissão do online (ws:// ou wss://). */
   serverUrl: string;
+  // Acessibilidade (docs/ASSISTENCIAS.md; aplicada por src/access/apply.ts).
+  /** Direção assistida por assento (P1..P4), escolhida no lobby ou nas opções. */
+  seatAssists: AssistLevel[];
+  /** Paleta das cores dos jogadores (daltonismo). */
+  colorPalette: ColorPalette;
+  /** Tamanho do HUD, 0,8..1,5 (80–150%). */
+  hudScale: number;
+  /** Texto maior nos menus. */
+  largeText: boolean;
+  /** Sem tremor de câmera, linhas de velocidade, piscadas e faíscas. */
+  reduceEffects: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -106,6 +118,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   telemetryConsent: 0,
   controls: DEFAULT_BINDINGS, vibration: true,
   serverUrl: 'ws://localhost:8787',
+  seatAssists: ['none', 'none', 'none', 'none'] as AssistLevel[], colorPalette: 'default' as ColorPalette, hudScale: 1, largeText: false, reduceEffects: false,
 });
 
 export interface BestLap { ticks: number; name: string; carId: string; date: string }
@@ -153,6 +166,10 @@ export interface RenderOptions {
   quality: Quality;
   showMinimap: boolean;
   screenShake: boolean;
+  /** Reduzir efeitos (acessibilidade): sem tremor, linhas de velocidade, piscadas e faíscas. */
+  reduceEffects: boolean;
+  /** Paleta das cores dos jogadores (os de outro computador, no online, não têm viewport aqui). */
+  palette: ColorPalette;
 }
 
 export interface HudMessage {
@@ -250,7 +267,7 @@ export interface RaceDriver {
 
 // ───────────────────────────── Menus ─────────────────────────────
 
-export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online';
+export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online' | 'access';
 
 export type RaceMode = 'cup' | 'quick' | 'timetrial' | 'career';
 

@@ -6,7 +6,8 @@
 import './hud.css';
 import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
-import { SEAT_COLORS } from '../core/data/drivers';
+import { seatColor, type ColorPalette } from '../core/data/drivers';
+import '../access/strings';
 import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
 import type { HudMessage, RenderFrame, ViewportSpec } from '../game/contracts';
@@ -57,7 +58,7 @@ class MiniMap {
     for (let i = 0; i < MAX_CARS; i++) this.dots.push(svg('circle', s, { r: '3', cx: '0', cy: '0', class: 'ai', visibility: 'hidden' }));
   }
 
-  update(track: Track, state: RaceState, ownIndex: number, viewports: ViewportSpec[]): void {
+  update(track: Track, state: RaceState, ownIndex: number, viewports: ViewportSpec[], palette: ColorPalette): void {
     if (track.def.id !== this.trackId) {
       this.trackId = track.def.id;
       this.outline = trackOutline(track, MAP_SIZE);
@@ -74,7 +75,7 @@ class MiniMap {
       const own = i === ownIndex;
       if (c.seat >= 0) {
         const vp = viewports.find((v) => v.seat === c.seat);
-        setAttr(dot, 'fill', vp ? vp.color : SEAT_COLORS[c.seat % SEAT_COLORS.length]);
+        setAttr(dot, 'fill', vp ? vp.color : seatColor(c.seat, palette));
         setAttr(dot, 'r', own ? '5' : '4');
         setAttr(dot, 'class', own ? 'me' : 'human');
       } else {
@@ -113,7 +114,7 @@ class MessageSlots {
 
 class SeatHud {
   readonly root: HTMLElement;
-  private readonly tagName: HTMLElement;
+  private readonly tagName: HTMLElement; private readonly assist: HTMLElement;
   private readonly posN: HTMLElement; private readonly posOf: HTMLElement; private readonly lap: HTMLElement;
   private readonly time: HTMLElement; private readonly lastLabel: HTMLElement; private readonly lastVal: HTMLElement; private readonly bestLabel: HTMLElement; private readonly bestVal: HTMLElement;
   private readonly mates: HTMLElement; private readonly mateRows: Array<{ row: HTMLElement; dot: HTMLElement; name: HTMLElement; pos: HTMLElement }> = [];
@@ -131,7 +132,7 @@ class SeatHud {
     this.root = el('div', 'vp', parent);
     this.lines = el('div', 'lines', this.root);
     const tl = el('div', 'tl glass', this.root);
-    const tag = el('div', 'tag', tl); el('i', 'dot', tag); this.tagName = el('span', 'name', tag);
+    const tag = el('div', 'tag', tl); el('i', 'dot', tag); this.tagName = el('span', 'name', tag); this.assist = el('span', 'assist', tag);
     const pos = el('div', 'pos', tl); this.posN = el('span', 'pos-n', pos); this.posOf = el('span', 'pos-of', pos);
     this.lap = el('div', 'lap', tl);
     const tr = el('div', 'tr glass', this.root);
@@ -169,8 +170,13 @@ class SeatHud {
     const car: CarState | undefined = state.cars[vp.carIndex];
     const r = this.root;
     setStyle(r, 'left', `${rect.x}px`); setStyle(r, 'top', `${rect.y}px`); setStyle(r, 'width', `${rect.w}px`); setStyle(r, 'height', `${rect.h}px`);
-    setStyle(r, '--s', uiScale(rect).toFixed(3)); setStyle(r, '--accent', vp.color);
+    // --hud-scale: tamanho do HUD nas opções (src/access/apply.ts, no #hud).
+    setStyle(r, '--s', `calc(${uiScale(rect).toFixed(3)} * var(--hud-scale, 1))`); setStyle(r, '--accent', vp.color);
     setText(this.tagName, vp.name);
+    // Selo discreto de direção assistida (sim/assist.ts).
+    const assisted = state.config.humans.some((h) => h.seat === vp.seat && h.assist !== undefined && h.assist !== 'none');
+    setText(this.assist, assisted ? t('access.hud.assist') : '');
+    setClass(this.assist, 'on', assisted);
     if (!car) return;
     const laps = state.config.laps;
     const total = state.cars.length;
@@ -217,7 +223,7 @@ class SeatHud {
     setText(this.extra, charges > 3 ? `×${charges}` : '');
     setClass(this.nbar, 'on', car.nitroTicks > 0);
     setStyle(this.nfill, 'width', `${((car.nitroTicks / NITRO_DURATION_TICKS) * 100).toFixed(1)}%`);
-    setClass(this.lines, 'on', car.nitroTicks > 0 && !frame.paused);
+    setClass(this.lines, 'on', car.nitroTicks > 0 && !frame.paused && !frame.options.reduceEffects);
     // Velocímetro: RPM = posição da velocidade dentro da marcha.
     const sf = car.speed / car.stats.topSpeed;
     const lo = car.gear > 0 ? GEAR_TOP[car.gear - 1] : 0;
@@ -232,7 +238,7 @@ class SeatHud {
     if (gearText && gearText.textContent !== String(car.gear + 1)) gearText.textContent = String(car.gear + 1);
     // Minimapa.
     setClass(this.mini.root, 'hidden', !frame.options.showMinimap);
-    if (frame.options.showMinimap) this.mini.update(track, state, vp.carIndex, frame.viewports);
+    if (frame.options.showMinimap) this.mini.update(track, state, vp.carIndex, frame.viewports, frame.options.palette);
     // Mensagens: 'info' no topo; as outras no centro. Na contagem, as "big" com o número
     // ficam de fora (a contagem grande já cobre).
     this.topList.length = 0; this.centerList.length = 0;
@@ -300,7 +306,7 @@ class SparePanel {
       const vp = c.seat >= 0 ? frame.viewports.find((v) => v.seat === c.seat) : undefined;
       setStyle(row.n, 'color', vp ? vp.color : '');
     }
-    this.mini.update(track, state, -1, frame.viewports);
+    this.mini.update(track, state, -1, frame.viewports, frame.options.palette);
   }
 }
 

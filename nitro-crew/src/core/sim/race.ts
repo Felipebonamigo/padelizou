@@ -6,6 +6,7 @@ import { createRng, nextInt } from '../rng';
 import type { CarState, PlayerInput, RaceConfig, RaceState, Track } from '../types';
 import { NEUTRAL_INPUT } from '../types';
 import { aiInput, createBrain, DIFFICULTY_SKILL } from './ai';
+import { assistInput, assistLevelOf } from './assist';
 import { resolveCarCollisions, resolveSpriteCrash } from './collisions';
 import { applyTow, computeModifiers } from './coop';
 import { stepCarPhysics } from './physics';
@@ -73,7 +74,7 @@ export function stepRace(state: RaceState, track: Track, inputs: ReadonlyArray<P
   for (const car of state.cars) {
     const command = inputs[car.seat];
     if (command?.takeover && !car.ai) car.ai = takeoverBrain(state);
-    const input = car.ai ? aiInput(state, track, car) : (car.finished ? cruiseInput(state, track, car) : (command ?? NEUTRAL_INPUT));
+    const input = car.ai ? aiInput(state, track, car) : (car.finished ? cruiseInput(state, track, car) : assistInput(state, track, car, command ?? NEUTRAL_INPUT, assistLevelOf(state, car.seat)));
     const mods = computeModifiers(state, track, car);
     const prevZ = car.z;
     stepCarPhysics(state, track, car, input, mods);

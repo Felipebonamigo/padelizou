@@ -3,6 +3,7 @@
 import type { DeviceId, MenuContext, MenuNav, MenuScreen, Menus } from '../game/contracts';
 import { isKeyboard, isEditableTarget } from './input';
 import { type LobbyState, type ScreenApi, type ScreenData, type ScreenFactory, type ScreenInstance } from './screens/common';
+import { accessScreen } from '../access/screen';
 import { controlsScreen } from './screens/controls';
 import { careerScreen, garageScreen } from './screens/garage';
 import { recordsScreen } from './screens/info';
@@ -50,6 +51,7 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   career: careerScreen,
   garage: garageScreen,
   online: onlineScreen,
+  access: accessScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {

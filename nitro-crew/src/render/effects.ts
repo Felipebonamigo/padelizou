@@ -158,7 +158,8 @@ export class Effects {
       this.prevSpeed[i] = c.speed;
       // Faíscas na colisão (borda de subida do cooldown).
       if (c.collisionCooldown > this.prevCooldown[i] && c.collisionCooldown >= COLLISION_COOLDOWN_TICKS - 1) {
-        for (let k = 0; k < 26; k++) {
+        // Reduzir efeitos (acessibilidade): sem o clarão das faíscas.
+        for (let k = 0; k < (frame.options.reduceEffects ? 0 : 26); k++) {
           this.sparks.emit(c.z + (this.rnd() - 0.5) * 120, c.x + (this.rnd() - 0.5) * 0.3, 0.3 + this.rnd() * 0.4,
             c.speed * 0.85 + (this.rnd() - 0.5) * 900, (this.rnd() - 0.5) * 1.6, 1.5 + this.rnd() * 5, 0.3 + this.rnd() * 0.4, 0.14, 0.05, 9, 2.2, 1.4, 0.4);
         }
