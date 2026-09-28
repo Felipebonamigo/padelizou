@@ -1010,10 +1010,19 @@ namespace Padelizou.Controllers
             // Aba "Jogos" embutida (Ao Vivo/Agendadas/Finalizadas) — só depois que as inscrições fecham.
             if (torneio.Status != "Inscrições Abertas")
             {
-                await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
+                var jogosDoTorneio = await CarregarViewBagJogosAsync(id, timeFiltroId, categoriaFiltroIds, soMeusJogos,
                     new FiltroDeJogos(clubeFiltroId, quadraFiltro, faseFiltro));
                 // Pontos por time neste torneio (só faz sentido depois que começa a valer resultado).
                 ViewBag.PontosTimes = await _estatisticas.ObterPontosTimesNoTorneioAsync(id);
+
+                // A CAMPANHA de cada time (Services/CampanhaDosTimes) e qual é o time de quem
+                // olha — é ele que ganha o card no topo da aba Times. A grade vem do método
+                // acima, já sem nada da chave não aprovada pra quem não organiza.
+                ViewBag.CampanhaDosTimes = CampanhaDosTimes.Montar(
+                    torneio.Categorias.SelectMany(c => c.Duplas), jogosDoTorneio);
+                ViewBag.MeuTimeId = ObterJogadorIdLogado() is int quemVe
+                    ? await _context.Jogadores.Where(j => j.Id == quemVe).Select(j => j.TimeId).FirstOrDefaultAsync()
+                    : null;
 
                 // Chaveamento do mata-mata: as partidas de fase eliminatória por categoria, pra
                 // a view desenhar o bracket com os confrontos REAIS (antes era um desenho fixo).
@@ -1391,7 +1400,10 @@ namespace Padelizou.Controllers
                 .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
         }
 
-        private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
+        // Devolve a GRADE INTEIRA do torneio, já passada pelo portão da chave não aprovada — pra
+        // quem precisa dela fora da lista de jogos (a campanha da aba Times) não reescrever o
+        // portão. Quem só quer o ViewBag ignora o retorno.
+        private async Task<List<Partida>> CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
             FiltroDeJogos? sequencia = null)
         {
             // As sedes ficam AQUI, e não só na ação, porque é este método que abastece as duas
@@ -1812,6 +1824,8 @@ namespace Padelizou.Controllers
             // da mesma categoria e fase — que é exatamente o que renumera.
             ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(
                 gradeDoTorneio.Select(p => (p.Id, p.CategoriaId, p.Fase)));
+
+            return jogosDoTorneio;
         }
     }
 }
