@@ -9,9 +9,18 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+/** O que varia entre máquinas (ou entre execuções) e não pode entrar no núcleo. */
+const forbidden = /Math\.(random|a?sinh?|a?cosh?|a?tanh?|atan2|pow|exp|expm1|log|log2|log10|log1p|hypot|cbrt)\b|\*\*|Date\.now|new Date\b|performance\.now|crypto\.|Map\(|Set\(/;
+
 describe('determinismo', () => {
+  it('a varredura pega as formas menos óbvias (potência, logaritmos e datas)', () => {
+    for (const code of ['const y = x ** 2;', 'Math.log2(x)', 'Math.log10(x)', 'Math.log1p(x)', 'Math.expm1(x)', 'Math.asinh(x)', 'Math.atanh(x)', 'new Date()', 'crypto.getRandomValues(buf)']) {
+      expect(code.match(forbidden), code).not.toBeNull();
+    }
+    for (const code of ['Math.floor(x)', 'Math.sqrt(x)', 'Math.imul(a, b)', 'a * b', 'Math.abs(x)']) expect(code.match(forbidden), code).toBeNull();
+  });
+
   it('o núcleo não usa funções que variam entre máquinas', () => {
-    const forbidden = /Math\.(random|sin|cos|tan|atan2?|asin|acos|pow|exp|log|hypot|cbrt|sinh|cosh|tanh)\b|Date\.now|performance\.now|Map\(|Set\(/;
     for (const f of walk('src/core')) {
       const src = fs.readFileSync(f, 'utf8').replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
       const m = src.match(forbidden);

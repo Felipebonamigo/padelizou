@@ -39,13 +39,16 @@ function edgeGuard(x: number, openRight: boolean): number {
 
 /**
  * Assistência completa: quer o box — com ele à frente e o tanque sem garantir, em aceleração total,
- * a próxima passagem por ele ou a chegada (a mesma conta da IA, sim/fuel.ts) — ou ainda enchendo.
+ * a próxima passagem por ele ou a chegada (a mesma conta da IA, sim/fuel.ts), ou com a troca do
+ * revezamento pendente (core/modes.ts) — ou ainda enchendo.
  */
 function wantsPit(state: RaceState, track: Track, car: CarState, fuelPerUnit: number): boolean {
   if (state.config.timeTrial) return false;
   if (car.inPit) return car.fuel < 0.98;
   const pitAhead = segmentAt(track, car.z).pit || segmentAt(track, car.z + PIT_LOOKAHEAD).pit;
-  return pitAhead && car.fuel < fuelToSkipPit(fuelPerUnit, track.length, distanceToFinish(state, track, car));
+  if (!pitAhead) return false;
+  if (state.party?.relay.some((rc) => rc.carId === car.id && rc.due)) return true;
+  return car.fuel < fuelToSkipPit(fuelPerUnit, track.length, distanceToFinish(state, track, car));
 }
 
 /**

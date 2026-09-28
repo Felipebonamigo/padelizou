@@ -13,6 +13,7 @@ import { deserializeRace, hashRace, serializeRace } from '../src/core/serialize'
 import { getTrack } from '../src/core/track';
 import { NEUTRAL_INPUT, type CoreMode, type HumanEntry, type RaceConfig, type RaceResultRow, type RaceState, type Track } from '../src/core/types';
 import { raceConfigFrom } from '../src/game/online-session';
+import { newTelemetry, observeTick } from '../src/game/achievements';
 import { ALL_ASSISTS, NO_ASSISTS, human, humanCar, run, skipCountdown, syntheticTrack } from './helpers';
 
 // ───────────────────────────── Torneio de sofá ─────────────────────────────
@@ -420,6 +421,47 @@ describe('revezamento', () => {
     drive(a, junk); drive(b, clean);
     expect(serializeRace(a.state)).toBe(serializeRace(b.state));
     expect(a.state.cars.find((c) => c.seat === 0)?.speed).toBeGreaterThan(0);
+  });
+
+  it('com a direção assistida completa e mãos fora do volante, a troca pendente leva o carro ao box', () => {
+    // O doc da assistência diz que quem usa a completa "só acelera e usa o nitro": sem isso, só havia troca
+    // quando coincidia com a parada para abastecer e o parceiro quase não jogava.
+    const track = getTrack('copacabana');
+    const humans: HumanEntry[] = [0, 1].map((seat) => ({ ...human(seat), assist: 'full' as const }));
+    const state = createRace({ trackId: 'copacabana', laps: 4, humans, totalCars: 8, difficulty: 'profissional', manualGear: false,
+      assists: ALL_ASSISTS, seed: 9, mode: 'relay' }, track);
+    const count: Record<string, number> = {};
+    for (let t = 0; t < 60 * 900 && state.phase !== 'finished'; t++) {
+      stepRace(state, track, [{ ...NEUTRAL_INPUT, throttle: true }, { ...NEUTRAL_INPUT, throttle: true }]);
+      for (const e of state.events) count[e.type] = (count[e.type] ?? 0) + 1;
+    }
+    expect(state.phase).toBe('finished');
+    expect(count.relay_due).toBe(3);
+    expect(count.relay_missed ?? 0).toBe(0);
+    expect(count.relay_swap).toBe(3);
+  });
+
+  it('a entrada no box conta para quem estava ao volante; a troca vem no tick seguinte', () => {
+    const { state, track } = modeRace('relay', { track: PIT_TRACK(), totalCars: 2, laps: 3 });
+    skipCountdown(state, track);
+    const car = humanCar(state, 0);
+    closeFirstLap(state, track, car.id);
+    car.x = 1.55;
+    const tel = newTelemetry();
+    let entered = false;
+    for (let i = 0; i < 5 && !entered; i++) {
+      run(state, track, 1, idleThrottle);
+      observeTick(tel, state, track);
+      entered = state.events.some((e) => e.type === 'pit_enter' && e.carId === car.id);
+    }
+    expect(entered).toBe(true);
+    // No tick da entrada, quem dirige ainda é o assento 0 (estatística, SEM_BOX e "Entrando no box" são dele).
+    expect(car.seat).toBe(0);
+    expect(tel.seats.get(0)?.pitStops).toBe(1);
+    expect(tel.seats.get(1)?.pitStops ?? 0).toBe(0);
+    run(state, track, 1, idleThrottle);
+    expect(state.events.some((e) => e.type === 'relay_swap')).toBe(true);
+    expect(car.seat).toBe(1);
   });
 
   it('a troca só acontece passando pelo box: entrou, o controle passa ao parceiro', () => {

@@ -194,7 +194,10 @@ function updateRelay(state: RaceState, track: Track): void {
       }
     }
     if (!rc.due) continue;
-    if (car.inPit) {
+    // Troca no tick depois da entrada: os eventos do tick da entrada (box nas estatísticas, SEM_BOX, aviso
+    // "Entrando no box") são de quem estava ao volante.
+    const enteringNow = state.events.some((e) => e.type === 'pit_enter' && e.carId === car.id);
+    if (car.inPit && !enteringNow) {
       const from = car.seat;
       rc.active = (rc.active + 1) % rc.seats.length;
       car.seat = rc.seats[rc.active];
