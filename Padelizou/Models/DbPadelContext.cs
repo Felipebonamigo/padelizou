@@ -27,6 +27,10 @@ public partial class DbPadelContext : DbContext
     // Por que cada vaga abriu — o histórico de quem saiu do torneio (Models/SaidaDoTorneio).
     public virtual DbSet<SaidaDoTorneio> SaidasDoTorneio { get; set; }
 
+    // Cliques nos logos do rodapé — o que o patrocínio rende em visita
+    // (Models/CliqueNoPatrocinador). Sem identidade, igual ao AcessoAoSite.
+    public virtual DbSet<CliqueNoPatrocinador> CliquesNoPatrocinador { get; set; }
+
     public virtual DbSet<Jogador> Jogadores { get; set; }
 
 

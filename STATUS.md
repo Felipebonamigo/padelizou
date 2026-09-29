@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **29/09/2026** — 🖱️ **QUANTO O PATROCÍNIO RENDE EM CLIQUE, no `/Admin/Métricas`.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (tabela nova, sem backfill). 🗣️ Felipe: *"adicione la em alguma parte, para ter a contagem das vezes que as pessoas clicaram no link dos patrocinadores (paralelo, grand padel)"*.
+>
+> 🕳️ **O CLIQUE NUNCA TOCAVA O SERVIDOR**: o logo do rodapé aponta direto pra `paraleloesporte.com.br`. Não havia número escondido — era preciso um **salto nosso** (`/ir/patrocinador/{nome}`) pra a contagem existir.
+>
+> ♻️ **E O `AcessoAoSite` NÃO SERVIA, mesmo sendo o contador que já existe.** Ele guarda **só o timestamp**, de propósito (*"sem identidade nenhuma"*), sem caminho. Contar clique por lá exigiria passar a gravar a URL de cada visita — exatamente o que aquela tabela se recusa a fazer. Degrau 2 da escada tentado, e recusado por um motivo escrito.
+>
+> 🔒 **O RISCO REAL DO BLOCO ERA OPEN REDIRECT, e é o que o primeiro teste guarda.** Um endpoint que aceitasse `?url=` daria a qualquer um um link de phishing saindo de **`padelizou.com.br`** — o domínio que as pessoas reconhecem e no qual clicam por isso. O parâmetro é o **NOME**; a URL sai de `PatrocinadoresSettings`, no servidor. **Falsificado**: trocando o destino pelo que veio no pedido, o teste reprova.
+>
+> 🏷️ **O `rel="sponsored"` CONTINUA** — é o rótulo que o Google exige em link pago, e perdê-lo no meio da mudança transformaria patrocínio em **compra de link**, com o site pagando a multa de ranqueamento. Tem asserção no teste do rodapé.
+>
+> 🙈 **SEM IDENTIDADE, igual ao irmão `AcessoAoSite`**: nem `JogadorId`, nem IP, nem sessão — e há teste lendo as propriedades do modelo pra garantir. A pergunta é de VOLUME, e volume sai inteiro de um carimbo de tempo; guardar QUEM clicou em anúncio seria compilar perfil de interesse comercial que ninguém pediu.
+>
+> 0️⃣ **PATROCINADOR EM CARTAZ SEM CLIQUE APARECE COM ZERO.** *"Não aparece na lista"* e *"teve zero clique"* são conclusões opostas, e uma tela que some com o segundo faz concluir o primeiro. Por isso a lista de exibição entra na conta, e não só o banco.
+>
+> 🛟 **A CONTAGEM NÃO DERRUBA O SALTO**: o `SaveChanges` vai em `try/catch` — perder um clique da estatística é barato; perder a visita que a marca pagou pra ter, não. É o único `catch` mudo deste bloco, e está comentado como tal.
+>
+> 📈 **UMA LINHA POR CLIQUE**, e não contador que incrementa: dá "nos últimos 30 dias" além do total, e não tem corrida de leitura-e-escrita. A consulta carrega a tabela e conta em memória — **atalho com teto nomeado** (agregar no SQL acima de ~50 mil linhas), que cabe porque clique em logo de rodapé é ordens de grandeza mais raro que visita.
+>
+> ⚠️ **A contagem começa em 29/09/2026**, e a tela diz isso — clique anterior não foi guardado.
+>
+> **7.555 testes verdes** (8 novos; a trava do open redirect vista VERMELHA), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
+
 > Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1495-2536ad3`** (deploy runs **413** e **414**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #350. ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
 >
 > ♻️ **O INTERRUPTOR JÁ EXISTIA — `NotificarLembreteDeAula` —, só que valia pelos DOIS marcos.** Quem achava a véspera demais só podia desligar os dois, e perdia junto o de **1h**, que é o único que ninguém quer perder ("sai de casa"). Por isso a saída não foi tirar o de 24h da base inteira: foi **separar**. `QuerEsteMarco` mora em `LembreteDaAula` porque são **quatro destinatários** (aluno e professor da aula, e os dois do jogo-aula) — régua escrita quatro vezes é como uma cópia acaba lendo a preferência errada.
