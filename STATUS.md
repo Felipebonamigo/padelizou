@@ -11,7 +11,9 @@
 >
 > 🏷️ **Torneio que não pontua** (restrito, interno de time): antes a aba dizia "nenhum time pontuou", e agora mostra a campanha **sem a coluna de pontos**. A tabela não inventa um zero.
 >
-> **7.558 testes verdes** (11 novos; todos vistos VERMELHOS antes; o filtro da dupla-TIME foi falsificado), 12 conferidores JS verdes. ⚠️ **Não visto no navegador** — vale um print da aba Times em `dev`.
+> ⌨️ **TECLADO**: a linha era `<tr role="button" tabindex="0">`, que recebia o foco mas não abria com Enter (o Bootstrap só escuta clique). O nome do time virou um `<button>` de verdade, sem JS. O clique no resto da linha continua abrindo, porque o Bootstrap 5.3.3 dispara só o gatilho mais de dentro.
+>
+> **7.559 testes verdes** (12 novos; todos vistos VERMELHOS antes; o filtro da dupla-TIME foi falsificado), 12 conferidores JS verdes. ⚠️ **Não visto no navegador** — vale um print da aba Times em `dev`.
 
 > Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1495-2536ad3`** (deploy runs **413** e **414**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #350. ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
 >

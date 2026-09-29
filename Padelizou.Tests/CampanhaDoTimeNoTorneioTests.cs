@@ -300,6 +300,26 @@ public class CampanhaDoTimeNoTorneioTests
         Assert.Equal(2, aba.Split("<partial name=\"_CampanhaDoTime\"").Length - 1);
     }
 
+    // 🗣️ Felipe, 28/09/2026: *"corrige o teclado tbm"*. A linha da tabela era um `<tr
+    // role="button" tabindex="0">`: recebia o foco pelo Tab, mas o Enter não fazia nada — o
+    // Bootstrap só escuta CLIQUE. Botão de verdade no nome do time resolve sem uma linha de JS:
+    // Enter e Espaço já são dele. O clique no resto da linha continua abrindo, porque o
+    // Bootstrap dispara só o gatilho mais de dentro (bootstrapDelegationHandler, 5.3.3) — os
+    // dois juntos não abrem-e-fecham.
+    [Fact]
+    public void A_linha_do_time_abre_pelo_teclado_com_um_botao_de_verdade()
+    {
+        var fonte = TestInfra.SemComentarios(File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Torneios", "Details.cshtml")));
+        var inicio = fonte.IndexOf("id=\"timesTorneio\"", StringComparison.Ordinal);
+        var fim = fonte.IndexOf("id=\"palpiteiros\"", inicio, StringComparison.Ordinal);
+        var aba = fonte[inicio..(fim > inicio ? fim : fonte.Length)];
+
+        Assert.Matches(@"<button type=""button""[^>]*data-bs-toggle=""collapse""[^>]*data-bs-target=""#@alvo""", aba);
+        // O falso botão sai: foco numa linha que não responde ao Enter é pior que foco nenhum.
+        Assert.DoesNotContain("<tr role=\"button\"", aba);
+        Assert.DoesNotContain("tabindex=\"0\"", aba);
+    }
+
     private static string PastaDoProjeto()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

@@ -6279,8 +6279,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         {
                             var ct = linha.Campanha;
                             var alvo = $"campanhaDoTime-{ct.TimeId}";
-                            <tr role="button" tabindex="0" data-bs-toggle="collapse" data-bs-target="#@alvo"
-                                aria-expanded="false" aria-controls="@alvo">
+                            @* O clique em qualquer ponto da linha abre (o `<tr>`); o TECLADO chega
+                               pelo botão do nome, que já responde a Enter e Espaço. O Bootstrap
+                               dispara só o gatilho mais de dentro, então os dois não se anulam. *@
+                            <tr style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#@alvo">
                                 <td class="text-center fw-bold text-muted">@(posTt)º</td>
                                 <td class="fw-bold" style="color: var(--pdz-ink);">
                                     @if (!string.IsNullOrEmpty(ct.Logo))
@@ -6291,7 +6293,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     {
                                         <i class="bi bi-shield-fill text-secondary me-1"></i>
                                     }
-                                    @ct.Time
+                                    <button type="button" class="btn btn-link p-0 fw-bold text-decoration-none align-baseline"
+                                            style="color: var(--pdz-ink);" data-bs-toggle="collapse" data-bs-target="#@alvo"
+                                            aria-expanded="false" aria-controls="@alvo">@ct.Time</button>
                                     <span class="small text-muted fw-normal">· @ct.Duplas</span>
                                 </td>
                                 <td class="text-center text-muted">@ct.Vitorias–@ct.Derrotas</td>
