@@ -25,6 +25,13 @@
 *@
 @{
     var forcarEscolha = ViewData["ForcarEscolhaDeForma"] as bool? == true;
+
+    @* ⚠️ O SUFIXO DOS ids EXISTE PORQUE ESTE PARCIAL PODE APARECER MAIS DE UMA VEZ NA MESMA
+       PÁGINA (29/09/2026): quem está em duas categorias vê uma faixa de pagamento por
+       inscrição. Com o id repetido, o `for=` do label casa com o PRIMEIRO igual do documento —
+       clicar em "Cartão" da segunda inscrição marcaria o rádio da primeira, e o formulário
+       mandaria Pix calado. O `name` não precisa de sufixo: rádio agrupa por formulário. *@
+    var sufixoDaForma = ViewData["SufixoDaForma"] as string ?? Model.Id.ToString();
 }
 @if (Model.FormaPagamento == "OnlineTodas" && (Model.PagamentoObrigatorioNaInscricao || forcarEscolha) && Model.PrecoInscricao > 0)
 {
@@ -54,9 +61,9 @@
 
             <div class="form-check mb-2">
                 <input class="form-check-input" type="radio" name="formaPagamentoEscolhida"
-                       value="@escolha" id="forma_@(escolha)_@Model.Id"
+                       value="@escolha" id="forma_@(escolha)_@sufixoDaForma"
                        checked="@(escolha == CobrancaDoTorneio.EscolhaPix)" required />
-                <label class="form-check-label w-100" for="forma_@(escolha)_@Model.Id">
+                <label class="form-check-label w-100" for="forma_@(escolha)_@sufixoDaForma">
                     <span class="fw-semibold"><i class="bi @icone"></i> @rotulo</span>
                     @* Aqui ficava o aviso de prazo do boleto — "vence em N dias e leva 1 dia
                        útil pra compensar". Saiu junto com a opção: as duas formas que sobraram

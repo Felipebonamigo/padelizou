@@ -390,13 +390,14 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // O valor da inscrição, PESSOA A PESSOA — quem já está no torneio paga o preço da segunda
     // inscrição (ver Services/PrecoDaInscricao).
     //
-    // ⚠️ O número de PESSOAS continua vindo do formato (dupla = 2), e não de quantos ids eu
-    // conheço: a dupla "procurando parceiro" segue custando por duas, como sempre custou.
-    // Fazer o parceiro ausente sumir da conta seria mudar o PREÇO de todo torneio de dupla de
-    // carona numa mudança que era só sobre desconto — e ninguém pediu isso.
+    // ⚠️ ESTE COMENTÁRIO DIZIA O CONTRÁRIO DO CÓDIGO ATÉ 29/09/2026 — afirmava que "a dupla
+    // procurando parceiro segue custando por duas", que é a regra de ANTES de 08/08/2026, e o
+    // corpo logo abaixo já contava só quem está na inscrição. Comentário que mente é pior que
+    // comentário nenhum: a régua do parceiro ausente foi lida daqui numa sessão e quase virou
+    // "então a faixa está certa em cobrar por dois".
     //
-    // O parceiro ainda desconhecido paga o preço CHEIO: não dá pra saber se ele repete, e
-    // errar pra menos aqui tira dinheiro do organizador sem ele ter escolhido.
+    // O parceiro ainda desconhecido NÃO entra na conta (ele não foi definido); quando entrar,
+    // o valor é recalculado com teto — ver PrecoDaInscricao.AoEntrarOParceiro.
     private async Task<decimal> ValorDaInscricaoAsync(
         Torneio torneio, bool inscricaoDeDupla, IEnumerable<int?> jogadoresConhecidos, int impedimentos)
     {

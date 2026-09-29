@@ -778,39 +778,54 @@ namespace Padelizou.Controllers
             // arranjo não tinha como pagar pelo app em lugar nenhum.
             if (jogadorLogadoId.HasValue && _pagamentos.PodeCobrar(torneio, recebedorTorneio))
             {
-                var minhaDupla = await _context.Duplas
+                var minhasDuplas = await _context.Duplas
+                    .Include(d => d.Categoria)
+                    .Include(d => d.Jogador1)
+                    .Include(d => d.Jogador2)
                     .Where(d => d.Categoria.TorneioId == id && !d.Pago && d.NomeTime == null
                              && (d.Jogador1Id == jogadorLogadoId.Value || d.Jogador2Id == jogadorLogadoId.Value))
-                    .Select(d => new
-                    {
-                        d.Id,
-                        Impedimentos = (d.ImpedimentoSextaNoite ? 1 : 0)
-                                     + (d.ImpedimentoSabadoManha ? 1 : 0)
-                                     + (d.ImpedimentoSabadoTarde ? 1 : 0),
-                    })
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
-                if (minhaDupla != null)
-                {
-                    ViewBag.MinhaInscricaoNaoPagaDuplaId = minhaDupla.Id;
-                    ViewBag.MinhaInscricaoNaoPagaValor =
-                        torneio.ValorCobrado(inscricaoDeDupla: true, impedimentos: minhaDupla.Impedimentos);
-                }
-                else
-                {
-                    var minhaAmericana = await _context.InscricoesAmericanas
-                        .Where(i => i.Categoria.TorneioId == id && !i.Pago
-                                 && i.JogadorId == jogadorLogadoId.Value)
-                        .Select(i => (int?)i.Id)
-                        .FirstOrDefaultAsync();
+                // ⚠️ O VALOR É O GRAVADO NA INSCRIÇÃO, NUNCA RECALCULADO — é o mesmo número que
+                // o checkout vai cobrar (PagamentoInscricaoService.ValorJaCombinadoAsync). Até
+                // 29/09/2026 esta faixa recalculava por `Torneio.ValorCobrado` (preço × 2 fixo)
+                // e mostrava R$ 250 pra quem ia pagar R$ 125 sozinho, ou pra quem tinha desconto
+                // de 2ª categoria. É a armadilha que Services/PrecoDaInscricao já avisava em
+                // letras maiúsculas; esta tela tinha ficado de fora da varredura de 08/08.
+                var naoPagas = minhasDuplas
+                    .OrderBy(d => d.Categoria.Nome)
+                    .Select(d => new InscricaoNaoPagaVM(
+                        d.Id, null, d.Categoria.Nome, d.NomeCurto,
+                        PrecoDaInscricao.DaDupla(torneio, d),
+                        ContaDaInscricao.Frase(
+                            torneio,
+                            pessoas: d.Jogador2Id != null ? 2 : 1,
+                            impedimentos: (d.ImpedimentoSextaNoite ? 1 : 0)
+                                        + (d.ImpedimentoSabadoManha ? 1 : 0)
+                                        + (d.ImpedimentoSabadoTarde ? 1 : 0),
+                            valorGravado: PrecoDaInscricao.DaDupla(torneio, d))))
+                    .ToList();
 
-                    if (minhaAmericana is int americanaId)
-                    {
-                        ViewBag.MinhaInscricaoNaoPagaAmericanaId = americanaId;
-                        ViewBag.MinhaInscricaoNaoPagaValor =
-                            torneio.ValorCobrado(inscricaoDeDupla: false, impedimentos: 0);
-                    }
-                }
+                // O Americano inscreve pessoa a pessoa, em outra tabela — e quem joga os dois
+                // formatos no mesmo torneio deve os dois.
+                var minhasAmericanas = await _context.InscricoesAmericanas
+                    .Include(i => i.Categoria)
+                    .Include(i => i.Jogador)
+                    .Where(i => i.Categoria.TorneioId == id && !i.Pago
+                             && i.JogadorId == jogadorLogadoId.Value)
+                    .ToListAsync();
+
+                naoPagas.AddRange(minhasAmericanas
+                    .OrderBy(i => i.Categoria.Nome)
+                    .Select(i => new InscricaoNaoPagaVM(
+                        null, i.Id, i.Categoria.Nome,
+                        NomeBonito.Curto(i.Jogador.Nome),
+                        PrecoDaInscricao.DaInscricaoAmericana(torneio, i),
+                        ContaDaInscricao.Frase(
+                            torneio, pessoas: 1, impedimentos: 0,
+                            valorGravado: PrecoDaInscricao.DaInscricaoAmericana(torneio, i)))));
+
+                ViewBag.MinhasInscricoesNaoPagas = naoPagas;
             }
 
             // O MURAL: o que quem jogou escreveu e está publicado. Só faz sentido em torneio

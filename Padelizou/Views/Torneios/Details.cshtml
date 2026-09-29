@@ -733,22 +733,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
    A escolha da forma vai junto (ForcarEscolhaDeForma) porque sem ela a cobrança nasce em
    "UNDEFINED" e o organizador paga a taxa CHEIA em vez da de Pix/boleto. *@
 @{
-    var minhaDuplaNaoPaga = ViewBag.MinhaInscricaoNaoPagaDuplaId as int?;
-    var minhaAmericanaNaoPaga = ViewBag.MinhaInscricaoNaoPagaAmericanaId as int?;
-    var valorDaMinhaInscricao = ViewBag.MinhaInscricaoNaoPagaValor as decimal?;
+    var minhasNaoPagas = ViewBag.MinhasInscricoesNaoPagas as List<Padelizou.ViewModels.InscricaoNaoPagaVM>
+        ?? new List<Padelizou.ViewModels.InscricaoNaoPagaVM>();
     @* Quem está olhando a tela. A lista de inscritos usa isto pra saber o que é recado
        pessoal (o prazo de pagamento) e o que é informação do torneio (o selo). *@
     var meuJogadorId = ViewBag.MeuJogadorId as int?;
 }
-@if (minhaDuplaNaoPaga != null || minhaAmericanaNaoPaga != null)
+@if (minhasNaoPagas.Count > 0)
 {
     <div class="alert alert-warning border-0 shadow-sm">
-        <p class="fw-bold mb-1"><i class="bi bi-cash-coin"></i> Sua inscrição está sem pagamento</p>
+        <p class="fw-bold mb-1">
+            <i class="bi bi-cash-coin"></i>
+            @(minhasNaoPagas.Count == 1
+                ? "Sua inscrição está sem pagamento"
+                : $"Suas {minhasNaoPagas.Count} inscrições estão sem pagamento")
+        </p>
         <p class="small mb-3">
-            A vaga já é sua — o pagamento é o que falta.
-            @if (valorDaMinhaInscricao is decimal valor)
+            @(minhasNaoPagas.Count == 1 ? "A vaga já é sua" : "As vagas já são suas") —
+            o pagamento é o que falta.
+            @if (minhasNaoPagas.Count > 1)
             {
-                <text>São <strong>@valor.ToString("C")</strong>.</text>
+                @* 🗣️ O PEDIDO QUE ORIGINOU ISTO (29/09/2026), de quem estava em duas
+                   categorias e leu o total de UMA delas como o das duas: "eu imagino que
+                   esses 250 é para as duas categorias... as vezes é preciso dizer o óbvio". *@
+                <text><strong>São cobranças separadas, uma por categoria.</strong></text>
             }
             @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
             {
@@ -756,29 +764,56 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
         </p>
 
-        <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
-            <input type="hidden" name="torneioId" value="@Model.Id" />
-            @if (minhaDuplaNaoPaga is int duplaPagar)
-            {
-                <input type="hidden" name="duplaId" value="@duplaPagar" />
-            }
-            else
-            {
-                <input type="hidden" name="inscricaoAmericanaId" value="@minhaAmericanaNaoPaga" />
-            }
+        @foreach (var inscricao in minhasNaoPagas)
+        {
+            <div class="bg-white rounded-3 p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
+                    <div>
+                        <div class="fw-bold">@inscricao.Categoria</div>
+                        <div class="small text-muted">@inscricao.Quem</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold fs-5">@inscricao.Valor.ToString("C")</div>
+                        @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
+                           parcial, ajuste na mão). Aí o valor vai sozinho: conta que não fecha
+                           ao lado do número ensina o jogador a desconfiar dos dois. *@
+                        @if (inscricao.Conta is { } conta)
+                        {
+                            <div class="small text-muted">@conta</div>
+                        }
+                    </div>
+                </div>
 
-            @{
-                ViewData["ForcarEscolhaDeForma"] = true;
-            }
-            <partial name="_EscolhaFormaPagamento" model="Model" />
-            @{
-                ViewData["ForcarEscolhaDeForma"] = null;
-            }
+                <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
+                    <input type="hidden" name="torneioId" value="@Model.Id" />
+                    @if (inscricao.DuplaId is int duplaPagar)
+                    {
+                        <input type="hidden" name="duplaId" value="@duplaPagar" />
+                    }
+                    else
+                    {
+                        <input type="hidden" name="inscricaoAmericanaId" value="@inscricao.InscricaoAmericanaId" />
+                    }
 
-            <button type="submit" class="btn btn-padel rounded-pill">
-                <i class="bi bi-credit-card me-1"></i> Pagar agora
-            </button>
-        </form>
+                    @{
+                        ViewData["ForcarEscolhaDeForma"] = true;
+                        @* Sem sufixo próprio, o label da SEGUNDA inscrição marcaria o rádio da
+                           primeira — ids iguais no mesmo documento. Ver _EscolhaFormaPagamento. *@
+                        ViewData["SufixoDaForma"] =
+                            $"insc{inscricao.DuplaId ?? inscricao.InscricaoAmericanaId}";
+                    }
+                    <partial name="_EscolhaFormaPagamento" model="Model" />
+                    @{
+                        ViewData["ForcarEscolhaDeForma"] = null;
+                        ViewData["SufixoDaForma"] = null;
+                    }
+
+                    <button type="submit" class="btn btn-padel rounded-pill">
+                        <i class="bi bi-credit-card me-1"></i> Pagar agora
+                    </button>
+                </form>
+            </div>
+        }
     </div>
 }
 
