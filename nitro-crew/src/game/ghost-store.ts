@@ -1,6 +1,7 @@
 // Armazenamento dos fantasmas: a melhor volta por pista, numa chave própria (fora do save, que fica
 // pequeno), com teto de tamanho total — passou dele, saem as gravadas há mais tempo. Tolerante a
-// localStorage cheio: se a gravação falha, descarta a mais antiga e tenta de novo, sem nunca lançar.
+// localStorage cheio: se a gravação falha, descarta a mais antiga e tenta de novo, sem nunca lançar — e é a segunda
+// coisa que se descarta quando outra gravação (save, opções) não cabe (dropOldestGhost; docs/SAVE.md).
 // Pela mesma writeJson do resto do jogo, então no Electron também vai para arquivo (Steam Cloud,
 // cloudsave.ts). Exportar/importar (desafiar um amigo): no Electron pelo diálogo do sistema
 // (file:save / file:open do preload); no navegador por download e escolha de arquivo.
@@ -83,9 +84,9 @@ export function loadGhostStore(read: (key: string) => unknown = readJson): Ghost
 }
 
 /**
- * Grava uma cópia da loja podada ao teto; se a gravação falhar (localStorage cheio), descarta a mais
- * antiga e tenta de novo, até a loja vazia. Devolve a loja que foi gravada, ou null se nada coube
- * (ou não há armazenamento). Nunca lança; a loja recebida não muda.
+ * Grava uma cópia da loja podada ao teto; se a gravação não ficar em lugar nenhum (localStorage cheio e sem o
+ * arquivo do Electron, que aceita a loja inteira), descarta a mais antiga e tenta de novo, até a loja vazia.
+ * Devolve a loja que foi gravada, ou null se nada coube (ou não há armazenamento). Nunca lança; a loja recebida não muda.
  */
 export function saveGhostStore(
   store: GhostStore, write: (key: string, value: unknown) => boolean = writeJson, maxChars = GHOST_STORE_MAX_CHARS,
@@ -101,6 +102,20 @@ export function saveGhostStore(
     if (id === undefined) return null;
     delete copy.ghosts[id];
   }
+}
+
+/**
+ * Abre espaço para outra chave que não coube no localStorage (storage.ts, setSpaceFreers): tira o fantasma gravado
+ * há mais tempo. Nunca para a própria loja — saveGhostStore tem a poda dela, sobre a cópia que está gravando.
+ * Só roda sem o espelho do Electron, então gravar a loja menor é encolher o localStorage. Devolve se tirou um.
+ */
+export function dropOldestGhost(forKey: string): boolean {
+  if (forKey === GHOST_STORE_KEY) return false;
+  const store = loadGhostStore();
+  const oldest = oldestFirst(store)[0];
+  if (oldest === undefined) return false;
+  delete store.ghosts[oldest];
+  return writeJson(GHOST_STORE_KEY, store);
 }
 
 // ───────────────────────────── Arquivo (desafiar um amigo) ─────────────────────────────

@@ -215,6 +215,8 @@ leitura do disco falhar (IPC sem resposta em 3 s) ou um arquivo existir mas não
 devolve `null`), o jogo segue com o `localStorage` e **não** grava por cima do arquivo — ele pode ser o mais novo,
 vindo da nuvem; só a chave pendente (local sabidamente mais novo) é regravada. Limite conhecido: a próxima
 gravação do jogo naquela sessão (fim de corrida, opção mudada) vai para o arquivo, como o save de qualquer jogo.
+Com o `localStorage` cheio (cota), toda gravação vai para o arquivo mesmo assim, a sessão segue pelo que gravou
+(memória) e a abertura seguinte lê o arquivo — detalhes, e o aviso ao jogador quando nada grava, em `docs/SAVE.md`.
 
 **Configurar no Steamworks** (App Admin → Cloud → Steam Auto-Cloud):
 
@@ -251,7 +253,7 @@ gravação do jogo naquela sessão (fim de corrida, opção mudada) vai para o a
    simula a troca do arquivo em disco entre duas execuções, mas não a Steam.
 
 **Regra para quem mexe no jogo**: chave nova de save tem que ter o prefixo `nitro-crew.` e passar por
-`writeJson` (`src/game/settings.ts`) — gravação direta no `localStorage` não vai para a nuvem. O relatório de
+`writeJson` (`src/game/storage.ts`) — gravação direta no `localStorage` não vai para a nuvem. O relatório de
 erros (`nitro-crew.errors`) e a marcação interna `nitro-crew.__pending` ficam de fora de propósito.
 
 **Mudar o nome da pasta** ("Nitro Crew" em `main.cjs`, `USER_DATA_DIR_NAME`) perde o save de quem já joga e
