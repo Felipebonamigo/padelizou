@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/09/2026** — 🔗 **O CLIQUE NO PATROCINADOR MORRIA DENTRO DO PAINEL.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do Chrome: *"cliquei e abriu essa pagina"* — `ERR_INVALID_RESPONSE` em `admin.padelizou.com.br/ir/patrocinador/Grand%20Padel`. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+> Última atualização: **29/09/2026** — 🔗 **O CLIQUE NO PATROCINADOR MORRIA DENTRO DO PAINEL.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do Chrome: *"cliquei e abriu essa pagina"* — `ERR_INVALID_RESPONSE` em `admin.padelizou.com.br/ir/patrocinador/Grand%20Padel`. 🚀 **PUBLICADO em `dev` E `prod` no `build-1507-20dd61d`** (deploy runs **419** e **420**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #356.
 >
 > 🕳️ **O LINK ERA RELATIVO NUM LAYOUT QUE O PAINEL TAMBÉM RENDERIZA.** O rodapé de patrocinadores mora no `_Layout`, compartilhado; o host do painel serve **só** `/Admin`, `/Auth` e os assets (`AdminHostMiddleware.PrefixosQueOPainelServe`). `/ir` não está nessa lista, então o `href="/ir/patrocinador/…"` batia no **404 do middleware** antes de qualquer controller. Medido por fora: o mesmo endereço em `padelizou.com.br` responde **302** normalmente.
 >
@@ -12,6 +12,8 @@
 > 🧰 **O CONSERTO É UMA RÉGUA NOVA PROS LINKS QUE NÃO SÃO TAG HELPER:** `AdminHostMiddleware.UrlNoSitePublico(context, ehDesenvolvimento, caminho)` devolve o endereço absoluto do site público dentro do painel e **o caminho intacto fora dele** — endereço fixo jogaria na PRODUÇÃO quem clicou no localhost ou no dev, que é o mesmo cuidado do par host/protocolo. E a lista de prefixos virou **pública** (`PrefixosQueOPainelServe`): o teste lê a lista de verdade em vez de repetir os prefixos, porque segunda cópia de lista de rotas é como uma delas fica pra trás.
 >
 > 🧪 **7.572 testes verdes** (5 novos) e **12 conferidores JS**. O que trava a classe inteira é a varredura nova: **nenhum `href` literal do `_Layout` pode apontar pra fora do que o painel serve**. Ela foi vista vermelha antes, apontando exatamente o link do print — *"Achados: /ir/patrocinador/@Uri.EscapeDataString(patrocinador.Nome)"*. Hoje é o único href literal do layout fora da lista; qualquer um novo cai nela.
+>
+> ✅ **CONFERIDO POR FORA, depois do deploy:** `/healthz` **200** nos dois (corpo `ok` no de produção), home de produção **200**, e o salto do patrocinador respondendo **302 → `https://www.grandpadel.com.br/`** — o destino certo, saindo da nossa lista pelo nome.
 >
 > 🚧 **O QUE EU NÃO CONSEGUI MEDIR, e é honesto dizer:** o proxy desta sessão **bloqueia `admin.padelizou.com.br`** (403 no CONNECT), então o `ERR_INVALID_RESPONSE` do print não foi reproduzido daqui — o diagnóstico é por leitura do middleware, e o que foi medido por fora é o **302 do site público**. Se depois do deploy o link ainda falhar de dentro do painel, o suspeito passa a ser a forma como aquele 404 é escrito (`StatusCode` sem corpo), não o destino.
 
