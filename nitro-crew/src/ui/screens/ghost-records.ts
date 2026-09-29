@@ -1,13 +1,24 @@
 // Fantasmas na aba de pistas da tela de recordes (info.ts): a linha da pista mostra o fantasma
 // guardado (tempo, quem e carro), Enter nela exporta o arquivo, e "Importar fantasma" traz o de um
-// amigo (substitui o da pista). A linha de status diz o que aconteceu.
+// amigo (substitui o da pista). A linha de status diz o que aconteceu — e, quando recusa o arquivo, por quê
+// (outra versão do jogo, volta que não cabe na pista, pista que o jogo não tem).
 import { formatTicks } from '../../core/sim/race';
 import type { GhostRecord } from '../../game/ghost';
-import { exportGhostFile, ghostFor, importGhostFile, loadGhostStore, putGhost, saveGhostStore, type GhostStore } from '../../game/ghost-store';
+import {
+  exportGhostFile, ghostFor, importGhostFile, loadGhostStore, putGhost, saveGhostStore, type GhostImport, type GhostStore,
+} from '../../game/ghost-store';
 import { t } from '../../i18n';
 import '../../ghost/strings';
 import { button, h, type FocusItem, type ScreenApi } from './common';
 import './ghost-records.css';
+
+/** Aviso de cada arquivo recusado (nada muda na loja). */
+const REFUSED: Readonly<Record<Exclude<GhostImport, GhostRecord | 'cancel'>, string>> = {
+  invalid: 'ghost.records.invalid',
+  unknownTrack: 'ghost.records.unknownTrack',
+  otherTrack: 'ghost.records.otherTrack',
+  otherVersion: 'ghost.records.otherVersion',
+};
 
 /** Status da última ação; sobrevive à reconstrução da aba depois de importar. */
 let lastStatus: { text: string; ok: boolean } | null = null;
@@ -41,7 +52,7 @@ export function ghostRecordsView(api: ScreenApi, rebuild: () => void): GhostReco
   const importItem = button(t('ghost.records.import'), () => {
     void importGhostFile().then((got) => {
       if (got === 'cancel') return;
-      if (got === 'invalid') { show(t('ghost.records.invalid'), false); return; }
+      if (typeof got === 'string') { show(t(REFUSED[got]), false); return; }
       const name = trackName(got.trackId);
       if (!name) { show(t('ghost.records.unknownTrack'), false); return; }
       const fresh = loadGhostStore();

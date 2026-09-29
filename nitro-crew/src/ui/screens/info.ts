@@ -3,7 +3,9 @@
 import { formatTicks } from '../../core/sim/race';
 import type { TrackDef } from '../../core/types';
 import { achievementDescription, achievementName } from '../../game/achievements';
+import type { BestLap } from '../../game/contracts';
 import { ACHIEVEMENTS } from '../../game/desktop';
+import { recordFromOtherVersion } from '../../game/save';
 import {
   COUNTER_KEYS, formatCount, formatDistance, formatDuration, MAX_PROFILES, playerLine, recordsLine, tracksRaced, type CounterKey, type PlayerStats,
 } from '../../game/stats';
@@ -41,6 +43,9 @@ function tracksTab(api: ScreenApi, rebuild: () => void): TabView {
   const carName = (id: string) => cars.find((c) => c.id === id)?.name ?? id;
   const ghosts = ghostRecordsView(api, rebuild);
   const rows: FocusItem[] = [];
+  /** Quem fez, e a marca discreta quando o recorde é de outra versão do jogo (save.ts: recordFromOtherVersion). */
+  const who = (rec: BestLap, trackId: string) => h('span', { class: 'record-who' }, `${rec.name} · ${carName(rec.carId)}`,
+    recordFromOtherVersion(rec, trackId) ? h('span', { class: 'record-old', text: t('stats.tracks.otherVersion'), title: t('stats.tracks.otherVersionHint') }) : null);
   for (const def of tracks) {
     const lap = save.bestLaps[def.id];
     const races = Object.entries(save.bestRaces)
@@ -55,12 +60,12 @@ function tracksTab(api: ScreenApi, rebuild: () => void): TabView {
         lap ? h('div', { class: 'record-entry' },
           h('span', { class: 'record-kind', text: t('ui.records.lap') }),
           h('span', { class: 'record-time mono', text: formatTicks(lap.ticks) }),
-          h('span', { class: 'record-who', text: `${lap.name} · ${carName(lap.carId)}` }),
+          who(lap, def.id),
         ) : null,
         races.map(({ laps, rec }) => h('div', { class: 'record-entry' },
           h('span', { class: 'record-kind', text: t('ui.records.race', { n: laps }) }),
           h('span', { class: 'record-time mono', text: formatTicks(rec.ticks) }),
-          h('span', { class: 'record-who', text: `${rec.name} · ${carName(rec.carId)}` }),
+          who(rec, def.id),
         )),
         ghost ? ghosts.entry(ghost, carName(ghost.carId)) : null,
       ),

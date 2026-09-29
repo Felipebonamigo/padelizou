@@ -60,7 +60,7 @@ JSON por mensagem, campo `t` com o tipo. Versão `PROTOCOL_VERSION = 1` (a mesma
 | `snap {to, snap}` (anfitrião) · `ping {n}` · `leave` | `pong {n}` · `error {code}` |
 
 `b` é a impressão do conteúdo do jogo (8 hex: carros, pistas, constantes da simulação — ver
-`CONTENT_FINGERPRINT` em `src/game/online-session.ts`). A sala guarda a de quem a criou e recusa
+`CONTENT_FINGERPRINT` em `src/game/content-version.ts`). A sala guarda a de quem a criou e recusa
 `join` com outra (ou sem nenhuma) com `error: build`: dois builds diferentes não correm juntos.
 
 O anfitrião é quem criou a sala; se ele cai ou sai, o relay passa a sala ao cliente **conectado há

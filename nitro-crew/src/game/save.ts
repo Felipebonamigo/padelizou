@@ -4,6 +4,7 @@ import { hasUpgrades } from '../core/career';
 import { CARS } from '../core/data/cars';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
 import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
+import { isFingerprint, lapFingerprint } from './content-version';
 import { DEFAULT_SAVE, type BestLap, type RaceMode, type SaveData } from './contracts';
 import { isRecord, pickNumber, pickString, readJson, writeJson } from './settings';
 import { sanitizeStats } from './stats';
@@ -28,6 +29,8 @@ function pickBestLap(v: unknown): BestLap | null {
     name: pickString(v.name, '?', NAME_MAX_LENGTH),
     carId: pickString(v.carId, DEFAULT_SAVE.seatCars[0]),
     date: pickString(v.date, ''),
+    // Impressão estragada some sozinha; o recorde fica (vira "versão desconhecida", sem marca).
+    ...(isFingerprint(v.fp) ? { fp: v.fp } : {}),
   };
 }
 
@@ -131,7 +134,9 @@ export function recordRaceResults(
   const date = new Date().toISOString();
   const entry = (r: RaceResultRow, ticks: number): BestLap => {
     const h = humans.find((x) => x.seat === r.seat);
-    return { ticks, name: h?.name ?? r.name, carId: h?.carId ?? r.carDefId, date };
+    const carId = h?.carId ?? r.carDefId;
+    const fp = lapFingerprint(trackId, carId);
+    return { ticks, name: h?.name ?? r.name, carId, date, ...(fp ? { fp } : {}) };
   };
 
   // Recorde é de carro de fábrica: quem corre com melhorias da carreira conta corrida e vitória, não recorde.
@@ -149,6 +154,15 @@ export function recordRaceResults(
     out.push({ seat: race.seat, kind: 'race' });
   }
   return out;
+}
+
+/**
+ * Recorde feito noutra versão do jogo (a física, o carro ou a pista mudaram desde então): a tela de recordes marca
+ * "versão anterior". Nenhum recorde é apagado nem trocado por volta mais lenta por isso — só sai quando batido.
+ * Sem impressão (feito antes dela) a versão é desconhecida: sem marca.
+ */
+export function recordFromOtherVersion(rec: BestLap, trackId: string): boolean {
+  return rec.fp !== undefined && rec.fp !== lapFingerprint(trackId, rec.carId);
 }
 
 /** Guarda nome e carro de cada assento para o próximo lobby. */
