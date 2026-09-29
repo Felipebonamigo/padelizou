@@ -85,6 +85,59 @@ public class LinksDoPainelProSiteTests
         }
     }
 
+    // ── O LINK QUE NÃO É TAG HELPER: o href literal do LAYOUT ────────────────────────
+    //
+    // 🗣️ Felipe, 29/09/2026, com o print do Chrome: *"cliquei e abriu essa pagina"* —
+    // ERR_INVALID_RESPONSE em `admin.padelizou.com.br/ir/patrocinador/Grand%20Padel`.
+    //
+    // 🕳️ A varredura acima nunca alcançaria este: ela procura `asp-controller` dentro de
+    // `Views/Admin`, e o link do patrocinador é um **href literal** no `_Layout`, que o painel
+    // também renderiza. `/ir` não está entre os prefixos que o host do painel serve, então o
+    // AdminHostMiddleware devolve 404 antes de qualquer controller — o clique morre sem sair
+    // do lugar, e o patrocinador perde o clique que ele comprou.
+
+    [Fact]
+    public void No_host_do_painel_um_caminho_do_site_publico_vira_endereco_ABSOLUTO()
+    {
+        var url = AdminHostMiddleware.UrlNoSitePublico(
+            Em("admin.padelizou.com.br"), ehDesenvolvimento: false, caminho: "/ir/patrocinador/Grand%20Padel");
+
+        Assert.Equal("https://padelizou.com.br/ir/patrocinador/Grand%20Padel", url);
+    }
+
+    [Theory]
+    [InlineData("padelizou.com.br", false)]
+    [InlineData("dev.padelizou.com.br", false)]
+    [InlineData("localhost", true)]
+    public void Fora_do_painel_o_caminho_continua_RELATIVO(string host, bool desenvolvimento)
+    {
+        // Mesma razão do par host/protocolo: endereço fixo aqui jogaria na PRODUÇÃO quem
+        // clicou no ambiente de teste.
+        var url = AdminHostMiddleware.UrlNoSitePublico(Em(host), desenvolvimento, "/ir/patrocinador/X");
+
+        Assert.Equal("/ir/patrocinador/X", url);
+    }
+
+    [Fact]
+    public void Nenhum_href_literal_do_layout_aponta_pra_fora_do_que_o_painel_serve()
+    {
+        // O layout é compartilhado: o que está nele é renderizado TAMBÉM dentro do painel. Um
+        // href literal pra fora dos prefixos liberados é um clique que morre em 404 — e o
+        // defeito é mudo, porque a página abre normalmente.
+        var layout = File.ReadAllText(Path.Combine(PastaDoProjeto(), "Views", "Shared", "_Layout.cshtml"));
+
+        var fora = Regex.Matches(layout, @"href=""(?<u>/[^""]*)""")
+            .Select(m => m.Groups["u"].Value)
+            .Where(u => !AdminHostMiddleware.PrefixosQueOPainelServe.Any(
+                p => u.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+            .Distinct()
+            .ToList();
+
+        Assert.True(fora.Count == 0,
+            "href literal no _Layout que o host do painel não serve — clicar ali dá 404 sem sair "
+            + "do lugar. Use AdminHostMiddleware.UrlNoSitePublico. Achados: " + string.Join(", ", fora));
+    }
+
     private static string PastaDoProjeto()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
