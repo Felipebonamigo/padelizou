@@ -55,7 +55,7 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 
 ```bash
 npm run typecheck              # TypeScript estrito
-npm test                       # vitest (~730 testes, ~2 min): núcleo, IA, corridas inteiras por pista, carreira, online, UI pura
+npm test                       # vitest (~770 testes, ~2 min): núcleo, IA, corridas inteiras por pista, carreira, online, UI pura
 (cd server && npm ci) && NC_REQUIRE_RELAY=1 npm test   # inclui a integração com o relay de verdade (o CI roda assim)
 npm run smoke -- copacabana 2  # corrida completa sem interface (pista, nº de humanos em piloto automático)
 npm run balance -- 150         # IA × IA em todas as pistas: voltas, grama, batidas, tempo de CPU
