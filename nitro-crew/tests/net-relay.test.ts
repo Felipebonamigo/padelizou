@@ -14,6 +14,7 @@ import { getTrack } from '../src/core/track';
 import type { PlayerInput, RaceConfig, RaceState, Track } from '../src/core/types';
 import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type ResultsScreenData, type SaveData, type Settings } from '../src/game/contracts';
 import { OnlineController, type OnlineHost } from '../src/game/online-session';
+import type { RoomSettings } from '../src/net/protocol';
 
 const HAS_WS = fs.existsSync('server/node_modules/ws/package.json');
 if (!HAS_WS && process.env.NC_REQUIRE_RELAY === '1') throw new Error('server/node_modules/ws não instalado: rode `npm ci` em nitro-crew/server');
@@ -169,6 +170,28 @@ function autopilot(state: RaceState, track: Track, seat: number): PlayerInput {
 function pilot(seat: number, tick: number): PlayerInput {
   const phase = (tick + seat * 41) % 200;
   return { steer: phase < 70 ? 0.42 : phase < 140 ? -0.33 : 0, throttle: true, brake: phase > 190, nitro: tick % 500 === 250 + seat, gearUp: false, gearDown: false };
+}
+
+/**
+ * WebSocket de verdade com a chegada atrasada `ms` (mesma ordem): um computador longe do relay, ou
+ * carregado a ponto de ler a rede bem depois. O que ele manda sai na hora.
+ */
+class LaggySocket {
+  onopen: (() => void) | null = null;
+  onmessage: ((ev: MessageEvent) => void) | null = null;
+  onclose: ((ev: CloseEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  private readonly ws: WebSocket;
+  constructor(url: string, ms: number) {
+    this.ws = new WebSocket(url);
+    this.ws.onopen = () => this.onopen?.();
+    this.ws.onmessage = (ev) => { setTimeout(() => this.onmessage?.(ev), ms); };
+    this.ws.onclose = (ev) => { setTimeout(() => this.onclose?.(ev), ms); };
+    this.ws.onerror = () => this.onerror?.();
+  }
+  get readyState(): number { return this.ws.readyState; }
+  send(data: string): void { this.ws.send(data); }
+  close(code?: number): void { this.ws.close(code); }
 }
 
 /** Roda os "computadores" (com pausas para a rede entregar) até todos chegarem a `limit`. */
@@ -570,6 +593,33 @@ describe.skipIf(!HAS_WS)('duas sessões online completas pelo relay', () => {
     for (const [t, h] of ha.hashes) if (hb.hashes.has(t)) { expect(hb.hashes.get(t), `tick ${t}`).toBe(h); compared++; }
     expect(compared).toBeGreaterThanOrEqual(1);
     expect([...A.debugInfo().desyncs as unknown[], ...B.debugInfo().desyncs as unknown[]]).toEqual([]);
+    A.leave(false); B.leave(false);
+  }, 10_000);
+
+  it('anfitrião longe do relay ajusta voltas e carros em sequência e larga em seguida: a largada leva o último escolhido, igual nos dois', async () => {
+    const ha = new FakeHost('Ana');
+    const hb = new FakeHost('Bia');
+    ha.settings.quickLaps = 3;
+    ha.settings.totalCars = 20;
+    // Tudo o que o relay manda ao anfitrião chega 60 ms depois: o eco de cada ajuste volta quando ele já fez outros.
+    const A = new OnlineController(ha, { pingMs: 200, socket: (url) => new LaggySocket(url, 60) as unknown as WebSocket });
+    const B = new OnlineController(hb, { pingMs: 200 });
+    A.create('kb1');
+    await until(() => A.phase === 'lobby' && A.room?.settings !== null && A.room?.settings !== undefined, 3000, 'sala criada');
+    B.join(A.code, 'kb1');
+    await until(() => B.phase === 'lobby' && (A.room?.clients.length ?? 0) === 2, 3000, 'B na sala');
+    B.toggleReady();
+    await until(() => A.startBlocker() === null, 3000, 'B pronto');
+    expect(A.room?.settings).toMatchObject({ laps: 3, totalCars: 20 });
+    // Como a tela Online: cada seta vale o que a tela mostra agora mais ou menos um. 3 → 1 volta, 20 → 8 carros.
+    const press = async (patch: () => Partial<RoomSettings>) => { A.updateRoomSettings(patch()); await sleep(15); };
+    for (let i = 0; i < 2; i++) await press(() => ({ laps: (A.room?.settings?.laps ?? 3) - 1 }));
+    for (let i = 0; i < 12; i++) await press(() => ({ totalCars: Math.max(8, (A.room?.settings?.totalCars ?? 20) - 1) }));
+    expect(A.startRace()).toBe(true);
+    await until(() => ha.race !== null && hb.race !== null, 3000, 'largada');
+    const cfg = (c: RaceConfig | undefined) => (c ? { laps: c.laps, totalCars: c.totalCars } : null);
+    expect(cfg(ha.race?.state.config)).toEqual({ laps: 1, totalCars: 8 });
+    expect(JSON.stringify(hb.race?.state.config)).toBe(JSON.stringify(ha.race?.state.config));
     A.leave(false); B.leave(false);
   }, 10_000);
 
