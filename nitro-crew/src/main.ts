@@ -1,9 +1,12 @@
 import { hydrateFromDisk, installSaveMirror } from './game/cloudsave';
 import { getDesktop } from './game/desktop';
-import { createErrorReporter, GAME_VERSION, installGlobalHandlers, setActiveReporter, telemetryConsented } from './game/errors';
+import { createErrorReporter, dropStoredErrors, GAME_VERSION, installGlobalHandlers, setActiveReporter, telemetryConsented } from './game/errors';
+import { dropOldestGhost } from './game/ghost-store';
+import { createSaveNotice } from './game/save-notice';
 import { createSession, type Session } from './game/session';
+import { saveHealth, setSpaceFreers } from './game/storage';
 import { showFatal } from './errors/fatal';
-import { createErrorToast } from './errors/toast';
+import { createErrorToast, createSaveToast } from './errors/toast';
 
 // API de depuração/playtest: window.nc.session, window.nc.startQuick(...)
 declare global { interface Window { nc: { session: Session } } }
@@ -33,6 +36,9 @@ setActiveReporter(reporter);
 installGlobalHandlers(window, reporter);
 // O que só estava na memória (contador de erro repetido, rajada) vai para o localStorage antes de a página fechar.
 window.addEventListener('pagehide', () => reporter.flush());
+// localStorage cheio e sem o arquivo do Electron: antes de perder uma gravação, descarta o log de erros e depois os
+// fantasmas mais antigos — nunca save, carreira, estatísticas ou opções (src/game/storage.ts, docs/SAVE.md).
+setSpaceFreers([(key) => dropStoredErrors(storage, key), dropOldestGhost]);
 
 async function boot(): Promise<void> {
   // 2) No Electron, o save em arquivo (Steam Cloud) vale mais que o localStorage — antes de a sessão ler as opções.
@@ -56,6 +62,11 @@ async function boot(): Promise<void> {
 
   s.start();
   window.nc = { session: s };
+
+  // Gravação que não ficou em lugar nenhum: aviso no canto, no menu principal ou no resultado (save-notice.ts).
+  const saveToast = createSaveToast(document.body);
+  const saveNotice = createSaveNotice(() => saveToast.show(), saveHealth);
+  setInterval(() => saveNotice.update(s.menus.current()), 500);
 }
 
 // 3) Se o jogo nem começar (WebGL recusado, por exemplo), uma tela explica e oferece o relatório — nada de janela preta.

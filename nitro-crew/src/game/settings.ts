@@ -1,4 +1,4 @@
-// Opções do jogador: leitura e gravação no localStorage com saneamento. Nada aqui lança —
+// Opções do jogador: leitura e gravação (storage.ts) com saneamento. Nada aqui lança —
 // sem localStorage (Electron sem sessão, testes em Node, modo privado) tudo cai nos padrões.
 import { COLOR_PALETTES } from '../core/data/drivers';
 import { ASSIST_LEVELS } from '../core/sim/assist';
@@ -7,6 +7,10 @@ import type { Lang } from '../i18n';
 import { sanitizeBindings } from '../ui/remap/bindings';
 import { normalizeServerUrl } from '../net/protocol';
 import { DEFAULT_SETTINGS, type Quality, type Settings } from './contracts';
+import { readJson, writeJson } from './storage';
+
+// Onde gravar (localStorage, arquivo do Electron, memória da sessão) é com storage.ts; save e fantasmas importam daqui.
+export { readJson, writeJson };
 
 export const SETTINGS_KEY = 'nitro-crew.settings';
 export const TOTAL_CARS_MIN = 8;
@@ -19,48 +23,6 @@ export const HUD_SCALE_MAX = 1.5;
 export const LANGUAGES: readonly Lang[] = ['pt', 'en'];
 export const QUALITIES: readonly Quality[] = ['low', 'medium', 'high'];
 export const DIFFICULTIES: readonly Difficulty[] = ['amador', 'profissional', 'campeao'];
-
-// ───────────────────────────── Armazenamento ─────────────────────────────
-
-function storage(): Storage | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
-  } catch {
-    return null;
-  }
-}
-
-/** JSON gravado sob `key`, ou `undefined` se não houver armazenamento, chave ou JSON válido. */
-export function readJson(key: string): unknown {
-  try {
-    const raw = storage()?.getItem(key);
-    return raw == null ? undefined : (JSON.parse(raw) as unknown);
-  } catch {
-    return undefined;
-  }
-}
-
-/** Quem mais recebe cada gravação: no Electron, src/game/cloudsave.ts espelha em arquivo (Steam Cloud). */
-let storageMirror: ((key: string, json: string) => void) | null = null;
-
-export function setStorageMirror(fn: ((key: string, json: string) => void) | null): void {
-  storageMirror = fn;
-}
-
-/** Grava `value` como JSON; devolve falso quando não há onde gravar. */
-export function writeJson(key: string, value: unknown): boolean {
-  let json: string;
-  try {
-    const s = storage();
-    if (!s) return false;
-    json = JSON.stringify(value);
-    s.setItem(key, json);
-  } catch {
-    return false;
-  }
-  try { storageMirror?.(key, json); } catch { /* o espelho nunca derruba a gravação local */ }
-  return true;
-}
 
 // ───────────────────────────── Saneamento ─────────────────────────────
 

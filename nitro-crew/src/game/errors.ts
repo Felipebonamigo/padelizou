@@ -263,6 +263,21 @@ export interface ErrorReporter {
   flush(): void;
 }
 
+/**
+ * Abre espaço para uma gravação do jogo que não coube no localStorage (storage.ts, setSpaceFreers): tira de lá o anel
+ * de erros — o que primeiro se descarta. Nesta sessão nada some (o relator guarda o anel na memória e o regrava no
+ * próximo erro). Devolve se havia o que tirar.
+ */
+export function dropStoredErrors(storage: Pick<Storage, 'getItem' | 'removeItem'> | null, forKey: string): boolean {
+  try {
+    if (!storage || forKey === ERRORS_KEY || storage.getItem(ERRORS_KEY) === null) return false;
+    storage.removeItem(ERRORS_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function loadRing(storage: StorageLike | null): ErrorEntry[] {
   if (!storage) return [];
   try {

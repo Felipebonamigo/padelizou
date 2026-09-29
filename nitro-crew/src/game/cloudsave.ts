@@ -13,9 +13,11 @@
 // mas nada é gravado por cima do arquivo (ele pode ser o mais novo, da nuvem), exceto a chave pendente, cujo
 // local é sabidamente mais novo. Limite conhecido: o espelho (installSaveMirror) continua ligado, então a próxima
 // gravação do jogo nesta sessão vai para o arquivo — como aconteceria com o save de qualquer jogo aberto.
+// localStorage cheio (cota): o arquivo continua recebendo toda gravação, e o que vale para a sessão e não cabe no
+// localStorage fica na memória dela (storage.ts) — docs/SAVE.md.
 import type { DesktopApi } from './desktop';
 import { ERRORS_KEY } from './errors';
-import { setStorageMirror } from './settings';
+import { keepInMemory, setStorageMirror } from './storage';
 
 export const KEY_PREFIX = 'nitro-crew.';
 /** Chaves cuja última gravação local ainda não foi confirmada no disco (JSON: string[]). */
@@ -84,7 +86,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 export interface HydrateReport {
-  /** Chaves copiadas do arquivo para o localStorage. */
+  /** Chaves copiadas do arquivo para a sessão (o localStorage, ou a memória quando ele está cheio). */
   fromDisk: string[];
   /** Chaves gravadas do localStorage para o arquivo. */
   toDisk: string[];
@@ -125,7 +127,10 @@ export async function hydrateFromDisk(
     }
     const source = chooseSource(local, disk[key], pending.has(key));
     if (source === 'disk') {
-      try { storage.setItem(key, disk[key]); report.fromDisk.push(key); pending.delete(key); } catch { /* cota: a sessão lê o padrão */ }
+      // Sem cota para o arquivo no localStorage, a sessão lê da memória — nunca o localStorage velho.
+      try { storage.setItem(key, disk[key]); } catch { keepInMemory(key, disk[key]); }
+      report.fromDisk.push(key);
+      pending.delete(key);
     } else if (source === 'local' && local !== null) {
       let ok = false;
       try { ok = await withTimeout(api.storeWrite(key, local), timeoutMs); } catch { ok = false; }
@@ -139,8 +144,10 @@ export async function hydrateFromDisk(
 }
 
 /**
- * Daqui em diante, toda gravação do jogo (writeJson) também vai para o arquivo. A chave fica pendente até o
- * disco confirmar a gravação MAIS RECENTE dela; devolve a função que desliga o espelho.
+ * Daqui em diante, toda gravação do jogo (writeJson) também vai para o arquivo — inclusive a que o localStorage
+ * recusou. A chave fica pendente até o disco confirmar a gravação MAIS RECENTE dela; devolve a função que desliga o espelho.
+ * Pendente quer dizer "o localStorage é mais novo que o arquivo": a gravação que o localStorage recusou não marca
+ * (lá ficou o valor ANTERIOR — marcado, a próxima abertura o gravaria por cima do arquivo novo).
  */
 export function installSaveMirror(api: Pick<DesktopApi, 'storeWrite'>, storage: KeyedStorage): () => void {
   const seq = new Map<string, number>();
@@ -150,12 +157,15 @@ export function installSaveMirror(api: Pick<DesktopApi, 'storeWrite'>, storage: 
     if (on) pending.add(key); else pending.delete(key);
     writePending(storage, pending);
   };
-  setStorageMirror((key, json) => {
-    if (!isCloudKey(key)) return;
+  setStorageMirror((key, json, localOk) => {
+    if (!isCloudKey(key)) return null;
     const n = (seq.get(key) ?? 0) + 1;
     seq.set(key, n);
-    setPending(key, true);
-    api.storeWrite(key, json).then((ok) => { if (ok && seq.get(key) === n) setPending(key, false); }, () => undefined);
+    if (localOk) setPending(key, true);
+    return api.storeWrite(key, json).then((ok) => {
+      if (ok && seq.get(key) === n) setPending(key, false);
+      return ok === true;
+    }, () => false);
   });
   return () => setStorageMirror(null);
 }

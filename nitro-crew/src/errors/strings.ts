@@ -1,4 +1,5 @@
-// Textos do relatório de erros: aviso no canto, os dois itens das Opções e a tela de erro fatal.
+// Textos do relatório de erros: aviso no canto, os dois itens das Opções e a tela de erro fatal — e o aviso de
+// progresso não salvo (armazenamento cheio: src/game/save-notice.ts), que usa o mesmo aviso do canto.
 import { registerStrings } from '../i18n';
 
 registerStrings('errors', {
@@ -6,6 +7,9 @@ registerStrings('errors', {
     'toast.title': 'Algo deu errado — o jogo continua.',
     'toast.hint': 'Opções › Copiar relatório de erros',
     'toast.count': '{n} erros registrados',
+
+    'save.title': 'O progresso não foi salvo',
+    'save.hint': 'Não há espaço para gravar (armazenamento do navegador ou disco cheio). O jogo tenta de novo na próxima gravação.',
 
     'options.report': 'Copiar relatório de erros',
     'options.none': 'Nenhum erro',
@@ -25,6 +29,9 @@ registerStrings('errors', {
     'toast.title': 'Something went wrong — the game keeps going.',
     'toast.hint': 'Options › Copy error report',
     'toast.count': '{n} errors recorded',
+
+    'save.title': 'Your progress was not saved',
+    'save.hint': 'There is no room to save (browser storage or disk is full). The game will try again on the next save.',
 
     'options.report': 'Copy error report',
     'options.none': 'No errors',

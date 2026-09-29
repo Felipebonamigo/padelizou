@@ -56,9 +56,11 @@ batendo de um lado para o outro, indo para a grama, voltas de 2–3 min — até
 Chave própria `nitro-crew.ghosts` (fora do save): `{ ghosts: { [trackId]: GhostRecord & { savedAt } } }`, um
 fantasma por pista. Teto total `GHOST_STORE_MAX_CHARS = 160 000` caracteres (~30 voltas típicas): passou,
 saem os **gravados há mais tempo** (`savedAt`, que é a hora em que entrou neste computador — um fantasma
-importado antigo não sai primeiro por ter data velha). Se o `localStorage` recusar (cheio), descarta o mais
-antigo e tenta de novo até a loja vazia; nunca lança. Grava pela mesma `writeJson` do jogo, então no
-Electron também vai para `<userData>/saves/nitro-crew.ghosts.json` (Steam Cloud). Leitura saneia tudo:
+importado antigo não sai primeiro por ter data velha). Se a gravação não ficar em lugar nenhum (`localStorage`
+cheio no navegador), descarta o mais antigo e tenta de novo até a loja vazia; nunca lança. Grava pela mesma
+`writeJson` do jogo, então no Electron também vai para `<userData>/saves/nitro-crew.ghosts.json` (Steam Cloud) —
+inteira, mesmo com o `localStorage` cheio. No navegador cheio, os fantasmas mais antigos também abrem espaço
+para o save e as opções (`dropOldestGhost`; `docs/SAVE.md`). Leitura saneia tudo:
 entrada com dados corrompidos, pista errada ou tempo que não bate com a volta é descartada em silêncio.
 
 ### Arquivo (desafiar um amigo)
