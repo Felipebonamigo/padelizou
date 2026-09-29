@@ -140,10 +140,11 @@ ver as vendas na Steam.
 - **Tela dividida em máquina fraca**: 4 viewports quadruplicam o desenho 3D (sombras e pós-processamento por viewport). Já existe qualidade baixa/média; medir cedo (1.6).
 - **Online de corrida é sensível a latência**: por isso Remote Play Together primeiro (4.1) e lockstep com atraso de entrada depois; nunca prometer online próprio antes de M4.
 - **Escopo**: Carreira (3.3) e modos extras (3.5) só entram se M1 e M2 estiverem no prazo; senão, pós-lançamento.
-- **Save no navegador cheio**: se o `localStorage` recusar a gravação (cota da origem), o progresso novo se
-  perde calado e também não vai para o arquivo do Electron (`settings.ts`, `writeJson` só espelha depois do
-  `setItem`). Improvável (o save tem dezenas de KB), mas vale gravar o espelho mesmo com o local falhando e
-  avisar o jogador antes do lançamento.
+- ~~**Save no navegador cheio**~~ — corrigido na onda E (`docs/SAVE.md`): com o `localStorage` recusando (cota), toda
+  gravação vai mesmo assim para o arquivo do Electron (Steam Cloud), a sessão segue pelo que gravou e a próxima abertura
+  lê o arquivo; no navegador, antes de desistir descarta o relatório de erros e os fantasmas mais antigos (nunca save,
+  carreira, estatísticas ou opções) e, se nada coube, avisa o jogador no menu principal ou no resultado. Resta: no
+  navegador sem espaço, o progresso só persiste quando o jogador libera espaço.
 - **Motivação/ritmo**: marco a cada 5–6 semanas com algo jogável no sofá.
 
 ## Rotina sugerida
