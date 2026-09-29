@@ -6,6 +6,9 @@
 //    o arquivo desta versão entra.
 // Uso: npx vite build && npx vite preview --port 4174 --strictPort &
 //      node scripts/playtest-ghost-version.mjs http://localhost:4174/ scratch/pt-fv
+// ⚠️ O menu lê o teclado por quadro e só então abre o seletor de arquivo; o navegador só deixa abrir até alguns segundos
+//    depois da tecla. Com o 3D por software (~1 quadro/s) e a máquina carregada, o "filechooser" pode não vir (visto uma
+//    vez depois de 7 playtests seguidos; sozinho passou). A 60 quadros/s isso não acontece — rode de novo antes de caçar defeito.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:4174/';
 const out = process.argv[3] ?? 'scratch/pt-fv';
