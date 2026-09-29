@@ -11,7 +11,7 @@ import {
 } from '../../game/stats';
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
-import { arrowButton, blurActive, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, blurActive, button, lapsText, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { ghostRecordsView } from './ghost-records';
 import { icon, medal } from './icons';
 import './records.css';
@@ -63,7 +63,7 @@ function tracksTab(api: ScreenApi, rebuild: () => void): TabView {
           who(lap, def.id),
         ) : null,
         races.map(({ laps, rec }) => h('div', { class: 'record-entry' },
-          h('span', { class: 'record-kind', text: t('ui.records.race', { n: laps }) }),
+          h('span', { class: 'record-kind', text: lapsText(laps) }),
           h('span', { class: 'record-time mono', text: formatTicks(rec.ticks) }),
           who(rec, def.id),
         )),

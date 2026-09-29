@@ -6,6 +6,11 @@ import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, R
 import { t } from '../../i18n';
 import { carSilhouette, icon } from './icons';
 
+/** "3 voltas" / "1 volta" (e em inglês "3 laps" / "1 lap"). */
+export function lapsText(n: number): string {
+  return n === 1 ? t('ui.common.lap') : t('ui.common.laps', { n });
+}
+
 // ───────────────────────────── Estado compartilhado do lobby ─────────────────────────────
 
 export interface LobbySeat {

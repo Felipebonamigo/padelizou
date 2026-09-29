@@ -5,7 +5,7 @@ import { formatTicks } from '../../core/sim/race';
 import type { CupDef, TrackDef } from '../../core/types';
 import type { MenuContext } from '../../game/contracts';
 import { t } from '../../i18n';
-import { countryName, createFocusList, dayIcon, dots, h, listNav, screenFrame, trackThumb, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
+import { countryName, createFocusList, dayIcon, dots, h, lapsText, listNav, screenFrame, trackThumb, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
 import { lobbyHumans } from './lobby';
 import { cupRivalBlock } from './rival';
@@ -114,7 +114,7 @@ function cupDetail(ctx: MenuContext, cup: CupDef, status: CupStatus): HTMLElemen
         h('span', { class: 'meta' },
           dayIcon(def.timeOfDay), h('span', { text: t(`core.time.${def.timeOfDay}`) }),
           h('span', { class: 'sep', text: '·' }),
-          h('span', { text: t('ui.common.laps', { n: def.laps }) }),
+          h('span', { text: lapsText(def.laps) }),
         ),
       ),
       h('span', { class: 'cup-race-side' },
@@ -178,7 +178,7 @@ export function tracksScreen(api: ScreenApi): ScreenInstance {
         scalableThumb(ctx, def),
         h('div', { class: 'track-info' },
           h('strong', { class: 'track-name', text: def.name }),
-          h('span', { class: 'meta' }, dayIcon(def.timeOfDay), h('span', { text: t('ui.common.laps', { n: trackCardLaps(ctx) }) })),
+          h('span', { class: 'meta' }, dayIcon(def.timeOfDay), h('span', { text: lapsText(trackCardLaps(ctx)) })),
           h('span', { class: 'track-foot' },
             dots(def.difficulty),
             h('span', { class: 'track-best mono' }, icon('timer'), h('span', { text: bestLapText(ctx, def.id) })),

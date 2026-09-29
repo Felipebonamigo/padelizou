@@ -6,6 +6,7 @@ import { CARS } from '../core/data/cars';
 import { CUPS, cupDef } from '../core/data/cups';
 import { seatColor } from '../core/data/drivers';
 import { createRace, formatTicks } from '../core/sim/race';
+import { finishMessage } from './finish-message';
 import { getTrack, TRACKS, trackDef } from '../core/track';
 import { hashString } from '../core/rng';
 import type { ChampionshipState, HumanEntry, PlayerInput, RaceConfig, RaceState, SimEvent, Track } from '../core/types';
@@ -321,7 +322,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
         break;
       }
       case 'finish':
-        pushMessage(seat, e.position === 1 ? t('session.finishFirst') : t('session.finish', { pos: e.position }), 'big', 4);
+        pushMessage(seat, finishMessage(state, e.carId, e.position), 'big', 4);
         break;
       case 'nitro': {
         const n = (r.telemetry.nitrosThisLap.get(seat) ?? 0) + 1;

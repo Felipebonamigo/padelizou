@@ -12,6 +12,7 @@ registerStrings('ui', {
     'common.on': 'Ligado',
     'common.off': 'Desligado',
     'common.laps': '{n} voltas',
+    'common.lap': '1 volta',
     'loading': 'Carregando…',
 
     'title.subtitle': 'corrida arcade cooperativa',
@@ -155,7 +156,6 @@ registerStrings('ui', {
     'records.stats': '{run} corridas, {won} vitórias, {cups} copas concluídas',
     'records.empty': 'Nenhum recorde ainda — vá correr!',
     'records.lap': 'Melhor volta',
-    'records.race': '{n} voltas',
 
     'credits.title': 'Créditos',
     'credits.by': 'Feito por Felipe Bonamigo com Claude',
@@ -173,6 +173,7 @@ registerStrings('ui', {
     'common.on': 'On',
     'common.off': 'Off',
     'common.laps': '{n} laps',
+    'common.lap': '1 lap',
     'loading': 'Loading…',
 
     'title.subtitle': 'co-op arcade racing',
@@ -316,7 +317,6 @@ registerStrings('ui', {
     'records.stats': '{run} races, {won} wins, {cups} cups completed',
     'records.empty': 'No records yet — go race!',
     'records.lap': 'Best lap',
-    'records.race': '{n} laps',
 
     'credits.title': 'Credits',
     'credits.by': 'Made by Felipe Bonamigo with Claude',

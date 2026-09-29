@@ -14,7 +14,7 @@ import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
 import { ordinalText } from '../../party/rules';
 import '../../party/strings';
-import { arrowButton, button, createFocusList, h, listNav, screenFrame, selector, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, button, createFocusList, lapsText, h, listNav, screenFrame, selector, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal, type IconName } from './icons';
 import { availableCars, occupiedSeats, startCursor } from './lobby';
 import { commitSettings, raceOptionSelectors } from './options';
@@ -295,7 +295,7 @@ export function handoffScreen(api: ScreenApi): ScreenInstance {
     h('div', { class: 'handoff-track' },
       trackDef ? trackThumb(ctx, trackDef, 56) : null,
       h('strong', { text: trackDef?.name ?? info.trackId }),
-      h('span', { class: 'muted', text: t('ui.common.laps', { n: tour.setup.laps }) }),
+      h('span', { class: 'muted', text: lapsText(tour.setup.laps) }),
     ),
     h('div', { class: `handoff-cards n-${cards.length}` }, cards),
     h('p', { class: 'hint', text: `${t('party.handoff.hint')} ${info.final ? t('party.handoff.grid') : ''}`.trim() }),
