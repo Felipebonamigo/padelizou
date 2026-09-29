@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/09/2026** — 💸 **A FAIXA "SUA INSCRIÇÃO ESTÁ SEM PAGAMENTO" MOSTRAVA UM VALOR QUE O CHECKOUT NÃO IA COBRAR.** ✅ **SEM MIGRATION.** 🗣️ Um jogador, no grupo, sobre um torneio de R$ 125 por pessoa em que estava em duas categorias: *"talvez fosse interessante dizer aqui as infos sobre esse valor... eu imagino que esses 250 é para as duas categorias. Mas, as vezes é preciso dizer o óbvio"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+> Última atualização: **29/09/2026** — 💸 **A FAIXA "SUA INSCRIÇÃO ESTÁ SEM PAGAMENTO" MOSTRAVA UM VALOR QUE O CHECKOUT NÃO IA COBRAR.** ✅ **SEM MIGRATION.** 🗣️ Um jogador, no grupo, sobre um torneio de R$ 125 por pessoa em que estava em duas categorias: *"talvez fosse interessante dizer aqui as infos sobre esse valor... eu imagino que esses 250 é para as duas categorias. Mas, as vezes é preciso dizer o óbvio"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1503-e5ad631`** (deploy runs **417** e **418**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #354.
 >
 > 🕳️ **A PERGUNTA ERA SOBRE TEXTO. O QUE ELA DESENTERROU ERA DINHEIRO — e a suposição dele estava errada:** os R$ 250 são de UMA categoria, com DUAS pessoas. A faixa **recalculava** o valor (`Torneio.ValorCobrado`, preço × 2 fixo) enquanto o checkout cobra o `ValorInscricao` **gravado** na inscrição (`PagamentoInscricaoService.ValorJaCombinadoAsync`). É exatamente o que `Services/PrecoDaInscricao` avisa em letras maiúsculas desde 08/08 — *"quem recalcula não tem como saber quem entrou pela segunda vez, e passa a mentir sem avisar"* —; **esta tela tinha ficado de fora daquela varredura**.
 >
@@ -17,7 +17,9 @@
 >
 > 🧪 **7.567 testes verdes** (12 novos) e **12 conferidores JS**. Os 12 foram vistos vermelhos **por "não existe"** e, com as assinaturas de pé e a régua velha dentro, **por resultado errado**: `Expected: 125, Actual: 250` (sem parceiro), `Expected: 180, Actual: 250` (2ª categoria) e `Expected: 2, Actual: 1` (as duas cobranças). Os dois testes de **fonte** (a suíte não renderiza Razor) foram conferidos **por mutação**: devolver o id do torneio ao parcial e pôr um `Take(1)` no laço deixa os dois vermelhos.
 >
-> 👀 **NÃO CONFERIDO EM NAVEGADOR** (esta sessão não tem browser). 👀 **O que olhar no primeiro uso real:** quem está em duas categorias deve ver **duas caixas** na faixa, cada uma com a sua categoria, o seu valor e o seu botão; e no torneio com "todas as formas", escolher **Cartão na segunda caixa** não pode mexer no rádio da primeira.
+> ✅ **CONFERIDO POR FORA, depois do deploy:** `/healthz` **200** nos dois (corpo `ok` no de produção), home de produção **200** e a **tela de um torneio de verdade** (`/Torneios/Details/22`) abrindo em **200** — é a tela que mudou. O `deploy.sh` dá rollback sozinho se o `/healthz` não responder 200, e os dois jobs fecharam verdes.
+>
+> 👀 **NÃO CONFERIDO EM NAVEGADOR** (esta sessão não tem browser), e aqui isso pesa mais que de costume: a faixa só aparece pra quem está LOGADO e com inscrição não paga, então nada do que mudou foi visto desenhado. 👀 **O que olhar no primeiro uso real:** quem está em duas categorias deve ver **duas caixas** na faixa, cada uma com a sua categoria, o seu valor e o seu botão; e no torneio com "todas as formas", escolher **Cartão na segunda caixa** não pode mexer no rádio da primeira.
 
 > Última atualização: **29/09/2026** — 🖱️ **QUANTO O PATROCÍNIO RENDE EM CLIQUE, no `/Admin/Métricas`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1498-a749563`** (deploy runs **415** e **416**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #351. ⚠️ **COM MIGRATION** (tabela nova, sem backfill). 🗣️ Felipe: *"adicione la em alguma parte, para ter a contagem das vezes que as pessoas clicaram no link dos patrocinadores (paralelo, grand padel)"*.
 >
