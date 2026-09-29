@@ -867,7 +867,12 @@ namespace padelizou.Controllers
         // porque as duas contas nascem das mesmas consultas, e partir a consulta em duas seria
         // criar a segunda cópia da regra do MEI.
         [HttpGet]
-        public async Task<IActionResult> Metricas(string? agrupar = null)
+        // ⚠️ `[FromServices]` na AÇÃO, e não no construtor: é o mesmo caminho que a ação do
+        // Acesso Antecipado já usa aqui, e evita mexer na assinatura de um controller que meia
+        // dúzia de testes constrói à mão. Opcional porque `ContarAsync` sabe cair na lista de
+        // código quando ela não vem.
+        public async Task<IActionResult> Metricas(string? agrupar = null,
+            [FromServices] Microsoft.Extensions.Options.IOptions<PatrocinadoresSettings>? patrocinadores = null)
         {
             var admin = await ObterJogadorAdminAsync();
             if (admin == null) return RedirectToAction("Perfil", "Auth");
@@ -914,6 +919,10 @@ namespace padelizou.Controllers
                 TetoMei = _configuration.GetValue<decimal?>("Mei:TetoAnual") ?? 81000m,
 
                 AcessosHoje = await MetricasDeAcesso.AcessosHojeAsync(_context, agora.Date),
+                // A lista de patrocinadores entra junto pra quem está em cartaz e não teve
+                // clique aparecer com ZERO — "não aparece" e "teve zero" são conclusões
+                // opostas, e a tela não pode confundi-las.
+                CliquesNoPatrocinio = await CliquesDoPatrocinio.ContarAsync(_context, agora, patrocinadores?.Value),
                 PicoDeAcessosNoMinuto = await MetricasDeAcesso.PicoDeAcessosNoMinutoAsync(_context, agora.Date),
             };
 

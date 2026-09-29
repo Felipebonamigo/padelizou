@@ -153,6 +153,40 @@
         </div>
     </div>
 
+    @* ---- O que o patrocínio rende em clique (29/09/2026) ---- *@
+    @* ⚠️ Logo abaixo dos acessos de propósito: é a mesma família de número (tráfego), e é a
+       comparação que dá sentido aos dois — "tantos acessos, tantos cliques". *@
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h6 class="fw-bold mb-1"><i class="bi bi-hand-index-thumb"></i> Cliques nos patrocinadores</h6>
+            <p class="small text-muted mb-3">
+                Quantas vezes o logo do rodapé levou alguém ao site da marca. A contagem começou
+                em 29/09/2026 — clique anterior a isso não foi guardado.
+            </p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr class="small text-muted">
+                            <th>Patrocinador</th>
+                            <th class="text-end">Últimos 30 dias</th>
+                            <th class="text-end">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in Model.CliquesNoPatrocinio)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@c.Patrocinador</td>
+                                <td class="text-end">@c.NoMes</td>
+                                <td class="text-end fw-bold">@c.Total</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     @* ---- Série (dia / semana / mês) ---- *@
     <div class="card shadow-sm border-0">
         <div class="card-body">
