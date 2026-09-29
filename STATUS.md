@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **29/09/2026** — 🖱️ **QUANTO O PATROCÍNIO RENDE EM CLIQUE, no `/Admin/Métricas`.** ⏳ **Ainda NÃO publicado.** ⚠️ **COM MIGRATION** (tabela nova, sem backfill). 🗣️ Felipe: *"adicione la em alguma parte, para ter a contagem das vezes que as pessoas clicaram no link dos patrocinadores (paralelo, grand padel)"*.
+> Última atualização: **29/09/2026** — 🖱️ **QUANTO O PATROCÍNIO RENDE EM CLIQUE, no `/Admin/Métricas`.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1498-a749563`** (deploy runs **415** e **416**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #351. ⚠️ **COM MIGRATION** (tabela nova, sem backfill). 🗣️ Felipe: *"adicione la em alguma parte, para ter a contagem das vezes que as pessoas clicaram no link dos patrocinadores (paralelo, grand padel)"*.
 >
 > 🕳️ **O CLIQUE NUNCA TOCAVA O SERVIDOR**: o logo do rodapé aponta direto pra `paraleloesporte.com.br`. Não havia número escondido — era preciso um **salto nosso** (`/ir/patrocinador/{nome}`) pra a contagem existir.
 >
@@ -20,6 +20,14 @@
 > 📈 **UMA LINHA POR CLIQUE**, e não contador que incrementa: dá "nos últimos 30 dias" além do total, e não tem corrida de leitura-e-escrita. A consulta carrega a tabela e conta em memória — **atalho com teto nomeado** (agregar no SQL acima de ~50 mil linhas), que cabe porque clique em logo de rodapé é ordens de grandeza mais raro que visita.
 >
 > ⚠️ **A contagem começa em 29/09/2026**, e a tela diz isso — clique anterior não foi guardado.
+>
+> ✅ **CONFERIDO NO AR, EM PRODUÇÃO, COM ANTES E DEPOIS MEDIDOS** — no rodapé de `padelizou.com.br`: link direto ao Paralelo **1 → 0**, salto `/ir/patrocinador/` **0 → 2**, `rel="sponsored"` **2** (não se perdeu). O salto leva mesmo às marcas: **302 → `paraleloesporte.com.br`** e **302 → `grandpadel.com.br`**.
+>
+> 🔒 **E A TRAVA DO OPEN REDIRECT FOI EXERCITADA NO AR**: `https://phishing.example/x`, `//phishing.example` e um nome inexistente devolvem **404 com `redirect_url` vazio**. Nenhuma dessas tentativas grava linha — a recusa vem antes da contagem.
+>
+> 🧪 **`dev` NÃO SERVIU PRA ISSO, e vale anotar pra próxima**: o portão de Acesso Antecipado intercepta tudo lá, então as quatro chamadas caíram no `/AcessoAntecipado/Entrar` e a medição seria vazia nos dois sentidos — não provaria nem que funciona, nem que a trava segura. É a mesma limitação do bloco do rótulo do botão, em 24/09.
+>
+> 📊 **A CONTAGEM COMEÇA EM 2**, e não em 0: os dois cliques da conferência acima são reais e estão na tabela. Um por patrocinador — é o preço de saber que o link da marca não quebrou.
 >
 > **7.555 testes verdes** (8 novos; a trava do open redirect vista VERMELHA), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
 
