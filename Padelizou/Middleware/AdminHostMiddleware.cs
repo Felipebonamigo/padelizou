@@ -21,7 +21,11 @@ public class AdminHostMiddleware
 
     public const string SitePublicoHost = "padelizou.com.br";
 
-    private static readonly string[] PrefixosLiberadosNoAdmin =
+    // ⚠️ PÚBLICO porque não é só o middleware que precisa saber: o `_Layout` é compartilhado
+    // com o painel, e um href literal pra fora desta lista é um clique que morre em 404 lá
+    // dentro. O teste de varredura do layout lê esta lista em vez de repetir os prefixos —
+    // segunda cópia de uma lista de rotas é como uma delas fica pra trás.
+    public static readonly string[] PrefixosQueOPainelServe =
     {
         "/Admin", "/Auth", "/lib", "/css", "/js", "/image", "/favicon", "/manifest.json"
     };
@@ -87,6 +91,17 @@ public class AdminHostMiddleware
     public static (string? Host, string? Protocolo) SaidaPraSitePublico(HttpContext context, bool ehDesenvolvimento)
         => ServeSoOPainel(context, ehDesenvolvimento) ? (SitePublicoHost, "https") : (null, null);
 
+    // A MESMA saída, pros links que NÃO passam por tag helper — o href literal do `_Layout`,
+    // que o painel renderiza junto (29/09/2026: o salto do patrocinador, `/ir/...`, caía no
+    // 404 deste host e o clique comprado morria ali).
+    //
+    // Devolve o caminho intacto fora do host só-painel, pelo mesmo motivo de sempre: endereço
+    // fixo jogaria na PRODUÇÃO quem clicou no localhost ou no dev.
+    public static string UrlNoSitePublico(HttpContext context, bool ehDesenvolvimento, string caminho)
+        => ServeSoOPainel(context, ehDesenvolvimento)
+            ? $"https://{SitePublicoHost}{caminho}"
+            : caminho;
+
     public async Task InvokeAsync(HttpContext context)
     {
         if (_env.IsDevelopment())
@@ -105,7 +120,7 @@ public class AdminHostMiddleware
                 return;
             }
 
-            var liberado = PrefixosLiberadosNoAdmin.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase));
+            var liberado = PrefixosQueOPainelServe.Any(p => path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase));
             if (!liberado)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;

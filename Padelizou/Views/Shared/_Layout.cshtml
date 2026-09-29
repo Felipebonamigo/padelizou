@@ -558,8 +558,14 @@
                                    transformaria patrocínio em compra de link.
                                    O destino sai da NOSSA lista pelo nome (ver
                                    PatrocinadoresController.Ir): URL vinda do pedido seria open
-                                   redirect saindo do domínio em que as pessoas confiam. *@
-                                <a href="/ir/patrocinador/@Uri.EscapeDataString(patrocinador.Nome)"
+                                   redirect saindo do domínio em que as pessoas confiam.
+
+                                   ⚠️ E SAI DO HOST quando o layout é renderizado DENTRO do
+                                   painel: `/ir` não está entre os prefixos que
+                                   admin.padelizou.com.br serve, então o relativo morria em 404
+                                   ali — o clique que o patrocinador comprou não chegava nele
+                                   nem era contado. Achado em 29/09/2026, pelo print do erro. *@
+                                <a href="@AdminHostMiddleware.UrlNoSitePublico(ViewContext.HttpContext, ehDesenvolvimento, $"/ir/patrocinador/{Uri.EscapeDataString(patrocinador.Nome)}")"
                                    target="_blank" rel="sponsored noopener"
                                    title="Visitar o site do @patrocinador.Nome">
                                     @{ await LogoDoPatrocinador(patrocinador); }
