@@ -129,19 +129,48 @@ const guestReady = await waitFor(guest, () => window.nc.session.online.ready);
 check(guestReady, 'convidado pronto');
 await shot(guest, '02-lobby-guest');
 
-// Anfitrião: nome, carro, direção, pista (→ próxima), voltas (← uma a menos), modo, dificuldade, carros, atraso, LARGAR.
+// Anfitrião: nome, carro, direção, pista (→ próxima), voltas (← uma a menos), modo, dificuldade, carros
+// (← quatro a menos), atraso, LARGAR. As setas vêm seguidas, sem esperar o relay: o eco de cada ajuste
+// chega ao anfitrião depois dos seguintes (com o 3D por software, o navegador só lê a rede quando as
+// teclas param) e não pode desfazê-los, servir de base para o próximo nem ir na largada — o defeito
+// que largava 1 volta e 8 carros escolhidos com 2 voltas e 15 (docs/ONLINE.md, "Ajustes que se perdiam").
+await host.evaluate(() => {
+  const o = window.nc.session.online;
+  window.__adj = 0;
+  window.__seen = [];
+  const orig = o.updateRoomSettings.bind(o);
+  o.updateRoomSettings = (patch) => { window.__adj++; orig(patch); };
+  o.onChange(() => { const s = o.room?.settings; const k = s ? `${s.laps}/${s.totalCars}` : null; if (k && window.__seen[window.__seen.length - 1] !== k) window.__seen.push(k); });
+});
+const initial = await host.evaluate(() => { const s = window.nc.session.online.room.settings; return { laps: s.laps, totalCars: s.totalCars }; });
 await press(host, 'ArrowDown', 3);
 await press(host, 'ArrowRight');
 await press(host, 'ArrowDown');
 await press(host, 'ArrowLeft');
-await waitFor(guest, () => { const s = window.nc.session.online.room?.settings; return !!s && s.trackId !== 'copacabana' && s.laps === 2; });
+await press(host, 'ArrowDown', 3);
+await press(host, 'ArrowLeft', 4);
+// Espera a rede assentar (o convidado com a mesma sala que o anfitrião) antes de conferir.
+await waitFor(guest, (c) => { const s = window.nc.session.online.room?.settings; return !!s && s.trackId === c.trackId && s.laps === c.laps && s.totalCars === c.totalCars; },
+  await host.evaluate(() => window.nc.session.online.room.settings));
+await host.waitForTimeout(1500);
+const chosen = await host.evaluate(() => { const s = window.nc.session.online.room.settings; return { trackId: s.trackId, laps: s.laps, totalCars: s.totalCars }; });
+const [adjusted, seen] = await host.evaluate(() => [window.__adj, window.__seen]);
+check(adjusted === 6, `as 6 setas do anfitrião chegaram ao jogo (${adjusted}; menos que isso é tecla perdida pelo roteiro, não o defeito)`);
+check(chosen.trackId !== 'copacabana' && chosen.laps === initial.laps - 1 && chosen.totalCars === initial.totalCars - 4,
+  `anfitrião escolhe ${chosen.trackId}, ${chosen.laps} voltas e ${chosen.totalCars} carros (antes ${initial.laps}/${initial.totalCars}; na tela dele: ${seen.join(' → ')})`);
+check(seen.every((k, i) => i === 0 || k.split('/').every((v, j) => Number(v) <= Number(seen[i - 1].split('/')[j]))), 'a sala do anfitrião não volta sozinha a um valor anterior (eco atrasado do relay)');
 const roomSettings = await guest.evaluate(() => window.nc.session.online.room.settings);
-check(roomSettings.trackId !== 'copacabana' && roomSettings.laps === 2, `convidado vê a pista e as voltas escolhidas (${roomSettings.trackId}, ${roomSettings.laps} voltas)`);
+check(roomSettings.trackId === chosen.trackId && roomSettings.laps === chosen.laps && roomSettings.totalCars === chosen.totalCars, `convidado vê a pista, as voltas e os carros escolhidos (${roomSettings.trackId}, ${roomSettings.laps} voltas, ${roomSettings.totalCars} carros)`);
 await shot(host, '03-lobby-host');
-await press(host, 'ArrowDown', 5); // modo, dificuldade, carros, atraso, LARGAR
+await press(host, 'ArrowDown', 2); // atraso, LARGAR
 await press(host, 'Enter');
 h = await until(host, (s) => s.phase === 'racing' && s.tick !== null, 'largada no anfitrião');
 g = await until(guest, (s) => s.phase === 'racing' && s.tick !== null, 'largada no convidado');
+const raceCfg = (p) => p.evaluate(() => JSON.stringify(window.nc.session.race.state.config));
+const [cfgHost, cfgGuest] = [JSON.parse(await raceCfg(host)), JSON.parse(await raceCfg(guest))];
+check(cfgHost.trackId === chosen.trackId && cfgHost.laps === chosen.laps && cfgHost.totalCars === chosen.totalCars,
+  `a largada leva o que o anfitrião escolheu (${cfgHost.trackId}, ${cfgHost.laps} voltas, ${cfgHost.totalCars} carros)`);
+check(JSON.stringify(cfgHost) === JSON.stringify(cfgGuest), 'config da corrida idêntica nos dois computadores');
 check(JSON.stringify(h.seats) === '[0]' && JSON.stringify(g.seats) === '[1]', `assentos: anfitrião ${JSON.stringify(h.seats)}, convidado ${JSON.stringify(g.seats)}`);
 const vps = await guest.evaluate(() => document.querySelectorAll('#hud > *').length);
 console.log('elementos no HUD do convidado:', vps);

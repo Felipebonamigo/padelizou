@@ -221,6 +221,13 @@ export class OnlineController implements RaceDriver {
   private devicesBound = false;
   /** Instante do último `advance` (null até o primeiro da corrida): o relógio da janela escondida. */
   private lastAdvanceAt: number | null = null;
+  /**
+   * Opções da corrida que este computador, como anfitrião, escolheu por último. Só o anfitrião muda
+   * as opções, então a cópia dele é sempre a mais nova: a sala que o relay devolve pode ser de um
+   * ajuste anterior (o eco chega depois do próximo ajuste) e não vale para ele. Null fora do papel
+   * de anfitrião — quem herda a sala parte do que o relay guardou do anterior.
+   */
+  private hostSettings: RoomSettings | null = null;
 
   constructor(host: OnlineHost, opts: OnlineOptions = {}) {
     this.host = host;
@@ -396,6 +403,7 @@ export class OnlineController implements RaceDriver {
     next.laps = Math.max(1, Math.min(8, Math.round(next.laps)));
     next.totalCars = Math.max(1, Math.min(20, Math.round(next.totalCars)));
     next.delay = Math.max(MIN_INPUT_DELAY, Math.min(MAX_INPUT_DELAY, Math.round(next.delay)));
+    this.hostSettings = next;
     this.room.settings = next;
     this.send({ t: 'settings', settings: next });
     this.changed();
@@ -425,6 +433,8 @@ export class OnlineController implements RaceDriver {
     this.error = null;
     this.ready = false;
     this.room = null;
+    // Sala nova: as opções recomeçam das do jogo (as da sala anterior não passam para esta).
+    this.hostSettings = null;
     this.pending = first;
     this.openClient();
     this.changed();
@@ -505,8 +515,15 @@ export class OnlineController implements RaceDriver {
   private onRoom(room: RoomView): void {
     const wasHost = this.isHost;
     this.room = room;
-    if (this.phase === 'lobby' && this.isHost && !room.settings) {
-      room.settings = this.defaultRoomSettings();
+    // O eco das opções não vale para o anfitrião: a sala chega atrasada (a do ajuste anterior, ou
+    // reenviada pelo "pronto" de um convidado com o que o relay tinha antes), e sobrescrever a cópia
+    // dele desfazia o ajuste mais novo, servia de base para o próximo e ia na largada.
+    if (!this.isHost) this.hostSettings = null;
+    else if (this.hostSettings) room.settings = this.hostSettings;
+    // Anfitrião sem cópia ainda: herda o que o relay guardou do anterior, ou começa das opções do jogo.
+    else if (room.settings) this.hostSettings = room.settings;
+    else if (this.phase === 'lobby') {
+      room.settings = this.hostSettings = this.defaultRoomSettings();
       this.send({ t: 'settings', settings: room.settings });
     }
     if (this.awaitingSnapshot) {
@@ -927,6 +944,7 @@ export class OnlineController implements RaceDriver {
     this.endRaceState();
     this.phase = 'idle';
     this.room = null;
+    this.hostSettings = null;
     this.myId = -1;
     this.code = '';
     this.ready = false;

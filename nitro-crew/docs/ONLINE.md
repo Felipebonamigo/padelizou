@@ -59,6 +59,18 @@ que já existia: o formato e o `PROTOCOL_VERSION` não mudaram), a lista da sala
 "ASSIST · Completa" ao lado do nome, e a largada a copia para cada assento. Trava com o "pronto" e depois
 da largada. Detalhes em `docs/ASSISTENCIAS.md`.
 
+**Opções da sala.** Só o anfitrião muda pista, voltas, modo, dificuldade, carros e atraso. Cada ajuste
+vai ao relay (`settings`), que guarda e devolve a sala inteira a todos — inclusive ao anfitrião, e
+atrasado: pela rede e, com a máquina carregada, pelo próprio navegador, que atende as teclas antes das
+mensagens da rede. O anfitrião guarda a própria cópia (`hostSettings`) e **ignora o eco das opções**;
+só ele escreve, então a cópia dele é sempre a mais nova. Sem isso (defeito achado na onda E, ver
+"Ajustes que se perdiam" abaixo), o eco de um ajuste anterior desfazia o mais novo na tela, a seta
+seguinte partia do valor velho (mexer nos carros devolvia as voltas) e o LARGAR apertado nesse
+meio-tempo largava com ele. A sala reenviada pelo "pronto" ou pelo carro de um convidado traz as
+opções que o relay tinha naquele instante: também não vale para o anfitrião. Quem herda a sala parte
+do que o relay guardou do anterior; sala nova começa das opções do jogo. A largada leva as opções
+inteiras (`StartConfig`), então a corrida é a mesma em todos os computadores.
+
 **Assentos.** Na largada o anfitrião numera os assentos globais 0..3 pela ordem dos computadores na
 sala e dos jogadores de cada um; o número define a cor e a posição no grid. A própria entrada ele monta do
 que declara naquele instante, não do eco da sala que o relay devolve: carro ou direção trocados logo antes
@@ -140,6 +152,12 @@ aperte F (teclado WASD) ou A num controle.
 - `tests/online-assist.test.ts` — direção assistida escolhida na sala: vai no `info` e fica salva, a do
   segundo jogador local, trava com o "pronto" e depois da largada, a do convidado chega à largada, o
   anfitrião que troca e larga em seguida larga com a nova; rótulos da sala e do resultado.
+- `tests/online-settings.test.ts` — opções da sala com o eco atrasado: dois computadores ligados a um
+  relay de mentira (a regra do `server/relay.mjs` no lobby) que segura numa fila o que manda a cada um,
+  e o teste decide quando cada mensagem chega. Ajustes seguidos com o eco dois ajustes atrás (a tela
+  mostra o último, o próximo parte dele), LARGAR com ecos velhos ainda chegando, a sala reenviada pelo
+  "pronto" do convidado com as opções antigas, quem herda a sala parte das opções do anterior, sala
+  nova começa das opções do jogo. Em todos, a config da largada é a última escolhida e igual nos dois.
 - `tests/net-lockstep.test.ts` — 2, 3 e 4 clientes em memória com atraso, reordenação e duplicação
   sorteados (semente fixa) chegam ao mesmo `hashRace` após 3000 ticks; entrada faltando não
   avança; pacote perdido não trava; dessincronia apontada no tick certo; reconexão por snapshot com
@@ -149,10 +167,13 @@ aperte F (teclado WASD) ou A num controle.
   completas pelo WebSocket global do Node 22 (lobby, largada, 600 ticks com hashes iguais, queda e
   volta por snapshot, IA assumindo), todos caindo juntos, três computadores com o anfitrião caindo,
   fim natural da corrida quadro a quadro com o mesmo resultado nos dois, convidado com a janela
-  escondida, impressão de conteúdo diferente recusada. Leva ~25 s. **Sem `server/node_modules` o
-  arquivo é pulado**; no CI ele é obrigatório (`NC_REQUIRE_RELAY=1`).
+  escondida, impressão de conteúdo diferente recusada, anfitrião com tudo que chega atrasado 60 ms
+  (`LaggySocket`) ajustando 3→1 volta e 20→8 carros a cada 15 ms e largando em seguida. Leva ~25 s.
+  **Sem `server/node_modules` o arquivo é pulado**; no CI ele é obrigatório (`NC_REQUIRE_RELAY=1`).
 - `scripts/playtest-online.mjs` — Playwright com duas páginas no mesmo relay, pelo fluxo real de
-  teclado: criar/entrar, pronto, largar, 10 s de corrida com `debugStep`, hashes iguais, Esc sem
+  teclado: criar/entrar, pronto, o anfitrião troca pista, voltas e carros (cada seta sem esperar o
+  relay; a tela dele não pode voltar sozinha a um valor anterior) e larga, a config da corrida é a
+  escolhida e igual nos dois, 10 s de corrida com `debugStep`, hashes iguais, Esc sem
   pausa, "aguardando", queda e volta, anfitrião saindo e a IA assumindo. Capturas em
   `scratch/pto-*.png`. Uso: `npm run preview` e `node scripts/playtest-online.mjs http://localhost:4174/`.
   As páginas ficam em 320×180 fora das capturas: com o 3D por software um quadro grande leva
@@ -160,6 +181,42 @@ aperte F (teclado WASD) ou A num controle.
 - `scratch/pt-online-assist.mjs` (fora do git, como todo `scratch/`) — dois navegadores no mesmo relay:
   cada um escolhe a direção, a do outro aparece na sala, muda antes do "pronto" e não muda depois, a
   largada leva as duas (config e hash iguais), selo no HUD e marca ASSIST no resultado dos dois.
+- `scratch/pt-online-config.mjs` (fora do git) — dois navegadores no mesmo relay: o anfitrião leva 3→1
+  volta e 20→8 carros pelo teclado e larga; confere cada tecla que chegou ao jogo (contando as chamadas a
+  `updateRoomSettings`), que a sala do anfitrião nunca volta sozinha a um valor anterior, e que a config
+  da corrida é 1 volta e 8 carros e idêntica nos dois. `LAG_MS=300` põe o relay atrás de um proxy que
+  atrasa cada mensagem (mesma ordem), `CPU=6` freia as páginas (CDP), `MODE=fixed` aperta as setas a
+  cada `PRESS_MS` sem conferir nada, como o roteiro que viu o sintoma.
+
+## Ajustes que se perdiam (investigação da onda E)
+
+**Sintoma.** Num playtest com dois navegadores no mesmo relay e a máquina carregada, o anfitrião
+ajustou 1 volta e 8 carros (← ← nas voltas, ← ×12 nos carros, uma seta a cada 150 ms) e a corrida
+largou com 2 voltas e 15 carros. Suspeitas: tecla perdida pelo roteiro, ou o eco da sala vindo do relay
+sobrescrevendo um ajuste mais novo.
+
+**Era do jogo.** A tela lê o valor atual de `room.settings` e soma a seta; o `onRoom` trocava
+`room.settings` pelo que o relay mandou. O eco do primeiro ajuste (2 voltas, 20 carros) chegando depois
+da 7ª seta nos carros faz as 5 setas restantes partirem dele: 2 voltas e 20 − 5 = **15 carros**,
+exatamente o que largou (`tests/online-settings.test.ts`, "o sintoma do playtest", dava 2/15 antes da
+correção). No navegador, com o relay na mesma máquina, os ecos chegam **depois** das teclas: o Chromium
+atende entrada e quadro antes das mensagens da rede, e com o 3D por software (~2 quadros/s no lobby)
+os 14 ecos chegaram todos juntos depois da última seta — a tela do anfitrião repassou o histórico
+(`1/8 → 2/20 → 1/20 → 1/19 → … → 1/8`). Uma seta ou o LARGAR nesse meio-tempo partia do valor velho.
+Com o relay atrasado (`LAG_MS=2500`, confirmando cada seta na tela) o jogo antigo precisou de 24 setas
+para descer 12 carros e a tela andou para trás 9 vezes; o corrigido, 12 setas e nenhuma volta atrás.
+
+**Não era tecla perdida.** Em todas as rodadas (sem freio, `CPU=6`, com `LAG_MS` de 300 e 500 ms),
+as 14 setas do roteiro chegaram ao jogo (14 chamadas a `updateRoomSettings`): o `keyboard.press` do
+Playwright espera a página tratar a tecla, e com quadros lentos cada seta cai num quadro diferente. A
+entrada dos menus é lida por quadro (`src/ui/input.ts`), então duas setas entre dois quadros contariam
+uma — possível só a poucos quadros por segundo e com setas mais rápidas que isso; não aconteceu aqui.
+
+**Correção.** O anfitrião guarda a própria cópia das opções e ignora o eco (ver "Opções da sala"). A
+trava é o `scripts/playtest-online.mjs` (a sala do anfitrião não volta sozinha a um valor anterior e a
+largada leva o escolhido, igual nos dois) — no jogo antigo ele falha nessa conferência (a tela voltou
+de `2/16` para `3/20` e refez o caminho) e no corrigido passa —, mais os testes de `online-settings`
+e do relay, que falhavam antes da correção (4 de 4; o do relay largava com 17 carros em vez de 8).
 
 ## Hospedar o relay num VPS
 
