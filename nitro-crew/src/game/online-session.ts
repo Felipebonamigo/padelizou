@@ -6,13 +6,10 @@
 // Assentos: cada cliente tem 1–2 jogadores locais; na largada o anfitrião numera os assentos
 // globais 0..3 pela ordem dos clientes (id no relay) e dos jogadores de cada um. Cada cliente liga
 // os próprios controles aos assentos globais que recebeu e só desenha os viewports deles.
-import * as SIM_CONSTANTS from '../core/constants';
 import { TICK_RATE } from '../core/constants';
 import { CARS } from '../core/data/cars';
-import { AI_DRIVERS, DRIVER_PERSONALITY, NEUTRAL_TUNING, PERSONALITY_TUNING, seatColor } from '../core/data/drivers';
-import { hashString } from '../core/rng';
+import { seatColor } from '../core/data/drivers';
 import { deserializeRace, serializeRace } from '../core/serialize';
-import { DIFFICULTY_SKILL, DIFFICULTY_SPEED } from '../core/sim/ai';
 import { ASSIST_LEVELS } from '../core/sim/assist';
 import { TRACKS } from '../core/track';
 import { NEUTRAL_INPUT, type AssistLevel, type HumanEntry, type PlayerInput, type RaceConfig, type RaceState } from '../core/types';
@@ -24,7 +21,11 @@ import {
   type ClientInfo, type ClientMessage, type ContentRules, type ErrorCode, type InputRecord, type RoomSettings,
   type RoomView, type SeatAssignment, type ServerMessage, type Snapshot, type StartConfig,
 } from '../net/protocol';
+import { CONTENT_FINGERPRINT } from './content-version';
 import type { DeviceId, InputProvider, RaceDriver, ResultsScreenData, SaveData, Settings } from './contracts';
+
+// A impressão do conteúdo mora em content-version.ts (o fantasma e os recordes também a usam); daqui só reexportada.
+export { CONTENT_FINGERPRINT, contentFingerprint, fingerprintContent } from './content-version';
 
 const DT = 1 / TICK_RATE;
 /** No máximo quanto tempo de simulação um quadro tenta recuperar (o resto é esquecido). */
@@ -35,38 +36,6 @@ const MAX_CATCHUP = 4;
 export const SYNC_TIMEOUT_MS = 15_000;
 
 export const CONTENT_RULES: ContentRules = { cars: CARS.map((c) => c.id), tracks: TRACKS.map((t) => t.id) };
-
-/** JSON com as chaves de todo objeto em ordem (a ordem de declaração não muda a impressão). */
-function canonicalJson(value: unknown): string {
-  return JSON.stringify(value, (_key, v: unknown) => {
-    if (typeof v !== 'object' || v === null || Array.isArray(v)) return v;
-    return Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-  });
-}
-
-/** Impressão de 8 dígitos hex de um conteúdo qualquer (JSON). */
-export function contentFingerprint(content: unknown): string {
-  return hashString(canonicalJson(content)).toString(16).padStart(8, '0');
-}
-
-/**
- * Impressão deste jogo: carros, pistas, constantes da simulação e os dados da IA (habilidade, ritmo, elenco e
- * personalidades). Vai no
- * create/join e o relay só põe na mesma sala quem tem a mesma. Sem isso, com o mesmo
- * PROTOCOL_VERSION, um build com uma pista nova largava nela e o outro descartava a largada calado
- * (id desconhecido) — o anfitrião corria esperando por ele para sempre. Mudança só no código da
- * física não entra aqui: essa aparece como dessincronia (hash a cada segundo).
- */
-export function fingerprintContent(): Record<string, unknown> {
-  return {
-    protocol: PROTOCOL_VERSION, constants: SIM_CONSTANTS, cars: CARS, tracks: TRACKS, aiSkill: DIFFICULTY_SKILL,
-    // Dados que decidem a pilotagem da IA sem estar em constants.ts: elenco, personalidade de cada um e ritmo.
-    aiSpeed: DIFFICULTY_SPEED, aiDrivers: AI_DRIVERS, driverPersonality: DRIVER_PERSONALITY,
-    personalityTuning: PERSONALITY_TUNING, neutralTuning: NEUTRAL_TUNING,
-  };
-}
-
-export const CONTENT_FINGERPRINT = contentFingerprint(fingerprintContent());
 
 export type OnlinePhase = 'idle' | 'connecting' | 'lobby' | 'racing' | 'results' | 'error';
 

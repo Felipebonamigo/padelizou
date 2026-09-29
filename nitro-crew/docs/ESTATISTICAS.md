@@ -91,6 +91,16 @@ estatísticas antes de avaliar as conquistas.
   com pistas fictícias se o jogo tiver menos; roda contra `npm run dev`, que serve os módulos-fonte): cada linha
   fica inteira à vista, só a lista rola, o Voltar fica na tela, e o controle alcança a última pista, a última
   linha da grade de melhor posição e a última conquista.
+- **Versão do conteúdo nos recordes** (onda E): todo recorde novo guarda em `BestLap.fp` a impressão da pista e
+  do carro de quem fez (`lapFingerprint`, `src/game/content-version.ts`; o que entra nela está em
+  `docs/FANTASMA.md`). Na aba Pistas, o recorde com impressão de outra versão (física, carro ou traçado mudaram)
+  ganha a marca discreta "versão anterior", com a explicação no `title` (`recordFromOtherVersion` em `save.ts`).
+  **Nenhum recorde é apagado** nem trocado por volta mais lenta por causa disso: sai quando batido, e o novo leva
+  a impressão atual. O custo aceito: se o patch deixou a pista mais lenta, o recorde antigo pode ficar sem
+  alcance — a marca explica; arquivar o antigo à parte e abrir vaga para o da versão atual pede mudar o formato
+  do save e ficou para quando houver patch de física de verdade. Recorde de antes da impressão (sem `fp`) é
+  versão desconhecida e fica sem marca: marcar todos afirmaria o que não se sabe. Impressão estragada no save
+  some sozinha; o recorde fica. Testes em `tests/content-version.test.ts`.
 - **Jogadores**: a primeira linha é o total; o detalhe acompanha o foco. A lista e o detalhe rolam cada um por si.
   A melhor posição por pista é uma grade de **todas** as pistas do jogo (as não corridas com "—"), em linhas de
   3 (`BEST_COLS`); depois do último jogador o foco desce por essas linhas e então chega ao Voltar. Com 32 pistas

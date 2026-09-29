@@ -16,6 +16,8 @@ registerStrings('ghost', {
     'records.imported': 'Fantasma de {name} em {track} importado: corra contra ele no contra-relógio.',
     'records.invalid': 'Esse arquivo não é um fantasma válido do Nitro Crew.',
     'records.unknownTrack': 'Esse fantasma é de uma pista que este jogo não tem.',
+    'records.otherTrack': 'Esse fantasma não cabe nesta pista (o comprimento não bate): não foi importado.',
+    'records.otherVersion': 'Esse fantasma é de outra versão do jogo (a física, o carro ou a pista mudaram): não foi importado.',
     'records.saveFailed': 'Não deu para guardar o fantasma (armazenamento cheio ou indisponível).',
   },
   en: {
@@ -32,6 +34,8 @@ registerStrings('ghost', {
     'records.imported': 'Imported {name}\'s ghost on {track}: race against it in time trial.',
     'records.invalid': 'This file is not a valid Nitro Crew ghost.',
     'records.unknownTrack': 'This ghost is for a track this game does not have.',
+    'records.otherTrack': 'This ghost does not fit this track (the length does not match): not imported.',
+    'records.otherVersion': 'This ghost is from another version of the game (physics, car or track changed): not imported.',
     'records.saveFailed': 'Could not store the ghost (storage full or unavailable).',
   },
 });

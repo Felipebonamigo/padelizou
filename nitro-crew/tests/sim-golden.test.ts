@@ -12,6 +12,7 @@ import { SEGMENT_LENGTH } from '../src/core/constants';
 import { wrappedDelta } from '../src/core/sim/collisions';
 import { getTrack } from '../src/core/track';
 import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
+import { PHYSICS_REVISION } from '../src/game/content-version';
 
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
   'solo-sem-assistencias': { fingerprint: '08a9194b', ticks: 9193 },
@@ -36,6 +37,17 @@ describe('corridas de referência (impressão digital fixa)', () => {
       expect({ fingerprint: run.fingerprint, ticks: run.ticks }).toEqual(EXPECTED[s.name]);
     }, 120_000);
   }
+
+  // O contra-relógio de referência é o carro sozinho na pista (sem IA): se o hash dele mudou, a física de quem pilota
+  // mudou, e um fantasma ou recorde gravado antes pode ter ficado impossível. As constantes, o carro e o traçado já
+  // entram na impressão da volta; mudança só de CÓDIGO não entra — por isso a revisão manual anda presa a este hash.
+  const PHYSICS_REVISION_AT = { revision: 1, contraRelogio: '89f654e0' };
+  it('a revisão da física dos fantasmas e recordes anda junto com o contra-relógio de referência', () => {
+    expect(
+      { revision: PHYSICS_REVISION, contraRelogio: EXPECTED['contra-relogio'].fingerprint },
+      'o contra-relógio mudou? suba PHYSICS_REVISION em src/game/content-version.ts e grave o par novo aqui (docs/FANTASMA.md)',
+    ).toEqual(PHYSICS_REVISION_AT);
+  });
 });
 
 describe('atalhos sem fmod (docs/DESEMPENHO.md) dão o mesmo bit que as fórmulas originais', () => {

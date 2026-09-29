@@ -52,6 +52,18 @@
 }
 .rec-view > .actions { flex: none; margin-top: 0; }
 .rec-hint { text-align: left; margin-bottom: calc(2 * var(--u)); }
+/* Recorde feito noutra versão do jogo (save.ts: recordFromOtherVersion): marca discreta depois de quem fez. */
+.scr-records .record-old {
+  display: inline-block;
+  margin-left: calc(8 * var(--u));
+  padding: 0 calc(7 * var(--u));
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-style: italic;
+  color: var(--muted);
+  white-space: nowrap;
+}
 
 /* ───────────── Jogadores ───────────── */
 

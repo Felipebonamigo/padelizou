@@ -8,15 +8,17 @@ import { stepRace } from '../src/core/sim/race';
 import { getTrack, TRACKS } from '../src/core/track';
 import { NEUTRAL_INPUT, type PlayerInput, type RaceState, type Track } from '../src/core/types';
 import {
-  createGhostRun, decodeTrace, encodeTrace, formatGhostDelta, ghostFileText, ghostPoseAt, ghostTicksAtZ, makeGhostRecord,
-  parseGhostFile, sanitizeGhostRecord, traceEnd, GHOST_SAMPLE_TICKS, SPEED_STEP, X_STEP, Z_STEP,
+  checkGhost, createGhostRun, decodeTrace, encodeTrace, formatGhostDelta, ghostFileText, ghostPoseAt, ghostTicksAtZ, makeGhostRecord,
+  parseGhostFile, sanitizeGhostRecord, traceEnd, GHOST_FILE_FORMAT, GHOST_SAMPLE_TICKS, SPEED_STEP, X_STEP, Z_STEP,
   type GhostLapEvent, type GhostRecord, type GhostSample, type GhostTrace,
 } from '../src/game/ghost';
 import {
-  emptyGhostStore, ghostFor, ghostStoreSize, loadGhostStore, pruneGhostStore, putGhost, sanitizeGhostStore, saveGhostStore, GHOST_STORE_KEY,
+  emptyGhostStore, ghostFor, ghostStoreSize, judgeGhostFile, loadGhostStore, pruneGhostStore, putGhost, sanitizeGhostStore, saveGhostStore,
+  GHOST_STORE_KEY,
   type GhostStore,
 } from '../src/game/ghost-store';
 import { lapMessage, startGhost } from '../src/game/ghost-session';
+import { lapFingerprint } from '../src/game/content-version';
 import { sanitizeSettings } from '../src/game/settings';
 import { setLanguage } from '../src/i18n';
 import { human, quickRace, syntheticTrack } from './helpers';
@@ -47,8 +49,11 @@ const aiDriver: Driver = () => ({ ...NEUTRAL_INPUT, takeover: true });
 const zigzagDriver: Driver = (s) => ({ ...NEUTRAL_INPUT, throttle: true, steer: (Math.floor(s.tick / 7) % 3) - 1, nitro: s.tick % 400 === 0 });
 
 /** Contra-relógio de 1 carro até acabar; devolve os eventos do fantasma e o estado a cada tick (via `each`). */
-function runTimeTrial(track: Track, laps: number, driver: Driver, best: GhostRecord | null, each?: (s: RaceState, ghostRunFrame: ReturnType<ReturnType<typeof createGhostRun>['frame']>) => void) {
-  const humans = [human(0)];
+function runTimeTrial(
+  track: Track, laps: number, driver: Driver, best: GhostRecord | null,
+  each?: (s: RaceState, ghostRunFrame: ReturnType<ReturnType<typeof createGhostRun>['frame']>) => void, carId = 'falcao',
+) {
+  const humans = [human(0, 0, carId)];
   const { state } = quickRace({ track, humans, timeTrial: true, totalCars: 1, laps });
   const run = createGhostRun(track.def.id, humans, best, () => '2026-09-28T00:00:00.000Z');
   const events: GhostLapEvent[] = [];
@@ -99,6 +104,8 @@ describe('fantasma: codificação', () => {
         if (!rec) continue;
         expect(new TextEncoder().encode(JSON.stringify(rec)).length, def.id).toBeLessThan(20 * 1024);
         expect(sanitizeGhostRecord(rec), def.id).toEqual(rec);
+        // A volta de verdade cabe na própria pista e leva a impressão desta versão (sem falso "outra pista").
+        expect(checkGhost(rec), def.id).toBe('ok');
       }
     }
   }, 30_000); // ~2,5 s sozinho; passava dos 5 s padrão com a máquina carregada
@@ -304,7 +311,9 @@ describe('fantasma: armazenamento', () => {
       },
     });
     expect(Object.keys(store.ghosts)).toEqual(['copacabana']);
-    expect(ghostFor(store, 'copacabana')).toEqual(good);
+    // A volta sintética não cabe em Copacabana: a loja a guarda (estrutura válida), mas ghostFor não a entrega
+    // como rival (versão do conteúdo, mais abaixo).
+    expect(store.ghosts.copacabana).toEqual({ ...good, savedAt: '2026-09-02' });
     expect(ghostFor(store, 'paris')).toBeNull();
     for (const junk of [null, 'x', 3, [], { ghosts: 'x' }, { ghosts: [] }]) expect(sanitizeGhostStore(junk)).toEqual(emptyGhostStore());
     expect(loadGhostStore(() => { throw new Error('x'); })).toEqual(emptyGhostStore());
@@ -358,5 +367,100 @@ describe('fantasma: sessão', () => {
     expect(sanitizeSettings({}).ghost).toBe(true);
     expect(sanitizeSettings({ ghost: false }).ghost).toBe(false);
     expect(sanitizeSettings({ ghost: 'x' }).ghost).toBe(true);
+  });
+});
+
+describe('fantasma: versão do conteúdo (física, carro e pista)', () => {
+  /** Uma volta de verdade (a IA pilotando o Trovão em Copacabana), gravada uma vez para os testes abaixo. */
+  let cached: GhostRecord | null = null;
+  function realLap(): GhostRecord {
+    if (!cached) cached = runTimeTrial(getTrack('copacabana'), 1, aiDriver, null, undefined, 'trovao').events[0]?.newBest ?? null;
+    if (!cached) throw new Error('a volta não virou fantasma');
+    return cached;
+  }
+  const withoutFp = (rec: GhostRecord): GhostRecord => {
+    const { fp: _fp, ...rest } = rec;
+    return rest;
+  };
+
+  it('a volta gravada leva a impressão desta versão (da pista e do carro de quem fez) e sai no arquivo v2', () => {
+    const rec = realLap();
+    expect(rec.fp).toBe(lapFingerprint('copacabana', 'trovao'));
+    expect(rec.fp).not.toBe(lapFingerprint('copacabana', 'falcao'));
+    expect(checkGhost(rec)).toBe('ok');
+    expect(JSON.parse(ghostFileText(rec))).toMatchObject({ format: GHOST_FILE_FORMAT, v: 2, trackId: 'copacabana', fp: rec.fp });
+    expect(parseGhostFile(ghostFileText(rec))).toEqual(rec);
+    expect(sanitizeGhostRecord(rec)).toEqual(rec);
+  });
+
+  it('impressão diferente ou ausente = outra versão; volta que não cabe na pista = outra pista; pista que o jogo não tem = desconhecida', () => {
+    const rec = realLap();
+    expect(checkGhost({ ...rec, fp: 'deadbeef' })).toBe('otherVersion');
+    expect(checkGhost(withoutFp(rec))).toBe('otherVersion'); // loja ou arquivo de antes da impressão: versão desconhecida
+    expect(checkGhost({ ...rec, carId: 'carro_que_nao_existe' })).toBe('otherVersion');
+    // Rota 66 tem o mesmo comprimento de Copacabana: a troca de pista aparece pela impressão.
+    expect(checkGhost({ ...rec, trackId: 'rota_66' })).toBe('otherVersion');
+    // O caso da onda C: a volta de Copacabana como se fosse de Mônaco (mais longa) — nem com a impressão de Mônaco ela cabe.
+    expect(checkGhost({ ...rec, trackId: 'monaco_noite', fp: lapFingerprint('monaco_noite', 'trovao') ?? '' })).toBe('otherTrack');
+    expect(checkGhost({ ...rec, trackId: 'passo_alpino', fp: lapFingerprint('passo_alpino', 'trovao') ?? '' })).toBe('otherTrack'); // mais curta
+    expect(checkGhost({ ...rec, trackId: 'pista_que_nao_existe' })).toBe('unknownTrack');
+  });
+
+  it('importar: arquivo v1 (sem impressão), de outra versão ou que não cabe na pista dá o motivo e não vira fantasma', () => {
+    const rec = realLap();
+    // Exatamente o que a versão anterior exportava (v: 1, sem impressão): ainda é lido, e conta como versão desconhecida.
+    const v1 = JSON.stringify({ format: GHOST_FILE_FORMAT, v: 1, ...withoutFp(rec) });
+    expect(parseGhostFile(v1)).toEqual(withoutFp(rec));
+    expect(judgeGhostFile(v1)).toBe('otherVersion');
+    expect(judgeGhostFile(ghostFileText({ ...rec, fp: 'deadbeef' }))).toBe('otherVersion');
+    expect(judgeGhostFile(ghostFileText({ ...rec, trackId: 'monaco_noite' }))).toBe('otherTrack');
+    expect(judgeGhostFile(ghostFileText({ ...rec, trackId: 'pista_nova' }))).toBe('unknownTrack');
+    expect(judgeGhostFile(JSON.stringify({ format: GHOST_FILE_FORMAT, v: 2, ...withoutFp(rec) }))).toBe('invalid'); // v2 exige a impressão
+    expect(judgeGhostFile(JSON.stringify({ format: GHOST_FILE_FORMAT, v: 3, ...rec }))).toBe('invalid');
+    expect(judgeGhostFile('não é json')).toBe('invalid');
+    expect(judgeGhostFile(ghostFileText(rec))).toEqual(rec);
+  });
+
+  it('loja antiga (sem impressão) ou de outra versão carrega sem lançar; a pista fica sem fantasma, as outras seguem', () => {
+    const rec = realLap();
+    const rota = runTimeTrial(getTrack('rota_66'), 1, aiDriver, null).events[0]?.newBest;
+    if (!rota) throw new Error('rota_66');
+    const raw = { ghosts: { copacabana: { ...withoutFp(rec), savedAt: '2026-09-01' }, rota_66: { ...rota, savedAt: '2026-09-02' } } };
+    let store: GhostStore = emptyGhostStore();
+    expect(() => { store = loadGhostStore((key) => (key === GHOST_STORE_KEY ? raw : undefined)); }).not.toThrow();
+    expect(Object.keys(store.ghosts).sort()).toEqual(['copacabana', 'rota_66']);
+    expect(ghostFor(store, 'copacabana')).toBeNull();
+    expect(ghostFor(store, 'rota_66')).toEqual(rota);
+    expect(ghostFor({ ghosts: { copacabana: { ...rec, fp: 'deadbeef', savedAt: '' } } }, 'copacabana')).toBeNull();
+    expect(ghostFor({ ghosts: { copacabana: { ...rec, savedAt: '' } } }, 'copacabana')).toEqual(rec);
+  });
+
+  it('fantasma de outra impressão não é usado como rival: a pista corre sem ele e a volta nova o substitui', () => {
+    setLanguage('pt');
+    const stale: GhostRecord = { ...realLap(), fp: 'deadbeef' };
+    let disk: GhostStore = { ghosts: { copacabana: { ...stale, savedAt: '2026-09-01' } } };
+    const messages: string[] = [];
+    const track = getTrack('copacabana');
+    const trovao = [human(0, 0, 'trovao')];
+    const race = () => {
+      const hooks = startGhost('timetrial', false, 'copacabana', trovao, {
+        settings: { ghost: true }, hud: (_seat, m) => messages.push(m.text),
+        load: () => sanitizeGhostStore(JSON.parse(JSON.stringify(disk))), save: (s) => { disk = s; return s; }, now: () => '2026-09-29',
+      });
+      if (!hooks) throw new Error('sem ganchos');
+      const { state } = quickRace({ track, humans: trovao, timeTrial: true, totalCars: 1, laps: 1 });
+      const frames: Array<ReturnType<typeof hooks.frame>> = [];
+      while (state.phase !== 'finished') { stepRace(state, track, [aiDriver(state)]); hooks.afterTick(state); frames.push(hooks.frame(state)); }
+      return frames;
+    };
+    const first = race();
+    expect(first.every((f) => f === undefined || f.pose === null)).toBe(true); // nenhum carro-fantasma na pista
+    expect(messages).toEqual(['FANTASMA GRAVADO']); // sem diferença: não houve rival
+    expect(disk.ghosts.copacabana.fp).toBe(lapFingerprint('copacabana', 'trovao'));
+    expect(disk.ghosts.copacabana.savedAt).toBe('2026-09-29');
+    messages.length = 0;
+    const second = race();
+    expect(second.some((f) => f?.pose && f.delta !== null)).toBe(true); // o novo vale
+    expect(messages[0]).toMatch(/^FANTASMA [−+]\d+,\d\d$/);
   });
 });

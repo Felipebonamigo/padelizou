@@ -12,12 +12,19 @@
 // primeira diferença —, cada valor em zigue-zague, zeros seguidos em corrida, tudo em varint de base 64
 // (5 bits por caractere + continuação, alfabeto base64url). Erro máximo nas amostras: meio passo de
 // quantização (Z_STEP/2, X_STEP/2, SPEED_STEP/2); entre amostras, interpolação linear.
-import { TICK_RATE } from '../core/constants';
+//
+// Versão do conteúdo: toda volta gravada leva a impressão da pista e do carro (content-version.ts). Fantasma
+// sem ela (gravado antes) ou com outra não vale como rival nem entra por importação (checkGhost).
+import { SEGMENT_LENGTH, TICK_RATE } from '../core/constants';
 import { hasUpgrades } from '../core/career';
 import type { CarState, HumanEntry, RaceState } from '../core/types';
+import { isFingerprint, lapFingerprint, trackLength } from './content-version';
 import type { GhostFrame, GhostPose } from './contracts';
 
+/** Versão da codificação da volta (o primeiro varint da string `data`). */
 export const GHOST_VERSION = 1;
+/** Versão do arquivo exportado: a 2 leva a impressão do conteúdo (`fp`); a 1 (sem ela) ainda é lida. */
+export const GHOST_FILE_VERSION = 2;
 /**
  * Uma amostra a cada 3 ticks (20 Hz): a interpolação linear entre elas não se nota e a volta de um jogador
  * ziguezagueando na grama (o pior caso medido, 3 min) fica em ~13 KB; a da IA em ~5 KB.
@@ -61,6 +68,8 @@ export interface GhostRecord {
   /** Data ISO da volta. */
   date: string;
   data: string;
+  /** Impressão da pista e do carro quando a volta foi feita (content-version.ts); ausente = versão desconhecida. */
+  fp?: string;
 }
 
 // ───────────────────────────── Varint base 64 ─────────────────────────────
@@ -342,29 +351,71 @@ export function sanitizeGhostRecord(raw: unknown): GhostRecord | null {
   if (!trackId || !carId || !ticks || !name) return null;
   const trace = decodeTrace(r.data);
   if (!trace || !traceMatches(trace, ticks)) return null;
-  return { trackId, ticks, name, carId, date, data: r.data as string };
+  // Impressão estragada só vira "versão desconhecida": o registro segue (e não vale como rival, ver checkGhost).
+  return { trackId, ticks, name, carId, date, data: r.data as string, ...(isFingerprint(r.fp) ? { fp: r.fp } : {}) };
 }
 
-export function makeGhostRecord(trackId: string, ticks: number, trace: GhostTrace, who: { name: string; carId: string }, date: string): GhostRecord | null {
+/** `fp` = a impressão desta versão para a pista e o carro de quem fez a volta (null: pista ou carro fora do jogo). */
+export function makeGhostRecord(
+  trackId: string, ticks: number, trace: GhostTrace, who: { name: string; carId: string }, date: string,
+  fp: string | null = lapFingerprint(trackId, who.carId),
+): GhostRecord | null {
   const data = encodeTrace(trace);
   if (data.length > MAX_GHOST_CHARS) return null;
-  return { trackId, ticks, name: who.name.trim().slice(0, 24) || '?', carId: who.carId, date, data };
+  return { trackId, ticks, name: who.name.trim().slice(0, 24) || '?', carId: who.carId, date, data, ...(fp ? { fp } : {}) };
 }
 
 /** Texto do arquivo exportado (desafiar um amigo). */
 export function ghostFileText(rec: GhostRecord): string {
-  return JSON.stringify({ format: GHOST_FILE_FORMAT, v: GHOST_VERSION, ...rec });
+  return JSON.stringify({ format: GHOST_FILE_FORMAT, v: GHOST_FILE_VERSION, ...rec });
 }
 
-/** Lê um arquivo de fantasma; null se não for um (grande demais, JSON inválido, formato errado, dados corrompidos). */
+/**
+ * Lê um arquivo de fantasma; null se não for um (grande demais, JSON inválido, formato errado, dados corrompidos).
+ * Versão 1 (antes da impressão) ainda é lida, sem `fp` — versão desconhecida; a 2 exige a impressão.
+ */
 export function parseGhostFile(text: unknown): GhostRecord | null {
   if (typeof text !== 'string' || text.length > MAX_GHOST_FILE_CHARS) return null;
   let raw: unknown;
   try { raw = JSON.parse(text); } catch { return null; }
   if (typeof raw !== 'object' || raw === null) return null;
   const o = raw as Record<string, unknown>;
-  if (o.format !== GHOST_FILE_FORMAT || o.v !== GHOST_VERSION) return null;
+  if (o.format !== GHOST_FILE_FORMAT) return null;
+  if (o.v === 1) return sanitizeGhostRecord({ ...o, fp: undefined });
+  if (o.v !== GHOST_FILE_VERSION || !isFingerprint(o.fp)) return null;
   return sanitizeGhostRecord(o);
+}
+
+// ───────────────────────────── Versão do conteúdo ─────────────────────────────
+
+/**
+ * Folga nas pontas da volta: a primeira amostra cai logo depois da linha e a última logo antes dela. Entre duas
+ * amostras (3 ticks) o carro mais rápido com nitro anda ~2 segmentos (136 u/tick); 4 sobram. Duas pistas de
+ * comprimento diferente diferem em 10 segmentos ou mais.
+ */
+const LAP_END_SLACK = 4 * SEGMENT_LENGTH;
+
+/** A volta cabe numa pista deste comprimento: começa na linha, termina na linha e não sai de [0, comprimento]. */
+export function traceFitsTrack(trace: GhostTrace, length: number): boolean {
+  const s = trace.samples;
+  if (s[0].z > LAP_END_SLACK || s[s.length - 1].z < length - LAP_END_SLACK) return false;
+  return s.every((p) => p.z >= 0 && p.z <= length);
+}
+
+/** Por que um fantasma não vale nesta versão do jogo ('ok' = vale). */
+export type GhostCheck = 'ok' | 'unknownTrack' | 'otherTrack' | 'otherVersion';
+
+/**
+ * Vale como rival (e como importação) só com a impressão desta versão para a pista e o carro dele. Sem impressão
+ * (gravado antes dela, arquivo v1) conta como outra versão. A volta que não cabe no comprimento da pista é de
+ * outra pista (o arquivo de Copacabana com o id de Mônaco); pistas de mesmo comprimento só a impressão separa.
+ */
+export function checkGhost(rec: GhostRecord): GhostCheck {
+  const length = trackLength(rec.trackId);
+  if (length === null) return 'unknownTrack';
+  const trace = decodeTrace(rec.data);
+  if (!trace || !traceFitsTrack(trace, length)) return 'otherTrack';
+  return rec.fp !== undefined && rec.fp === lapFingerprint(rec.trackId, rec.carId) ? 'ok' : 'otherVersion';
 }
 
 // ───────────────────────────── A corrida contra o fantasma ─────────────────────────────
@@ -390,7 +441,8 @@ export interface GhostRun {
 /**
  * Fantasma de uma corrida de contra-relógio: reproduz `best` (se houver) e grava as voltas dos humanos
  * de carro de fábrica (como os recordes do save). Volta mais rápida que o fantasma vira o fantasma na
- * hora — a volta seguinte já é contra ela. `now` dá a data da volta.
+ * hora — a volta seguinte já é contra ela. `now` dá a data da volta. A versão de `best` é conferida
+ * antes, na leitura da loja (ghost-store.ts: ghostFor).
  */
 export function createGhostRun(trackId: string, humans: readonly HumanEntry[], best: GhostRecord | null, now: () => string): GhostRun {
   let record = best && best.trackId === trackId ? best : null;

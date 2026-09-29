@@ -126,7 +126,14 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   seatAssists: ['none', 'none', 'none', 'none'] as AssistLevel[], colorPalette: 'default' as ColorPalette, hudScale: 1, largeText: false, reduceEffects: false,
 });
 
-export interface BestLap { ticks: number; name: string; carId: string; date: string }
+export interface BestLap {
+  ticks: number;
+  name: string;
+  carId: string;
+  date: string;
+  /** Impressão da pista e do carro quando o recorde foi feito (content-version.ts); ausente nos de antes dela. */
+  fp?: string;
+}
 
 export interface SaveData {
   /** Copas concluídas (destravam a seguinte). */

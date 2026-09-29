@@ -4,8 +4,12 @@
 // Pela mesma writeJson do resto do jogo, então no Electron também vai para arquivo (Steam Cloud,
 // cloudsave.ts). Exportar/importar (desafiar um amigo): no Electron pelo diálogo do sistema
 // (file:save / file:open do preload); no navegador por download e escolha de arquivo.
+// A loja guarda o que é estruturalmente válido; só ghostFor confere a versão do conteúdo. Um fantasma de outra
+// versão fica na loja, invisível, até a volta nova daquela pista o substituir (ou o descarte por idade o levar).
 import { getDesktop } from './desktop';
-import { ghostFileText, parseGhostFile, sanitizeGhostRecord, MAX_GHOST_FILE_CHARS, type GhostRecord } from './ghost';
+import {
+  checkGhost, ghostFileText, parseGhostFile, sanitizeGhostRecord, MAX_GHOST_FILE_CHARS, type GhostCheck, type GhostRecord,
+} from './ghost';
 import { isRecord, readJson, writeJson } from './settings';
 
 export const GHOST_STORE_KEY = 'nitro-crew.ghosts';
@@ -61,11 +65,12 @@ export function pruneGhostStore(store: GhostStore, maxChars = GHOST_STORE_MAX_CH
   return removed;
 }
 
+/** O fantasma da pista que vale nesta versão do jogo (checkGhost); o de outra versão ou sem impressão não. */
 export function ghostFor(store: GhostStore, trackId: string): GhostRecord | null {
   const g = store.ghosts[trackId];
   if (!g) return null;
   const { savedAt: _savedAt, ...rec } = g;
-  return rec;
+  return checkGhost(rec) === 'ok' ? rec : null;
 }
 
 /** Guarda (substituindo o da pista). `savedAt` = agora, em ISO. */
@@ -126,8 +131,19 @@ export async function exportGhostFile(rec: GhostRecord): Promise<boolean> {
   }
 }
 
-/** Resultado de uma importação: o registro válido, 'cancel' (nada escolhido) ou 'invalid' (não é um fantasma). */
-export type GhostImport = GhostRecord | 'cancel' | 'invalid';
+/**
+ * Resultado de uma importação: o registro que vale, 'cancel' (nada escolhido), 'invalid' (não é um fantasma) ou
+ * o motivo de checkGhost (pista que o jogo não tem, volta que não cabe na pista, outra versão).
+ */
+export type GhostImport = GhostRecord | 'cancel' | 'invalid' | Exclude<GhostCheck, 'ok'>;
+
+/** O que fazer com o texto de um arquivo de fantasma (puro: o diálogo fica em importGhostFile). */
+export function judgeGhostFile(text: unknown): Exclude<GhostImport, 'cancel'> {
+  const rec = parseGhostFile(text);
+  if (!rec) return 'invalid';
+  const check = checkGhost(rec);
+  return check === 'ok' ? rec : check;
+}
 
 /** Abre o diálogo de arquivo e lê um fantasma. Nunca lança. */
 export async function importGhostFile(): Promise<GhostImport> {
@@ -139,7 +155,7 @@ export async function importGhostFile(): Promise<GhostImport> {
     return 'invalid';
   }
   if (text === null) return 'cancel';
-  return parseGhostFile(text) ?? 'invalid';
+  return judgeGhostFile(text);
 }
 
 /** Navegador: <input type=file> escondido; null se o jogador cancelar. Arquivo grande demais nem é lido. */
