@@ -11,6 +11,7 @@ import {
   PIT_X0, PIT_X1, SHOULDER_REPEAT_M, START_AHEAD, START_BEHIND,
 } from './road-textures';
 import type { RoadFrame } from './roadframe';
+import { LAMP_HEAD_X } from './scenery/props';
 import { ROAD_HALF_WIDTH_M, SEGMENT_M } from './units';
 
 /** Acostamento: da borda do asfalto até onde o terreno começa (terrain.ts, COLS[0]). */
@@ -20,8 +21,12 @@ const KERB_IN = -0.12;
 const KERB_CREST = 0.4;
 const KERB_OUT = 1.1;
 const KERB_H = 0.07;
-/** Poça de luz: deslocamento lateral do poste até o centro da poça (braço de 1,7 m + alcance), e tamanho. */
-const POOL_OFFSET_M = 4.4;
+/**
+ * Poça de luz: centro sob a luminária do poste do cenário (LAMP_HEAD_X), e tamanho (12 m de largura: cobre a metade
+ * da pista do lado do poste). Era um 4,4 m fixo, do braço antigo; o poste novo tem a luminária mais perto do pé e a
+ * poça caía 2 m para dentro da pista, longe do facho (tests/scenery.test.ts, "luz do poste").
+ */
+export const POOL_OFFSET_M = LAMP_HEAD_X;
 const POOL_W = 12;
 const POOL_L = 17;
 const MAX_POOLS = 48;

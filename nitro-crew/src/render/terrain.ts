@@ -24,7 +24,9 @@ export const COLS = [8.4, 9.6, 10.8, 16, 26, 40, 60, 90, 130, 180, 260, 380];
 const NC = COLS.length;
 /** Até aqui o chão fica na altura da pista (o cenário mais afastado, prédios, chega a ~37 m). */
 const FLAT_M = 26;
-const SEA_DEPTH_M = 3.2;
+export const SEA_DEPTH_M = 3.2;
+/** Litoral, lado do mar: as primeiras colunas descem de leve até a areia molhada; dali para fora é mar. */
+const SEA_SHORE = [0, -0.1, -0.3, -0.9];
 /** Raios dos três planos do horizonte (de perto para longe) e a altura de cada um por bioma. */
 const LAYER_RADII = [470, 660, 920];
 
@@ -79,6 +81,34 @@ export function relief(biome: SceneryId, seg: number, dist: number, side: number
 /** Peso da descida ao fundo do vale na distância `dist` (0 perto da pista, 1 longe). */
 function dropWeight(biome: SceneryId, dist: number): number {
   return RELIEF[biome].drop * smooth01(FLAT_M + 8, 170, dist);
+}
+
+// A conta de cada coluna, exportada: o cenário (scenery/ground.ts) pousa os objetos com ela — antes ele copiava a
+// fórmula e ficou para trás quando o relevo mudou. A altura de uma coluna, relativa à pista no início do segmento, é
+// −(pista acima do fundo do vale) × columnDrop + columnRelief.
+
+/** Relevo (m) da coluna `c` do lado `side` no segmento `seg` (o do mar no lado do mar do litoral). */
+export function columnRelief(biome: SceneryId, seg: number, side: number, c: number): number {
+  if (biome === 'coast' && side > 0) return c < SEA_SHORE.length ? SEA_SHORE[c] : -(SEA_DEPTH_M + 0.6);
+  return relief(biome, seg, COLS[c], side);
+}
+
+/** Quanto a coluna desce até o fundo do vale (0..1); no lado do mar, 1 a partir da água. */
+export function columnDrop(biome: SceneryId, side: number, c: number): number {
+  if (biome === 'coast' && side > 0) return c < SEA_SHORE.length ? 0 : 1;
+  return dropWeight(biome, COLS[c]);
+}
+
+/** Altura (m) da coluna relativa à pista no início do segmento; `roadH` = pista acima do fundo do vale. */
+export function columnHeightAboveRoad(biome: SceneryId, seg: number, roadH: number, side: number, c: number): number {
+  return -roadH * columnDrop(biome, side, c) + columnRelief(biome, seg, side, c);
+}
+
+/** Distância real (m) da coluna `c`: do lado de dentro da curva ela é presa, senão dobraria para trás. */
+export function columnDistance(curve: number, side: number, c: number): number {
+  const delta = curve * HEADING_PER_CURVE;
+  const inside = (side > 0) === (delta > 0) && delta !== 0;
+  return inside ? Math.min(COLS[c], 0.9 * SEGMENT_M / (Math.abs(delta) + 1e-6)) : COLS[c];
 }
 
 const PERIODIC = 64;
@@ -351,7 +381,8 @@ export class Terrain {
   private reliefTable = new Float32Array(0);
   private colorTable = new Float32Array(0);
   private gradTable = new Float32Array(0);
-  private readonly dropW = new Float32Array(NC);
+  /** columnDrop por lado (−1, +1) e coluna. */
+  private readonly dropW = new Float32Array(2 * NC);
   private readonly tmp = new THREE.Color();
   private readonly dummy = new THREE.Object3D();
   private readonly ys = new Float32Array(NC);
@@ -437,7 +468,7 @@ export class Terrain {
     let minY = Infinity;
     for (const s of track.segments) minY = Math.min(minY, s.y0, s.y1);
     this.minRoadY = minY * Y_SCALE;
-    for (let c = 0; c < NC; c++) this.dropW[c] = dropWeight(this.biome, COLS[c]);
+    for (let si = 0; si < 2; si++) for (let c = 0; c < NC; c++) this.dropW[si * NC + c] = columnDrop(this.biome, si === 0 ? -1 : 1, c);
     const colors: GroundColors = {
       low: new THREE.Color(p.groundLow), high: new THREE.Color(p.groundHigh), rock: new THREE.Color(p.rock), snow: new THREE.Color(p.snow),
       sand: new THREE.Color(p.sand), verge: new THREE.Color(p.verge), wetSand: new THREE.Color(p.sand).multiplyScalar(0.72),
@@ -480,14 +511,11 @@ export class Terrain {
       const roadH = segs[i].y0 * Y_SCALE - this.minRoadY; // pista acima do fundo do vale
       for (let si = 0; si < 2; si++) {
         const side = si === 0 ? -1 : 1;
-        const seaSide = b === 'coast' && side > 0;
         // Altura (m acima do fundo) de cada coluna, e o relevo guardado na tabela.
         for (let c = 0; c < NC; c++) {
-          let r: number;
-          if (seaSide) r = c <= 3 ? [0, -0.1, -0.3, -0.9][c] : -(SEA_DEPTH_M + 0.6);
-          else r = relief(b, i, COLS[c], side);
+          const r = columnRelief(b, i, side, c);
           this.reliefTable[(i * 2 + si) * NC + c] = r;
-          const w = seaSide ? (c <= 3 ? 0 : 1) : this.dropW[c];
+          const w = this.dropW[si * NC + c];
           hs[c] = roadH * (1 - w) + r;
           hAll[(i * 2 + si) * NC + c] = hs[c];
         }
@@ -626,7 +654,7 @@ export class Terrain {
         const base = (si * 2 + sIdx) * NC;
         for (let c = 0; c < NC; c++) {
           const dist = inside ? Math.min(COLS[c], clampD) : COLS[c];
-          const w = seaSide ? (c <= 3 ? 0 : 1) : this.dropW[c];
+          const w = this.dropW[sIdx * NC + c];
           const y = py + (floorY - py) * w + rt[base + c];
           ys[c] = y;
           // Esquerda: pistas de fora para dentro (x crescente), como a pista.
