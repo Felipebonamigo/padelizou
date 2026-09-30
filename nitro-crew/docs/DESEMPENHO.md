@@ -202,3 +202,57 @@ na próxima vez que desenha, então o número não cresce; fica anotado para a l
 Meta sugerida para o passo 1.6: 60 FPS com 2 jogadores na média numa placa integrada recente em qualidade
 média; 4 jogadores podem cair para baixa. Se não bater, o que mais pesa por viewport são as sombras (média e
 alta) e o bloom (alta) — os ajustes ficam para a Fase 2.
+
+## 5. Pista, céu e luz (onda F)
+
+O que a tarefa de chão/atmosfera mudou no custo do quadro (detalhes em `docs/VISUAL.md`). Medido com
+`renderer.info` do último quadro (todas as viewports, passada de sombra e bloom incluídas) nas cenas do harness,
+1280×720, dpr 1, 6 quadros — antes (e3e63b1) e depois, na mesma máquina carregada. A coluna de tempo não entra: o
+swiftshader com a máquina dividida não diz nada sobre GPU.
+
+| cena | qualidade | jog. | chamadas antes → depois | triângulos antes → depois | geometrias | texturas |
+|---|---|---|---|---|---|---|
+| Copacabana (litoral, dia) | alta | 1 | 88 → 84 | 104.510 → 114.314 | 61 → 57 | 26 → 28 |
+| Great Ocean (litoral, entardecer) | alta | 1 | 103 → 99 | 110.938 → 121.478 | 68 → 64 | 28 → 30 |
+| Mônaco (litoral, noite) | alta | 1 | 90 → 93 | 122.688 → 129.062 | 58 → 61 | 28 → 31 |
+| Kruger (savana, dia) | alta | 1 | 74 → 69 | 58.426 → 67.366 | 54 → 49 | 26 → 28 |
+| Transpantaneira (savana, entardecer) | alta | 1 | 74 → 69 | 54.984 → 63.780 | 52 → 47 | 25 → 27 |
+| Serra do Mar (mata, dia) | alta | 1 | 83 → 78 | 125.444 → 134.968 | 58 → 53 | 27 → 29 |
+| Sampa (cidade, noite) | alta | 1 | 103 → 104 | 79.726 → 83.952 | 67 → 68 | 30 → 33 |
+| Paris (cidade, entardecer) | alta | 1 | 108 → 102 | 82.216 → 90.524 | 72 → 66 | 30 → 32 |
+| Rota 66 (deserto, dia) | alta | 1 | 74 → 69 | 84.360 → 93.004 | 54 → 49 | 23 → 25 |
+| Cânion (deserto, entardecer) | alta | 1 | 80 → 75 | 89.318 → 98.546 | 56 → 51 | 25 → 27 |
+| Monte Fuji (montanha, dia) | alta | 1 | 81 → 76 | 72.514 → 81.814 | 56 → 51 | 27 → 29 |
+| Lapônia (montanha, entardecer) | alta | 1 | 80 → 75 | 70.240 → 79.132 | 56 → 51 | 27 → 29 |
+| Copacabana | alta | 4 | 364 → 348 | 498.776 → 537.184 | 63 → 59 | 68 → 70 |
+| Sampa | alta | 4 | 404 → 408 | 340.272 → 357.148 | 68 → 69 | 72 → 75 |
+| Serra do Mar | média | 1 | 64 → 59 | 105.970 → 111.150 | 55 → 50 | 13 → 15 |
+| Serra do Mar | baixa | 1 | 42 → 37 | 48.322 → 52.934 | 53 → 48 | 10 → 12 |
+| Sampa | baixa | 1 | 55 → 56 | 41.164 → 43.636 | 62 → 63 | 13 → 16 |
+| Monte Fuji | baixa | 4 | 155 → 135 | 147.674 → 164.746 | 51 → 46 | 13 → 15 |
+
+(As linhas de alta com 1 jogador, menos Copacabana, foram medidas antes do último ajuste — anel do horizonte de 180
+para 150 lados e nuvens simples na média/baixa —, que só tira triângulos: ~360 a menos por viewport na alta.)
+
+Leitura:
+- **Chamadas de desenho caem ~5 por viewport** (20 a menos com 4 jogadores na baixa): as 7 nuvens viraram uma
+  malha só e a linha de largada entrou no decalque do grid. À noite sobem 1 (as poças de luz, instanciadas) e no
+  trecho da largada 1 (o decalque). Zebra, acostamento, box e decalque são uma chamada cada, com qualquer número de
+  curvas na janela.
+- **Triângulos sobem ~4–5 mil por viewport na baixa/média e ~9 mil na alta**: duas colunas a mais no terreno (a
+  faixa de transição), zebras em relevo nas curvas, três planos no horizonte em vez de dois e, na alta, nuvens
+  arredondadas (a média e a baixa usam a versão facetada, com ¼ dos triângulos). É geometria barata (sem textura,
+  sem sombra projetada); o que pesa por viewport continua sendo sombra e bloom, que não mudaram de custo.
+- **Texturas +2 a +3**: asfalto e o mapa de brilho das marcações, zebra, cascalho do acostamento, box, decalque da
+  largada e a poça de luz (7, contra 4 antes, sendo que uma das 4 era o xadrez órfão que o `Road.setPalette` criava
+  e ninguém usava — anotado na seção 2; sumiu). As do chão são recriadas só na troca de pista.
+- **CPU do terreno por quadro cai**: altura, cor e inclinação de cada (segmento, lado, coluna) saem de uma tabela
+  montada na troca de pista (`Terrain.buildTables`); antes o ruído do relevo e da cor rodava por vértice, por
+  viewport, por quadro. O custo foi para a troca de pista (a tabela e as texturas do asfalto: dezenas de ms, uma vez).
+- **Sessão longa**: `scripts/playtest-memoria.mjs` (36 blocos, 72 corridas, trocando pista/lotação/qualidade),
+  ciclo dos blocos 12–23 contra 24–35: geometrias 106 → 106, texturas 81 → 81, programas 117 → 117, materiais
+  51 → 51, objetos 123 → 123 (todos: cresceu em 0 de 12 posições); heap JS 26,98 → 27,11 MB (+137 KB em 24
+  corridas); 0 erros; "Sem crescimento entre ciclos". Os três planos do horizonte dividem um material que vive a
+  sessão inteira (antes era um por troca de pista) e as texturas do chão são liberadas a cada troca. (Na alta com 4
+  viewports o teto subiu de 79 para 81 texturas e de 103 para 117 programas: as texturas novas do chão e os
+  shaders novos — nuvem, planos do horizonte, espuma — em cada configuração de sombra/bloom; têm teto e não crescem.)

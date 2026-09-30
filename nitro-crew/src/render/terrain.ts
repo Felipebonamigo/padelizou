@@ -1,45 +1,84 @@
-// Terreno: duas faixas (uma por lado) que seguem o RoadFrame, com relevo por bioma (ruído
-// por índice de segmento, nunca por quadro), mar animado no litoral, quadras + prédios de
-// fundo na cidade, disco de chão e o anel distante (cordilheira / mesas / skyline) que gira
-// pelo rumo absoluto. Buffers alocados uma vez, atualizados no lugar.
+// Terreno: duas faixas (uma por lado) que seguem o RoadFrame. Perto da pista o chão fica na
+// altura do asfalto (o cenário é posto ali); longe, desce para o fundo do vale (a pista alta
+// de montanha olha o vale lá embaixo) e sobe em relevo por bioma. Cor por altura e inclinação
+// (prado → mata → rocha → neve; areia → rocha vermelha; praia → penhasco), com a faixa de
+// transição (terra, areia, calçada) junto do acostamento. Altura e cor dependem só do índice
+// do segmento: vão para uma tabela por pista e o quadro só copia (barato com 4 viewports).
+// Mais: mar estilizado com espuma na linha d'água, quadras + prédios de fundo na cidade, disco
+// de chão e o horizonte em três planos de montanha, cada um mais dentro da névoa, que gira
+// pelo rumo absoluto.
 import * as THREE from 'three';
 import type { SceneryId, Track } from '../core/types';
 import { fbm, hash2, hash3, valueNoise } from './noise';
-import { mix, shade, type Palette } from './palette';
-import { saturate } from './road';
+import { type Palette } from './palette';
 import type { RoadFrame } from './roadframe';
 import { windowTextures } from './textures';
 import { HEADING_PER_CURVE, SEGMENT_M, Y_SCALE } from './units';
 
-/** Distância lateral (m) de cada coluna da faixa, a partir do centro da pista. */
-const COLS = [8.4, 16, 26, 40, 60, 90, 130, 180, 260, 380];
+/**
+ * Distância lateral (m) de cada coluna da faixa, a partir do centro da pista. As três primeiras
+ * são a transição (a faixa de terra/areia/calçada que encosta no acostamento, até 9,6 m, e o
+ * degradê curto até o chão em 10,8 m).
+ */
+export const COLS = [8.4, 9.6, 10.8, 16, 26, 40, 60, 90, 130, 180, 260, 380];
+const NC = COLS.length;
+/** Até aqui o chão fica na altura da pista (o cenário mais afastado, prédios, chega a ~37 m). */
+const FLAT_M = 26;
 const SEA_DEPTH_M = 3.2;
-const RING_RADIUS = 470;
-const RING_INNER = 330;
+/** Raios dos três planos do horizonte (de perto para longe) e a altura de cada um por bioma. */
+const LAYER_RADII = [470, 660, 920];
 
-function reliefAmplitude(biome: SceneryId): [number, number] {
-  switch (biome) {
-    case 'desert': return [24, 0.016];
-    case 'alpine': return [62, 0.03];
-    case 'tropical': return [34, 0.035];
-    case 'savanna': return [9, 0.028];
-    case 'coast': return [20, 0.03];
-    case 'city_night': return [0, 0.03];
-  }
+interface BiomeRelief {
+  /** Altura máxima do relevo (m) na última coluna e a frequência ao longo da pista. */
+  amp: number;
+  freq: number;
+  /** Quanto o chão distante desce até o fundo do vale quando a pista está alta (0..1). */
+  drop: number;
+  /** Altura (m acima do fundo do vale) em que começa a neve; Infinity = nunca. */
+  snowLine: number;
+  /** Alturas dos planos do horizonte (m). */
+  layers: [number, number, number];
+  /** Facetamento dos planos (0 = silhueta chapada, 1 = faces bem marcadas pelo sol). */
+  facet: number;
 }
 
-/** Altura do relevo (m) na coluna `col` do lado `side` do segmento `seg`. Zero perto da pista. */
-function relief(biome: SceneryId, seg: number, col: number, side: number): number {
-  if (col < 2) return 0;
-  const [amp, freq] = reliefAmplitude(biome);
-  if (amp === 0) return 0;
-  const ramp = Math.pow((col - 1) / (COLS.length - 2), 1.25);
+const RELIEF: Record<SceneryId, BiomeRelief> = {
+  tropical: { amp: 40, freq: 0.035, drop: 0.8, snowLine: Infinity, layers: [62, 120, 205], facet: 0.35 },
+  desert: { amp: 26, freq: 0.016, drop: 0.85, snowLine: Infinity, layers: [48, 96, 150], facet: 0.5 },
+  city_night: { amp: 0, freq: 0.03, drop: 0, snowLine: Infinity, layers: [30, 60, 120], facet: 0.2 },
+  alpine: { amp: 64, freq: 0.03, drop: 1, snowLine: 60, layers: [70, 150, 265], facet: 0.6 },
+  coast: { amp: 34, freq: 0.03, drop: 0.7, snowLine: Infinity, layers: [34, 70, 110], facet: 0.3 },
+  savanna: { amp: 11, freq: 0.028, drop: 0.5, snowLine: Infinity, layers: [26, 52, 80], facet: 0.3 },
+};
+
+function smooth01(e0: number, e1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+
+/** Relevo (m) na distância `dist` do lado `side`, no segmento `seg`: zero até FLAT_M, sobe, e cai na borda. */
+export function relief(biome: SceneryId, seg: number, dist: number, side: number): number {
+  const r = RELIEF[biome];
+  if (r.amp === 0 || dist <= FLAT_M) return 0;
+  const ramp = Math.pow(Math.min(1, (dist - FLAT_M) / (300 - FLAT_M)), 1.25);
+  // A última coluna volta para perto do fundo: a borda da faixa não vira um degrau no disco de chão.
+  const edge = 1 - 0.75 * smooth01(300, 380, dist);
   const seed = side > 0 ? 501 : 907;
-  const n = fbm(seed, seg * freq + col * 0.85, 2) * 0.5 + 0.5;
-  const m = valueNoise(seed + 77, seg * freq * 1.9 + col * 2.3) * 0.5 + 0.5;
-  let h = (n * 0.75 + m * 0.25) * amp * ramp;
-  if (biome === 'desert') h = amp * ramp * Math.pow(n, 1.6) * 0.9 + m * 3 * ramp; // dunas suaves
-  return h;
+  const col = dist / 40;
+  const n = fbm(seed, seg * r.freq + col * 0.85, 2) * 0.5 + 0.5;
+  const m = valueNoise(seed + 77, seg * r.freq * 1.9 + col * 2.3) * 0.5 + 0.5;
+  if (biome === 'desert') return (r.amp * Math.pow(n, 1.6) * 0.95 + m * 3) * ramp * edge; // dunas suaves
+  if (biome === 'alpine') {
+    // Cristas: ruído "dobrado" dá picos em vez de lombadas.
+    const ridge = 1 - Math.abs(fbm(seed + 5, seg * r.freq * 0.8 + col * 0.6, 2));
+    return (n * 0.55 + ridge * ridge * 0.45 + m * 0.1) * r.amp * ramp * edge;
+  }
+  return (n * 0.75 + m * 0.25) * r.amp * ramp * edge;
+}
+
+/** Peso da descida ao fundo do vale na distância `dist` (0 perto da pista, 1 longe). */
+function dropWeight(biome: SceneryId, dist: number): number {
+  return RELIEF[biome].drop * smooth01(FLAT_M + 8, 170, dist);
 }
 
 const PERIODIC = 64;
@@ -57,6 +96,54 @@ function ringNoise(seed: number, t: number, octaves: number): number {
   return sum / norm;
 }
 
+/** Perfil (0..1) de um plano do horizonte no ângulo t (voltas), por bioma. */
+export function ringProfile(biome: SceneryId, layer: number, t: number): number {
+  const seed = 11 + layer * 37;
+  const n = ringNoise(seed, t, 3) * 0.5 + 0.5;
+  switch (biome) {
+    case 'alpine': {
+      const ridge = 1 - Math.abs(ringNoise(seed + 3, t, 3));
+      return Math.min(1, 0.18 + 0.5 * ridge * ridge + 0.45 * n * n);
+    }
+    case 'desert': {
+      // Mesas: topo reto e paredes íngremes (degrau suavizado), com planícies baixas entre elas.
+      const m = ringNoise(seed + 9, t, 2);
+      const mesa = smooth01(0.02, 0.12, m);
+      return 0.12 + 0.1 * n + mesa * (0.62 + 0.12 * n);
+    }
+    case 'coast': return layer === 0 ? Math.max(0, n - 0.42) * 1.9 : Math.max(0.04, n - 0.25) * 1.35;
+    case 'city_night': return 0.25 + 0.45 * n;
+    case 'savanna': {
+      const m = ringNoise(seed + 9, t, 2);
+      return 0.2 + 0.25 * n + 0.45 * smooth01(0.1, 0.25, m);
+    }
+    default: return 0.25 + 0.75 * n;
+  }
+}
+
+const RING_VERT = /* glsl */ `
+varying vec3 vColor; varying vec3 vW;
+void main() {
+  vColor = color;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vW = wp.xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+
+// Planos do horizonte: sem névoa (a névoa já está na cor de cada vértice), faces planas que o
+// sol acende conforme o facetamento do bioma.
+const RING_FRAG = /* glsl */ `
+uniform vec3 uSunDir; uniform float uFacet;
+varying vec3 vColor; varying vec3 vW;
+void main() {
+  vec3 n = normalize(cross(dFdx(vW), dFdy(vW)));
+  float l = max(dot(n, uSunDir), 0.0);
+  vec3 c = vColor * (1.0 - uFacet + uFacet * (0.62 + 0.7 * l));
+  gl_FragColor = vec4(c, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
 const SEA_VERT = /* glsl */ `
 varying vec3 vWorld;
 #include <fog_pars_vertex>
@@ -68,36 +155,84 @@ void main() {
   #include <fog_vertex>
 }`;
 
+// Mar estilizado: turquesa perto, azul fundo longe, faixas largas de onda, céu refletido no
+// ângulo raso e o caminho de brilho do sol/lua. As ondas somem com a distância (sem cintilar).
 const SEA_FRAG = /* glsl */ `
 uniform vec3 uDeep; uniform vec3 uShallow; uniform vec3 uSky; uniform vec3 uSunDir; uniform vec3 uSunColor;
-uniform float uTime;
+uniform float uTime; uniform float uSpec;
 varying vec3 vWorld;
 #include <fog_pars_fragment>
 void main() {
   vec2 p = vWorld.xz;
-  float w1 = sin(p.x * 0.21 + uTime * 1.4) ;
-  float w2 = sin(p.y * 0.17 - uTime * 1.1 + p.x * 0.05);
-  float w3 = sin((p.x + p.y) * 0.09 + uTime * 0.6);
-  float w = (w1 + w2 + w3) / 3.0;
-  vec3 n = normalize(vec3(cos(p.x * 0.21 + uTime * 1.4) * 0.09 + cos((p.x + p.y) * 0.09 + uTime * 0.6) * 0.04, 1.0, cos(p.y * 0.17 - uTime * 1.1) * 0.09));
+  float t = uTime;
+  float dist = length(cameraPosition.xz - p);
+  float near = 1.0 - smoothstep(60.0, 420.0, dist);
+  vec2 g = vec2(0.0);
+  g += vec2(0.21, 0.0) * cos(p.x * 0.21 + t * 1.4) * 0.45;
+  g += vec2(0.05, 0.17) * cos(p.y * 0.17 + p.x * 0.05 - t * 1.1) * 0.5;
+  g += vec2(0.09, 0.09) * cos((p.x + p.y) * 0.09 + t * 0.6) * 0.8;
+  vec3 n = normalize(vec3(-g.x * near, 1.0, -g.y * near));
   vec3 v = normalize(cameraPosition - vWorld);
-  float fres = pow(1.0 - max(dot(n, v), 0.0), 3.5);
-  vec3 col = mix(uDeep, uShallow, 0.4 + 0.3 * w);
-  col = mix(col, uSky, fres * 0.75);
+  float fres = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+  vec3 col = mix(uShallow, uDeep, smoothstep(25.0, 320.0, dist));
+  float band = sin(dot(p, vec2(0.045, 0.1)) + t * 0.7 + sin(p.x * 0.025 + t * 0.2) * 2.2);
+  col *= 1.0 + 0.07 * smoothstep(0.55, 0.95, band) * near;
+  col = mix(col, uSky, clamp(fres * 0.5, 0.0, 0.5));
   vec3 r = reflect(-v, n);
-  float spec = pow(max(dot(r, uSunDir), 0.0), 160.0);
-  col += uSunColor * spec * 3.0;
+  float s = max(dot(r, uSunDir), 0.0);
+  col += uSunColor * (pow(s, uSpec) * 2.2 + pow(s, uSpec * 0.08) * 0.12);
   gl_FragColor = vec4(col, 1.0);
+  #if defined(USE_FOG) && defined(FOG_EXP2)
+    // Névoa mais leve no mar: o azul chega saturado até o horizonte.
+    float seaFog = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, seaFog * 0.7);
+  #else
+    #include <fog_fragment>
+  #endif
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
+const FOAM_VERT = /* glsl */ `
+attribute float aU;
+varying float vU; varying float vV;
+#include <fog_pars_vertex>
+void main() {
+  vU = aU;
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vV = uv.y;
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  #include <fog_vertex>
+}`;
+
+// Linha d'água: espuma branca que vai e volta (a onda quebrando) e a faixa rasa turquesa que
+// some mar adentro. `vU`: 0 na linha d'água, 1 na espuma, 2 no fim do raso.
+const FOAM_FRAG = /* glsl */ `
+uniform vec3 uFoam; uniform vec3 uShallow; uniform float uTime;
+varying float vU; varying float vV;
+#include <fog_pars_fragment>
+void main() {
+  float wave = 0.5 + 0.5 * sin(uTime * 1.3 + vV * 0.9);
+  float edge = 0.55 + 0.4 * wave;
+  float foam = 1.0 - smoothstep(edge - 0.25, edge, vU);
+  foam *= 0.75 + 0.25 * sin(vV * 3.1 + uTime * 0.7);
+  float shallow = (1.0 - smoothstep(1.0, 2.0, vU)) * 0.55;
+  vec3 col = mix(uShallow, uFoam, foam);
+  float a = max(foam, shallow);
+  if (a < 0.01) discard;
+  gl_FragColor = vec4(col, a);
   #include <fog_fragment>
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
 
-/** Faixa com `lanes` vértices por ponto, com cor por vértice e sombreamento plano. */
+/** Faixa com `lanes` vértices por ponto, com cor e normal por vértice. */
 class Strip {
   readonly geometry = new THREE.BufferGeometry();
   readonly position: THREE.BufferAttribute;
   readonly color: THREE.BufferAttribute;
+  readonly normal: THREE.BufferAttribute;
   readonly mesh: THREE.Mesh;
   constructor(readonly capacity: number, readonly lanes: number, material: THREE.Material) {
     const verts = capacity * lanes;
@@ -107,7 +242,9 @@ class Strip {
     this.color.setUsage(THREE.DynamicDrawUsage);
     this.geometry.setAttribute('position', this.position);
     this.geometry.setAttribute('color', this.color);
-    this.geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(verts * 3), 3));
+    this.normal = new THREE.BufferAttribute(new Float32Array(verts * 3), 3);
+    this.normal.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute('normal', this.normal);
     const index = new Uint32Array((capacity - 1) * (lanes - 1) * 6);
     let k = 0;
     for (let j = 0; j < capacity - 1; j++) for (let l = 0; l < lanes - 1; l++) {
@@ -120,52 +257,54 @@ class Strip {
     this.mesh.frustumCulled = false;
     this.mesh.receiveShadow = true;
   }
-  set(point: number, lane: number, x: number, y: number, z: number, c: THREE.Color): void {
+  set(point: number, lane: number, x: number, y: number, z: number, r: number, g: number, b: number, nx: number, ny: number, nz: number): void {
     const i = point * this.lanes + lane;
     this.position.setXYZ(i, x, y, z);
-    this.color.setXYZ(i, c.r, c.g, c.b);
+    this.color.setXYZ(i, r, g, b);
+    this.normal.setXYZ(i, nx, ny, nz);
   }
   finish(points: number): void {
     this.geometry.setDrawRange(0, Math.max(0, points - 1) * (this.lanes - 1) * 6);
-    this.position.needsUpdate = true; this.color.needsUpdate = true;
+    this.position.needsUpdate = true; this.color.needsUpdate = true; this.normal.needsUpdate = true;
   }
   dispose(): void { this.geometry.dispose(); }
 }
 
-/** Anel distante: cordilheira/mesas/colinas em três anéis de vértices (base, meio, topo). */
-function buildRing(biome: SceneryId, radius: number, height: number, seed: number, colors: [THREE.Color, THREE.Color, THREE.Color]): THREE.BufferGeometry {
-  const N = 144;
+/** Plano do horizonte: base (dentro da névoa), meio e topo, com neve nos picos se houver. */
+function buildRing(biome: SceneryId, layer: number, radius: number, height: number, top: THREE.Color, fog: THREE.Color, haze: number, snow: THREE.Color | null): THREE.BufferGeometry {
+  const N = 150;
   const pos: number[] = []; const col: number[] = [];
+  const cTop = top.clone().lerp(fog, haze);
+  const cMid = top.clone().lerp(fog, Math.min(1, haze + 0.22));
+  const cBase = top.clone().lerp(fog, Math.min(1, haze + 0.55));
+  const cSnow = snow ? snow.clone().lerp(fog, haze * 0.8) : null;
+  const tmp = new THREE.Color();
   const push = (x: number, y: number, z: number, c: THREE.Color) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); };
-  const heightAt = (i: number): number => {
-    const t = (i % N) / N;
-    const n = ringNoise(seed, t, 3) * 0.5 + 0.5;
-    if (biome === 'desert') {
-      const m = ringNoise(seed + 9, t, 1);
-      return m > 0.1 ? height * (0.75 + 0.25 * n) : height * (0.18 + 0.15 * n);
-    }
-    if (biome === 'coast') return Math.max(0, n - 0.35) * height * 1.6;
-    if (biome === 'city_night') return height * (0.2 + 0.3 * n);
-    return height * (0.3 + 0.7 * n);
+  const heightAt = (i: number): number => height * ringProfile(biome, layer, (i % N) / N);
+  const topColor = (h: number): THREE.Color => {
+    if (!cSnow) return cTop;
+    const s = smooth01(0.66, 0.78, h / height);
+    return tmp.copy(cTop).lerp(cSnow, s);
   };
+  const B = -70;
   for (let i = 0; i < N; i++) {
     const a0 = (i / N) * Math.PI * 2; const a1 = ((i + 1) / N) * Math.PI * 2;
     const h0 = heightAt(i); const h1 = heightAt(i + 1);
     const x0 = Math.cos(a0) * radius; const z0 = Math.sin(a0) * radius;
     const x1 = Math.cos(a1) * radius; const z1 = Math.sin(a1) * radius;
-    const rIn = 0.985;
-    const B = -80;
-    // Faixa de baixo (base → meio) e de cima (meio → topo); topo ligeiramente para dentro.
-    const m0 = h0 * 0.62; const m1 = h1 * 0.62;
-    push(x0, B, z0, colors[0]); push(x1, B, z1, colors[0]); push(x0, m0, z0, colors[1]);
-    push(x1, B, z1, colors[0]); push(x1, m1, z1, colors[1]); push(x0, m0, z0, colors[1]);
-    push(x0, m0, z0, colors[1]); push(x1, m1, z1, colors[1]); push(x0 * rIn, h0, z0 * rIn, colors[2]);
-    push(x1, m1, z1, colors[1]); push(x1 * rIn, h1, z1 * rIn, colors[2]); push(x0 * rIn, h0, z0 * rIn, colors[2]);
+    // O meio fica para fora e o topo para dentro: a encosta tem inclinação (o sol a faceta).
+    const m0 = h0 * 0.45; const m1 = h1 * 0.45;
+    const ro = 1.02; const ri = 0.975;
+    push(x0 * ro, B, z0 * ro, cBase); push(x1 * ro, B, z1 * ro, cBase); push(x0 * ro, m0, z0 * ro, cMid);
+    push(x1 * ro, B, z1 * ro, cBase); push(x1 * ro, m1, z1 * ro, cMid); push(x0 * ro, m0, z0 * ro, cMid);
+    const t0 = topColor(h0).clone(); const t1 = topColor(h1).clone();
+    const mc0 = cMid.clone().lerp(t0, 0.35); const mc1 = cMid.clone().lerp(t1, 0.35);
+    push(x0 * ro, m0, z0 * ro, mc0); push(x1 * ro, m1, z1 * ro, mc1); push(x0 * ri, h0, z0 * ri, t0);
+    push(x1 * ro, m1, z1 * ro, mc1); push(x1 * ri, h1, z1 * ri, t1); push(x0 * ri, h0, z0 * ri, t0);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.computeVertexNormals();
   return g;
 }
 
@@ -181,32 +320,46 @@ function meteredBox(w: number, h: number, d: number): THREE.BoxGeometry {
   return g;
 }
 
+/** Cores já convertidas (espaço linear) de uma paleta, para o laço por vértice. */
+interface GroundColors {
+  low: THREE.Color; high: THREE.Color; rock: THREE.Color; snow: THREE.Color; sand: THREE.Color; verge: THREE.Color; wetSand: THREE.Color;
+  block: [THREE.Color, THREE.Color, THREE.Color];
+}
+
 export class Terrain {
   readonly group = new THREE.Group();
-  /** Anel distante e skyline: giram pelo rumo absoluto. */
+  /** Planos do horizonte e skyline: giram pelo rumo absoluto. */
   readonly farGroup = new THREE.Group();
   private readonly left: Strip;
   private readonly right: Strip;
   private readonly material: THREE.MeshStandardMaterial;
   private readonly ground: THREE.Mesh<THREE.CircleGeometry, THREE.MeshStandardMaterial>;
   private readonly sea: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly foam: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+  private readonly foamPos: THREE.BufferAttribute;
+  private readonly foamV: THREE.BufferAttribute;
   private readonly cityBlocks: THREE.InstancedMesh[] = [];
   private readonly cityMaterial: THREE.MeshStandardMaterial;
   private readonly skyline: THREE.InstancedMesh;
   private readonly neon: THREE.InstancedMesh;
+  private readonly ringMaterial: THREE.ShaderMaterial;
   private ringMeshes: THREE.Mesh[] = [];
   private biome: SceneryId = 'coast';
   private trackKey = '';
   private minRoadY = 0;
-  private readonly cA = new THREE.Color(); private readonly cB = new THREE.Color(); private readonly cSand = new THREE.Color();
-  private readonly cSnow = new THREE.Color(); private readonly cBlock = [new THREE.Color(), new THREE.Color(), new THREE.Color()];
+  /** Por segmento × lado × coluna: relevo (m), cor (linear) e inclinação (para fora, ao longo). Montado em setTrack. */
+  private reliefTable = new Float32Array(0);
+  private colorTable = new Float32Array(0);
+  private gradTable = new Float32Array(0);
+  private readonly dropW = new Float32Array(NC);
   private readonly tmp = new THREE.Color();
   private readonly dummy = new THREE.Object3D();
+  private readonly ys = new Float32Array(NC);
 
   constructor(capacity: number) {
-    this.material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, metalness: 0 });
-    this.left = new Strip(capacity, COLS.length, this.material);
-    this.right = new Strip(capacity, COLS.length, this.material);
+    this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.6 });
+    this.left = new Strip(capacity, NC, this.material);
+    this.right = new Strip(capacity, NC, this.material);
     this.group.add(this.left.mesh, this.right.mesh);
 
     this.ground = new THREE.Mesh(new THREE.CircleGeometry(1500, 48), new THREE.MeshStandardMaterial({ color: '#333333', roughness: 1 }));
@@ -219,7 +372,7 @@ export class Terrain {
       vertexShader: SEA_VERT, fragmentShader: SEA_FRAG, fog: true,
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
         uDeep: { value: new THREE.Color('#0b4f8a') }, uShallow: { value: new THREE.Color('#2aa8c8') }, uSky: { value: new THREE.Color('#cfefff') },
-        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff3a0') }, uTime: { value: 0 },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunColor: { value: new THREE.Color('#fff3a0') }, uTime: { value: 0 }, uSpec: { value: 180 },
       }]),
     });
     this.sea = new THREE.Mesh(new THREE.PlaneGeometry(3200, 3200), seaMat);
@@ -227,6 +380,33 @@ export class Terrain {
     this.sea.frustumCulled = false;
     this.sea.visible = false;
     this.group.add(this.sea);
+
+    // Espuma: 3 vértices por ponto (linha d'água, fim da espuma, fim do raso).
+    const fg = new THREE.BufferGeometry();
+    this.foamPos = new THREE.BufferAttribute(new Float32Array(capacity * 3 * 3), 3);
+    this.foamPos.setUsage(THREE.DynamicDrawUsage);
+    this.foamV = new THREE.BufferAttribute(new Float32Array(capacity * 3 * 2), 2);
+    this.foamV.setUsage(THREE.DynamicDrawUsage);
+    const aU = new Float32Array(capacity * 3);
+    for (let j = 0; j < capacity; j++) { aU[j * 3] = 0; aU[j * 3 + 1] = 1; aU[j * 3 + 2] = 2; }
+    fg.setAttribute('position', this.foamPos);
+    fg.setAttribute('uv', this.foamV);
+    fg.setAttribute('aU', new THREE.BufferAttribute(aU, 1));
+    const fidx = new Uint32Array((capacity - 1) * 2 * 6);
+    let k = 0;
+    for (let j = 0; j < capacity - 1; j++) for (let l = 0; l < 2; l++) {
+      const a = j * 3 + l; const b = a + 1; const c = a + 3; const d = c + 1;
+      fidx[k++] = a; fidx[k++] = c; fidx[k++] = b; fidx[k++] = b; fidx[k++] = c; fidx[k++] = d;
+    }
+    fg.setIndex(new THREE.BufferAttribute(fidx, 1));
+    this.foam = new THREE.Mesh(fg, new THREE.ShaderMaterial({
+      vertexShader: FOAM_VERT, fragmentShader: FOAM_FRAG, fog: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uFoam: { value: new THREE.Color('#ffffff') }, uShallow: { value: new THREE.Color('#2fd0c4') }, uTime: { value: 0 } }]),
+    }));
+    this.foam.frustumCulled = false;
+    this.foam.visible = false;
+    this.foam.renderOrder = 1;
+    this.group.add(this.foam);
 
     const win = windowTextures();
     this.cityMaterial = new THREE.MeshStandardMaterial({ map: win.wall, emissiveMap: win.win, emissive: '#ffd27a', emissiveIntensity: 1.3, color: '#5a6478', roughness: 0.7 });
@@ -243,6 +423,10 @@ export class Terrain {
     this.neon = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: '#ff3fd0', toneMapped: false }), 48);
     this.neon.frustumCulled = false; this.neon.visible = false;
     this.farGroup.add(this.neon);
+    this.ringMaterial = new THREE.ShaderMaterial({
+      vertexShader: RING_VERT, fragmentShader: RING_FRAG, vertexColors: true, fog: false,
+      uniforms: { uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uFacet: { value: 0.3 } },
+    });
     this.group.add(this.farGroup);
   }
 
@@ -253,47 +437,136 @@ export class Terrain {
     let minY = Infinity;
     for (const s of track.segments) minY = Math.min(minY, s.y0, s.y1);
     this.minRoadY = minY * Y_SCALE;
-    saturate(this.cA.set(p.grassLight), 0.16); saturate(this.cB.set(p.grassDark), 0.16);
-    const night = 1 - p.light;
-    this.cSand.set(mix(shade('#e6d3a3', 0.4 + 0.6 * p.light), '#1a2040', night * 0.45));
-    this.cSnow.set(mix(shade('#f4f8ff', 0.5 + 0.5 * p.light), '#1a2040', night * 0.4));
-    this.cBlock[0].set(shade(p.roadDark, 0.9)); this.cBlock[1].set(mix(p.roadLight, '#9a9a90', 0.5)); this.cBlock[2].set(p.grassDark);
-    this.ground.material.color.set(shade(p.grassDark, 0.85));
+    for (let c = 0; c < NC; c++) this.dropW[c] = dropWeight(this.biome, COLS[c]);
+    const colors: GroundColors = {
+      low: new THREE.Color(p.groundLow), high: new THREE.Color(p.groundHigh), rock: new THREE.Color(p.rock), snow: new THREE.Color(p.snow),
+      sand: new THREE.Color(p.sand), verge: new THREE.Color(p.verge), wetSand: new THREE.Color(p.sand).multiplyScalar(0.72),
+      block: [new THREE.Color(p.asphalt).multiplyScalar(0.9), new THREE.Color(p.verge).multiplyScalar(0.75), new THREE.Color(p.groundHigh)],
+    };
+    this.buildTables(track, colors);
+    this.ground.material.color.set(p.groundHigh).lerp(this.tmp.set(p.fog), 0.25);
     this.ground.visible = this.biome !== 'coast';
     this.sea.visible = this.biome === 'coast';
+    this.foam.visible = this.biome === 'coast';
     const su = this.sea.material.uniforms;
-    (su.uDeep.value as THREE.Color).set(mix('#0b5e9c', p.sky[0], 0.25));
-    (su.uShallow.value as THREE.Color).set(mix('#2fc2c9', p.sky[1], 0.2));
-    (su.uSky.value as THREE.Color).set(p.sky[2]);
+    (su.uDeep.value as THREE.Color).set(p.waterDeep);
+    (su.uShallow.value as THREE.Color).set(p.waterShallow);
+    (su.uSky.value as THREE.Color).set(p.sky[2]).lerp(this.tmp.set(p.sky[1]), 0.5);
     (su.uSunColor.value as THREE.Color).set(p.sun ?? p.moon ?? '#ffffff');
+    su.uSpec.value = p.moon ? 60 : p.light < 0.8 ? 90 : 180;
+    const fu = this.foam.material.uniforms;
+    (fu.uFoam.value as THREE.Color).set(p.foam);
+    (fu.uShallow.value as THREE.Color).set(p.waterShallow);
     const city = this.biome === 'city_night';
     for (const im of this.cityBlocks) im.visible = city;
     this.skyline.visible = city;
     this.neon.visible = city;
+    this.cityMaterial.color.set(p.light < 0.5 ? '#4a5470' : '#6a7488');
     this.cityMaterial.emissiveIntensity = p.light < 0.8 ? 1.3 : 0;
     this.buildFar(p);
   }
 
+  /** Relevo e cor de cada (segmento, lado, coluna): só dependem da pista e da paleta. */
+  private buildTables(track: Track, gc: GroundColors): void {
+    const segs = track.segments;
+    const n = segs.length;
+    const size = n * 2 * NC;
+    if (this.reliefTable.length !== size) { this.reliefTable = new Float32Array(size); this.colorTable = new Float32Array(size * 3); this.gradTable = new Float32Array(size * 2); }
+    const b = this.biome;
+    const out = this.tmp;
+    const hs = new Float32Array(NC);
+    const hAll = new Float32Array(size);
+    for (let i = 0; i < n; i++) {
+      const roadH = segs[i].y0 * Y_SCALE - this.minRoadY; // pista acima do fundo do vale
+      for (let si = 0; si < 2; si++) {
+        const side = si === 0 ? -1 : 1;
+        const seaSide = b === 'coast' && side > 0;
+        // Altura (m acima do fundo) de cada coluna, e o relevo guardado na tabela.
+        for (let c = 0; c < NC; c++) {
+          let r: number;
+          if (seaSide) r = c <= 3 ? [0, -0.1, -0.3, -0.9][c] : -(SEA_DEPTH_M + 0.6);
+          else r = relief(b, i, COLS[c], side);
+          this.reliefTable[(i * 2 + si) * NC + c] = r;
+          const w = seaSide ? (c <= 3 ? 0 : 1) : this.dropW[c];
+          hs[c] = roadH * (1 - w) + r;
+          hAll[(i * 2 + si) * NC + c] = hs[c];
+        }
+        for (let c = 0; c < NC; c++) {
+          const slope = c === 0 ? 0 : Math.abs(hs[c] - hs[c - 1]) / (COLS[c] - COLS[c - 1]);
+          this.groundColor(i, c, side, hs[c], slope, roadH, gc, out);
+          // Leve variação por vértice: o chão fica "pintado", não de plástico.
+          const j = 0.94 + hash3(i, c, side + 7) * 0.12;
+          const k = ((i * 2 + si) * NC + c) * 3;
+          this.colorTable[k] = out.r * j; this.colorTable[k + 1] = out.g * j; this.colorTable[k + 2] = out.b * j;
+        }
+      }
+    }
+    // Inclinações: para fora (entre as colunas vizinhas) e ao longo (entre os segmentos vizinhos).
+    for (let i = 0; i < n; i++) {
+      const prev = (i - 1 + n) % n; const next = (i + 1) % n;
+      for (let si = 0; si < 2; si++) {
+        const base = (i * 2 + si) * NC;
+        for (let c = 0; c < NC; c++) {
+          const c0 = Math.max(0, c - 1); const c1 = Math.min(NC - 1, c + 1);
+          const gA = (hAll[base + c1] - hAll[base + c0]) / (COLS[c1] - COLS[c0]);
+          const gL = (hAll[(next * 2 + si) * NC + c] - hAll[(prev * 2 + si) * NC + c]) / (2 * SEGMENT_M);
+          this.gradTable[(base + c) * 2] = gA; this.gradTable[(base + c) * 2 + 1] = gL;
+        }
+      }
+    }
+  }
+
+  /** Cor do chão: transição junto do acostamento, depois altura/inclinação/manchas por bioma. */
+  private groundColor(seg: number, col: number, side: number, h: number, slope: number, roadH: number, gc: GroundColors, out: THREE.Color): THREE.Color {
+    const b = this.biome;
+    const patch = fbm(side > 0 ? 31 : 57, seg * 0.07 + col * 1.3, 2) * 0.5 + 0.5;
+    if (b === 'coast' && side > 0) {
+      // Praia: areia seca → molhada perto d'água; penhasco (inclinação) vira rocha.
+      if (col <= 1) return out.copy(gc.verge);
+      out.copy(gc.sand);
+      if (col >= 3) out.lerp(gc.wetSand, 0.5);
+      if (col >= 4) out.copy(gc.wetSand).multiplyScalar(0.7);
+      return out.lerp(gc.rock, smooth01(0.35, 0.9, slope) * (roadH > 4 ? 1 : 0.4));
+    }
+    if (b === 'city_night') {
+      if (col <= 1) return out.copy(gc.verge);
+      const block = hash3(Math.floor(seg / 10), col, side);
+      return out.copy(gc.block[block < 0.4 ? 0 : block < 0.7 ? 1 : 2]);
+    }
+    // Faixa de transição: terra/areia/cascalho encostada no acostamento, com borda irregular.
+    if (col === 0) return out.copy(gc.verge);
+    const ground = out.copy(gc.low).lerp(gc.high, Math.min(1, smooth01(4, 45, h) * 0.85 + (patch - 0.5) * 0.7));
+    if (b === 'savanna') ground.lerp(gc.verge, smooth01(0.62, 0.8, patch) * 0.55); // capim seco
+    if (b === 'desert') ground.copy(gc.low).lerp(gc.high, patch * 0.6 + smooth01(0, 30, h) * 0.3);
+    if (col === 1) return ground.lerp(gc.verge, 0.55 + 0.45 * smooth01(0.4, 0.7, patch));
+    // Encosta íngreme: rocha (vermelha no deserto, azulada na montanha).
+    ground.lerp(gc.rock, smooth01(0.42, 0.95, slope) * (b === 'tropical' ? 0.55 : 0.9));
+    // Neve acima da linha (com ruído na borda), nunca colada na pista.
+    if (col >= 3 && Number.isFinite(RELIEF[b].snowLine)) {
+      const line = RELIEF[b].snowLine + (patch - 0.5) * 16;
+      ground.lerp(gc.snow, smooth01(line - 4, line + 6, h) * (1 - smooth01(0.9, 1.4, slope) * 0.4));
+    }
+    return ground;
+  }
+
   private buildFar(p: Palette): void {
-    // Os dois anéis dividem um material, criado de novo a cada pista: liberar o antigo também, senão o
-    // programa dele nunca é solto (docs/DESEMPENHO.md).
-    const oldMaterials = new Set<THREE.Material>();
-    for (const m of this.ringMeshes) { this.farGroup.remove(m); m.geometry.dispose(); oldMaterials.add(m.material as THREE.Material); }
-    for (const m of oldMaterials) m.dispose();
+    for (const m of this.ringMeshes) { this.farGroup.remove(m); m.geometry.dispose(); }
     this.ringMeshes = [];
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 });
-    const far = new THREE.Color(p.far);
-    const near = new THREE.Color(p.near);
     const fog = new THREE.Color(p.fog);
     const b = this.biome;
-    const H = b === 'alpine' ? 230 : b === 'desert' ? 120 : b === 'coast' ? 70 : b === 'city_night' ? 60 : b === 'tropical' ? 150 : 90;
-    const top = b === 'alpine' ? this.cSnow.clone() : far.clone().lerp(fog, 0.15).multiplyScalar(1.15);
-    const outer = new THREE.Mesh(buildRing(b, RING_RADIUS, H, 11, [far.clone().lerp(fog, 0.45), far.clone().lerp(fog, 0.2), top]), mat);
-    const innerTop = b === 'alpine' ? near.clone().lerp(this.cSnow, 0.25) : near.clone().multiplyScalar(1.1);
-    const inner = new THREE.Mesh(buildRing(b, RING_INNER, H * 0.42, 23, [near.clone().lerp(fog, 0.35), near.clone(), innerTop]), mat);
-    outer.frustumCulled = false; inner.frustumCulled = false;
-    this.farGroup.add(outer, inner);
-    this.ringMeshes.push(outer, inner);
+    const rel = RELIEF[b];
+    const snow = Number.isFinite(rel.snowLine) ? new THREE.Color(p.snow) : null;
+    this.ringMaterial.uniforms.uFacet.value = rel.facet * (p.moon ? 0.4 : 1);
+    for (let l = 2; l >= 0; l--) {
+      const top = new THREE.Color(p.layers[l]);
+      // Na cidade o plano mais perto é a skyline (instanciada); os anéis ficam só como morros ao fundo.
+      if (b === 'city_night' && l === 0) continue;
+      const mesh = new THREE.Mesh(buildRing(b, l, LAYER_RADII[l], rel.layers[l], top, fog, p.layerHaze[l], l > 0 || b === 'alpine' ? snow : null), this.ringMaterial);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = -5 + (2 - l); // de longe para perto (sem névoa, a ordem não importa para a cor)
+      this.farGroup.add(mesh);
+      this.ringMeshes.push(mesh);
+    }
     if (b === 'city_night') this.buildSkyline();
   }
 
@@ -302,7 +575,7 @@ export class Terrain {
     let k = 0;
     for (let i = 0; i < this.skyline.count; i++) {
       const a = hash2(i, 3) * Math.PI * 2;
-      const r = RING_INNER * 0.9 + hash2(i, 4) * 260;
+      const r = 300 + hash2(i, 4) * 260;
       const w = 18 + hash2(i, 5) * 26; const dep = 18 + hash2(i, 6) * 22;
       const env = 0.55 + 0.45 * Math.cos(a - 0.8);
       const h = (30 + hash2(i, 7) * 130) * env;
@@ -326,57 +599,78 @@ export class Terrain {
     if (this.neon.instanceColor) this.neon.instanceColor.needsUpdate = true;
   }
 
-  /** Cor do chão numa coluna: dois tons por ruído; areia na praia; quadras na cidade; neve no alto. */
-  private groundColor(seg: number, col: number, side: number, h: number, out: THREE.Color): THREE.Color {
-    const b = this.biome;
-    if (b === 'city_night') {
-      const block = hash3(Math.floor(seg / 10), col, side);
-      return out.copy(this.cBlock[block < 0.4 ? 0 : block < 0.7 ? 1 : 2]);
-    }
-    if (b === 'coast' && side > 0) return out.copy(this.cSand);
-    const n = fbm(side > 0 ? 31 : 57, seg * 0.09 + col * 1.7, 2) * 0.5 + 0.5;
-    out.copy(this.cB).lerp(this.cA, n);
-    if (b === 'alpine' && h > 34) out.lerp(this.cSnow, Math.min(1, (h - 34) / 14));
-    if (b === 'coast' && col === 0) out.lerp(this.cSand, 0.35);
-    return out;
-  }
-
   update(frame: RoadFrame, track: Track, time: number, sunDirLocal: THREE.Vector3, absHeading: number): void {
     const segs = track.segments;
     const n = frame.count;
     const coast = this.biome === 'coast';
     const originY = segs[frame.baseIndex].y0 * Y_SCALE - frame.py[frame.behind];
-    const seaY = this.minRoadY - SEA_DEPTH_M - originY;
+    const floorY = this.minRoadY - originY;
+    const seaY = floorY - SEA_DEPTH_M;
+    const rt = this.reliefTable; const ct = this.colorTable; const gt = this.gradTable;
+    const ys = this.ys;
+    let foamPoints = 0;
     for (let j = 0; j < n; j++) {
-      const s = segs[frame.segIndex[j]];
+      const si = frame.segIndex[j];
+      const s = segs[si];
       const h = frame.heading[j];
       const cx = Math.cos(h); const sz = Math.sin(h);
       const px = frame.px[j]; const py = frame.py[j]; const pz = frame.pz[j];
       const delta = s.curve * HEADING_PER_CURVE;
       // Do lado de dentro da curva, colunas longe demais dobrariam para trás: prende a distância.
       const clampD = 0.9 * SEGMENT_M / (Math.abs(delta) + 1e-6);
-      for (let c = 0; c < COLS.length; c++) {
-        for (const side of [-1, 1] as const) {
-          const inside = (side > 0) === (delta > 0) && delta !== 0;
+      for (let sIdx = 0; sIdx < 2; sIdx++) {
+        const side = sIdx === 0 ? -1 : 1;
+        const inside = (side > 0) === (delta > 0) && delta !== 0;
+        const seaSide = coast && side > 0;
+        const strip = side < 0 ? this.left : this.right;
+        const base = (si * 2 + sIdx) * NC;
+        for (let c = 0; c < NC; c++) {
           const dist = inside ? Math.min(COLS[c], clampD) : COLS[c];
-          let y: number;
-          if (coast && side > 0) y = c === 0 ? py : c === 1 ? py - 0.7 : seaY - 0.6;
-          else y = py + relief(this.biome, s.index, c, side);
-          const color = this.groundColor(s.index, c, side, y - py, this.tmp);
-          const strip = side < 0 ? this.left : this.right;
+          const w = seaSide ? (c <= 3 ? 0 : 1) : this.dropW[c];
+          const y = py + (floorY - py) * w + rt[base + c];
+          ys[c] = y;
           // Esquerda: pistas de fora para dentro (x crescente), como a pista.
-          const lane = side < 0 ? COLS.length - 1 - c : c;
-          strip.set(j, lane, px + side * dist * cx, y, pz + side * dist * sz, color);
+          const lane = side < 0 ? NC - 1 - c : c;
+          const k = (base + c) * 3;
+          // Normal = cima − inclinação para fora (lado × direita) − inclinação ao longo (frente = (sen, 0, −cos)).
+          const gA = gt[(base + c) * 2]; const gL = gt[(base + c) * 2 + 1];
+          let nx = -gA * side * cx - gL * sz; let nz = -gA * side * sz + gL * cx;
+          const inv = 1 / Math.sqrt(nx * nx + 1 + nz * nz);
+          nx *= inv; nz *= inv;
+          strip.set(j, lane, px + side * dist * cx, y, pz + side * dist * sz, ct[k], ct[k + 1], ct[k + 2], nx, inv, nz);
+        }
+        if (seaSide) {
+          // Linha d'água: onde o chão cruza o nível do mar (entre a coluna 3 e a 4).
+          const y3 = ys[3]; const y4 = ys[4];
+          const t = y3 <= seaY ? 0 : Math.min(1, (y3 - seaY) / Math.max(1e-3, y3 - y4));
+          let dw = COLS[3] + t * (COLS[4] - COLS[3]);
+          if (inside) dw = Math.min(dw, clampD);
+          const yf = seaY + 0.06;
+          const fp = this.foamPos; const fv = this.foamV;
+          const o = foamPoints * 3;
+          const v = s.index * SEGMENT_M * 0.25;
+          const d1 = inside ? Math.min(dw + 3, clampD) : dw + 3;
+          const d2 = inside ? Math.min(dw + 16, clampD) : dw + 16;
+          fp.setXYZ(o, px + dw * cx, yf, pz + dw * sz); fv.setXY(o, 0, v);
+          fp.setXYZ(o + 1, px + d1 * cx, yf, pz + d1 * sz); fv.setXY(o + 1, 1, v);
+          fp.setXYZ(o + 2, px + d2 * cx, yf, pz + d2 * sz); fv.setXY(o + 2, 2, v);
+          foamPoints++;
         }
       }
     }
     this.left.finish(n);
     this.right.finish(n);
+    if (coast) {
+      this.foam.geometry.setDrawRange(0, Math.max(0, foamPoints - 1) * 12);
+      this.foamPos.needsUpdate = true; this.foamV.needsUpdate = true;
+      this.foam.material.uniforms.uTime.value = time;
+    }
     this.sea.position.y = seaY;
     const su = this.sea.material.uniforms;
     su.uTime.value = time;
     (su.uSunDir.value as THREE.Vector3).copy(sunDirLocal);
-    this.ground.position.y = Math.min(-14, seaY - 20);
+    (this.ringMaterial.uniforms.uSunDir.value as THREE.Vector3).copy(sunDirLocal);
+    this.ground.position.y = coast ? seaY - 20 : floorY - 2;
     this.farGroup.rotation.y = absHeading;
     if (this.biome === 'city_night') this.updateCityBlocks(frame, track);
   }
@@ -417,10 +711,12 @@ export class Terrain {
     this.left.dispose(); this.right.dispose(); this.material.dispose();
     this.ground.geometry.dispose(); this.ground.material.dispose();
     this.sea.geometry.dispose(); this.sea.material.dispose();
+    this.foam.geometry.dispose(); this.foam.material.dispose();
     for (const im of this.cityBlocks) { im.geometry.dispose(); im.dispose(); }
     this.skyline.geometry.dispose(); this.skyline.dispose();
     this.neon.geometry.dispose(); (this.neon.material as THREE.Material).dispose(); this.neon.dispose();
     this.cityMaterial.dispose();
-    for (const m of this.ringMeshes) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
+    for (const m of this.ringMeshes) m.geometry.dispose();
+    this.ringMaterial.dispose();
   }
 }
