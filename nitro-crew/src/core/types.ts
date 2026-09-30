@@ -71,11 +71,23 @@ export interface Track {
 
 // ───────────────────────────── Carros e pilotos ─────────────────────────────
 
+/**
+ * Estilo de carroceria: cada um é um modelo 3D próprio em src/render/cars.ts. Todos ocupam a mesma pegada
+ * de colisão (~4,4 × 1,9 m; constants.ts), para o que se vê bater com o que a física calcula.
+ */
+export type CarBody =
+  | 'gt' | 'muscle' | 'hatch' | 'sedan' | 'electric' | 'rally' | 'hyper'
+  | 'classic' | 'wedge' | 'pickup' | 'prototype' | 'micro' | 'roadster';
+
 export interface CarDef {
   id: string;
   name: string;
   /** Cor base em hex (#rrggbb), usada pelo renderizador procedural. */
   color: string;
+  /** Estilo de carroceria (modelo 3D). */
+  body: CarBody;
+  /** Segunda cor (faixas, aerofólio, detalhes); sem ela o renderizador escolhe uma que combine. */
+  accent?: string;
   /** Velocidade máxima em unidades por segundo (REFERENCE_SPEED = 300 km/h). */
   topSpeed: number;
   /** Aceleração em unidades por segundo ao quadrado. */
