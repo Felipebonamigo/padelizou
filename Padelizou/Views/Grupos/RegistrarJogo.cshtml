@@ -36,6 +36,18 @@
                 <a asp-action="Detalhes" asp-route-id="@grupoId" class="btn btn-sm btn-outline-secondary">Cancelar</a>
             </div>
 
+            @* ⚠️ O MOTIVO DA RECUSA MORAVA NUM CANAL QUE ESTA TELA NÃO LIA.
+               As sete saídas de recusa dos dois POSTs escrevem `TempData["Erro"]` e redirecionam
+               pra cá — e esta view nunca desenhou a chave. O jogador apertava Salvar, o servidor
+               recusava e a tela voltava igualzinha, sem uma palavra: "clico em salvar e não dá em
+               nada" (Sub 90, 30/09/2026). Pior: TempData só morre na LEITURA, então o recado
+               atravessava requisições e estourava depois na tela da semana, fora de contexto,
+               parecendo um bloqueio preso àquela semana. *@
+            @if (TempData["Erro"] != null)
+            {
+                <div class="alert alert-warning">@TempData["Erro"]</div>
+            }
+
             @if (membros.Count < 4)
             {
                 <div class="alert alert-warning">

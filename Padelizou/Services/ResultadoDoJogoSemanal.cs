@@ -67,6 +67,14 @@ public static class ResultadoDoJogoSemanal
         var peloPlacar = LadoPeloPlacar(games1, games2);
         if (peloPlacar == vencedorLado) return null;
 
+        // ⚠️ SÃO TRÊS DESENCONTROS, e cada um precisa do SEU recado. Até 30/09/2026 o ternário
+        // tratava só o empate do lado do PLACAR: quem tocava em "Empatou" com 6 x 3 na tela lia
+        // "o placar diz que a OUTRA dupla venceu" — sem ter marcado dupla nenhuma. Mensagem que
+        // descreve o erro errado é pior que mensagem nenhuma, porque manda a pessoa procurar o
+        // defeito onde ele não está (foi o que trancou um jogador da Sub 90).
+        if (vencedorLado == Empate)
+            return $"Você marcou empate, mas o placar {games1} x {games2} tem um vencedor. Ajuste um dos dois.";
+
         return peloPlacar == Empate
             ? $"O placar {games1} x {games2} está empatado, mas você marcou uma dupla como vencedora. Ajuste um dos dois."
             : "O placar diz que a OUTRA dupla venceu. Ajuste o placar ou o vencedor.";

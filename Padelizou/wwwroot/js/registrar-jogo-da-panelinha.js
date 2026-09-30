@@ -235,12 +235,20 @@ function pdzMontarRegistroDeJogo(jogadores, convidado, maximoDeJogos) {
 
             var quarteto = escolhidos[1].length === 2 && escolhidos[2].length === 2;
 
-            // ⚠️ Mexer nas duplas ZERA o vencedor. Sem isso, trocar um jogador depois de já ter
-            // marcado quem ganhou deixaria o botão "🏆" numa dupla que não existe mais igual — e
-            // o ranking seguiria esse vencedor.
+            // ⚠️ Mexer nas duplas ZERA o vencedor E O PLACAR. Sem isso, trocar um jogador depois
+            // de já ter marcado quem ganhou deixaria o botão "🏆" numa dupla que não existe mais
+            // igual — e o ranking seguiria esse vencedor.
+            //
+            // ⚠️ O PLACAR JUNTO, e essa metade faltou até 30/09/2026 — foi o que trancou um
+            // jogador da Sub 90. O número fica preso à POSIÇÃO ("Games Dupla 1") enquanto os
+            // rótulos ao lado se redesenham com os nomes novos: o 6 x 3 de outro quarteto passa a
+            // parecer certo, o servidor recusa com "o placar diz que a OUTRA dupla venceu", e a
+            // recusa volta como formulário em branco. Quem ganhou e por quanto descrevem O MESMO
+            // jogo: ou os dois sobrevivem à troca, ou nenhum.
             if (!quarteto && vencedor !== null) {
                 vencedor = null;
                 campoVencedor.value = '';
+                limparPlacar();
             }
 
             raiz.querySelector('.pdz-card-vencedor').classList.toggle('d-none', !quarteto);
@@ -266,7 +274,12 @@ function pdzMontarRegistroDeJogo(jogadores, convidado, maximoDeJogos) {
 
         Array.prototype.forEach.call(raiz.querySelectorAll('.pdz-btn-vencedor'), function (b) {
             b.onclick = function () {
-                vencedor = parseInt(b.dataset.lado, 10);
+                var novo = parseInt(b.dataset.lado, 10);
+                // MUDAR de vencedor apaga o placar; confirmar o MESMO não. Tocar de novo no lado
+                // que já está marcado não é arrependimento — apagar ali faria a pessoa redigitar
+                // o placar a cada toque, e o conserto viraria o defeito seguinte.
+                if (vencedor !== null && vencedor !== novo) limparPlacar();
+                vencedor = novo;
                 campoVencedor.value = vencedor;
                 desenhar();
             };
@@ -277,6 +290,16 @@ function pdzMontarRegistroDeJogo(jogadores, convidado, maximoDeJogos) {
             raiz.querySelector('.pdz-placar').classList.remove('d-none');
             abrirPlacar.classList.add('d-none');
         };
+
+        // O placar volta ao estado de quem nunca digitou: campos vazios e painel fechado. Deixar
+        // o painel aberto com dois campos em branco parece campo esquecido — e o placar é
+        // OPCIONAL (ver Services/ResultadoDoJogoSemanal), então em branco é resposta válida.
+        function limparPlacar() {
+            raiz.querySelector('.pdz-c-g1').value = '';
+            raiz.querySelector('.pdz-c-g2').value = '';
+            raiz.querySelector('.pdz-placar').classList.add('d-none');
+            abrirPlacar.classList.remove('d-none');
+        }
 
         raiz.querySelector('.pdz-jogo-remover').onclick = function () { removerBloco(bloco); };
 
