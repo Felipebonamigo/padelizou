@@ -1,7 +1,9 @@
 // Renderizador 3D (Three.js). Uma cena só; a cada quadro, para cada viewport, o mundo é
 // reposicionado no referencial do carro daquele jogador (RoadFrame) e desenhado por
-// scissor. Pós-processamento (bloom só nos emissivos + saída sRGB) por viewport na qualidade
-// alta, com MSAA no render target; médio sem pós; baixo sem sombras e com menos pista.
+// scissor. Tone mapping ACES com a exposição da paleta (cena × período). Pós-processamento
+// (bloom + saída sRGB) por viewport na qualidade alta, com MSAA no render target; o limiar do
+// bloom fica acima do branco iluminado pelo sol (de dia só o disco do sol e os emissivos
+// brilham; à noite, faróis, postes e neon); médio sem pós; baixo sem sombras e com menos pista.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
@@ -30,7 +32,7 @@ const IDLE_SPEED = 2600;
 
 export interface DebugInfo { calls: number; triangles: number; frameMs: number }
 
-interface ViewportPost { composer: EffectComposer; renderPass: RenderPass; key: string }
+interface ViewportPost { composer: EffectComposer; renderPass: RenderPass; bloom: UnrealBloomPass; key: string }
 
 export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement): Renderer & { debugInfo(): DebugInfo } {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -62,6 +64,8 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   let width = 1; let height = 1; let dpr = 1;
   let quality: Quality | null = null;
   let trackKey = '';
+  /** Bloom da paleta atual: força, raio, limiar. */
+  let bloom: [number, number, number] = [0.3, 0.4, 1];
   const posts: ViewportPost[] = [];
   const debug: DebugInfo = { calls: 0, triangles: 0, frameMs: 0 };
   let disposed = false;
@@ -79,7 +83,9 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     cars.setLight(p.light);
     effects.setPalette(p);
     effects.clear();
-    renderer.toneMappingExposure = sky.exposure;
+    renderer.toneMappingExposure = p.exposure;
+    bloom = p.bloom;
+    for (const post of posts) applyBloom(post.bloom);
     for (const c of cameras) c.reset();
     if (quality) sky.setQuality(quality);
   }
@@ -114,6 +120,10 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     composer.dispose();
   }
 
+  function applyBloom(pass: UnrealBloomPass): void {
+    pass.strength = bloom[0]; pass.radius = bloom[1]; pass.threshold = bloom[2];
+  }
+
   function postFor(i: number, rect: Rect, camera: THREE.PerspectiveCamera): ViewportPost {
     const key = `${rect.w}x${rect.h}@${dpr}`;
     const existing = posts[i];
@@ -126,9 +136,10 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     composer.setSize(rect.w, rect.h);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(rect.w, rect.h), 0.35, 0.4, 0.85));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(rect.w, rect.h), bloom[0], bloom[1], bloom[2]);
+    composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
-    const post = { composer, renderPass, key };
+    const post = { composer, renderPass, bloom: bloomPass, key };
     posts[i] = post;
     return post;
   }

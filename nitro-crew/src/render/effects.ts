@@ -126,8 +126,9 @@ export class Effects {
 
   constructor() { this.group.add(this.dust.points, this.sparks.points); }
 
+  /** Poeira da cor do chão que o carro levanta: a faixa de terra/areia/cascalho da beira. */
   setPalette(p: Palette): void {
-    this.dustColor.set(p.grassDark).lerp(new THREE.Color('#5e4d33'), 0.6).multiplyScalar(0.8);
+    this.dustColor.set(p.verge).lerp(new THREE.Color(p.shoulder), 0.4).multiplyScalar(p.light < 0.5 ? 0.7 : 0.92);
   }
 
   private rnd(): number { this.seed++; return hash2(this.seed, 77); }

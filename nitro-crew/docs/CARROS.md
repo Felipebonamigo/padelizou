@@ -276,7 +276,7 @@ Os carros são agrupados por estilo: cada estilo presente é **uma** chamada de 
 carros dele, cada desenho de roda presente é outra, mais a sombra de contato e a chama (uma cada). Na
 qualidade baixa e nos carros a mais de 30 m à frente, as rodas viram a roda simples (pneu e disco liso,
 112 triângulos), todas numa chamada; rodas não fazem sombra. Orçamento e medidas antes/depois em
-`docs/DESEMPENHO.md` (seção 5).
+`docs/DESEMPENHO.md` (seção 5, "Carros com modelo por estilo").
 Giro de roda (limitado a 40% do passo do desenho por quadro, para os raios não "andarem para trás"),
 rolagem, mergulho no freio, chacoalho na derrapagem, chama do nitro (saindo dos escapes de cada modelo;
 no elétrico, do difusor), etiquetas de nome (acima do teto de cada modelo) e o fantasma translúcido (com

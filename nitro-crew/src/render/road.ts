@@ -1,101 +1,33 @@
-// Malha da pista a partir do RoadFrame: asfalto com textura procedural (faixas laterais e
-// linha central tracejada pintadas nela), zebras vermelho/branco nas curvas, linha de largada
-// quadriculada e box (asfalto claro + faixa amarela + marcação de área). Os buffers são
-// alocados uma vez e atualizados no lugar a cada quadro.
+// Malha da pista a partir do RoadFrame: asfalto com textura procedural (granulado, manchas,
+// trilhas de pneu, faixas de bordo e tracejado central, que brilham um pouco à noite),
+// acostamento de cascalho/terra, zebras vermelho/branco em relevo nas curvas, box com divisa
+// zebrada e vagas, decalque da largada (quadriculado + marcas do grid) e, à noite, as poças de
+// luz dos postes no asfalto. Os buffers são alocados uma vez e atualizados no lugar.
 import * as THREE from 'three';
-import type { Track } from '../core/types';
-import { mix, shade, type Palette } from './palette';
+import type { Segment, Track } from '../core/types';
+import type { Palette } from './palette';
+import {
+  ASPHALT_REPEAT_M, KERB_REPEAT_M, paintAsphalt, paintKerb, paintPit, paintPool, paintShoulder, paintStartDecal, PIT_REPEAT_M,
+  PIT_X0, PIT_X1, SHOULDER_REPEAT_M, START_AHEAD, START_BEHIND,
+} from './road-textures';
 import type { RoadFrame } from './roadframe';
 import { ROAD_HALF_WIDTH_M, SEGMENT_M } from './units';
 
-const SHOULDER_M = 1.4;
+/** Acostamento: da borda do asfalto até onde o terreno começa (terrain.ts, COLS[0]). */
+export const SHOULDER_M = 1.4;
+/** Zebra: começa um pouco dentro do asfalto, sobe até a crista e desce do lado de fora (m). */
+const KERB_IN = -0.12;
+const KERB_CREST = 0.4;
+const KERB_OUT = 1.1;
+const KERB_H = 0.07;
+/** Poça de luz: deslocamento lateral do poste até o centro da poça (braço de 1,7 m + alcance), e tamanho. */
+const POOL_OFFSET_M = 4.4;
+const POOL_W = 12;
+const POOL_L = 17;
+const MAX_POOLS = 48;
 
-/** Sobe a saturação de uma cor (HSL) sem mudar o tom. */
-export function saturate(c: THREE.Color, amount: number): THREE.Color {
-  const hsl = { h: 0, s: 0, l: 0 };
-  c.getHSL(hsl);
-  return c.setHSL(hsl.h, Math.min(1, hsl.s + amount), hsl.l);
-}
-const PIT_X0 = 1.09;
-const PIT_X1 = 2.06;
-/** Metros de pista por repetição da textura do asfalto. */
-const ASPHALT_REPEAT_M = 8;
-const PIT_REPEAT_M = 16;
-
-function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const ctx = c.getContext('2d');
-  if (!ctx) throw new Error('sem canvas 2D');
-  return [c, ctx];
-}
-
-function makeTexture(c: HTMLCanvasElement, anisotropy: number): THREE.CanvasTexture {
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping;
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = anisotropy;
-  t.minFilter = THREE.LinearMipmapLinearFilter;
-  return t;
-}
-
-/** Asfalto: granulado, trilhas de pneu mais escuras, faixas laterais e tracejado central. */
-function paintAsphalt(p: Palette, night: boolean, anisotropy: number): THREE.CanvasTexture {
-  const W = 256; const H = 1024;
-  const [c, ctx] = canvas(W, H);
-  ctx.fillStyle = shade(p.roadLight, night ? 1.45 : 0.68);
-  ctx.fillRect(0, 0, W, H);
-  const img = ctx.getImageData(0, 0, W, H);
-  const d = img.data;
-  let seed = 1234567;
-  for (let i = 0; i < W * H; i++) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    const g = ((seed >>> 8) / 16777216 - 0.5) * (night ? 18 : 26);
-    const x = i % W;
-    const u = x / W;
-    // Trilhas dos pneus (um pouco mais escuras e lisas).
-    const track = Math.exp(-Math.pow((u - 0.3) / 0.05, 2)) + Math.exp(-Math.pow((u - 0.7) / 0.05, 2));
-    const k = i * 4;
-    const dark = 1 - 0.07 * track;
-    d[k] = Math.max(0, Math.min(255, d[k] * dark + g));
-    d[k + 1] = Math.max(0, Math.min(255, d[k + 1] * dark + g));
-    d[k + 2] = Math.max(0, Math.min(255, d[k + 2] * dark + g));
-  }
-  ctx.putImageData(img, 0, 0);
-  // Faixas laterais contínuas e tracejado central (dash de 3,6 m a cada 8 m).
-  ctx.fillStyle = shade(p.lane, 0.8); // abaixo do limiar do bloom: linha nítida, não brilhante
-  ctx.fillRect(Math.round(W * 0.018), 0, Math.round(W * 0.02), H);
-  ctx.fillRect(Math.round(W * 0.962), 0, Math.round(W * 0.02), H);
-  ctx.fillRect(Math.round(W * 0.493), 0, Math.round(W * 0.014), Math.round(H * 0.45));
-  return makeTexture(c, anisotropy);
-}
-
-/** Box: faixa amarela na divisa, asfalto claro e contorno branco das áreas de parada. */
-function paintPit(p: Palette, anisotropy: number): THREE.CanvasTexture {
-  const W = 128; const H = 512;
-  const [c, ctx] = canvas(W, H);
-  ctx.fillStyle = shade(p.roadLight, 1.28);
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = p.pitLine;
-  ctx.fillRect(0, 0, 7, H);
-  ctx.strokeStyle = mix(p.lane, p.roadLight, 0.2);
-  ctx.lineWidth = 3;
-  ctx.strokeRect(38, 40, 76, 432);
-  ctx.fillStyle = mix(p.lane, p.roadLight, 0.5);
-  ctx.fillRect(48, 52, 56, 12);
-  return makeTexture(c, anisotropy);
-}
-
-function paintChecker(): THREE.CanvasTexture {
-  const [c, ctx] = canvas(256, 64);
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) {
-    ctx.fillStyle = (x + y) % 2 === 0 ? '#f4f4f4' : '#141414';
-    ctx.fillRect(x * 16, y * 16, 16, 16);
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
+/** Segmento com zebra: curva de média para cima (|curve| ≥ 2). */
+export function hasKerb(s: Segment): boolean { return Math.abs(s.curve) >= 2; }
 
 /** Faixa contínua ao longo da janela, com `lanes` vértices por ponto. */
 class Strip {
@@ -147,29 +79,100 @@ class Strip {
   dispose(): void { this.geometry.dispose(); }
 }
 
+/**
+ * Zebras: quadriláteros soltos por segmento (3 vértices na seção: dentro, crista, fora), para
+ * poder pular os trechos retos sem esticar um quad entre duas curvas.
+ */
+class KerbList {
+  readonly geometry = new THREE.BufferGeometry();
+  readonly position: THREE.BufferAttribute;
+  readonly uv: THREE.BufferAttribute;
+  readonly mesh: THREE.Mesh;
+  private count = 0;
+  constructor(readonly capacity: number, material: THREE.Material) {
+    const verts = capacity * 6;
+    this.position = new THREE.BufferAttribute(new Float32Array(verts * 3), 3);
+    this.position.setUsage(THREE.DynamicDrawUsage);
+    this.uv = new THREE.BufferAttribute(new Float32Array(verts * 2), 2);
+    this.uv.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute('position', this.position);
+    this.geometry.setAttribute('uv', this.uv);
+    this.geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(verts * 3).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3));
+    const index = new Uint32Array(capacity * 12);
+    for (let q = 0; q < capacity; q++) {
+      const o = q * 6; const k = q * 12;
+      // 0 1 2 = seção de trás (dentro → fora), 3 4 5 = seção da frente.
+      index.set([o, o + 1, o + 3, o + 1, o + 4, o + 3, o + 1, o + 2, o + 4, o + 2, o + 5, o + 4], k);
+    }
+    this.geometry.setIndex(new THREE.BufferAttribute(index, 1));
+    this.mesh = new THREE.Mesh(this.geometry, material);
+    this.mesh.frustumCulled = false;
+    this.mesh.receiveShadow = true;
+  }
+  begin(): void { this.count = 0; }
+  /** Um trecho de zebra entre os pontos a e b do frame, do lado `side` (−1 esquerda, 1 direita). */
+  add(frame: RoadFrame, a: number, b: number, side: number, v0: number, v1: number): void {
+    if (this.count >= this.capacity) return;
+    const o = this.count * 6;
+    const W = ROAD_HALF_WIDTH_M;
+    const offs = [KERB_IN, KERB_CREST, KERB_OUT];
+    const hs = [0.012, KERB_H, 0.016];
+    for (let e = 0; e < 2; e++) {
+      const j = e === 0 ? a : b;
+      const h = frame.heading[j];
+      const cx = Math.cos(h); const sz = Math.sin(h);
+      for (let k = 0; k < 3; k++) {
+        // Na esquerda a seção vai de fora para dentro para manter a mesma orientação dos triângulos.
+        const kk = side > 0 ? k : 2 - k;
+        const x = side * (W + offs[kk]);
+        this.position.setXYZ(o + e * 3 + k, frame.px[j] + x * cx, frame.py[j] + hs[kk], frame.pz[j] + x * sz);
+        this.uv.setXY(o + e * 3 + k, kk / 2, e === 0 ? v0 : v1);
+      }
+    }
+    this.count++;
+  }
+  finish(): void {
+    this.geometry.setDrawRange(0, this.count * 12);
+    this.position.needsUpdate = true; this.uv.needsUpdate = true;
+    this.mesh.visible = this.count > 0;
+  }
+  dispose(): void { this.geometry.dispose(); }
+}
+
 export class Road {
   readonly group = new THREE.Group();
   private readonly asphalt: Strip;
   private readonly shoulders: Strip;
   private readonly pit: Strip;
+  private readonly decal: Strip;
+  private readonly kerbs: KerbList;
   private readonly asphaltMaterial: THREE.MeshStandardMaterial;
   private readonly shoulderMaterial: THREE.MeshStandardMaterial;
+  private readonly kerbMaterial: THREE.MeshStandardMaterial;
   private readonly pitMaterial: THREE.MeshStandardMaterial;
-  private readonly startLine: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
-  private readonly startPos: THREE.BufferAttribute;
+  private readonly decalMaterial: THREE.MeshStandardMaterial;
+  private readonly pools: THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  private readonly poolTexture: THREE.CanvasTexture;
   private textures: THREE.Texture[] = [];
   private paletteKey = '';
+  private night = false;
   private readonly cBand = [new THREE.Color(), new THREE.Color()];
-  private readonly cRumble = [new THREE.Color(), new THREE.Color()];
-  private readonly cGrass = new THREE.Color();
+  private readonly dummy = new THREE.Object3D();
 
   constructor(capacity: number, private readonly anisotropy: number) {
-    this.asphaltMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0.0 });
-    this.shoulderMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
-    this.pitMaterial = new THREE.MeshStandardMaterial({ roughness: 0.9, flatShading: true });
+    this.asphaltMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.0, emissive: '#ffffff', emissiveIntensity: 0 });
+    this.shoulderMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true });
+    this.kerbMaterial = new THREE.MeshStandardMaterial({ roughness: 0.6, flatShading: true, emissive: '#ffffff', emissiveIntensity: 0 });
+    this.pitMaterial = new THREE.MeshStandardMaterial({ roughness: 0.85, flatShading: true });
+    this.decalMaterial = new THREE.MeshStandardMaterial({
+      roughness: 0.7, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      emissive: '#ffffff', emissiveIntensity: 0,
+    });
     this.asphalt = new Strip(capacity, 2, this.asphaltMaterial);
     this.shoulders = new Strip(capacity, 4, this.shoulderMaterial);
     this.pit = new Strip(capacity, 2, this.pitMaterial);
+    this.decal = new Strip(START_BEHIND + START_AHEAD + 1, 2, this.decalMaterial);
+    this.kerbs = new KerbList(capacity * 2, this.kerbMaterial);
     // Os ombros usam 4 pistas: [esq. fora, esq. dentro, dir. dentro, dir. fora] — o quad do
     // meio (pistas 1→2) cobriria o asfalto, então o índice pula ele.
     const idx = this.shoulders.geometry.getIndex();
@@ -180,45 +183,59 @@ export class Road {
         for (let k = 0; k < 6; k++) arr[base + k] = 0;
       }
     }
-    this.group.add(this.asphalt.mesh, this.shoulders.mesh, this.pit.mesh);
-    this.shoulders.mesh.position.y = 0.005;
+    this.poolTexture = paintPool();
+    const poolGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.pools = new THREE.InstancedMesh(poolGeo, new THREE.MeshBasicMaterial({
+      map: this.poolTexture, color: '#ffb45a', transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+    }), MAX_POOLS);
+    this.pools.frustumCulled = false;
+    this.pools.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.pools.count = 0;
+    this.pools.visible = false;
+    this.pools.renderOrder = 2;
+    this.group.add(this.asphalt.mesh, this.shoulders.mesh, this.kerbs.mesh, this.pit.mesh, this.decal.mesh, this.pools);
+    this.shoulders.mesh.position.y = 0.004;
     this.pit.mesh.position.y = 0.012;
-
-    const sg = new THREE.BufferGeometry();
-    this.startPos = new THREE.BufferAttribute(new Float32Array(4 * 3), 3);
-    this.startPos.setUsage(THREE.DynamicDrawUsage);
-    sg.setAttribute('position', this.startPos);
-    sg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), 2));
-    sg.setAttribute('normal', new THREE.BufferAttribute(new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]), 3));
-    sg.setIndex([0, 1, 2, 1, 3, 2]);
-    const checker = paintChecker();
-    this.textures.push(checker);
-    this.startLine = new THREE.Mesh(sg, new THREE.MeshStandardMaterial({ map: checker, roughness: 0.8 }));
-    this.startLine.frustumCulled = false;
-    this.startLine.receiveShadow = true;
-    this.startLine.position.y = 0.02;
-    this.group.add(this.startLine);
+    this.decal.mesh.position.y = 0.015;
+    this.decal.mesh.renderOrder = 1;
   }
 
   setPalette(p: Palette, night: boolean, key: string): void {
     if (key === this.paletteKey) return;
     this.paletteKey = key;
+    this.night = night;
     for (const t of this.textures) t.dispose();
-    this.textures = [];
-    const asphalt = paintAsphalt(p, night, this.anisotropy);
+    const asphalt = paintAsphalt(p, this.anisotropy);
+    const kerb = paintKerb(p, this.anisotropy);
+    const shoulder = paintShoulder(p, this.anisotropy);
     const pit = paintPit(p, this.anisotropy);
-    this.textures.push(asphalt, pit, paintChecker());
-    this.asphaltMaterial.map = asphalt;
-    this.asphaltMaterial.roughness = night ? 0.38 : 0.9;
-    this.asphaltMaterial.metalness = night ? 0.2 : 0.0;
-    this.asphaltMaterial.envMapIntensity = night ? 1.2 : 0.4;
-    this.asphaltMaterial.needsUpdate = true;
+    const decal = paintStartDecal(p, SEGMENT_M, this.anisotropy);
+    this.textures = [asphalt.map, asphalt.glow, kerb, shoulder, pit, decal];
+    const a = this.asphaltMaterial;
+    a.map = asphalt.map;
+    a.emissiveMap = asphalt.glow;
+    a.emissive.set(p.lane);
+    a.emissiveIntensity = p.markingGlow;
+    // À noite o asfalto fica acetinado: pega o brilho das poças e dos faróis sem virar espelho.
+    a.roughness = night ? 0.6 : 0.9;
+    a.envMapIntensity = night ? 0.9 : 0.15; // de dia o céu no env map pintava a sombra de azul-marinho
+    a.needsUpdate = true;
+    this.kerbMaterial.map = kerb;
+    this.kerbMaterial.emissiveMap = kerb;
+    this.kerbMaterial.emissiveIntensity = p.markingGlow * 0.5;
+    this.kerbMaterial.needsUpdate = true;
+    this.shoulderMaterial.map = shoulder;
+    this.shoulderMaterial.needsUpdate = true;
     this.pitMaterial.map = pit;
     this.pitMaterial.needsUpdate = true;
-    this.cBand[0].set('#ffffff'); this.cBand[1].set('#f2f2f2');
-    this.cRumble[0].set(p.rumbleLight); this.cRumble[1].set(p.rumbleDark);
-    this.cGrass.set(p.grassLight);
-    saturate(this.cGrass, 0.16);
+    this.decalMaterial.map = decal;
+    this.decalMaterial.emissiveMap = decal;
+    this.decalMaterial.emissiveIntensity = p.markingGlow * 0.6;
+    this.decalMaterial.needsUpdate = true;
+    // Faixas de 3 segmentos um pouco mais claras/escuras: o ritmo que dá sensação de velocidade.
+    this.cBand[0].setRGB(1, 1, 1); this.cBand[1].setRGB(0.93, 0.93, 0.94);
+    this.pools.material.color.set(p.lampPool ?? '#000000');
   }
 
   update(frame: RoadFrame, track: Track): void {
@@ -227,60 +244,86 @@ export class Road {
     const W = ROAD_HALF_WIDTH_M;
     let pitPoints = 0;
     let prevPit = false;
-    let startJ = -1;
+    let decalPoints = 0;
+    let pools = 0;
+    const nSeg = segs.length;
+    this.kerbs.begin();
+    const d = this.dummy;
     for (let j = 0; j < n; j++) {
       const s = segs[frame.segIndex[j]];
       const h = frame.heading[j];
       const cx = Math.cos(h); const sz = Math.sin(h);
       const px = frame.px[j]; const py = frame.py[j]; const pz = frame.pz[j];
-      const v = (s.index * SEGMENT_M) / ASPHALT_REPEAT_M;
+      const dist = s.index * SEGMENT_M;
+      const v = dist / ASPHALT_REPEAT_M;
       const band = this.cBand[s.band];
       this.asphalt.set(j, 0, px - W * cx, py, pz - W * sz, 0, v, band.r, band.g, band.b);
       this.asphalt.set(j, 1, px + W * cx, py, pz + W * sz, 1, v, band.r, band.g, band.b);
-      // Ombros: zebra nas curvas (|curve| ≥ 2), senão a cor da grama (some no terreno).
-      const zebra = Math.abs(s.curve) >= 2;
-      const c = zebra ? this.cRumble[s.band] : this.cGrass;
+      // Acostamento: u = 0 junto do asfalto, 1 no terreno (a textura escurece a borda de dentro).
       const o = W + SHOULDER_M;
-      this.shoulders.set(j, 0, px - o * cx, py, pz - o * sz, 0, v, c.r, c.g, c.b);
-      this.shoulders.set(j, 1, px - W * cx, py, pz - W * sz, 0, v, c.r, c.g, c.b);
-      this.shoulders.set(j, 2, px + W * cx, py, pz + W * sz, 0, v, c.r, c.g, c.b);
-      this.shoulders.set(j, 3, px + o * cx, py, pz + o * sz, 0, v, c.r, c.g, c.b);
+      const vs = dist / SHOULDER_REPEAT_M;
+      this.shoulders.set(j, 0, px - o * cx, py, pz - o * sz, 1, vs, 1, 1, 1);
+      this.shoulders.set(j, 1, px - W * cx, py, pz - W * sz, 0, vs, 1, 1, 1);
+      this.shoulders.set(j, 2, px + W * cx, py, pz + W * sz, 0, vs, 1, 1, 1);
+      this.shoulders.set(j, 3, px + o * cx, py, pz + o * sz, 1, vs, 1, 1, 1);
+      if (j + 1 < n && hasKerb(s)) {
+        const v0 = dist / KERB_REPEAT_M; const v1 = (dist + SEGMENT_M) / KERB_REPEAT_M;
+        this.kerbs.add(frame, j, j + 1, -1, v0, v1);
+        this.kerbs.add(frame, j, j + 1, 1, v0, v1);
+      }
       // Box: só nos segmentos `pit` (mais o ponto que fecha o trecho), compactados no começo
       // do buffer. atalho: um só trecho de box por pista; dois trechos na mesma janela
       // ficariam ligados por um quad esticado.
       if (s.pit || prevPit) {
         const x0 = PIT_X0 * W; const x1 = PIT_X1 * W;
-        const pv = (s.index * SEGMENT_M) / PIT_REPEAT_M;
+        const pv = dist / PIT_REPEAT_M;
         this.pit.set(pitPoints, 0, px + x0 * cx, py, pz + x0 * sz, 0, pv, 1, 1, 1);
         this.pit.set(pitPoints, 1, px + x1 * cx, py, pz + x1 * sz, 1, pv, 1, 1, 1);
         pitPoints++;
       }
       prevPit = s.pit;
-      if (s.index === track.startIndex && j + 1 < n) startJ = j;
+      // Decalque da largada: START_BEHIND segmentos antes da linha até START_AHEAD depois.
+      let rel = (s.index - track.startIndex) % nSeg;
+      if (rel < 0) rel += nSeg;
+      if (rel > nSeg / 2) rel -= nSeg;
+      if (rel >= -START_BEHIND && rel <= START_AHEAD && decalPoints < START_BEHIND + START_AHEAD + 1) {
+        const dv = (rel + START_BEHIND) / (START_BEHIND + START_AHEAD);
+        this.decal.set(decalPoints, 0, px - W * cx, py, pz - W * sz, 0, dv, 1, 1, 1);
+        this.decal.set(decalPoints, 1, px + W * cx, py, pz + W * sz, 1, dv, 1, 1, 1);
+        decalPoints++;
+      }
+      // Poças de luz dos postes (só à noite): no meio do segmento, sob a luminária.
+      if (this.night && j + 1 < n && pools < MAX_POOLS && s.sprites.length > 0) {
+        for (const sp of s.sprites) {
+          if (sp.kind !== 'lamp' || pools >= MAX_POOLS) continue;
+          const hm = (h + frame.heading[j + 1]) * 0.5;
+          const mcx = Math.cos(hm); const msz = Math.sin(hm);
+          const xm = sp.x * W + POOL_OFFSET_M;
+          d.position.set((px + frame.px[j + 1]) * 0.5 + xm * mcx, (py + frame.py[j + 1]) * 0.5 + 0.03, (pz + frame.pz[j + 1]) * 0.5 + xm * msz);
+          d.rotation.set(0, -hm, 0);
+          d.scale.set(POOL_W, 1, POOL_L);
+          d.updateMatrix();
+          this.pools.setMatrixAt(pools++, d.matrix);
+        }
+      }
     }
     this.asphalt.finish(n, true);
     this.shoulders.finish(n, false);
+    this.kerbs.finish();
     this.pit.finish(pitPoints, false);
-    if (startJ >= 0) {
-      const j = startJ;
-      for (let k = 0; k < 2; k++) {
-        const jj = j + k;
-        const h = frame.heading[jj];
-        const cx = Math.cos(h); const sz = Math.sin(h);
-        this.startPos.setXYZ(k * 2, frame.px[jj] - W * cx, frame.py[jj], frame.pz[jj] - W * sz);
-        this.startPos.setXYZ(k * 2 + 1, frame.px[jj] + W * cx, frame.py[jj], frame.pz[jj] + W * sz);
-      }
-      this.startPos.needsUpdate = true;
-      this.startLine.visible = true;
-    } else {
-      this.startLine.visible = false;
-    }
+    this.pit.mesh.visible = pitPoints > 1;
+    this.decal.finish(decalPoints, true);
+    this.decal.mesh.visible = decalPoints > 1;
+    this.pools.count = pools;
+    this.pools.visible = pools > 0; // sem instância, sem chamada de desenho
+    if (pools > 0) this.pools.instanceMatrix.needsUpdate = true;
   }
 
   dispose(): void {
-    this.asphalt.dispose(); this.shoulders.dispose(); this.pit.dispose();
-    this.startLine.geometry.dispose(); this.startLine.material.dispose();
-    this.asphaltMaterial.dispose(); this.shoulderMaterial.dispose(); this.pitMaterial.dispose();
+    this.asphalt.dispose(); this.shoulders.dispose(); this.pit.dispose(); this.decal.dispose(); this.kerbs.dispose();
+    this.asphaltMaterial.dispose(); this.shoulderMaterial.dispose(); this.kerbMaterial.dispose(); this.pitMaterial.dispose(); this.decalMaterial.dispose();
+    this.pools.geometry.dispose(); this.pools.material.dispose(); this.pools.dispose();
+    this.poolTexture.dispose();
     for (const t of this.textures) t.dispose();
   }
 }
