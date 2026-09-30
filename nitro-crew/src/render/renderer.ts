@@ -89,6 +89,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     quality = q;
     renderer.shadowMap.enabled = q !== 'low';
     sky.setQuality(q);
+    cars.setQuality(q);
     // Materiais com sombra precisam recompilar quando o shadow map liga/desliga.
     scene.traverse((o) => { if (o instanceof THREE.Mesh) { const m = o.material as THREE.Material; m.needsUpdate = true; } });
     disposePosts();

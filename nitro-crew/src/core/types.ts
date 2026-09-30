@@ -72,7 +72,7 @@ export interface Track {
 // ───────────────────────────── Carros e pilotos ─────────────────────────────
 
 /**
- * Estilo de carroceria: cada um é um modelo 3D próprio em src/render/cars.ts. Todos ocupam a mesma pegada
+ * Estilo de carroceria: cada um é um modelo 3D próprio em src/render/cars/styles/<estilo>.ts. Todos ocupam a mesma pegada
  * de colisão (~4,4 × 1,9 m; constants.ts), para o que se vê bater com o que a física calcula.
  */
 export type CarBody =
