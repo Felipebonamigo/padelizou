@@ -60,6 +60,7 @@ a pedido do dono: gráficos atuais); a arte final entra como modelos glTF e text
 | 2.1 | Direção de arte fechada em documento de 1 página (paleta por bioma, proporção dos carros, o que é "premium" nas referências Horizon Chase Turbo / Art of Rally); **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
 | 2.2 | Contratar artista 3D low-poly (ou pipeline com IA + retoque no Blender) com o briefing gerado da lista de `SpriteKind`, carros e biomas já no código; formato glTF, orçamento de triângulos por modelo | V + T | 4–5 |
 | 2.3 | Assets: 14 carros (com variações de cor por material), ~60 modelos de cenário (6 biomas), skyboxes/céus e anéis de horizonte por bioma × período, arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
+| 2.3b | ✅ Visual procedural da onda F (30/09): 13 modelos de carro por estilo, pista/céu/luz por bioma × período, cenário por bioma e país (`docs/CARROS.md`, `docs/VISUAL.md`); modo Retrô pseudo-3D opcional (`docs/RETRO.md`). Serve de base e de briefing para a arte final | A | — |
 | 2.4 | Integração: carregador glTF no renderizador (substitui os modelos procedurais um a um), materiais e LODs, animações (rodas, suspensão, chama), efeitos de clima; "visual procedural" pode ficar como opção de baixo custo | A | 8–14 |
 | 2.5 | Interface final: HUD e menus com design de produto (tipografia, ícones, transições), tela de vitória da copa, cinemática curta de pódio | T + A | 9–13 |
 | 2.6 | Áudio: trilha com 10–12 músicas para o jukebox (compositor synthwave/rock), ~40 efeitos gravados ou desenhados, locutor de contagem (opcional) | T + A | 8–14 |
@@ -145,6 +146,14 @@ ver as vendas na Steam.
   lê o arquivo; no navegador, antes de desistir descarta o relatório de erros e os fantasmas mais antigos (nunca save,
   carreira, estatísticas ou opções) e, se nada coube, avisa o jogador no menu principal ou no resultado. Resta: no
   navegador sem espaço, o progresso só persiste quando o jogador libera espaço.
+- **Balanceamento depois da onda F** (medido pelos agentes; nada disso foi mexido de propósito): a escolta ficou mais
+  difícil com a colisão do tamanho do carro (VIP no top 3 no amador/profissional/campeão 100/62/46% → 100/50/21%;
+  `ESCORT_VIP_*`); o humano "médio" ganha mais (posição média 10,4 → 9,4, vitórias 2 → 8 em 32; `DIFFICULTY_SPEED`);
+  entre os carros originais o Camelo X perde para o Falcão em toda pista e o Boitatá vence toda grade; a carreira de 8
+  copas fica fácil a partir da 2ª (`CAREER_AI_LEVEL_MAX` foi calibrado para 4) — `docs/FISICA.md`, `docs/CARROS.md`.
+  Uma rodada de balanceamento por dados, como a da onda C, resolve — de preferência depois de gente de verdade jogar.
+- **Cenário × física**: a colisão com o cenário vale só no segmento do sprite (4 m); pontas de fachada, arquibancada
+  e garagens podem ser atravessadas rente pela grama (`docs/VISUAL.md`). Resolver é mudar o builder (física).
 - **Motivação/ritmo**: marco a cada 5–6 semanas com algo jogável no sofá.
 
 ## Rotina sugerida

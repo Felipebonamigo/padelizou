@@ -58,7 +58,7 @@ não use nada de fora desta pasta.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual** (28/09/2026): Fase 0 e as ondas A–E das Fases 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
+- **Estado atual** (30/09/2026): Fase 0 e as ondas A–F das Fases 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
   Carreira (14 carros — 7 livres e 7 à venda —, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
   lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
@@ -68,10 +68,12 @@ não use nada de fora desta pasta.
   por dados, telas em 7 resoluções + Steam Deck, simulação 40% mais barata e sessão longa sem vazamento, direção
   assistida no online, pacote Windows gerado no Linux. Onda E: ajustes do anfitrião online que o eco da sala
   desfazia, save com o armazenamento cheio (vai ao arquivo e avisa), fantasma e recordes com a versão do conteúdo.
-  768 testes. Documentos por área:
+  Onda F (visual, a pedido do dono): 6 carros novos (14), um modelo 3D por estilo de carroceria (13), pista/céu/luz
+  por bioma × período, cenário refeito por bioma e país com pegada = colisão, colisão carro-carro do tamanho do
+  carro na tela; e o modo Retrô (pseudo-3D) opcional em Opções › Visual. 847 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
-  gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
+  gente de verdade e trazer a lista de problemas; na Fase 2, a direção de arte (2.1) e a arte final em glTF (2.2–2.4).
 - **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
