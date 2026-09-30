@@ -202,3 +202,83 @@ na próxima vez que desenha, então o número não cresce; fica anotado para a l
 Meta sugerida para o passo 1.6: 60 FPS com 2 jogadores na média numa placa integrada recente em qualidade
 média; 4 jogadores podem cair para baixa. Se não bater, o que mais pesa por viewport são as sombras (média e
 alta) e o bloom (alta) — os ajustes ficam para a Fase 2.
+
+## 5. Cenário da pista (onda F)
+
+O cenário (`src/render/scenery/`, ver `docs/VISUAL.md`, seção "Cenário") passou de um `InstancedMesh` por
+modelo e parte (71 malhas, 18 a 37 visíveis por viewport, cada uma com o seu passe de sombra) para **um
+`BatchedMesh` por material** (6 a 11 lotes). Em troca, há muito mais coisa na tela: matas com clareiras,
+forração, cercas na divisa, postes com fios, pontos de referência por país, prédios com térreo e telhado — e a
+vegetação e as pedras viram silhueta de poucos triângulos longe (LOD).
+
+Medido com `tools/scenery-harness.mjs` (Chromium headless com swiftshader, 1280×720, qualidade alta,
+`renderer.info` do 10º quadro). "Cenário" é a diferença entre o mesmo quadro desenhado com e sem o grupo
+`scenery` — inclui o passe de sombra. Antes = e3e63b1; depois = esta tarefa; as mesmas cenas e ticks:
+
+| cena | jog. | chamadas total | triângulos total | chamadas do cenário | triângulos do cenário | geometrias | texturas |
+|---|---|---|---|---|---|---|---|
+| Copacabana (litoral, dia) | 1 | 89 → **53** | 104 k → **96 k** | 47 → **11** | 72 k → **63 k** | 62 → 45 | 26 → 46 |
+| Copacabana (litoral, dia) | 4 | 368 → **218** | 502 k → **463 k** | 194 → **44** | 279 k → **240 k** | 64 → 46 | 68 → 88 |
+| Baía de Tóquio (litoral, entardecer) | 1 | 93 → **53** | 101 k → **83 k** | 51 → **11** | 69 k → **50 k** | 64 → 45 | 26 → 46 |
+| Baía de Tóquio (litoral, entardecer) | 4 | 398 → **216** | 493 k → **412 k** | 226 → **44** | 280 k → **199 k** | 70 → 46 | 70 → 88 |
+| Porto de Mônaco (litoral, noite) | 1 | 88 → **49** | 122 k → **102 k** | 54 → **15** | 76 k → **56 k** | 59 → 39 | 28 → 51 |
+| Porto de Mônaco (litoral, noite) | 4 | 375 → **210** | 542 k → **446 k** | 225 → **60** | 311 k → **214 k** | 62 → 42 | 71 → 94 |
+| Kruger (savana, dia) | 1 | 75 → **48** | 59 k → **81 k** | 33 → **6** | 21 k → **44 k** | 55 → 42 | 26 → 36 |
+| Kruger (savana, dia) | 4 | 309 → **198** | 305 k → **394 k** | 135 → **24** | 84 k → **173 k** | 56 → 43 | 68 → 78 |
+| Transpantaneira (savana, entardecer) | 1 | 75 → **50** | 55 k → **88 k** | 33 → **8** | 20 k → **52 k** | 53 → 43 | 25 → 40 |
+| Transpantaneira (savana, entardecer) | 4 | 306 → **206** | 290 k → **416 k** | 132 → **32** | 82 k → **207 k** | 54 → 44 | 67 → 82 |
+| Serra do Mar (tropical, dia) | 1 | 83 → **49** | 125 k → **125 k** | 42 → **8** | 87 k → **88 k** | 58 → 42 | 27 → 39 |
+| Serra do Mar (tropical, dia) | 4 | 339 → **203** | 557 k → **558 k** | 168 → **32** | 350 k → **351 k** | 60 → 44 | 70 → 82 |
+| Noite em Sampa (cidade, noite) | 1 | 103 → **54** | 80 k → **124 k** | 64 → **15** | 24 k → **68 k** | 67 → 44 | 30 → 53 |
+| Noite em Sampa (cidade, noite) | 4 | 408 → **230** | 340 k → **508 k** | 238 → **60** | 98 k → **266 k** | 69 → 47 | 72 → 96 |
+| Paris (cidade, entardecer) | 1 | 106 → **58** | 82 k → **171 k** | 61 → **13** | 25 k → **114 k** | 73 → 49 | 30 → 51 |
+| Paris (cidade, entardecer) | 4 | 447 → **246** | 339 k → **689 k** | 253 → **52** | 103 k → **453 k** | 76 → 52 | 73 → 94 |
+| Rota 66 (deserto, dia) | 1 | 75 → **48** | 84 k → **92 k** | 33 → **6** | 49 k → **57 k** | 55 → 42 | 23 → 36 |
+| Rota 66 (deserto, dia) | 4 | 309 → **198** | 402 k → **429 k** | 135 → **24** | 195 k → **222 k** | 57 → 43 | 66 → 78 |
+| Cânion de Nevada (deserto, entardecer) | 1 | 80 → **46** | 89 k → **96 k** | 40 → **6** | 45 k → **52 k** | 56 → 40 | 25 → 35 |
+| Cânion de Nevada (deserto, entardecer) | 4 | 331 → **190** | 401 k → **430 k** | 165 → **24** | 178 k → **207 k** | 60 → 41 | 68 → 77 |
+| Monte Fuji (montanha, dia) | 1 | 82 → **48** | 73 k → **96 k** | 42 → **8** | 33 k → **56 k** | 57 → 41 | 27 → 39 |
+| Monte Fuji (montanha, dia) | 4 | 324 → **198** | 325 k → **430 k** | 158 → **32** | 128 k → **233 k** | 58 → 42 | 69 → 81 |
+| Lapônia (montanha, entardecer) | 1 | 81 → **50** | 70 k → **99 k** | 39 → **8** | 33 k → **62 k** | 57 → 43 | 27 → 40 |
+| Lapônia (montanha, entardecer) | 4 | 343 → **207** | 363 k → **474 k** | 168 → **32** | 133 k → **243 k** | 59 → 44 | 71 → 83 |
+| largada de Copacabana | 1 | 111 → **53** | 133 k → **155 k** | 71 → **13** | 70 k → **91 k** | 72 → 44 | 30 → 50 |
+| largada de Copacabana | 4 | 452 → **220** | 526 k → **611 k** | 284 → **52** | 282 k → **367 k** | 73 → 45 | 73 → 93 |
+| box (fundo do menu) | 1 | 102 → **44** | 90 k → **101 k** | 71 → **13** | 73 k → **85 k** | 66 → 38 | 29 → 49 |
+
+Leitura:
+- **Chamadas de desenho do cenário: de 4 a 7 vezes menos** (com 4 jogadores, de 132–284 para 24–60); o quadro
+  inteiro caiu ~40% (4 jogadores: 306–452 → 190–246).
+- **Triângulos**: caíram no litoral (antes: prédios e palmeiras pesadas), empataram no tropical e subiram onde antes
+  quase não havia nada (savana 2–2,5×, montanha ~1,8×) e na cidade (2,7–4,4×: prédio com térreo de lojas, cornija e
+  mansarda em vez de caixa). O pior caso é Paris com 4 jogadores: 0,69 milhão de triângulos por quadro (antes 0,34).
+  Numa placa de vídeo de verdade isso é pouco; se pesar no Deck, o próximo passo é uma silhueta de longe também
+  para prédios (hoje só vegetação e pedra têm).
+- **Geometrias**: menos (cada lote é uma geometria). **Texturas**: +10 a +20 — cada lote tem três `DataTexture`
+  pequenas (matrizes, índice e cor por instância), recriadas a cada troca de pista e liberadas com
+  `BatchedMesh.dispose()`.
+
+**CPU** (`Scenery.update`: as matrizes da janela, por viewport; medido em Node sem GPU, com a máquina já mais
+livre — carga ~4): **0,16 a 0,41 ms por viewport** (Kruger a Serra do Mar), contra 0,09 a 0,34 ms do cenário antigo,
+com 5 a 10 vezes mais objetos — ≤ 1,6 ms com 4 jogadores. O que segura: o rumo de cada objeto sai de cos/sen já
+calculados por ponto da janela (identidade trigonométrica, sem `Math.cos` por objeto), a cor por instância só é
+escrita quando muda e a mancha de sombra só vai até 60 segmentos. Montar o layout de uma pista (uma vez, na largada):
+80 a 300 ms; a primeira pista de cada bioma também monta os modelos (cache válido o jogo inteiro).
+
+**Qualidades baixa e média**: o renderizador pede uma janela menor (140 e 200 segmentos à frente, contra 260 na
+alta) e o cenário acompanha: desenha só a fração correspondente dos enfeites dispensáveis (forração, mata e soltos,
+por sorteio fixo de cada um; nunca os sprites da física, cercas, postes ou pontos de referência) e nada além do
+ponto em que a névoa apaga tudo. Sombra de verdade só dos sprites e só nas qualidades com sombra; a mancha no chão
+vale em todas. Serra do Mar (a pista mais densa):
+
+| qualidade | jog. | chamadas total | triângulos total | chamadas do cenário | triângulos do cenário |
+|---|---|---|---|---|---|
+| baixa | 1 | 42 → **30** | 48 k → **67 k** | 18 → **6** | 26 k → **45 k** |
+| baixa | 4 | 173 → **127** | 223 k → **299 k** | 70 → **24** | 106 k → **183 k** |
+| média | 1 | 64 → **35** | 105 k → **111 k** | 37 → **8** | 71 k → **76 k** |
+| média | 4 | 260 → **147** | 485 k → **501 k** | 145 → **32** | 289 k → **305 k** |
+
+**Memória** (`scripts/playtest-memoria.mjs`, 36 blocos = 72 corridas, com o cenário novo): sem crescimento entre
+ciclos — geometrias 53 → 53, texturas 97 → 97, programas 113 → 113, materiais 45 → 45, objetos 66 → 66 no fim do
+ciclo, 0 de 12 posições crescendo; heap JS 31,82 → 31,97 MB (+157 KB em 24 corridas; folga 1,5 MB). A seção 2 registrava
+~24,7 MB na onda D; parte da diferença é do cenário (cache de modelos, layout da pista atual, cópias em CPU dos
+lotes), mas a base e3e63b1 não foi medida de novo nesta rodada — o que vale aqui é que não cresce.
