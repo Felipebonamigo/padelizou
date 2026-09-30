@@ -88,7 +88,9 @@ classificação + minimapa). HUD em DOM por cima do canvas.
 - **TypeScript + Three.js + Electron**, não Unity/Godot: o agente constrói e verifica tudo sozinho (testes,
   corrida sem interface, capturas no Chromium headless com WebGL), e o mesmo caminho do AgeOfEarth leva à Steam.
 - **Three.js, não Canvas 2D**: o primeiro renderizador era pseudo-3D em Canvas 2D (estilo 16 bits); foi trocado em
-  25/09/2026 a pedido do dono ("gráficos atuais, bonitos"). A simulação não mudou uma linha.
+  25/09/2026 a pedido do dono ("gráficos atuais, bonitos"). A simulação não mudou uma linha. Em 30/09/2026 o dono
+  pediu o pseudo-3D de volta como **modo Retrô opcional**, ao lado do 3D (padrão): `src/render-pseudo3d/`, mesma
+  interface `Renderer`, troca em Opções › Visual — ver `docs/RETRO.md`.
 - **Sem trigonometria no núcleo**: suavizações polinomiais; o minimapa (que precisa de seno/cosseno) vive no
   renderizador, fora do estado.
 - **Humanos largam por último** (como no Top Gear) e a IA corre em duplas com nome de equipe, para a classificação

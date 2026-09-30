@@ -19,6 +19,7 @@ import { assistedHumans, withRaceAssists } from '../access/humans';
 import { createAudio } from '../audio/audio';
 import { songForScenery } from '../audio/music';
 import { createRenderer } from '../render/renderer';
+import { createRetroRenderer } from '../render-pseudo3d/renderer';
 import { trackOutline } from '../render/minimap';
 import { createInput } from '../ui/input';
 import { createMenus } from '../ui/menus';
@@ -27,7 +28,7 @@ import { createTutorialPanel } from '../ui/screens/tutorial';
 import { newTelemetry, type RaceTelemetry } from './achievements';
 import { saveCupProgress } from './career-save';
 import { compactHumans, createCareerSession } from './career-session';
-import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, Settings, ViewportSpec } from './contracts';
+import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, RenderStyle, Settings, ViewportSpec } from './contracts';
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
 import { startGhost, type GhostHooks } from './ghost-session';
@@ -98,12 +99,22 @@ function randomSeed(): number {
   return (Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0;
 }
 
+/** O renderizador do estilo escolhido: o 3D moderno (Three.js) ou o pseudo-3D Retrô (canvas 2D). */
+function makeRenderer(style: RenderStyle, canvas: HTMLCanvasElement, hudRoot: HTMLElement): Renderer {
+  return style === 'retro' ? createRetroRenderer(canvas, hudRoot) : createRenderer(canvas, hudRoot);
+}
+
 export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, uiRoot: HTMLElement): Session {
   const settings = loadSettings();
   const save = loadSave();
   setLanguage(settings.language);
 
-  const renderer = createRenderer(canvas, hudRoot);
+  let renderer: Renderer = makeRenderer(settings.renderStyle, canvas, hudRoot);
+  /**
+   * Estilo do renderizador em uso. A tela de Opções edita o próprio objeto `settings` antes de avisar, então
+   * comparar o que chega com `settings` nunca vê a troca: compara-se com o que está desenhando.
+   */
+  let activeStyle = settings.renderStyle;
   applyAccessibility(settings, hudRoot, uiRoot);
   const input = createInput(window, { bindings: () => settings.controls, vibration: () => settings.vibration });
   const rumbleMemory = newRumbleMemory();
@@ -137,7 +148,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }, { hud: createOnlineHud });
 
   const session: Session = {
-    settings, renderer, input, audio, online,
+    settings, input, audio, online,
+    get renderer() { return renderer; },
     menus: null as unknown as Menus,
     tutorial: null as unknown as TutorialSession,
     race: null, paused: false, speed: 1,
@@ -178,6 +190,22 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     hud: pushMessage,
     panel: createTutorialPanel(hudRoot),
   });
+
+  /**
+   * Opções › Visual: troca o renderizador na hora (moderno ↔ Retrô). Um canvas não aceita WebGL e 2D ao
+   * mesmo tempo, então o antigo é descartado e um canvas novo toma o lugar dele no DOM.
+   */
+  function swapRenderer(): void {
+    const old = renderer.canvas;
+    renderer.dispose();
+    const fresh = document.createElement('canvas');
+    fresh.id = old.id;
+    fresh.className = old.className;
+    old.replaceWith(fresh);
+    renderer = makeRenderer(settings.renderStyle, fresh, hudRoot);
+    activeStyle = settings.renderStyle;
+    resize();
+  }
 
   function resize(): void {
     renderer.resize(window.innerWidth, window.innerHeight, Math.min(2, window.devicePixelRatio || 1));
@@ -497,6 +525,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     audio.setVolumes(settings.masterVolume, settings.musicVolume, settings.sfxVolume);
     if (languageChanged) { setLanguage(settings.language); menus.refreshLanguage(); }
     if (fullscreenChanged) setFullscreen(settings.fullscreen).catch(() => undefined);
+    if (settings.renderStyle !== activeStyle) swapRenderer();
     if (!session.race) {
       audio.setMusic(settings.music === 'auto' ? songForScenery('coast', 'dusk') : settings.music === 'off' ? null : settings.music);
     } else if (settings.music !== 'auto') {

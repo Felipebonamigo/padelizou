@@ -29,5 +29,5 @@ describe('calibragem contra a IA que evolui', () => {
     const msg = `última copa (${CUPS[last].id}, IA ${aiLevel.toFixed(2)}, melhorias ${JSON.stringify(upgrades)}): ${final.join(',')}`;
     expect(mean(final), msg).toBeLessThanOrEqual(5.5);
     expect(final.filter((p) => p <= 5).length, msg).toBeGreaterThanOrEqual(final.length / 2);
-  }, 180_000);
+  }, 900_000); // ~2–3 min sozinha; com a máquina carregada (agentes em paralelo) passou de 5 min
 });

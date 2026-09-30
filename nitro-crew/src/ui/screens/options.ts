@@ -1,7 +1,7 @@
 // Opções: cada mudança grava no localStorage e avisa a sessão (`settingsChanged`).
 import type { CoopAssists } from '../../core/types';
 import type { Settings } from '../../game/contracts';
-import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, QUICK_LAPS_MIN, TOTAL_CARS_MAX, TOTAL_CARS_MIN, saveSettings } from '../../game/settings';
+import { DIFFICULTIES, QUALITIES, QUICK_LAPS_MAX, RENDER_STYLES, QUICK_LAPS_MIN, TOTAL_CARS_MAX, TOTAL_CARS_MIN, saveSettings } from '../../game/settings';
 import { accessEntry } from '../../access/screen';
 import { optionsFooter } from '../../errors/options';
 import { getLanguage, setLanguage, t, type Lang } from '../../i18n';
@@ -81,8 +81,10 @@ export function optionsScreen(api: ScreenApi): ScreenInstance {
     // usuário pode pedir tela cheia, e este handler de teclado/clique é o gesto.
     selector(t('ui.options.fullscreen'), () => onOff(s.fullscreen), () => { s.fullscreen = !s.fullscreen; if (!api.ctx.isDesktop) applyFullscreen(s.fullscreen); commit(); }, { sfx }),
     selector(t('ui.options.quality'), () => t(`ui.options.quality.${s.quality}`), (d) => { s.quality = cycle(QUALITIES, s.quality, d); commit(); }, { sfx }),
+    // Visual: o 3D moderno ou o pseudo-3D Retrô (a sessão troca o renderizador na hora; src/render-pseudo3d).
+    // Cada coluna comporta dez linhas (docs/TELAS.md): para esta caber, o "Tremor de tela" foi para a Acessibilidade.
+    selector(t('ui.options.renderStyle'), () => t(`ui.options.renderStyle.${s.renderStyle}`), (d) => { s.renderStyle = cycle(RENDER_STYLES, s.renderStyle, d); commit(); }, { sfx }),
     selector(t('ui.options.minimap'), () => onOff(s.showMinimap), () => { s.showMinimap = !s.showMinimap; commit(); }, { sfx }),
-    selector(t('ui.options.shake'), () => onOff(s.screenShake), () => { s.screenShake = !s.screenShake; commit(); }, { sfx }),
     selector(t('ui.options.vibration'), () => onOff(s.vibration), () => { s.vibration = !s.vibration; commit(); }, { sfx }),
     selector(t('ui.options.track'), () => musicTitle(s.music), (d) => { s.music = cycle(musicIds, s.music, d); commit(); }, { sfx }),
   ];

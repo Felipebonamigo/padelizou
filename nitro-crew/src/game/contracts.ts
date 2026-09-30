@@ -70,6 +70,8 @@ export interface DevicePeek {
 // ───────────────────────────── Opções e progresso ─────────────────────────────
 
 export type Quality = 'low' | 'medium' | 'high';
+/** Estilo visual: o 3D moderno (src/render) ou o pseudo-3D Retrô (src/render-pseudo3d). */
+export type RenderStyle = 'modern' | 'retro';
 
 export interface Settings {
   language: Lang;
@@ -78,6 +80,8 @@ export interface Settings {
   sfxVolume: number;
   fullscreen: boolean;
   quality: Quality;
+  /** Visual da corrida: moderno (3D) ou Retrô (pseudo-3D, estilo Top Gear). */
+  renderStyle: RenderStyle;
   showMinimap: boolean;
   screenShake: boolean;
   difficulty: Difficulty;
@@ -116,7 +120,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
-  language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high',
+  language: 'pt', masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, fullscreen: false, quality: 'high', renderStyle: 'modern',
   showMinimap: true, screenShake: true, difficulty: 'profissional', manualGear: false,
   assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, totalCars: 20, quickLaps: 3, music: 'auto',
   telemetryConsent: 0,

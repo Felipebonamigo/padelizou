@@ -2,7 +2,8 @@
 
 Corrida arcade (estilo Top Gear) com visual 3D low-poly estilizado e co-op local de até 4 em tela dividida, em
 TypeScript + Three.js (WebGL), empacotável com Electron para a Steam. **O dono pediu gráficos atuais e bonitos** —
-referência Horizon Chase Turbo; pixel art e pseudo-3D de 16 bits estão fora. Interface e comentários em português (Brasil); código em inglês.
+referência Horizon Chase Turbo. O pseudo-3D de 16 bits existe só como **modo Retrô opcional** (Opções › Visual,
+`src/render-pseudo3d/`, `docs/RETRO.md`); o 3D é o padrão e o foco do trabalho visual. Interface e comentários em português (Brasil); código em inglês.
 Este projeto mora numa subpasta do repositório `padelizou` por enquanto; **tudo aqui é independente dele** —
 não use nada de fora desta pasta.
 
@@ -17,7 +18,7 @@ não use nada de fora desta pasta.
   (remapeamento e vibração), `pistas-ui.mjs` (telas de copas/pistas), `playtest-tutorial.mjs` ("Como jogar" de ponta a
   ponta), `playtest-assist.mjs` (acessibilidade e direção assistida), `playtest-layout.mjs` (26 telas × 7 resoluções × texto
   normal/grande; rode depois de mexer em CSS de menu), `playtest-memoria.mjs` (sessão longa, vazamentos),
-  `playtest-save.mjs` (armazenamento cheio), `playtest-ghost-version.mjs` (fantasma de outra versão; o import pode falhar
+  `playtest-save.mjs` (armazenamento cheio), `playtest-retro.mjs` (modo Retrô: troca, cenários, tela dividida), `playtest-ghost-version.mjs` (fantasma de outra versão; o import pode falhar
   sob carga — ver o cabeçalho).
   `playtest-records.mjs` exige `npm run dev`. `npx tsx scripts/perf-sim.ts` mede o custo por tick da simulação.
   Chromium: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--use-gl=swiftshader --enable-unsafe-swiftshader`). Sob carga a
@@ -69,7 +70,7 @@ não use nada de fora desta pasta.
   desfazia, save com o armazenamento cheio (vai ao arquivo e avisa), fantasma e recordes com a versão do conteúdo.
   768 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
   gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
 - **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).

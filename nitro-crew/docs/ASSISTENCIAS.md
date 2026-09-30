@@ -100,6 +100,8 @@ O teste exige ΔE ≥ 30 entre jogadores e ≥ 20 até o cinza da IA na visão a
 - **Texto grande** nos menus: `--text-scale` 1,2 no `#ui` (redefine `--fs`, `--fs-sm`, `--fs-md`, `--fs-lg`).
 - **Reduzir efeitos**: sem tremor de câmera e sem faíscas de batida (pelo `RenderOptions.reduceEffects`), sem
   linhas de velocidade e sem piscadas no HUD (classe `reduce-fx` no `#hud`), animações dos menus instantâneas.
+- **Tremor de tela** (liga/desliga só o tremor da câmera nas batidas): morava em Opções › Geral e veio para esta
+  tela em 30/09/2026, quando o Visual (Moderno/Retrô) entrou lá — cada coluna de Opções comporta dez linhas.
 - `src/access/apply.ts` aplica tudo isso na criação da sessão e a cada mudança de opções; CSS em `src/access/access.css`.
 
 ## Arquivos

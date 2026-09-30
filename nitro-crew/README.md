@@ -49,6 +49,8 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box pelo consumo medido volta a volta.
 - Estatísticas por jogador, recordes por pista e 25 conquistas (`docs/ESTATISTICAS.md`).
 - Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (procedural até a arte final).
+- **Modo Retrô** opcional (Opções › Visual): pseudo-3D de 16 bits no estilo Top Gear, com a mesma corrida, HUD e tela
+  dividida — ver `docs/RETRO.md`.
 - Tela dividida 1–4, minimapa, HUD por jogador, PT-BR/EN, jukebox procedural com 4 músicas.
 
 ## Desenvolvimento

@@ -6,7 +6,7 @@ import type { AssistLevel, CoopAssists, Difficulty } from '../core/types';
 import type { Lang } from '../i18n';
 import { sanitizeBindings } from '../ui/remap/bindings';
 import { normalizeServerUrl } from '../net/protocol';
-import { DEFAULT_SETTINGS, type Quality, type Settings } from './contracts';
+import { DEFAULT_SETTINGS, type Quality, type RenderStyle, type Settings } from './contracts';
 import { readJson, writeJson } from './storage';
 
 // Onde gravar (localStorage, arquivo do Electron, memória da sessão) é com storage.ts; save e fantasmas importam daqui.
@@ -22,6 +22,7 @@ export const HUD_SCALE_MAX = 1.5;
 
 export const LANGUAGES: readonly Lang[] = ['pt', 'en'];
 export const QUALITIES: readonly Quality[] = ['low', 'medium', 'high'];
+export const RENDER_STYLES: readonly RenderStyle[] = ['modern', 'retro'];
 export const DIFFICULTIES: readonly Difficulty[] = ['amador', 'profissional', 'campeao'];
 
 // ───────────────────────────── Saneamento ─────────────────────────────
@@ -77,6 +78,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     sfxVolume: pickNumber(r.sfxVolume, 0, 1, d.sfxVolume),
     fullscreen: pickBool(r.fullscreen, d.fullscreen),
     quality: pickEnum(r.quality, QUALITIES, d.quality),
+    renderStyle: pickEnum(r.renderStyle, RENDER_STYLES, d.renderStyle),
     showMinimap: pickBool(r.showMinimap, d.showMinimap),
     screenShake: pickBool(r.screenShake, d.screenShake),
     difficulty: pickEnum(r.difficulty, DIFFICULTIES, d.difficulty),

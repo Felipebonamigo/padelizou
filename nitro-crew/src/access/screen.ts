@@ -1,5 +1,5 @@
 // Tela de Acessibilidade (Opções › Acessibilidade): cores dos jogadores, tamanho do HUD, texto
-// grande, reduzir efeitos e a direção assistida de cada assento, com a explicação do item em foco.
+// grande, reduzir efeitos, tremor de tela e a direção assistida de cada assento, com a explicação do item em foco.
 // Tela própria porque a de Opções já ocupa 1280×720 inteira: uma terceira coluna lá cortava os rótulos.
 import { COLOR_PALETTES, seatColor } from '../core/data/drivers';
 import { ASSIST_LEVELS } from '../core/sim/assist';
@@ -42,6 +42,7 @@ export function accessScreen(api: ScreenApi): ScreenInstance {
     { item: selector(t('access.options.hudScale'), () => percent(s.hudScale), (d) => { s.hudScale = Math.round(Math.min(HUD_SCALE_MAX, Math.max(HUD_SCALE_MIN, s.hudScale + d * 0.1)) * 10) / 10; commit(); }, { sfx }), desc: () => t('access.desc.hudScale') },
     { item: selector(t('access.options.largeText'), () => onOff(s.largeText), () => { s.largeText = !s.largeText; commit(); }, { sfx }), desc: () => t('access.desc.largeText') },
     { item: selector(t('access.options.reduceEffects'), () => onOff(s.reduceEffects), () => { s.reduceEffects = !s.reduceEffects; commit(); }, { sfx }), desc: () => t('access.desc.reduceEffects') },
+    { item: selector(t('ui.options.shake'), () => onOff(s.screenShake), () => { s.screenShake = !s.screenShake; commit(); }, { sfx }), desc: () => t('access.desc.shake') },
   ];
   // A sessão troca o array a cada mudança de opções: sempre lido de s.seatAssists na hora.
   const levelOf = (seat: number) => s.seatAssists[seat] ?? 'none';

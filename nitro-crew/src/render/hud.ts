@@ -362,8 +362,15 @@ export class Hud {
     if (this.visible) { this.visible = false; this.root.classList.add('hidden'); }
   }
 
+  /**
+   * Tira só o que este HUD criou. O mesmo elemento guarda o painel do tutorial e o HUD do online (criados
+   * pela sessão); apagá-lo inteiro (`innerHTML = ''`) sumia com eles ao trocar Moderno ↔ Retrô.
+   */
   dispose(): void {
-    this.root.innerHTML = '';
+    for (const s of this.seats) s.root.remove();
+    this.seats.length = 0;
+    this.spare?.root.remove();
+    this.spare = null;
     this.root.classList.remove('nc-hud', 'hidden');
   }
 }
