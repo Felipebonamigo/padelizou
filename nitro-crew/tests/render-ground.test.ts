@@ -82,6 +82,17 @@ describe('paleta do chão, céu e luz', () => {
       expect(n.bloom[2]).toBeLessThan(d.bloom[2]);
     }
   });
+
+  // No merge da onda F a cidade à noite virou um clarão: o limiar do bloom (1,0) ficou abaixo das fachadas acesas do
+  // cenário (1,25), então janelas e vitrines inteiras brilhavam. Sem pós-processamento (qualidade média) estava nítida.
+  it('à noite só ponto de luz passa do limiar do bloom: fachadas acesas abaixo, luminárias acima', async () => {
+    const { FACADE_LIT_EMISSIVE, GLOW_NIGHT } = await import('../src/render/scenery/runtime');
+    for (const sc of SCENERIES) {
+      const n = palette(sc, 'night');
+      expect(n.bloom[2], sc).toBeGreaterThan(FACADE_LIT_EMISSIVE + 0.25);
+      expect(n.bloom[2], sc).toBeLessThan(GLOW_NIGHT);
+    }
+  });
 });
 
 describe('terreno', () => {

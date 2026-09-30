@@ -241,7 +241,9 @@ function build(scenery: SceneryId, time: TimeOfDay): Palette {
     sunLight = '#9db6ff'; sunIntensity = 0.95;
     hemiSky = scenery === 'city_night' ? '#5a5aa8' : '#4a66b8'; hemiIntensity = 1.35;
     envIntensity = 0.8; exposure = 1.12; fogDensity = 1.3;
-    bloom = [0.5, 0.45, 1.0];
+    // Limiar entre as fachadas acesas do cenário (1,25: não brilham) e as luminárias (2,0: brilham) — com 1,0 a
+    // cidade inteira virava um clarão (tests/render-ground.test.ts).
+    bloom = [0.5, 0.45, 1.6];
     cloudLit = null; cloudShade = sky[1];
   }
   // Névoa: o horizonte com um pouco do meio do céu — tem cor, nunca cinza.

@@ -22,7 +22,8 @@ Regras que os testes travam (`tests/render-ground.test.ts`):
 - céu em gradiente forte: horizonte pelo menos 0,2 de luminância acima do topo nas combinações usadas;
 - borda da pista legível em todas as 18 combinações: asfalto × faixa de transição ≥ 0,12 de luminância, zebra
   branco × vermelho ≥ 0,35, faixa pintada × asfalto ≥ 0,45, linha amarela × box ≥ 0,3;
-- à noite: marcações com brilho, poças de luz, sem nuvens; de dia o limiar do bloom fica ≥ 1 (branco ao sol não
+- à noite: marcações com brilho, poças de luz, sem nuvens; limiar do bloom em 1,6, entre as fachadas acesas do
+  cenário (1,25, não brilham) e as luminárias (2,0, brilham) — com 1,0 a cidade virava um clarão no merge da onda F; de dia o limiar do bloom fica ≥ 1 (branco ao sol não
   "estoura").
 
 ### Pista (`road.ts`, `road-textures.ts`)

@@ -85,6 +85,14 @@ function blobTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/**
+ * Brilho próprio das fachadas acesas à noite (janelas e vitrines: superfícies grandes) e das luminárias (pontos de
+ * luz). O bloom da noite (palette.ts) tem de ficar entre os dois: acima das fachadas, que senão viram um clarão
+ * branco com névoa, e abaixo das luminárias, que devem brilhar (tests/render-ground.test.ts).
+ */
+export const FACADE_LIT_EMISSIVE = 1.25;
+export const GLOW_NIGHT = 2.0;
+
 export class Scenery {
   readonly group = new THREE.Group();
   private readonly materials: Record<BatchKey, THREE.Material>;
@@ -144,10 +152,10 @@ export class Scenery {
 
   private applyNight(): void {
     const lit = this.night ? (this.dusk ? 0.6 : 1) : 0;
-    for (const m of this.facadeMats) m.emissiveIntensity = 1.25 * lit;
+    for (const m of this.facadeMats) m.emissiveIntensity = FACADE_LIT_EMISSIVE * lit;
     // De dia um pouco de brilho próprio: o outdoor lê a 300 km/h mesmo contra o sol.
     this.panelMat.emissiveIntensity = this.night ? 0.6 : 0.3;
-    this.glowMat.color.setScalar(this.night ? (this.dusk ? 1.4 : 2.0) : 0.95);
+    this.glowMat.color.setScalar(this.night ? (this.dusk ? 1.4 : GLOW_NIGHT) : 0.95);
     for (const b of this.batches) if (b.key === 'cone') b.mesh.visible = this.night && !this.dusk;
   }
 
