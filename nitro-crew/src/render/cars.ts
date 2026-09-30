@@ -1,286 +1,115 @@
-// Carros: esportivo low-poly por "loft" de seções (capô baixo e longo, para-brisa inclinado,
-// teto curto, traseira alta com aerofólio), para-lamas largos com as rodas visíveis nos
-// cantos, vidro escuro com reflexo, faróis/lanternas emissivas (freio mais forte), chama de
-// nitro em billboard animado, sombra de contato e etiqueta de nome. Tudo instanciado: um draw
-// call por peça para os 20 carros. Pose por viewport via locateOnFrame; a animação (giro de
-// roda, rolagem, mergulho) é por carro, uma vez por quadro.
+// Carros: um modelo procedural por estilo de carroceria (cars/styles/*.ts, 13 estilos), agrupados por
+// estilo — cada estilo presente é UMA chamada de desenho para todos os carros dele (InstancedMesh), e
+// cada desenho de roda presente é outra. Carroceria, cabine, vidro, cromo, lentes e peças vivem na
+// mesma malha e no mesmo material (cars/material.ts): pintura e acento por instância, faixas por
+// camada, farol/lanterna emissivos (freio por instância), verniz com o reflexo do céu na qualidade alta.
+// Chama de nitro em billboard animado, sombra de contato e etiqueta de nome. Pose por viewport via
+// locateOnFrame; a animação (giro de roda, rolagem, mergulho) é por carro, uma vez por quadro.
 import * as THREE from 'three';
-import { carDef } from '../core/data/cars';
+import { CARS, carDef } from '../core/data/cars';
 import { NITRO_DURATION_TICKS } from '../core/constants';
-import type { RaceState, Track } from '../core/types';
-import type { GhostFrame, RenderFrame } from '../game/contracts';
+import type { CarBody, RaceState, Track } from '../core/types';
+import type { GhostFrame, Quality, RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
 import { locateOnFrame, type FramePoint, type RoadFrame } from './roadframe';
-import { blobTexture, canvas2d, labelTexture } from './textures';
+import { blobTexture, labelTexture } from './textures';
 import { VIP_COLOR, VIP_NAME } from '../core/modes';
 import { zToMeters } from './units';
+import { createCarMaterial, setCarQuality, type CarUniforms } from './cars/material';
+import type { CarModel } from './cars/model';
+import { buildModel } from './cars/models';
+import { carPaint } from './cars/paints';
+import { buildSimpleWheel, buildWheel, spinStep, type WheelDesign, type WheelModel } from './cars/wheels';
+import { FLAME_FRAG, FLAME_VERT, flameTexture } from './cars/flame';
+import { CAR_BODIES } from '../core/data/cars';
 
 const MAX_CARS = 20;
 /** Posição da etiqueta do VIP na lista de etiquetas (depois dos 4 assentos). */
 const VIP_LABEL = 4;
-const WHEEL_RADIUS = 0.33;
-const WHEEL_X = 0.86;
-const WHEEL_Z = 1.42;
-const BODY_DARK = '#141518';
-const WHITE = '#ffffff';
+/** Bit de freio em `instExtra.w` (os de pintura vêm de cars/paints.ts). */
+const BRAKE_BIT = 1;
+const SIDES = [-1, 1] as const;
+/** Carro mais que isto à frente do carro do viewport (a câmera fica 7,8 m atrás) usa a roda simples. */
+const FAR_WHEELS_M = 30;
 
-/** Seção da carroceria em z: meia largura, altura do topo e do fundo (carro de 4,4 × 1,9 × 1,2 m). */
-type Station = [z: number, hw: number, top: number, bottom: number];
-
-// Cunha: nariz baixo (0,44 m), capô subindo até o cowl (0,72), deck alto (0,98). Nas estações dos
-// eixos o fundo sobe (0,46) e a lateral alarga: é o arco da roda — a roda fica visível por baixo.
-const STATIONS: Station[] = [
-  [-2.20, 0.62, 0.44, 0.28], [-2.00, 0.80, 0.50, 0.20], [-1.72, 0.86, 0.56, 0.34], [-1.42, 0.90, 0.60, 0.46],
-  [-1.10, 0.86, 0.64, 0.30], [-0.60, 0.84, 0.72, 0.16], [0.20, 0.84, 0.76, 0.16], [0.95, 0.86, 0.80, 0.30],
-  [1.42, 0.90, 0.88, 0.46], [1.78, 0.86, 0.96, 0.32], [2.08, 0.80, 0.98, 0.26], [2.20, 0.70, 0.92, 0.34],
-];
-
-/** Anel de 16 pontos (sentido horário visto de frente), com saia, ombro e topo levemente abaulado. */
-function ring(hw: number, top: number, bottom: number): Array<[number, number]> {
-  const h = top - bottom;
-  const y1 = bottom + h * 0.15; const y2 = bottom + h * 0.45; const y3 = top - h * 0.25; const y4 = top - h * 0.06;
-  const right: Array<[number, number]> = [[hw, bottom + 0.02], [hw + 0.02, y1], [hw, y2], [hw * 0.99, y3], [hw * 0.9, y4], [hw * 0.62, top], [0, top + 0.015]];
-  const left = right.slice(0, 6).reverse().map(([x, y]) => [-x, y] as [number, number]);
-  return [...right, ...left, [-hw * 0.5, bottom - 0.02], [0, bottom - 0.02], [hw * 0.5, bottom - 0.02]];
+interface Batch {
+  readonly mesh: THREE.InstancedMesh;
+  readonly extra: THREE.InstancedBufferAttribute;
+  count: number;
 }
 
-/** Loft entre anéis: faces planas, cor por vértice (escuro abaixo de `darkBelow`). */
-function loft(rings: Array<Array<[number, number]>>, zs: number[], darkBelow: number, capFront: boolean, capBack: boolean): THREE.BufferGeometry {
-  const pos: number[] = []; const col: number[] = [];
-  const white = new THREE.Color(WHITE); const dark = new THREE.Color(BODY_DARK);
-  const push = (x: number, y: number, z: number) => { pos.push(x, y, z); const c = y < darkBelow ? dark : white; col.push(c.r, c.g, c.b); };
-  const K = rings[0].length;
-  for (let i = 0; i < rings.length - 1; i++) {
-    const a = rings[i]; const b = rings[i + 1];
-    for (let k = 0; k < K; k++) {
-      const k1 = (k + 1) % K;
-      push(a[k][0], a[k][1], zs[i]); push(a[k1][0], a[k1][1], zs[i]); push(b[k][0], b[k][1], zs[i + 1]);
-      push(a[k1][0], a[k1][1], zs[i]); push(b[k1][0], b[k1][1], zs[i + 1]); push(b[k][0], b[k][1], zs[i + 1]);
-    }
-  }
-  const cap = (r: Array<Array<number>>, z: number, flip: boolean) => {
-    let cx = 0; let cy = 0;
-    for (const [x, y] of r) { cx += x; cy += y; }
-    cx /= r.length; cy /= r.length;
-    for (let k = 0; k < r.length; k++) {
-      const k1 = (k + 1) % r.length;
-      if (flip) { push(cx, cy, z); push(r[k1][0], r[k1][1], z); push(r[k][0], r[k][1], z); }
-      else { push(cx, cy, z); push(r[k][0], r[k][1], z); push(r[k1][0], r[k1][1], z); }
-    }
-  };
-  if (capFront) cap(rings[0], zs[0], false);
-  if (capBack) cap(rings[rings.length - 1], zs[zs.length - 1], true);
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.computeVertexNormals();
-  return g;
-}
+interface StyleBatch extends Batch { readonly model: CarModel; readonly wheels: WheelBatch }
+interface WheelBatch extends Batch { readonly model: WheelModel }
 
-function paintGeo(g: THREE.BufferGeometry, color: string): THREE.BufferGeometry {
-  const c = new THREE.Color(color); const n = g.attributes.position.count; const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
-  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-  g.deleteAttribute('uv');
-  return g;
-}
-
-function coloredBox(w: number, h: number, d: number, x: number, y: number, z: number, color: string): THREE.BufferGeometry {
-  return paintGeo(new THREE.BoxGeometry(w, h, d).toNonIndexed().translate(x, y, z), color);
-}
-
-function mergeColored(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  let total = 0;
-  for (const p of parts) total += p.attributes.position.count;
-  const pos = new Float32Array(total * 3); const col = new Float32Array(total * 3);
-  let o = 0;
-  for (const p of parts) {
-    pos.set(p.attributes.position.array as Float32Array, o * 3);
-    col.set(p.attributes.color.array as Float32Array, o * 3);
-    o += p.attributes.position.count;
-    p.dispose();
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.computeVertexNormals();
-  return g;
-}
-
-/** Carroceria (cor da instância) + peças fixas: para-lamas, teto, aerofólio, difusor, splitter, retrovisores, escapes. */
-function buildBody(): THREE.BufferGeometry {
-  const rings = STATIONS.map(([, hw, top, bottom]) => ring(hw, top, bottom));
-  const zs = STATIONS.map(([z]) => z);
-  const parts = [loft(rings, zs, 0.21, true, true)];
-  parts.push(coloredBox(1.26, 0.05, 0.7, 0, 1.18, 0.42, WHITE)); // teto
-  parts.push(coloredBox(1.64, 0.05, 0.30, 0, 1.12, 1.98, WHITE)); // aerofólio
-  parts.push(coloredBox(0.06, 0.18, 0.16, -0.52, 1.03, 1.98, BODY_DARK), coloredBox(0.06, 0.18, 0.16, 0.52, 1.03, 1.98, BODY_DARK));
-  parts.push(coloredBox(1.44, 0.16, 0.22, 0, 0.22, 2.16, BODY_DARK)); // difusor
-  parts.push(coloredBox(1.5, 0.06, 0.3, 0, 0.19, -2.1, BODY_DARK)); // splitter
-  parts.push(coloredBox(0.14, 0.08, 0.18, -0.92, 0.84, -0.4, WHITE), coloredBox(0.14, 0.08, 0.18, 0.92, 0.84, -0.4, WHITE)); // retrovisores
-  parts.push(coloredBox(0.18, 0.1, 0.14, -0.45, 0.3, 2.24, '#9a9ea6'), coloredBox(0.18, 0.1, 0.14, 0.45, 0.3, 2.24, '#9a9ea6')); // escapes
-  return mergeColored(parts);
-}
-
-/** Cabine de vidro: para-brisa inclinado, teto curto, vidro traseiro e janelas laterais. */
-function buildGlass(): THREE.BufferGeometry {
-  const st: Array<[number, number, number, number, number]> = [
-    [-0.58, 0.78, 0.73, 0.76, 0.75], [0.10, 0.74, 0.77, 0.62, 1.16], [0.75, 0.74, 0.79, 0.62, 1.16], [1.50, 0.78, 0.89, 0.72, 0.91],
-  ];
-  const rings = st.map(([, hb, yb, ht, yt]) => [[hb, yb], [ht, yt], [-ht, yt], [-hb, yb]] as Array<[number, number]>);
-  return loft(rings, st.map(([z]) => z), -1, false, false);
-}
-
-/** Roda: pneu escuro, aro claro com cinco vãos escuros (mostra o giro). */
-function buildWheel(): THREE.BufferGeometry {
-  const parts = [paintGeo(new THREE.CylinderGeometry(WHEEL_RADIUS, WHEEL_RADIUS, 0.26, 12).toNonIndexed().rotateZ(Math.PI / 2), '#141416')];
-  parts.push(paintGeo(new THREE.CylinderGeometry(0.22, 0.22, 0.27, 12).toNonIndexed().rotateZ(Math.PI / 2), '#d8dce2'));
-  for (let k = 0; k < 5; k++) {
-    parts.push(paintGeo(new THREE.BoxGeometry(0.29, 0.13, 0.05).toNonIndexed().translate(0, 0.13, 0).rotateX((k / 5) * Math.PI * 2), '#2a2c30'));
-  }
-  return mergeColored(parts);
-}
-
-/** Atlas de 4 quadros da chama (base embaixo de cada quadro, ponta em cima): gaussiana que afina, núcleo branco → azul. */
-function flameTexture(): THREE.CanvasTexture {
-  const W = 64; const H = 512; const F = 128;
-  const [c, ctx] = canvas2d(W, H);
-  const img = ctx.createImageData(W, H);
-  const d = img.data;
-  for (let f = 0; f < 4; f++) {
-    const len = 0.78 + hash2(f, 1) * 0.2;
-    const sig0 = 0.21 + hash2(f, 2) * 0.05;
-    for (let row = 0; row < F; row++) {
-      const v = (row + 0.5) / F; // 0 = base (embaixo do quadro)
-      const t = v / len;
-      const y = H - 1 - (f * F + row); // linha do canvas (v=0 no fundo, flipY)
-      for (let px = 0; px < W; px++) {
-        const k = (y * W + px) * 4;
-        if (t >= 1) { d[k + 3] = 0; continue; }
-        const u = (px + 0.5) / W - 0.5 + Math.sin(t * 11 + f * 2.1) * 0.03 * t;
-        const sigma = sig0 * (1 - 0.7 * t);
-        const g = Math.exp(-(u * u) / (2 * sigma * sigma));
-        const profile = t < 0.08 ? t / 0.08 : Math.pow(1 - (t - 0.08) / 0.92, 0.9);
-        const a = Math.min(1, g * profile * 1.15);
-        const core = g * g * (1 - t * 0.85);
-        d[k] = Math.round(90 + (255 - 90) * core); d[k + 1] = Math.round(175 + (255 - 175) * core); d[k + 2] = 255; d[k + 3] = Math.round(a * 255);
-      }
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-/** Billboard axial: o plano gira em torno do eixo da chama (+Z da instância) para encarar a câmera. */
-const FLAME_VERT = /* glsl */ `
-varying vec2 vUv; varying float vFacing;
-void main() {
-  mat4 m = modelMatrix * instanceMatrix;
-  vec3 origin = (m * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-  vec3 axisRaw = mat3(m) * vec3(0.0, 0.0, 1.0);
-  float len = length(axisRaw);
-  vec3 axis = axisRaw / max(len, 1e-4);
-  float wid = length(mat3(m) * vec3(1.0, 0.0, 0.0));
-  vec3 toCam = normalize(cameraPosition - origin);
-  vec3 crossv = cross(axis, toCam);
-  float cl = length(crossv);
-  vec3 side = cl > 1e-3 ? crossv / cl : normalize(cross(vec3(0.0, 1.0, 0.0), toCam));
-  // De frente/de trás o plano axial colapsa numa linha: mistura com um billboard esférico curto.
-  float facing = abs(dot(axis, toCam));
-  float k = facing * facing;
-  vec3 upv = normalize(mix(axis, normalize(cross(toCam, side)), k));
-  // Visto de trás (câmera de perseguição) o brilho é curto, para não engolir as lanternas.
-  float lenEff = mix(len, wid * 1.15, k);
-  vec3 p = origin + upv * ((uv.y - 0.5 * k) * lenEff) + side * ((uv.x - 0.5) * wid * (1.0 + 0.25 * k));
-  vUv = uv; vFacing = k;
-  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
-}`;
-
-const FLAME_FRAG = /* glsl */ `
-uniform sampler2D uMap; uniform float uTime;
-varying vec2 vUv; varying float vFacing;
-void main() {
-  float frame = floor(mod(uTime * 22.0, 4.0));
-  vec4 c = texture2D(uMap, vec2(vUv.x, (vUv.y + frame) * 0.25));
-  float gain = mix(4.0, 1.6, vFacing); // de trás as duas chamas se somam (aditivo): menos ganho
-  gl_FragColor = vec4(c.rgb * gain * c.a, c.a);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}`;
+interface CarLook { style: StyleBatch; color: THREE.Color; accent: THREE.Color; livery: number }
 
 interface CarAnim {
-  spin: number; yaw: number; roll: number; pitch: number; bob: number;
+  spinF: number; spinR: number; yaw: number; roll: number; pitch: number; bob: number;
   brake: boolean; prevSpeed: number; nitro: number;
 }
 
 export class Cars {
   readonly group = new THREE.Group();
-  private readonly body: THREE.InstancedMesh;
-  private readonly glass: THREE.InstancedMesh;
-  private readonly wheels: THREE.InstancedMesh;
-  private readonly heads: THREE.InstancedMesh;
-  private readonly tail: THREE.InstancedMesh;
-  private readonly tailBrake: THREE.InstancedMesh;
+  private readonly material: THREE.MeshPhysicalMaterial;
+  private readonly uniforms: CarUniforms;
+  /** Estilos e desenhos de roda, na ordem de CAR_BODIES (lista, não Map: ordem de desenho estável). */
+  private readonly styles: StyleBatch[] = [];
+  private readonly wheelBatches: WheelBatch[] = [];
+  /** Estilos + rodas numa lista só (fechamento de cada pose sem alocar). */
+  private readonly batches: Batch[] = [];
+  /** Roda única da qualidade baixa e dos carros distantes (todas numa chamada). */
+  private readonly simpleWheels: WheelBatch;
+  private lowQuality = false;
   private readonly blob: THREE.InstancedMesh;
   private readonly flames: THREE.InstancedMesh;
   private readonly flameMaterial: THREE.ShaderMaterial;
-  private readonly bodyMaterial: THREE.MeshStandardMaterial;
-  private readonly selfLight = { value: 0.22 };
-  private readonly headMaterial: THREE.MeshStandardMaterial;
-  /** Etiqueta por assento (0..3); denso de propósito — um array esparso quebra o `for…of`. */
-  /** Etiquetas por assento (0..3) e, no índice VIP_LABEL, a do VIP da escolta. */
+  /** Aparência por carro (estilo, cores, pintura), recalculada só quando o carId muda. */
+  private readonly looks: Array<CarLook | null> = [];
+  private readonly lookIds: string[] = [];
+  /** Etiquetas por assento (0..3) e, no índice VIP_LABEL, a do VIP da escolta; denso de propósito. */
   private readonly labels: Array<THREE.Sprite | null> = [null, null, null, null, null];
   private readonly labelKeys = ['', '', '', '', ''];
   private readonly spots: THREE.SpotLight[] = [];
   private readonly anims: CarAnim[] = [];
-  private readonly colors: THREE.Color[] = [];
   private readonly dummy = new THREE.Object3D();
   private readonly wheelDummy = new THREE.Object3D();
   private readonly m = new THREE.Matrix4();
   private readonly mw = new THREE.Matrix4();
   private readonly pt: FramePoint = { x: 0, y: 0, z: 0, heading: 0 };
   private lastTime = -1;
-  /** Fantasma do contra-relógio: a mesma carroceria e cabine, translúcidas e claras, fora das instâncias (só visual). */
+  /** Fantasma do contra-relógio: a malha do estilo dele, translúcida e clara, fora das instâncias (só visual). */
   private readonly ghostMaterial = new THREE.MeshStandardMaterial({
     color: '#cfeaff', emissive: '#6fb4ff', emissiveIntensity: 0.5, transparent: true, opacity: 0.38, depthWrite: false, flatShading: true, roughness: 0.6,
   });
-  private readonly ghostBody: THREE.Mesh;
-  private readonly ghostGlass: THREE.Mesh;
+  private readonly ghost: THREE.Mesh;
 
   private get instanced(): THREE.InstancedMesh[] {
-    return [this.body, this.glass, this.wheels, this.heads, this.tail, this.tailBrake, this.blob, this.flames];
+    return [...this.styles.map((s) => s.mesh), ...this.wheelBatches.map((w) => w.mesh), this.blob, this.flames];
   }
 
   constructor(scene: THREE.Scene) {
-    // Pintura: a cor base domina (pouco metal, env map moderado); o clareamento vem da luz.
-    this.bodyMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.45, metalness: 0.1, envMapIntensity: 0.35 });
-    // Uma fração da própria cor como emissivo: o lado na sombra (o que a câmera de perseguição vê)
-    // continua lendo "branco"/"vermelho" em vez do azul do céu. É estilização, não física.
-    this.bodyMaterial.onBeforeCompile = (shader) => {
-      shader.uniforms.uSelfLight = this.selfLight;
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uSelfLight;')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * uSelfLight;');
-    };
-    this.body = new THREE.InstancedMesh(buildBody(), this.bodyMaterial, MAX_CARS);
-    this.body.castShadow = true; this.body.receiveShadow = true;
-    const glassMat = new THREE.MeshStandardMaterial({ color: '#223448', flatShading: true, metalness: 0.75, roughness: 0.18, envMapIntensity: 1.4 });
-    this.glass = new THREE.InstancedMesh(buildGlass(), glassMat, MAX_CARS);
-    this.glass.castShadow = true;
-    const wheelMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, metalness: 0.2, roughness: 0.65 });
-    this.wheels = new THREE.InstancedMesh(buildWheel(), wheelMat, MAX_CARS * 4);
-    this.wheels.castShadow = true;
-    this.headMaterial = new THREE.MeshStandardMaterial({ color: '#fff6d8', emissive: '#fff1c4', emissiveIntensity: 0.4, roughness: 0.3 });
-    const headGeo = mergeColored([coloredBox(0.4, 0.11, 0.08, -0.44, 0.4, -2.21, WHITE), coloredBox(0.4, 0.11, 0.08, 0.44, 0.4, -2.21, WHITE)]);
-    headGeo.deleteAttribute('color');
-    this.heads = new THREE.InstancedMesh(headGeo, this.headMaterial, MAX_CARS);
-    const tailGeo = mergeColored([coloredBox(0.46, 0.1, 0.06, -0.46, 0.86, 2.21, WHITE), coloredBox(0.46, 0.1, 0.06, 0.46, 0.86, 2.21, WHITE)]);
-    tailGeo.deleteAttribute('color');
-    this.tail = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#c81e1e', emissive: '#ff1a1a', emissiveIntensity: 0.9, roughness: 0.3 }), MAX_CARS);
-    this.tailBrake = new THREE.InstancedMesh(tailGeo, new THREE.MeshStandardMaterial({ color: '#ff2a2a', emissive: '#ff2020', emissiveIntensity: 3.2, roughness: 0.3 }), MAX_CARS);
-    this.blob = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.7, 5.0).rotateX(-Math.PI / 2).translate(0, 0.02, 0), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false }), MAX_CARS);
+    const { material, uniforms } = createCarMaterial();
+    this.material = material; this.uniforms = uniforms;
+    const wheelByDesign = new Map<WheelDesign, WheelBatch>();
+    for (const body of CAR_BODIES) {
+      const model = buildModel(body);
+      let wheels = wheelByDesign.get(model.wheel);
+      if (!wheels) {
+        // Rodas não fazem sombra: ficam dentro da sombra da carroceria e da de contato.
+        const wm = buildWheel(model.wheel);
+        wheels = { ...this.batch(wm.geometry, MAX_CARS * 4, false), model: wm };
+        wheelByDesign.set(model.wheel, wheels);
+        this.wheelBatches.push(wheels);
+      }
+      const style: StyleBatch = { ...this.batch(model.shell, MAX_CARS, true), model, wheels };
+      style.mesh.receiveShadow = true;
+      this.styles.push(style);
+    }
+    const simple = buildSimpleWheel();
+    this.simpleWheels = { ...this.batch(simple.geometry, MAX_CARS * 4, false), model: simple };
+    this.wheelBatches.push(this.simpleWheels);
+    this.batches.push(...this.styles, ...this.wheelBatches);
+    this.blob = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.5, 4.9).rotateX(-Math.PI / 2).translate(0, 0.02, 0), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false }), MAX_CARS);
     this.blob.renderOrder = 1;
     this.flameMaterial = new THREE.ShaderMaterial({
       vertexShader: FLAME_VERT, fragmentShader: FLAME_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
@@ -292,17 +121,15 @@ export class Cars {
       im.frustumCulled = false;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
+      im.visible = false;
       this.group.add(im);
     }
-    this.ghostBody = new THREE.Mesh(this.body.geometry, this.ghostMaterial);
-    this.ghostGlass = new THREE.Mesh(this.glass.geometry, this.ghostMaterial);
-    for (const g of [this.ghostBody, this.ghostGlass]) {
-      g.matrixAutoUpdate = false; g.frustumCulled = false; g.visible = false; g.renderOrder = 3;
-      this.group.add(g);
-    }
+    this.ghost = new THREE.Mesh(this.styles[0].model.shell, this.ghostMaterial);
+    this.ghost.matrixAutoUpdate = false; this.ghost.frustumCulled = false; this.ghost.visible = false; this.ghost.renderOrder = 3;
+    this.group.add(this.ghost);
     for (let i = 0; i < MAX_CARS; i++) {
-      this.anims.push({ spin: 0, yaw: 0, roll: 0, pitch: 0, bob: 0, brake: false, prevSpeed: 0, nitro: 0 });
-      this.colors.push(new THREE.Color(WHITE));
+      this.anims.push({ spinF: 0, spinR: 0, yaw: 0, roll: 0, pitch: 0, bob: 0, brake: false, prevSpeed: 0, nitro: 0 });
+      this.looks.push(null); this.lookIds.push('');
     }
     // Faróis do carro do viewport (sempre na origem, olhando −Z): dois SpotLights fixos.
     for (const sx of [-0.55, 0.55]) {
@@ -316,12 +143,49 @@ export class Cars {
     scene.add(this.group);
   }
 
+  /** InstancedMesh do material dos carros com a cor (pintura) e o extra (acento + bits) por instância. */
+  private batch(geometry: THREE.BufferGeometry, capacity: number, castShadow: boolean): Batch {
+    const extra = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+    extra.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('instExtra', extra);
+    const mesh = new THREE.InstancedMesh(geometry, this.material, capacity);
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+    mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    mesh.castShadow = castShadow;
+    return { mesh, extra, count: 0 };
+  }
+
   /** `light` = palette.light (1 dia, 0,7 entardecer, 0,32 noite). */
   setLight(light: number): void {
     const night = light < 0.5;
-    this.selfLight.value = 0.05 + 0.17 * light;
-    this.headMaterial.emissiveIntensity = night ? 2.6 : light < 0.8 ? 0.9 : 0.4;
+    this.uniforms.uSelfLight.value = 0.05 + 0.15 * light;
+    this.uniforms.uHeadGlow.value = night ? 2.6 : light < 0.8 ? 0.9 : 0.35;
+    this.uniforms.uTailGlow.value = night ? 1.3 : 0.9;
+    this.uniforms.uPopup.value = light < 0.8 ? 1 : 0;
     for (const s of this.spots) { s.visible = light < 0.8; s.intensity = night ? 230 : 110; }
+  }
+
+  /** Verniz (clearcoat) só na alta; média e baixa ficam no programa sem a segunda camada. */
+  setQuality(q: Quality): void {
+    setCarQuality(this.material, q === 'high');
+    this.lowQuality = q === 'low';
+  }
+
+  private look(i: number, carId: string): CarLook {
+    const cached = this.looks[i];
+    if (cached && this.lookIds[i] === carId) return cached;
+    const def = carDef(carId);
+    const style = this.styleOf(def.body);
+    const paint = carPaint(def, CARS, style.model.liveries);
+    const look: CarLook = { style, color: new THREE.Color(paint.color), accent: new THREE.Color(paint.accent), livery: paint.livery };
+    this.looks[i] = look; this.lookIds[i] = carId;
+    return look;
+  }
+
+  private styleOf(body: CarBody): StyleBatch {
+    const s = this.styles.find((x) => x.model.body === body);
+    if (!s) throw new Error(`Estilo de carroceria sem modelo: ${body}`);
+    return s;
   }
 
   /** Animação por carro (uma vez por quadro, independente do viewport). */
@@ -333,10 +197,14 @@ export class Cars {
     for (let i = 0; i < cars.length && i < MAX_CARS; i++) {
       const c = cars[i];
       const a = this.anims[i];
-      const def = carDef(c.carId);
+      const look = this.look(i, c.carId);
+      const [fa, ra] = look.style.model.axles;
+      const sym = look.style.wheels.model.symmetry;
       const sf = Math.min(1.2, c.speed / c.stats.topSpeed);
-      a.spin += zToMeters(c.speed) * dt / WHEEL_RADIUS;
-      const decel = (a.prevSpeed - c.speed) / dt;
+      const dist = zToMeters(c.speed) * dt;
+      a.spinF += spinStep(dist / fa.r, sym);
+      a.spinR += spinStep(dist / ra.r, sym);
+      const decel = (a.prevSpeed - c.speed) / Math.max(1e-3, dt);
       a.brake = c.speed > 200 && decel > c.stats.brake * 0.55 && c.collisionCooldown === 0;
       a.prevSpeed = c.speed;
       const seg = segs[Math.floor((((c.z % frame.track.length) + frame.track.length) % frame.track.length) / 200) % segs.length];
@@ -348,9 +216,15 @@ export class Cars {
       a.pitch += (pitchTarget - a.pitch) * k;
       a.bob = c.skidTicks > 0 && c.speed > 200 ? 1 : 0;
       a.nitro = c.nitroTicks > 0 ? c.nitroTicks / NITRO_DURATION_TICKS : 0;
-      this.colors[i].set(def.color);
     }
     this.flameMaterial.uniforms.uTime.value = frame.time;
+  }
+
+  private put(b: Batch, m: THREE.Matrix4, look: CarLook, flags: number): void {
+    const idx = b.count++;
+    b.mesh.setMatrixAt(idx, m);
+    b.mesh.setColorAt(idx, look.color);
+    b.extra.setXYZW(idx, look.accent.r, look.accent.g, look.accent.b, flags);
   }
 
   /** Posiciona os carros no referencial do viewport (`ownIndex` = carro do viewport). */
@@ -358,7 +232,9 @@ export class Cars {
     const cars = state.cars;
     const d = this.dummy;
     const w = this.wheelDummy;
-    let n = 0; let nWheels = 0; let nTail = 0; let nBrake = 0; let nFlames = 0;
+    let nBlob = 0; let nFlames = 0;
+    for (const s of this.styles) s.count = 0;
+    for (const wb of this.wheelBatches) wb.count = 0;
     for (const s of this.labels) if (s) s.visible = false;
     for (let i = 0; i < cars.length && i < MAX_CARS; i++) {
       const c = cars[i];
@@ -367,38 +243,47 @@ export class Cars {
       // cortado: só aparece quando o centro dele passa 2,2 m atrás do centro do jogador.
       if (i !== ownIndex && this.pt.z > 2.2) continue;
       const a = this.anims[i];
+      const look = this.look(i, c.carId);
+      const model = look.style.model;
       const bobY = a.bob ? Math.sin(time * 71 + i) * 0.025 : 0;
       const bobR = a.bob ? Math.sin(time * 57 + i * 2) * 0.02 : 0;
       d.position.set(this.pt.x, this.pt.y + bobY, this.pt.z);
       d.rotation.set(a.pitch, -(this.pt.heading + a.yaw), a.roll + bobR, 'YXZ');
       d.scale.set(1, 1, 1);
       d.updateMatrix();
-      const idx = n++;
       this.m.copy(d.matrix);
-      this.body.setMatrixAt(idx, this.m);
-      this.body.setColorAt(idx, this.colors[i]);
-      this.glass.setMatrixAt(idx, this.m);
-      this.heads.setMatrixAt(idx, this.m);
-      if (a.brake) this.tailBrake.setMatrixAt(nBrake++, this.m); else this.tail.setMatrixAt(nTail++, this.m);
+      const flags = look.livery | (a.brake ? BRAKE_BIT : 0);
+      this.put(look.style, this.m, look, flags);
       // Sombra de contato: no chão, sem rolagem/mergulho.
       d.rotation.set(0, -(this.pt.heading + a.yaw), 0, 'YXZ');
       d.position.y = this.pt.y;
       d.updateMatrix();
-      this.blob.setMatrixAt(idx, d.matrix);
-      // Rodas: matriz do carro × deslocamento × giro (dianteiras viram com o volante).
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-        w.position.set(sx * WHEEL_X, WHEEL_RADIUS, sz * WHEEL_Z);
-        w.rotation.set(a.spin, sz < 0 ? c.steerPose * 0.32 : 0, 0, 'YXZ');
-        w.scale.set(1, 1, 1);
-        w.updateMatrix();
-        this.mw.multiplyMatrices(this.m, w.matrix);
-        this.wheels.setMatrixAt(nWheels++, this.mw);
+      this.blob.setMatrixAt(nBlob++, d.matrix);
+      // Rodas: matriz do carro × deslocamento × giro (dianteiras viram com o volante). O desenho
+      // é montado com a face de fora em +x: as da esquerda giram meia volta em y (e o giro inverte).
+      // Longe (roda com ~10 px na tela) o desenho do aro não aparece: vai a roda simples, com as dos
+      // outros carros distantes, numa chamada só.
+      const wheels = this.lowQuality || this.pt.z < -FAR_WHEELS_M ? this.simpleWheels : look.style.wheels;
+      for (let ax = 0; ax < 2; ax++) {
+        const axle = model.axles[ax];
+        const spin = ax === 0 ? a.spinF : a.spinR;
+        const steer = ax === 0 ? c.steerPose * 0.32 : 0;
+        for (const sx of SIDES) {
+          w.position.set(sx * axle.x, axle.r, axle.z);
+          if (sx > 0) w.rotation.set(-spin, -steer, 0, 'YXZ');
+          else w.rotation.set(spin, Math.PI - steer, 0, 'YXZ');
+          w.scale.set(axle.w, axle.r, axle.r);
+          w.updateMatrix();
+          this.mw.multiplyMatrices(this.m, w.matrix);
+          this.put(wheels, this.mw, look, look.livery);
+        }
       }
       // Chama do nitro: origem no escape, +Z para trás = comprimento, escala x = largura.
       if (a.nitro > 0) {
         const pulse = 0.85 + 0.3 * Math.sin(time * 41 + i * 1.7) + 0.25 * hash2(Math.floor(time * 28), i);
-        for (const sx of [-0.45, 0.45]) {
-          w.position.set(sx, 0.32, 2.28);
+        for (const e of model.exhausts) {
+          if (nFlames >= MAX_CARS * 2) break;
+          w.position.set(e[0], e[1], e[2]);
           w.rotation.set(0, 0, 0);
           w.scale.set(0.7, 1, 2.3 * pulse * (0.55 + 0.45 * a.nitro));
           w.updateMatrix();
@@ -406,10 +291,11 @@ export class Cars {
           this.flames.setMatrixAt(nFlames++, this.mw);
         }
       }
+      const labelY = this.pt.y + model.height + 0.9;
       // Escolta: o VIP leva etiqueta própria para a equipe não perdê-lo de vista (docs/MODOS.md).
       if (state.party && c.id === state.party.vipId) {
         const label = this.label(VIP_LABEL, VIP_NAME, VIP_COLOR);
-        label.position.set(this.pt.x, this.pt.y + 2.1, this.pt.z);
+        label.position.set(this.pt.x, labelY, this.pt.z);
         label.visible = true;
       }
       // Etiqueta de jogador local visto de outro viewport.
@@ -417,18 +303,23 @@ export class Cars {
         const vp = viewportSeats.find((v) => v.seat === c.seat);
         if (vp) {
           const label = this.label(c.seat, vp.name, vp.color);
-          label.position.set(this.pt.x, this.pt.y + 2.1, this.pt.z);
+          label.position.set(this.pt.x, labelY, this.pt.z);
           label.visible = true;
         }
       }
     }
-    this.body.count = n; this.glass.count = n; this.heads.count = n; this.blob.count = n;
-    this.wheels.count = nWheels; this.tail.count = nTail; this.tailBrake.count = nBrake; this.flames.count = nFlames;
-    for (const im of this.instanced) {
-      im.visible = im.count > 0;
-      if (im.count > 0) im.instanceMatrix.needsUpdate = true;
+    for (const b of this.batches) {
+      b.mesh.count = b.count;
+      b.mesh.visible = b.count > 0;
+      if (b.count > 0) {
+        b.mesh.instanceMatrix.needsUpdate = true;
+        if (b.mesh.instanceColor) b.mesh.instanceColor.needsUpdate = true;
+        b.extra.needsUpdate = true;
+      }
     }
-    if (this.body.instanceColor) this.body.instanceColor.needsUpdate = true;
+    this.blob.count = nBlob; this.flames.count = nFlames;
+    this.blob.visible = nBlob > 0; if (nBlob > 0) this.blob.instanceMatrix.needsUpdate = true;
+    this.flames.visible = nFlames > 0; if (nFlames > 0) this.flames.instanceMatrix.needsUpdate = true;
   }
 
   /**
@@ -439,19 +330,27 @@ export class Cars {
     const p = ghost?.pose;
     const z = p ? ((p.z % track.length) + track.length) % track.length : 0;
     const on = !!p && locateOnFrame(rf, track, z, p.x, this.pt) && this.pt.z <= 2.2;
-    this.ghostBody.visible = on; this.ghostGlass.visible = on;
-    if (!on || !p) return;
+    this.ghost.visible = on;
+    if (!on || !p || !ghost) return;
+    this.ghost.geometry = this.ghostShell(ghost.carId);
     const d = this.dummy;
     d.position.set(this.pt.x, this.pt.y, this.pt.z);
     d.rotation.set(0, -(this.pt.heading + p.steerPose * 0.08), 0, 'YXZ');
     d.scale.set(1, 1, 1);
     d.updateMatrix();
-    for (const g of [this.ghostBody, this.ghostGlass]) { g.matrix.copy(d.matrix); g.matrixWorldNeedsUpdate = true; }
+    this.ghost.matrix.copy(d.matrix);
+    this.ghost.matrixWorldNeedsUpdate = true;
+  }
+
+  /** Malha do estilo do carro do fantasma (carro que não existe mais cai no primeiro estilo). */
+  private ghostShell(carId: string): THREE.BufferGeometry {
+    const def = CARS.find((c) => c.id === carId);
+    return def ? this.styleOf(def.body).model.shell : this.styles[0].model.shell;
   }
 
   /** Esconde todos os carros (fundo dos menus). */
   hide(): void {
-    this.ghostBody.visible = false; this.ghostGlass.visible = false;
+    this.ghost.visible = false;
     for (const im of this.instanced) { im.count = 0; im.visible = false; }
     for (const s of this.labels) if (s) s.visible = false;
   }
@@ -476,9 +375,21 @@ export class Cars {
     return sprite;
   }
 
+  /** Números para o harness e o relatório de desempenho: triângulos por estilo e por roda. */
+  stats(): { styles: Record<string, number>; wheels: Record<string, number> } {
+    const styles: Record<string, number> = {}; const wheels: Record<string, number> = {};
+    for (const s of this.styles) styles[s.model.body] = s.model.triangles;
+    for (const w of this.wheelBatches) wheels[w.model.design] = w.model.triangles;
+    return { styles, wheels };
+  }
+
   dispose(): void {
-    for (const im of this.instanced) { im.geometry.dispose(); (im.material as THREE.Material).dispose(); im.dispose(); }
-    this.ghostMaterial.dispose(); // a geometria é a das instâncias, já liberada acima
+    for (const im of this.instanced) { im.geometry.dispose(); im.dispose(); }
+    this.material.dispose();
+    (this.blob.material as THREE.Material).dispose();
+    (this.blob.material as THREE.MeshBasicMaterial).map?.dispose();
+    this.flameMaterial.dispose();
+    this.ghostMaterial.dispose(); // a geometria é a de um estilo, já liberada acima
     (this.flameMaterial.uniforms.uMap.value as THREE.Texture).dispose();
     for (const s of this.labels) if (s) { if (s.material.map) s.material.map.dispose(); s.material.dispose(); }
     for (const s of this.spots) s.dispose();

@@ -202,3 +202,48 @@ na próxima vez que desenha, então o número não cresce; fica anotado para a l
 Meta sugerida para o passo 1.6: 60 FPS com 2 jogadores na média numa placa integrada recente em qualidade
 média; 4 jogadores podem cair para baixa. Se não bater, o que mais pesa por viewport são as sombras (média e
 alta) e o bloom (alta) — os ajustes ficam para a Fase 2.
+
+## 5. Carros com modelo por estilo (onda F)
+
+Os 20 carros deixaram de ser um modelo só recolorido: são 13 modelos (`docs/CARROS.md`, seção "Modelos"),
+agrupados por estilo — cada estilo presente é **uma** chamada de desenho para todos os carros dele, e cada
+desenho de roda presente é outra. Carroceria, cabine, vidro, cromo, faróis e lanternas ficaram na mesma
+malha e no mesmo material (antes eram 6 peças instanciadas separadas), e o freio é um bit por instância
+(antes, uma malha a mais para as lanternas acesas).
+
+**Orçamento** (travado em `tests/car-models.test.ts`): carroceria ≤ 2.000 triângulos (os 13 ficam entre
+1.420 e 1.860), roda ≤ 360 (os 9 desenhos: 278–344) e a roda simples ≤ 130 (112). A roda simples é a da
+qualidade baixa e a dos carros a mais de 30 m à frente do carro do viewport (roda de ~10 px na tela: o
+desenho do aro não aparece), todas numa chamada. Rodas não fazem sombra (ficam dentro da sombra da
+carroceria e da de contato). Chamadas por viewport para os carros: estilos presentes + desenhos de roda perto
++ 1 roda simples + sombra de contato + chama do nitro; na sombra, só os estilos. Numa corrida com a IA (os
+4 estilos do `AI_CAR_POOL`): 8 a 11 chamadas e ~16–45 mil triângulos por viewport na alta.
+
+Medido com `tools/render-harness.html` (1280×720, Copacabana, tick 1500) no build de e3e63b1 (antes) e no
+desta onda (depois). "Total" é `renderer.info` do quadro inteiro (todos os viewports, com sombra e bloom);
+"carros" é só o grupo dos carros no último viewport desenhado (principal; sombra):
+
+| cena | total antes | total depois | carros antes | carros depois |
+|---|---|---|---|---|
+| 1 jogador, alta | 88 chamadas, 104.510 tri | 89, 115.862 (+11%) | 7 ch, 8.418 tri; 3 ch, 8.064 | 8 ch, 16.298; 3 ch, 11.536 |
+| 4 jogadores, alta | 364, 499.504 | 373, 608.424 (+22%) | 7, 22.854; 3, 21.888 | 11, 43.658; 4, 31.652 |
+| 4 jogadores, média | 290, 427.492 | 299, 536.412 (+25%) | 7, 22.854; 3, 21.888 | 11, 43.658; 4, 31.652 |
+| 4 jogadores, baixa | 192, 203.528 | **189**, 267.244 (+31%) | 7, 22.854 (sem sombra) | 7, 40.826 (sem sombra) |
+
+Geometrias / texturas / programas na GPU: 1 jogador alta 61 / 26 / 35 → 62 / 26 / **32**; 4 jogadores alta
+63 / 68 / 36 → 67 / 68 / **33**; baixa 59 / 13 / 20 → 59 / 13 / **19** (um material para todos os carros:
+menos programas). As 13 carrocerias e as 10 rodas são montadas uma vez no construtor e só vão para a GPU
+quando um carro daquele estilo aparece (o `geometries` do three conta só as enviadas).
+
+Sessão longa (`scripts/playtest-memoria.mjs`, 36 blocos = 72 corridas, com este build): **sem crescimento
+entre ciclos** — geometrias 112 → 112, texturas 79 → 79, programas 99 → 99, materiais 45 → 45 (eram 108, 79,
+103 e 50 na medição da seção 2: +4 geometrias de carro enviadas, −5 materiais), heap +175 KB em 24 corridas
+(folga 1.536 KB), sem erros na página. (Uma primeira rodada perdeu o navegador no bloco 18 — "Target page,
+context or browser has been closed", máquina com carga ~40 —; a segunda foi até o fim.)
+
+Leitura: as chamadas quase não mudam (+1 a +9 no quadro inteiro; na baixa, −3); os triângulos sobem de 11% a
+31%, todos nos carros — ~600 mil triângulos com 4 viewports na alta é pouco para qualquer placa de vídeo
+dos últimos dez anos, e o que pesa no Deck (sombras, bloom, preenchimento) não mudou. Atalho deliberado:
+**sem LOD da carroceria** — se os carros distantes pesarem numa máquina fraca, a saída é uma versão de
+loft grosso por estilo (menos estações nos arcos, sem faixas) para os carros a mais de ~40 m, uma chamada a
+mais por estilo presente.
