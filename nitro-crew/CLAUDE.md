@@ -51,7 +51,7 @@ não use nada de fora desta pasta.
 - Dependência de produção é só `three`. Sem pacote novo para o que já se faz com Three/WebAudio/DOM. Modelos, céu,
   texturas, sons e músicas são procedurais até a arte da Fase 2 (que entra como glTF, sem trocar o renderizador).
 - Renderizador: mundo montado no referencial local de cada jogador a partir dos segmentos (as pistas do DSL não
-  fecham geometricamente); ver `docs/DESIGN.md`. Mudança visual se prova com captura (`scratch/render-harness.mjs`).
+  fecham geometricamente); ver `docs/DESIGN.md`. Mudança visual se prova com captura (`tools/render-harness.mjs`, com `npm run dev` no ar).
 - Commits em português, com o rodapé de atribuição exigido pela sessão.
 
 ## Memória do projeto (ler primeiro em toda sessão)
@@ -71,7 +71,7 @@ não use nada de fora desta pasta.
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
   `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
   gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
-- **Como ver o jogo sem browser**: `scratch/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
+- **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
