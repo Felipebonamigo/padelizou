@@ -21,6 +21,7 @@ import {
   type ClientInfo, type ClientMessage, type ContentRules, type ErrorCode, type InputRecord, type RoomSettings,
   type RoomView, type SeatAssignment, type ServerMessage, type Snapshot, type StartConfig,
 } from '../net/protocol';
+import { carAvailable } from './career-save';
 import { CONTENT_FINGERPRINT } from './content-version';
 import type { DeviceId, InputProvider, RaceDriver, ResultsScreenData, SaveData, Settings } from './contracts';
 
@@ -274,10 +275,19 @@ export class OnlineController implements RaceDriver {
 
   // ───────────────────────────── Jogadores locais ─────────────────────────────
 
+  /**
+   * Carros que este computador oferece: os mesmos do lobby local (livres e comprados numa carreira daqui).
+   * O que chega de outro computador continua validado por CONTENT_RULES (lá ele pode ter sido comprado).
+   */
+  private carChoices(): string[] {
+    return CARS.filter((c) => carAvailable(this.host.save, c)).map((c) => c.id);
+  }
+
   private defaultPlayer(index: number, device: DeviceId): LocalPlayer {
     const { save } = this.host;
-    const car = save.seatCars[index] ?? CARS[0].id;
-    return { device, name: (save.seatNames[index] ?? `P${index + 1}`).slice(0, 12), car: CONTENT_RULES.cars.includes(car) ? car : CARS[0].id };
+    const choices = this.carChoices();
+    const car = save.seatCars[index] ?? choices[0];
+    return { device, name: (save.seatNames[index] ?? `P${index + 1}`).slice(0, 12), car: choices.includes(car) ? car : choices[0] };
   }
 
   /** Garante o jogador 1 deste computador (com o dispositivo que abriu a tela). */
@@ -314,7 +324,7 @@ export class OnlineController implements RaceDriver {
   cycleCar(index: number, dir: -1 | 1): void {
     const p = this.locals[index];
     if (!p || this.ready) return;
-    const ids = CONTENT_RULES.cars;
+    const ids = this.carChoices();
     p.car = ids[(ids.indexOf(p.car) + dir + ids.length) % ids.length];
     this.publishInfo();
   }

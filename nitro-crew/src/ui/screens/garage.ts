@@ -17,7 +17,7 @@ import type { DeviceId, MenuContext, MenuNav } from '../../game/contracts';
 import { unlockCar } from '../../game/career-save';
 import { saveSave } from '../../game/save';
 import { getLanguage, t } from '../../i18n';
-import { arrowButton, button, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, button, carCount, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { carSilhouette, icon } from './icons';
 import { startCursor } from './lobby';
 import { garageRivalBlock } from './rival';
@@ -315,9 +315,12 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     const carItem: FocusItem = {
       el: h('div', { class: `gp-car${locked ? ' locked' : ''}` },
         arrowButton(-1, () => { changeView(seat, -1); api.sfx('move'); }),
-        h('div', { class: 'gp-car-body' },
-          h('div', { class: 'gp-car-name', text: car.name }),
-          h('div', { class: 'gp-car-visual' }, carSilhouette(car.color)),
+        h('div', { class: 'gp-car-body', attrs: { 'data-car': car.id } },
+          h('div', { class: 'gp-car-name' },
+            h('span', { class: 'gp-car-name-text', text: car.name }),
+            h('span', { class: 'gp-car-count mono', text: carCount(car, cars) }),
+          ),
+          h('div', { class: 'gp-car-visual' }, carSilhouette(car)),
           status,
         ),
         arrowButton(1, () => { changeView(seat, 1); api.sfx('move'); }),
@@ -372,7 +375,8 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
         h('span', { class: 'gp-name', text: d.name }),
         h('span', { class: 'gp-money' }, h('small', { text: walletLabel }), h('b', { class: 'mono', text: formatMoney(money) })),
       ),
-      h('div', { class: 'gp-left' }, carItem.el, statsHost),
+      // A frase do carro diz a troca (o que ganha, o que perde): cabe com um piloto só (garage.css).
+      h('div', { class: 'gp-left' }, carItem.el, statsHost, h('p', { class: 'gp-car-blurb', text: t(`core.car.${car.id}.blurb`) })),
       h('div', { class: 'gp-right' },
         h('div', { class: 'gp-parts' }, h('h2', { class: 'sub-title', text: t('career.garage.upgrades') }), partItems.map((p) => p.el)),
         ready.el,

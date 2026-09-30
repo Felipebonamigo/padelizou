@@ -137,7 +137,9 @@ npm run dev                         # terminal 2: abra duas janelas (uma anônim
 Menu → Online → **Criar sala** numa janela; na outra, digite o código e **Entrar na sala**. O
 convidado escolhe nome, carro e direção assistida e aperta **PRONTO**; o anfitrião escolhe a própria
 direção, pista, voltas, modo, dificuldade, carros e atraso e aperta **LARGAR**. Segundo jogador no mesmo computador: no lobby,
-aperte F (teclado WASD) ou A num controle.
+aperte F (teclado WASD) ou A num controle. O carro se escolhe entre os mesmos do lobby local: os livres e
+os comprados numa carreira daquele computador (até a onda F a sala oferecia os 14, inclusive os à venda
+nunca comprados); o carro de quem está do outro lado vale qualquer um do jogo (`docs/CARROS.md`).
 
 ## Testes
 

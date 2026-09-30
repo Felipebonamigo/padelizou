@@ -9,7 +9,7 @@ import { MAX_SEATS } from '../core/constants';
 import { CARS } from '../core/data/cars';
 import { CUPS } from '../core/data/cups';
 import { AI_TEAM_ID_BASE, seatColor } from '../core/data/drivers';
-import type { ChampionshipState, HumanEntry, RaceResultRow, StandingRow, TeamStandingRow, UpgradeLevels } from '../core/types';
+import type { CarDef, ChampionshipState, HumanEntry, RaceResultRow, StandingRow, TeamStandingRow, UpgradeLevels } from '../core/types';
 import type { SaveData, SavedCup } from './contracts';
 import { isRecord, pickNumber, pickString } from './settings';
 
@@ -212,6 +212,14 @@ export function saveCupProgress(save: SaveData, champ: ChampionshipState, cupSee
 
 export function clearCupProgress(save: SaveData): void {
   save.cupInProgress = null;
+}
+
+/**
+ * Carro escolhível fora da carreira (lobby, torneio, online): os livres e os comprados numa carreira
+ * deste computador. Uma regra só para as telas não divergirem (o online oferecia os 14).
+ */
+export function carAvailable(save: Pick<SaveData, 'carsUnlocked'>, car: Pick<CarDef, 'id' | 'price'>): boolean {
+  return car.price === 0 || save.carsUnlocked.includes(car.id);
 }
 
 /** Libera um carro comprado em todas as modalidades. Devolve verdadeiro se era novo. */

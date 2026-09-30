@@ -1,5 +1,5 @@
 // Textos do Modo Carreira e do "Continuar" do campeonato, em PT e EN. Estende também 'ui' (itens do
-// menu principal e botão da classificação) e 'core' (apresentação dos carros novos): registerStrings
+// menu principal e botão da classificação) e 'core' (apresentação dos carros à venda): registerStrings
 // mescla no namespace, sem editar os strings.ts das outras pastas.
 import { registerStrings } from '../i18n';
 
@@ -7,14 +7,14 @@ registerStrings('ui', {
   pt: {
     'main.career': 'Carreira',
     'main.continue': 'Continuar',
-    'main.hint.career': 'Prêmios em dinheiro, oito carros e melhorias de copa em copa',
+    'main.hint.career': 'Prêmios em dinheiro, catorze carros e melhorias de copa em copa',
     'main.hint.continue': '{cup} — corrida {n} de {m}',
     'standings.garage': 'GARAGEM',
   },
   en: {
     'main.career': 'Career',
     'main.continue': 'Continue',
-    'main.hint.career': 'Prize money, eight cars and upgrades, cup after cup',
+    'main.hint.career': 'Prize money, fourteen cars and upgrades, cup after cup',
     'main.hint.continue': '{cup} — race {n} of {m}',
     'standings.garage': 'GARAGE',
   },
@@ -25,13 +25,19 @@ registerStrings('core', {
     'car.sucuri.blurb': 'Um tanque para a corrida inteira e boa velocidade. Pesado para arrancar.',
     'car.carcara.blurb': 'Dispara na saída e cola na curva. Perde para todos no fim da reta longa.',
     'car.pororoca.blurb': 'Ninguém anda mais na reta. Arisco nas curvas e bebe como nenhum outro.',
-    'car.boitata.blurb': 'Forte em tudo, sem ponto fraco. O preço é o mais alto da garagem.',
+    'car.boitata.blurb': 'Forte em tudo, sem ponto fraco. Custa caro.',
+    'car.curupira.blurb': 'Leve e sem teto: o melhor freio da garagem e curva fácil. Pouca reta.',
+    'car.iara.blurb': 'Corta o ar: quase a reta do Pororoca, bebendo bem menos. Arisca na curva.',
+    'car.beijaflor.blurb': 'Protótipo: ninguém faz curva igual. Bebe muito e não é o mais rápido na reta.',
   },
   en: {
     'car.sucuri.blurb': 'One tank lasts the whole race, and it is quick. Heavy off the line.',
     'car.carcara.blurb': 'Launches hard and sticks to corners. Loses to everyone at the end of a long straight.',
     'car.pororoca.blurb': 'Nothing is faster on a straight. Twitchy in corners and drinks like no other.',
-    'car.boitata.blurb': 'Strong at everything, no weak spot. The priciest car in the garage.',
+    'car.boitata.blurb': 'Strong at everything, no weak spot. Not cheap.',
+    'car.curupira.blurb': 'Light and open-top: the best brakes around and easy in corners. Short on speed.',
+    'car.iara.blurb': 'Slices the air: almost the Pororoca\'s speed on far less fuel. Twitchy in corners.',
+    'car.beijaflor.blurb': 'A prototype: nothing corners like it. Thirsty, and not the fastest on straights.',
   },
 });
 

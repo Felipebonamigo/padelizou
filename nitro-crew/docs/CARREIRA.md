@@ -19,7 +19,7 @@ Menu principal → Carreira → (Continuar carreira | Nova carreira)
   começar outra?"). Há um espaço de carreira só.
 - **Lobby da carreira**: entra quem quiser (1–4), escolhe co-op ou versus. O carro não se escolhe
   ali ("Carro e melhorias: na garagem"); a carreira nasce com o carro do lobby se ele for um dos
-  quatro originais. O modo (co-op/versus) fica fixo pela carreira inteira. Dificuldade, câmbio,
+  sete livres. O modo (co-op/versus) fica fixo pela carreira inteira. Dificuldade, câmbio,
   carros na pista e assistências continuam sendo as opções do lobby (valem para toda corrida, como
   no Campeonato); a carreira soma o nível da IA por cima da dificuldade.
 - **Continuar carreira**: o lobby exige os mesmos N pilotos, sentados a partir do P1, com nome e
@@ -28,9 +28,11 @@ Menu principal → Carreira → (Continuar carreira | Nova carreira)
   ←→ troca de carro (carro seu já fica escolhido; carro à venda aparece na vitrine com preço e
   quanto falta), Enter compra o carro ou a melhoria em foco, PRONTO trava o painel. Com todos
   prontos, a corrida começa. Esc do P1 volta ao menu (a carreira já está salva: cada compra grava).
-  Com um piloto só, o botão é CORRER. Com 1–2 pilotos cada painel tem carro e atributos à esquerda e
-  melhorias à direita; com 3–4, uma coluna por piloto, que cabe sem rolar em
-  16:9, 16:10 e 4:3.
+  Com um piloto só, o botão é CORRER. Com 1 piloto o painel tem carro e atributos à esquerda e
+  melhorias à direita (e a frase do carro embaixo dos atributos); com 2–4, uma coluna por piloto, que
+  cabe sem rolar em 16:9, 16:10 e 4:3 — com 2, o painel de duas colunas cortava nomes de carro e de peça
+  em toda resolução (onda F, cena `garage-2` do `playtest-layout.mjs`). Com 2–4 a vitrine mostra só o
+  preço (em vermelho se não dá para comprar) e o carro não leva o contador "5/14".
 - **Prévia**: com o foco numa melhoria, os atributos mostram antes → depois (barra fantasma verde e
   o número novo); com o foco num carro à venda, mostram o seu carro atual → o carro à venda.
 - **Resultado e classificação** são as telas da copa normal; na carreira o botão da classificação é
@@ -56,12 +58,13 @@ Menu principal → Carreira → (Continuar carreira | Nova carreira)
 
 ## Garagem: carros e melhorias
 
-### Carros (8)
+### Carros (14)
 
-Os quatro originais são de todos e sempre liberados. Os quatro novos se compram na carreira;
-comprado, o carro vai para a garagem daquele piloto **e** fica liberado em todas as outras
-modalidades (`SaveData.carsUnlocked`), sem as melhorias. A IA corre só com os originais, para o
-elenco e o balanceamento das pistas não mudarem.
+Sete são de todos e sempre liberados: os quatro originais e três da onda F (Saci Mirim, Tatu 4x4,
+Boto Luxo). Os outros sete se compram na carreira; comprado, o carro vai para a garagem daquele
+piloto **e** fica liberado em todas as outras modalidades (`SaveData.carsUnlocked`, lobby, torneio e
+online), sem as melhorias. A IA corre com os sete livres, nunca com um carro à venda. Atributos,
+medidas e o porquê de cada número: `docs/CARROS.md`.
 
 | Carro | Preço | Vel. máx. | Acel. | Freio | Curvas | Consumo | Troca |
 |---|---|---|---|---|---|---|---|
@@ -69,15 +72,29 @@ elenco e o balanceamento das pistas não mudarem.
 | Trovão V12 | — | 318 | 640 | 2.400 | 0,60 | 1,25 | reta × curva e consumo |
 | Tornado RS | — | 285 | 830 | 2.800 | 0,92 | 0,95 | curva e arrancada × reta |
 | Camelo X | — | 293 | 700 | 2.600 | 0,70 | 0,68 | economia × resto |
+| Saci Mirim | — | 276 | 800 | 3.000 | 0,96 | 0,55 | curva e economia × a menor reta |
+| Tatu 4x4 | — | 306 | 820 | 2.300 | 0,66 | 1,35 | arrancada e reta × curva, freio e consumo |
+| Boto Luxo | — | 306 | 600 | 2.200 | 0,70 | 0,80 | reta e economia × arrancada e freio |
+| Curupira S | 12.000 | 291 | 800 | 3.200 | 0,90 | 0,80 | o melhor freio e curva × reta |
 | Sucuri E | 16.000 | 309 | 640 | 2.700 | 0,80 | 0,50 | tanque para a corrida toda × arrancada |
 | Carcará RS | 20.000 | 294 | 900 | 3.000 | 0,97 | 1,05 | arrancada e curva × fim de reta |
 | Pororoca V10 | 22.000 | 336 | 660 | 2.500 | 0,58 | 1,40 | a maior reta × curva e consumo |
-| Boitatá GT | 30.000 | 321 | 780 | 2.800 | 0,84 | 0,90 | forte em tudo × o mais caro |
+| Iara Turbo | 24.000 | 327 | 700 | 2.300 | 0,62 | 0,85 | reta quase do Pororoca bebendo pouco × curva e freio |
+| Boitatá GT | 30.000 | 321 | 780 | 2.800 | 0,84 | 0,90 | forte em tudo × caro |
+| Beija-Flor | 40.000 | 312 | 800 | 3.100 | 1,00 | 1,35 | a melhor curva × consumo, reta e o preço |
 
-Cada carro novo é o melhor (ou empatado) em algum atributo e perde para um original em outro (há
-teste). Nomes inventados, sem marca, no tema de bicho e lenda brasileira (Sucuri, Carcará, Pororoca,
-Boitatá). O Pororoca se chamou "Furacão V10" até a revisão: é a tradução literal do Lamborghini
-Huracán V10. Um teste recusa, nos carros à venda, nome de marca, de modelo ou a tradução dele.
+Cada carro à venda é o melhor (ou empatado) dos livres em algum atributo e perde para um livre em
+outro (há teste; o freio conta, é o trunfo do Curupira). Nomes inventados, sem marca, no tema de
+bicho e lenda brasileira. O Pororoca se chamou "Furacão V10" até a revisão: é a tradução literal do
+Lamborghini Huracán V10. Um teste recusa, nos carros à venda e nos da onda F, nome de marca, de
+modelo ou a tradução dele (Jacaré = Cayman, Arraia = Stingray…).
+
+**A vitrine da onda F.** O Curupira S ($ 12.000) é o primeiro degrau: o piloto médio (sempre 4º)
+junta $ 13.700 na 1ª copa ($ 2.500 + 4 × $ 2.800) e o compra ali, sem gastar em mais nada; antes,
+o degrau mais baixo era o Sucuri ($ 16.000), uma corrida depois. A Iara Turbo ($ 24.000) fica entre o
+Pororoca e o Boitatá; o Beija-Flor ($ 40.000) é o topo para a carreira de 8 copas, que paga mais que
+a de 4 para a qual os preços antigos foram feitos (o piloto médio junta ~$ 125 mil em 32 corridas;
+quem vence sempre, o dobro). A ordem da vitrine na garagem (←→) é a de preço.
 
 ### Melhorias (por carro, nível 0–3)
 
@@ -100,7 +117,8 @@ não é seu (`PurchaseResult`).
 **Teto por carro.** Só se vende nível que muda alguma coisa (`upgradeCap` em `src/core/sim/stats.ts`,
 `partMaxLevel`/`upgradePrice` em `src/core/career.ts`). Na prática isso só pega os pneus dos carros de
 dirigibilidade alta, que batem no teto de 1,0 antes do nível 3: o **Tornado RS** (0,92 → 0,96 → 1,00)
-para no nível 2 e o **Carcará RS** (0,97 → 1,00) no nível 1. Antes da revisão a garagem cobrava
+para no nível 2, o **Carcará RS** (0,97 → 1,00) e o **Saci Mirim** (0,96 → 1,00) no nível 1, e o
+**Beija-Flor** (1,00) já nasce no teto: pneus não se vendem para ele. Antes da revisão a garagem cobrava
 $ 5.500 (Tornado) e $ 9.000 (Carcará) por níveis sem efeito nenhum. Na garagem, o nível fora de venda
 aparece riscado, a peça diz "no teto deste carro" e o preço vira MÁX. Save antigo com nível acima do
 teto volta ao teto (o efeito era o mesmo; o dinheiro não volta).

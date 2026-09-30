@@ -11,6 +11,7 @@ import { seatColor } from '../../core/data/drivers';
 import { ASSIST_LEVELS } from '../../core/sim/assist';
 import type { CarDef, HumanEntry } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav, SaveData } from '../../game/contracts';
+import { carAvailable } from '../../game/career-save';
 import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
 import { isPartyMode, lobbyHidesCar, lobbyHidesDriver, lobbyTeamLabel, partySeatsProblem, versusAllowed } from '../../party/rules';
@@ -21,9 +22,9 @@ import { commitSettings, raceOptionSelectors } from './options';
 
 export const LOBBY_SEATS = 4;
 
-/** Carros escolhíveis no lobby: os originais e os comprados em alguma carreira. */
+/** Carros escolhíveis no lobby: os livres e os comprados em alguma carreira (a mesma regra do online). */
 export function availableCars(ctx: Pick<MenuContext, 'cars' | 'save'>): CarDef[] {
-  return ctx.cars.filter((c) => c.price === 0 || ctx.save.carsUnlocked.includes(c.id));
+  return ctx.cars.filter((c) => carAvailable(ctx.save, c));
 }
 
 /** Pilotos do jogo salvo que o lobby de "Continuar" religa (nome e carro, na ordem dos assentos). */

@@ -68,10 +68,11 @@ function race(career: CareerState, positions: Record<number, number>) {
 // ───────────────────────────── Carros ─────────────────────────────
 
 describe('carros', () => {
-  it('são 8, com nomes próprios, os 4 originais grátis e os 4 novos à venda', () => {
-    expect(CARS.length).toBe(8);
-    expect(new Set(CARS.map((c) => c.id)).size).toBe(8);
-    expect(CARS.filter((c) => c.price === 0).map((c) => c.id)).toEqual(['falcao', 'trovao', 'tornado', 'camelo']);
+  it('são 14: os 7 livres são de todos e os 7 à venda custam mais de $ 10 mil (a lista toda: tests/cars.test.ts)', () => {
+    expect(CARS.length).toBe(14);
+    expect(new Set(CARS.map((c) => c.id)).size).toBe(14);
+    expect(CARS.filter((c) => c.price === 0).map((c) => c.id)).toEqual(['falcao', 'trovao', 'tornado', 'camelo', 'saci', 'tatu', 'boto']);
+    expect(CARS.filter((c) => c.price > 0).length).toBe(7);
     for (const c of CARS.filter((x) => x.price > 0)) {
       expect(c.price).toBeGreaterThan(10_000);
       expect(c.name.length).toBeGreaterThan(3);
@@ -94,9 +95,10 @@ describe('carros', () => {
     }
   });
 
-  it('cada carro novo é o melhor (ou empatado) em algum atributo e perde para um original em outro', () => {
+  it('cada carro à venda é o melhor (ou empatado) dos livres em algum atributo e perde para um livre em outro', () => {
     const originals = CARS.filter((c) => c.price === 0);
-    const keys = ['topSpeed', 'accel', 'handling', 'economy'] as const;
+    // O freio conta: é o trunfo do Curupira S (o carro mais barato da vitrine).
+    const keys = ['topSpeed', 'accel', 'brake', 'handling', 'economy'] as const;
     const value = (c: (typeof CARS)[number], k: (typeof keys)[number]) => (k === 'economy' ? 1 / c.fuelPerUnit : c[k]);
     for (const c of CARS.filter((x) => x.price > 0)) {
       const wins = keys.filter((k) => originals.every((o) => value(c, k) >= value(o, k)));
@@ -106,8 +108,8 @@ describe('carros', () => {
     }
   });
 
-  it('a IA só usa os carros originais (o elenco das corridas não muda com os carros novos)', () => {
-    expect(AI_CAR_POOL.map((c) => c.id)).toEqual(['falcao', 'trovao', 'tornado', 'camelo']);
+  it('a IA usa os 7 carros livres (os originais e os 3 da onda F), nunca um à venda', () => {
+    expect(AI_CAR_POOL.map((c) => c.id)).toEqual(['falcao', 'trovao', 'tornado', 'camelo', 'saci', 'tatu', 'boto']);
     const config: RaceConfig = { trackId: 'copacabana', laps: 2, humans: [human(0)], totalCars: 20, difficulty: 'profissional', manualGear: false, assists: NO_ASSISTS, seed: 5 };
     const state = createRace(config, getTrack('copacabana'));
     for (const c of state.cars) if (c.seat < 0) expect(carDef(c.carId).price).toBe(0);
@@ -530,6 +532,85 @@ describe('compras na garagem', () => {
     expect(hs.map((h) => [h.seat, h.teamId, h.carId])).toEqual([[0, 0, 'trovao'], [1, 0, 'camelo']]);
     const vs = careerHumans(versusCareer(3));
     expect(vs.map((h) => h.teamId)).toEqual([0, 1, 2]);
+  });
+});
+
+// ───────────────────────────── Carros da onda F ─────────────────────────────
+
+describe('carros da onda F na carreira', () => {
+  it('os três livres novos (Saci, Tatu, Boto) são de todos: a carreira nasce com eles e não os vende', () => {
+    for (const id of ['saci', 'tatu', 'boto']) {
+      const career = newCareer([human(0, 0, id)]);
+      expect(career.drivers[0].garage.carId, id).toBe(id);
+      expect(ownsCar(career.drivers[0].garage, id)).toBe(true);
+      expect(buyCar(career, 0, id)).toBe('owned');
+      expect(careerHumans(career)[0].carId).toBe(id);
+    }
+    // Carro à venda vindo do lobby não entra de graça: a carreira começa num livre.
+    expect(newCareer([human(0, 0, 'beijaflor')]).drivers[0].garage.carId).toBe('falcao');
+  });
+
+  it('os três à venda novos (Curupira, Iara, Beija-Flor): compra desconta, escolhe, libera em todo modo e vai pelo save', () => {
+    for (const id of ['curupira', 'iara', 'beijaflor']) {
+      const car = carDef(id);
+      const career = versusCareer(1);
+      career.wallets[0] = car.price - 1;
+      expect(buyCar(career, 0, id), id).toBe('noMoney');
+      career.wallets[0] = car.price + 700;
+      expect(buyCar(career, 0, id), id).toBe('ok');
+      expect(career.wallets[0]).toBe(700);
+      expect(career.drivers[0].garage.carId).toBe(id);
+      expect(buyUpgrade(career, 0, 'engine')).toBe('noMoney');
+      career.wallets[0] = 100_000;
+      expect(buyUpgrade(career, 0, 'engine')).toBe('ok');
+      const save = sanitizeSave({});
+      save.career = career;
+      expect(unlockCar(save, id)).toBe(true);
+      expect(unlockCar(save, id)).toBe(false);
+      const back = sanitizeSave(JSON.parse(JSON.stringify(save)));
+      expect(back.career).toEqual(career);
+      expect(back.carsUnlocked).toEqual([id]);
+      expect(careerHumans(back.career!)[0]).toMatchObject({ carId: id, upgrades: lv({ engine: 1 }) });
+    }
+    // Carro livre não entra na lista de liberados (é de todos).
+    const save = sanitizeSave({});
+    expect(unlockCar(save, 'saci')).toBe(false);
+    expect(sanitizeSave({ carsUnlocked: ['saci', 'iara', 'boto'] }).carsUnlocked).toEqual(['iara']);
+  });
+
+  it('o Beija-Flor já nasce no teto de dirigibilidade (pneus não se vendem); o Saci para no nível 1', () => {
+    expect(carDef('beijaflor').handling).toBe(HANDLING_MAX);
+    expect(upgradePrice('tires', 0, 'beijaflor')).toBeNull();
+    expect(upgradePrice('tires', 0, 'saci')).not.toBeNull();
+    expect(upgradePrice('tires', 1, 'saci')).toBeNull();
+    const career = versusCareer(1);
+    career.wallets[0] = 100_000;
+    buyCar(career, 0, 'beijaflor');
+    const money = career.wallets[0];
+    expect(buyUpgrade(career, 0, 'tires')).toBe('maxLevel');
+    expect(career.wallets[0]).toBe(money);
+  });
+
+  it('save de antes da onda F (8 carros) continua valendo igual, e um save com os carros novos vai e volta', () => {
+    // Save gravado pela versão de 8 carros: carreira com o Pororoca comprado e melhorias no Falcão e no Pororoca.
+    const old = {
+      carsUnlocked: ['pororoca', 'boitata'], seatCars: ['trovao', 'camelo', 'falcao', 'tornado'],
+      career: {
+        version: 1, coop: false, wallets: [4321], cupId: 'eua', champ: null, rosterSeed: 99, attempts: 2, completed: false, racesRun: 7, lastReport: null,
+        drivers: [{ name: 'Ana', earnings: 12000, garage: { carId: 'pororoca', owned: ['pororoca'], upgrades: { falcao: lv({ engine: 2 }), pororoca: lv({ nitro: 1, tires: 3 }) } } }],
+      },
+    };
+    const s = sanitizeSave(JSON.parse(JSON.stringify(old)));
+    expect(s.carsUnlocked).toEqual(['pororoca', 'boitata']);
+    expect(s.seatCars).toEqual(['trovao', 'camelo', 'falcao', 'tornado']);
+    const g = s.career!.drivers[0].garage;
+    expect(g).toEqual({ carId: 'pororoca', owned: ['pororoca'], upgrades: { falcao: lv({ engine: 2 }), pororoca: lv({ nitro: 1, tires: 3 }) } });
+    expect(s.career!.wallets).toEqual([4321]);
+    expect(s.career!.cupId).toBe('eua');
+    // Os carros novos entram nos assentos e na garagem sem estranhar o save.
+    const now = sanitizeSave({ ...old, seatCars: ['saci', 'beijaflor', 'boto', 'iara'], carsUnlocked: ['curupira', 'pororoca'] });
+    expect(now.seatCars).toEqual(['saci', 'beijaflor', 'boto', 'iara']);
+    expect(now.carsUnlocked).toEqual(['curupira', 'pororoca']);
   });
 });
 

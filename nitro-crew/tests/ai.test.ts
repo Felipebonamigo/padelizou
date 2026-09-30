@@ -26,8 +26,8 @@ describe('IA', () => {
   // 25/09: o tanque foi calibrado para voltas de ~400.000 unidades e a IA só parava abaixo de 22%;
   // nas pistas longas das copas novas o Trovão chegava à última volta com ~0,33, não parava e secava
   // antes da chegada. A primeira volta (teste acima, balance de 150 s) não mostra isso: só a corrida
-  // inteira. Campeão é quem mais gasta por volta; o grid tem os quatro carros (o sorteio do roster
-  // escolhe os modelos, então a semente é a primeira que põe os quatro na pista); o humano fica
+  // inteira. Campeão é quem mais gasta por volta; o grid tem todos os carros da IA (o sorteio do roster
+  // escolhe os modelos, então a semente é a primeira que põe os 7 livres na pista); o humano fica
   // parado para a corrida só acabar quando toda a IA cruzar a linha.
   it.each(TRACKS.map((d) => [d.id, d.laps] as const))('%s: corrida inteira (%i voltas) — nenhum carro da IA fica sem combustível', (id, laps) => {
     const track = getTrack(id);

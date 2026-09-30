@@ -357,12 +357,18 @@ export function carBars(car: CarDef, cars: readonly CarDef[]): Record<CarStatKey
   return out;
 }
 
-/** Cartão do carro: silhueta na cor, nome, quatro barras (animadas ao entrar) e a frase de apresentação. */
+/** "3/14": a posição do carro na lista que ←→ percorre (com 14 carros, quem escolhe quer saber onde está). */
+export function carCount(car: CarDef, cars: readonly CarDef[]): string {
+  return `${Math.max(0, cars.indexOf(car)) + 1}/${cars.length}`;
+}
+
+/** Cartão do carro: silhueta do estilo dele na cor, nome, quatro barras (animadas ao entrar) e a frase de apresentação. */
 export function carCard(car: CarDef, cars: readonly CarDef[]): HTMLElement {
   const bars = carBars(car, cars);
-  return h('div', { class: 'car-card' },
+  return h('div', { class: 'car-card', attrs: { 'data-car': car.id } },
     h('div', { class: 'car-name', text: car.name }),
-    h('div', { class: 'car-visual' }, carSilhouette(car.color)),
+    // O contador fica embaixo do desenho, não ao lado do nome: na grade 2×2 o "POROROCA V10" não cabia com ele.
+    h('div', { class: 'car-visual' }, carSilhouette(car), cars.length > 1 ? h('span', { class: 'car-count mono', text: carCount(car, cars) }) : null),
     h('div', { class: 'car-bars' }, CAR_STAT_KEYS.map((key, i) =>
       h('div', { class: 'car-bar' },
         h('span', { class: 'car-bar-label', text: t(`ui.lobby.stat.${key}`) }),

@@ -11,6 +11,11 @@
 .scr-lobby .slot .car-bars { row-gap: calc(1 * var(--u)); }
 .scr-lobby .slot .car-bar-label { line-height: 1.05; }
 .scr-lobby .car-name { line-height: 1.1; }
+/* "5/14" embaixo do desenho (a coluna dele tem altura sobrando: quem manda na altura são as barras). */
+.scr-lobby .car-visual { flex-direction: column; gap: calc(2 * var(--u)); }
+.scr-lobby .car-count { color: var(--muted); font-size: calc(12 * var(--u)); font-weight: 700; line-height: 1; }
+/* Texto grande na grade 2×2: o nome mais largo ("POROROCA V10") só cabe um tamanho abaixo. */
+#ui.large-text .scr-lobby .lobby-slots:not(.seats-1) .car-name { font-size: var(--fs); letter-spacing: 0.02em; }
 
 /* Painel do Jogador 1 (e o lado da inscrição do torneio, que usa as mesmas classes): nove seletores,
    a dica e INICIAR/VOLTAR cabem sem rolar (o VOLTAR ficava recortado pela borda do painel em 720p). Setas e valor mais estreitos também deixam o rótulo inteiro
