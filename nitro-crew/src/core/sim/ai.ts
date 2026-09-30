@@ -1,5 +1,8 @@
 // Piloto de IA: decide o PlayerInput de um carro a cada tick a partir do que vê na pista.
-import { AI_BRAKE_CURVE, CATCHUP_DISTANCE, MISTAKE_BRAKE_LATE, MISTAKE_CORNER_SPEED, MISTAKE_WIDE_SEGMENTS, MISTAKE_WIDE_X, RIVAL_SKILL_BONUS, SEGMENT_LENGTH } from '../constants';
+import {
+  AI_BRAKE_CURVE, AI_PASS_CLEARANCE, AI_PASS_LANE_MAX, AI_SIDE_LOOK, CAR_HALF_WIDTH, CAR_LENGTH, CATCHUP_DISTANCE, MISTAKE_BRAKE_LATE,
+  MISTAKE_CORNER_SPEED, MISTAKE_WIDE_SEGMENTS, MISTAKE_WIDE_X, RIVAL_SKILL_BONUS, SEGMENT_LENGTH,
+} from '../constants';
 import { nextFloat, nextRange } from '../rng';
 import { maxCurveAhead, segmentAt } from '../track/builder';
 import type { AiBrain, CarState, CarStats, Difficulty, Personality, PlayerInput, RaceState, Track } from '../types';
@@ -91,6 +94,33 @@ export function counterSteer(def: CarStats, sf: number, curve: number): number {
   return sf > 0.05 ? (centrifugalRate(def) * sf * curve) / steerRate(def) : 0;
 }
 
+/**
+ * O carro do lado que está no caminho de `car` até a faixa `laneTarget` — o corpo dele cruza a faixa que o carro
+ * varreria indo para lá —, o mais perto de lado; null com o caminho livre. "Do lado" é até AI_SIDE_LOOK à frente e
+ * até `behind` atrás. Indo para o box, `behind` é só o encosto (CAR_LENGTH): quem entrava na faixa do box logo atrás,
+ * na mesma velocidade, prendia o outro do lado de fora até o fim dela, e ele secava (tests/ai.test.ts, Autobahn).
+ */
+export function sideBlocker(state: RaceState, track: Track, car: CarState, laneTarget: number, behind = AI_SIDE_LOOK): CarState | null {
+  const dir = laneTarget > car.x ? 1 : -1;
+  const reach = Math.abs(laneTarget - car.x) + CAR_HALF_WIDTH * 2;
+  let best: CarState | null = null;
+  let bestDx = reach;
+  for (const o of state.cars) {
+    if (o === car) continue;
+    const dx = (o.x - car.x) * dir;
+    if (dx <= 0 || dx >= bestDx) continue;
+    const dz = wrappedDelta(o.z, car.z, track.length);
+    if (dz >= AI_SIDE_LOOK || dz <= -behind) continue;
+    best = o; bestDx = dx;
+  }
+  return best;
+}
+
+/** Faixa para passar por `aheadX` pela esquerda ou pela direita, `offset` ao lado dele, dentro de ±AI_PASS_LANE_MAX. */
+function passLane(aheadX: number, left: boolean, offset: number): number {
+  return Math.max(-AI_PASS_LANE_MAX, Math.min(AI_PASS_LANE_MAX, aheadX + (left ? -offset : offset)));
+}
+
 export function aiInput(state: RaceState, track: Track, car: CarState): PlayerInput {
   const brain = car.ai!;
   const tune = tuningOf(brain);
@@ -160,7 +190,10 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
     if (ahead) {
       if (state.tick >= brain.laneUntil) {
         const goLeft = ahead.x > car.x || (ahead.x === car.x && nextFloat(state.rng) < 0.5);
-        brain.laneX = Math.max(-0.7, Math.min(0.7, ahead.x + (goLeft ? -tune.passOffset : tune.passOffset)));
+        let lane = passLane(ahead.x, goLeft, tune.passOffset);
+        // Perto da borda o limite da faixa come a folga: sem espaço para o carro inteiro, passa pelo outro lado.
+        if (Math.abs(lane - ahead.x) < AI_PASS_CLEARANCE) lane = passLane(ahead.x, !goLeft, tune.passOffset);
+        brain.laneX = lane;
         brain.laneUntil = state.tick + tune.laneHold;
       }
       laneTarget = brain.laneX;
@@ -179,6 +212,17 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
       brain.laneX = nextRange(state.rng, -0.6, 0.6);
       brain.laneUntil = state.tick + 120;
     }
+  }
+  // Não esterça para dentro de quem está do lado: um carro não atravessa o outro (docs/FISICA.md), e empurrar de
+  // lado custa velocidade aos dois. Segura a faixa ao lado dele; indo para o box, tira o pé e passa por trás — se ele
+  // está andando (o limitador do box segura quem já está nele a 25%): parado, esperar ao lado dele seria para sempre;
+  // aí segue e passa. O erro de frenagem é a exceção: o carro abre para fora porque não segura a curva.
+  const erring = missedFor >= 0 && missedFor < MISTAKE_WIDE_SEGMENTS;
+  const beside = erring ? null : sideBlocker(state, track, car, laneTarget, wantsPit ? CAR_LENGTH : AI_SIDE_LOOK);
+  if (beside) {
+    laneTarget = beside.x + (laneTarget > car.x ? -AI_PASS_CLEARANCE : AI_PASS_CLEARANCE);
+    const besideFrac = beside.speed / def.topSpeed;
+    if (wantsPit && besideFrac >= 0.1) target = Math.min(target, besideFrac * 0.9);
   }
 
   // ── Acelerador/freio

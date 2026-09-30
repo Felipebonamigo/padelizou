@@ -14,10 +14,38 @@ export const SPEED_TO_KMH = 300 / REFERENCE_SPEED;
 export const MAX_CARS = 20;
 export const MAX_SEATS = 4;
 
-/** Comprimento de um carro em unidades de mundo (para colisão longitudinal). */
-export const CAR_LENGTH = 120;
-/** Meia largura de um carro em `x` normalizado (colisão lateral). */
-export const CAR_HALF_WIDTH = 0.22;
+/*
+ * Pegada de colisão do carro (docs/FISICA.md). O carro na tela mede 4,4 × 1,9 m em todos os estilos
+ * (src/render/cars.ts; o contrato está em CarBody, types.ts) e, na escala da tela (src/render/units.ts),
+ * 1 m = 50 u em z e 1/7 em x. A caixa de colisão é um pouco menor que a visual — 4,0 m (91%) × 1,82 m (96%) —
+ * para perdoar o raspão: as pontas do carro afinam (o bico tem 1,24 m de largura), então uma caixa do tamanho
+ * cheio bateria quina com quina onde a tela mostra ar, e o carro gira até 0,08 rad ao esterçar, o que a caixa
+ * alinhada à pista não acompanha. Na largura o perdão é menor porque o vão lateral é o que a câmera de
+ * perseguição mais mostra. Era 120 u × 0,22 (2,4 × 3,08 m): lado a lado batia com 1,2 m de ar entre as
+ * latarias, e em fila um entrava 2 m no outro antes de bater (tests/collisions.test.ts).
+ */
+/** Comprimento de colisão, em unidades de mundo: em fila, dois carros se tocam com os centros a esta distância. */
+export const CAR_LENGTH = 200;
+/** Meia largura de colisão em `x` normalizado: lado a lado, os centros se tocam a 2 × isto (0,26 = 1,82 m). */
+export const CAR_HALF_WIDTH = 0.13;
+/**
+ * Raspão de lado: cada um perde até SIDE_CONTACT_LOSS da velocidade por tick de contato, na proporção do QUADRADO
+ * da sobreposição lateral daquele tick sobre SIDE_CONTACT_FULL_OVERLAP (a energia de uma batida cresce com o
+ * quadrado da velocidade com que um entra no outro). Uma guinada forte contra o outro custa os 3% de antes; dois
+ * carros apenas encostados, um esterçando contra o outro, quase não perdem — com perda fixa de 3% por tick eles se
+ * seguravam a ~15% da máxima (o "travamento lado a lado", docs/FISICA.md).
+ */
+export const SIDE_CONTACT_LOSS = 0.03;
+/** Sobreposição lateral (em x) que já conta como batida lateral cheia: 0,06 (0,42 m), o tranco fixo antigo por tick. */
+export const SIDE_CONTACT_FULL_OVERLAP = 0.06;
+/**
+ * A separação deixa os dois carros esta folga além do encosto (em x e em unidades de z): sem ela, o arredondamento
+ * pode deixar uma sobreposição residual (~1e-17) que contaria como contato de novo no tick seguinte.
+ */
+export const COLLISION_SLOP_X = 0.002;
+export const COLLISION_SLOP_Z = 1;
+/** Passadas por tick na resolução das colisões (engavetamento: quem recua pode cair dentro de quem vinha atrás). */
+export const COLLISION_PASSES = 3;
 
 export const CENTRIFUGAL = 0.3;
 export const OFFROAD_LIMIT_FACTOR = 0.35; // velocidade máxima fora da pista, fração da máxima
@@ -36,6 +64,17 @@ export const GEAR_TOP = [0.22, 0.42, 0.62, 0.82, 1.0];
 export const GEAR_ACCEL = [1.7, 1.45, 1.2, 1.0, 0.85];
 
 export const COUNTDOWN_TICKS = 3 * TICK_RATE + 30; // 3 s de contagem + meio segundo de "JÁ"
+/**
+ * Distância entre as filas do grid (centro a centro): 400 u = 8 m, a de um grid de verdade — 3,6 m de vão na tela
+ * entre a traseira de um carro e o bico do de trás. Eram 260 u (0,8 m de vão): com a colisão do tamanho do carro,
+ * quem arrancava melhor batia no da frente nos primeiros metros, e as batidas da largada (iguais para todas as
+ * personalidades) apagavam a diferença entre elas (onda F, docs/FISICA.md; tests/rivals.test.ts).
+ */
+export const GRID_ROW_GAP = 400;
+/** Grid: o primeiro carro larga esta distância antes da linha, e cada fila tem um carro em cada lado (x = ±GRID_LANE_X).
+ *  A pintura das vagas no chão (src/render/road-textures.ts) lê estas constantes — não repita os números lá. */
+export const GRID_FRONT_GAP = 600;
+export const GRID_LANE_X = 0.45;
 export const FUEL_CAPACITY = 1;
 export const FUEL_EMPTY_SPEED_FACTOR = 0.2;
 /**
@@ -128,13 +167,31 @@ export const UPGRADE_NITRO_CHARGES = 1;
 // mora em data/drivers.ts (PERSONALITY_TUNING).
 /** Curva a partir da qual a IA freia para ela (sim/ai.ts); abaixo disto o trecho é reta para ela. */
 export const AI_BRAKE_CURVE = 1.5;
+/** Faixa lateral mais longe do centro que a IA usa para ultrapassar (sim/ai.ts). */
+export const AI_PASS_LANE_MAX = 0.7;
+/**
+ * Distância lateral entre centros que a faixa de ultrapassagem precisa deixar para passar sem encostar: a largura
+ * de colisão e uma sobra de 0,04 (28 cm). Perto da borda, AI_PASS_LANE_MAX come a folga e a IA passa pelo outro lado.
+ */
+export const AI_PASS_CLEARANCE = CAR_HALF_WIDTH * 2 + 0.04;
+/**
+ * A IA não esterça para dentro de um carro a menos disto em z que esteja no caminho da faixa que ela quer
+ * (sim/ai.ts: sideBlocker): o comprimento do carro na tela (220 u = 4,4 m entre centros), o mesmo "do lado" do
+ * BLOCK_ALONGSIDE. Com 1,25 × a caixa o bloqueador parava de fechar a porta antes da hora (tests/rivals.test.ts).
+ */
+export const AI_SIDE_LOOK = CAR_LENGTH * 1.1;
 /** Bônus de habilidade do rival principal da copa (a habilidade vai de ~0,8 a ~1,03). */
 export const RIVAL_SKILL_BONUS = 0.02;
 /** Bloqueador: vigia humanos até esta distância atrás e nesta janela lateral. */
 export const BLOCK_RANGE = SEGMENT_LENGTH * 3;
 export const BLOCK_LATERAL_WINDOW = 0.9;
-/** Humano a menos disto atrás já pôs o bico do lado: o bloqueador respeita o desvio e não fecha mais. */
-export const BLOCK_ALONGSIDE = CAR_LENGTH * 1.5;
+/**
+ * Humano a menos disto atrás já pôs o bico do lado: o bloqueador respeita o desvio e não fecha mais. É o comprimento
+ * do carro na tela (220 u = 4,4 m entre centros: o bico de um na traseira do outro), um pouco antes do contato
+ * (CAR_LENGTH). Era 1,5 × 120 = 180 u (3,6 m, o bico já 0,8 m do lado); 1,5 × a caixa nova (6 m) desistia cedo
+ * demais e o bloqueador deixava de segurar o humano (tests/rivals.test.ts, onda F).
+ */
+export const BLOCK_ALONGSIDE = CAR_LENGTH * 1.1;
 /** Tempo máximo fechando a porta numa investida; depois descansa BLOCK_REST_TICKS sem bloquear ninguém. */
 export const BLOCK_MAX_TICKS = 4 * TICK_RATE;
 export const BLOCK_REST_TICKS = 8 * TICK_RATE;

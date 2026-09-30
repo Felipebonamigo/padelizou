@@ -70,7 +70,7 @@ não use nada de fora desta pasta.
   desfazia, save com o armazenamento cheio (vai ao arquivo e avisa), fantasma e recordes com a versão do conteúdo.
   768 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
   gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
 - **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).

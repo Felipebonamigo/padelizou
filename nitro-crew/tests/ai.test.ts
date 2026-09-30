@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { TICK_RATE } from '../src/core/constants';
+import { CAR_HALF_WIDTH, CAR_LENGTH, TICK_RATE } from '../src/core/constants';
 import { AI_CAR_POOL, carDef } from '../src/core/data/cars';
 import { TRACKS } from '../src/core/track/tracks';
 import { getTrack } from '../src/core/track';
 import { aiInput } from '../src/core/sim/ai';
+import { wrappedDelta } from '../src/core/sim/collisions';
+import { NEUTRAL_INPUT } from '../src/core/types';
 import { ALL_ASSISTS, human, humanCar, idle, quickRace, run, skipCountdown, syntheticTrack } from './helpers';
 
 describe('IA', () => {
@@ -86,6 +88,70 @@ describe('IA', () => {
     }
     expect(off / total).toBeLessThan(0.08);
   }, 30_000);
+
+  // Onda F: com a colisão do tamanho do carro na tela, um não atravessa mais o outro. A IA que chegava por fora
+  // de um carro parado perto da borda escolhia passar por fora, a faixa batia no limite de 0,7 e sobrava 0,2 de
+  // lado — menos que a largura do carro: ficava batendo na traseira dele para sempre (antes passava por dentro).
+  it.each([0.5, -0.5])('carro parado perto da borda (x %f): a IA que vem por fora passa pelo outro lado, sem ficar batendo', (x) => {
+    const { state, track } = quickRace({ track: syntheticTrack(), totalCars: 2, humans: [human(0)], seed: 3 });
+    skipCountdown(state, track);
+    const parked = humanCar(state, 0);
+    const ai = state.cars.find((c) => c.seat < 0);
+    if (!ai?.ai) throw new Error('sem IA');
+    delete ai.ai.personality;
+    parked.z = 20000; parked.x = x; parked.speed = 0;
+    ai.z = 20000 - 1500; ai.x = x + Math.sign(x) * 0.12; ai.speed = 3000; ai.ai.laneX = ai.x; ai.ai.laneUntil = 0;
+    let hits = 0;
+    for (let i = 0; i < TICK_RATE * 10; i++) {
+      run(state, track, 1, idle);
+      hits += state.events.filter((e) => e.type === 'collision').length;
+    }
+    expect(wrappedDelta(ai.z, parked.z, track.length), 'a IA passou o carro parado').toBeGreaterThan(CAR_LENGTH);
+    expect(hits).toBeLessThanOrEqual(1);
+  });
+
+  // Onda F: sem o tranco fixo da colisão antiga (que empurrava o outro para longe), a IA que esterçava para uma faixa
+  // com um carro do lado ficava empurrando-o de lado, os dois perdendo velocidade — e, indo para o box com alguém
+  // ao lado, perdia a entrada e secava (tests abaixo: "o gasto que sobe com o elástico", Rochosas).
+  it('a IA não esterça para dentro de um carro que está do lado: espera ele sair antes de trocar de faixa', () => {
+    const { state, track } = quickRace({ track: syntheticTrack(), totalCars: 2, humans: [human(0)], seed: 3 });
+    skipCountdown(state, track);
+    const other = humanCar(state, 0);
+    const ai = state.cars.find((c) => c.seat < 0);
+    if (!ai?.ai) throw new Error('sem IA');
+    delete ai.ai.personality;
+    ai.z = 20000; ai.x = -0.35; ai.speed = 4000;
+    ai.ai.laneX = 0.5; ai.ai.laneUntil = state.tick + TICK_RATE * 10; // quer ir para a direita, onde está o outro
+    other.z = 20000 - 60; other.x = 0; other.speed = 4000;
+    let closest = Infinity; let pushed = 0;
+    for (let i = 0; i < TICK_RATE * 2; i++) {
+      run(state, track, 1, (s) => ({ ...NEUTRAL_INPUT, throttle: true, steer: (0 - humanCar(s, 0).x) * 5 }));
+      closest = Math.min(closest, Math.abs(ai.x - other.x));
+      pushed = Math.max(pushed, Math.abs(other.x));
+    }
+    expect(closest, 'encostou de lado').toBeGreaterThanOrEqual(CAR_HALF_WIDTH * 2);
+    expect(pushed, 'empurrou o outro').toBeLessThan(0.01);
+  });
+
+  it('indo para o box com um carro PARADO no caminho, a IA não fica esperando ao lado dele: passa e entra', () => {
+    // Tirar o pé para passar por trás de quem está do lado só serve com ele andando: parado, esperar é para sempre.
+    const track = syntheticTrack([{ op: 'pit', length: 40 }, { op: 'straight', length: 260 }], 'sintetica-box');
+    const { state } = quickRace({ track, totalCars: 2, humans: [human(0)], seed: 3 });
+    skipCountdown(state, track);
+    const parked = humanCar(state, 0);
+    const ai = state.cars.find((c) => c.seat < 0);
+    if (!ai?.ai) throw new Error('sem IA');
+    delete ai.ai.personality;
+    ai.lap = 1; ai.z = track.length - 1500; ai.x = 0.3; ai.speed = 800; ai.fuel = 0.05;
+    parked.lap = 1; parked.z = ai.z + 60; parked.x = 0.9; parked.speed = 0;
+    let pitted = false;
+    // 1.500 u até o box a 800 u/s: uns 2 s sem esperar; esperando ao lado do parado, mais de 8.
+    for (let i = 0; i < TICK_RATE * 5 && !pitted; i++) {
+      run(state, track, 1, idle);
+      pitted = ai.inPit;
+    }
+    expect(pitted, `a IA ficou em z ${ai.z.toFixed(0)} a ${ai.speed.toFixed(0)} u/s, o parado em z ${parked.z.toFixed(0)}`).toBe(true);
+  });
 
   it('a dificuldade muda o ritmo: campeão anda mais que amador na mesma pista', () => {
     const track = getTrack('rota_66');

@@ -1,7 +1,9 @@
 // Conquistas: regras avaliadas pela sessão no tick em que a corrida acaba, com a telemetria que
 // ela junta a cada tick (observeTick). A lista com nomes PT/EN mora em desktop.ts (ponte com a
 // Steam) e as descrições em src/stats/strings.ts; aqui ficam a coleta e as regras.
-import { CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, TICK_RATE } from '../core/constants';
+import {
+  CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, COLLISION_SLOP_X, COLLISION_SLOP_Z, TICK_RATE,
+} from '../core/constants';
 import { CUPS } from '../core/data/cups';
 import { wrappedDelta } from '../core/sim/collisions';
 import { computeModifiers } from '../core/sim/coop';
@@ -22,11 +24,13 @@ export const MARATHON_METERS = 1_000_000;
 /** DEZ_VITORIAS. */
 export const WINS_TARGET = 10;
 /**
- * Folga lateral do contato visto pelo estado: resolveCarCollisions (src/core/sim/collisions.ts)
- * separa os dois carros em 0,03 para cada lado no mesmo tick, então depois do passo uma batida de
- * quina já não se sobrepõe. Custo aceito: passar a menos de 0,06 de outro carro também conta.
+ * Folga do contato visto pelo estado: resolveCarCollisions (src/core/sim/collisions.ts) separa os dois
+ * carros no mesmo tick até encostarem, mais a folga COLLISION_SLOP_X/Z — então depois do passo uma batida
+ * fica a essa distância, e não sobreposta. Custo aceito: passar a menos disto de outro carro também conta
+ * (0,01 em x = 7 cm de lado; 5 u = 10 cm em fila).
  */
-export const CONTACT_LATERAL_MARGIN = 0.06;
+export const CONTACT_LATERAL_MARGIN = COLLISION_SLOP_X * 5;
+export const CONTACT_LONGITUDINAL_MARGIN = COLLISION_SLOP_Z * 5;
 
 /** Contadores de um assento nesta corrida (a sessão observa; stats.ts e as regras leem). */
 export interface SeatTelemetry {
@@ -102,9 +106,9 @@ export function observeTick(tel: RaceTelemetry, state: RaceState, track: Track):
   }
 }
 
-/** Caixas do núcleo (comprimento e largura do carro) sobrepostas, com a folga do empurrão lateral. */
+/** Caixas de colisão do núcleo sobrepostas ou encostadas (a folga da separação do mesmo tick). */
 function touching(a: CarState, b: CarState, trackLength: number): boolean {
-  return Math.abs(wrappedDelta(a.z, b.z, trackLength)) < CAR_LENGTH
+  return Math.abs(wrappedDelta(a.z, b.z, trackLength)) < CAR_LENGTH + CONTACT_LONGITUDINAL_MARGIN
     && Math.abs(a.x - b.x) < CAR_HALF_WIDTH * 2 + CONTACT_LATERAL_MARGIN;
 }
 

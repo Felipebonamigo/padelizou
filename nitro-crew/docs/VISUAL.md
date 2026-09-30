@@ -41,9 +41,11 @@ Regras que os testes travam (`tests/render-ground.test.ts`):
 - **Box**: divisa zebrada amarela na faixa que a física trata como grama (x 1,02–1,25), linha amarela contínua,
   concreto claro com a vaga em U e "BOX" pintado no chão, linha branca na borda de fora. `PIT_LANE_X` segue
   `sim/physics.ts` (1,25 < x < 1,95); o teste confere que a faixa pintada contém a da física.
-- **Largada**: decalque de 76 m com o quadriculado (3 fileiras de 0,6 m entre duas linhas brancas) e um colchete
+- **Largada**: decalque de 92 m (22 segmentos antes da linha e 1 depois) com o quadriculado (3 fileiras de 0,6 m entre duas linhas brancas) e um colchete
   branco na frente de cada posição do grid — as posições vêm de `gridMarks`, que o teste confere contra o
-  `createRace` de verdade (se o grid mudar em `sim/race.ts`, o teste quebra).
+  `createRace` de verdade. As posições e o comprimento do decalque saem das constantes do núcleo
+  (`GRID_FRONT_GAP`, `GRID_ROW_GAP`, `GRID_LANE_X`): no merge da onda F o grid se espaçou (5,2 → 8 m) e a pintura,
+  que repetia os números, ficou para trás — o teste pegou.
 - **Noite**: poça de luz aditiva sob cada poste (`lamp` do cenário), no asfalto, e asfalto acetinado que pega o
   brilho dos faróis. O braço do poste é modelo do `scenery.ts`; a poça se posiciona pelo sprite (x do poste + 4,4 m).
 

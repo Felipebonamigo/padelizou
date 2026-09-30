@@ -1,6 +1,6 @@
 // Estatísticas por jogador, conquistas novas e o saneamento do que vai para o save.
 import { describe, expect, it } from 'vitest';
-import { TICK_RATE } from '../src/core/constants';
+import { CAR_HALF_WIDTH, CAR_LENGTH, TICK_RATE } from '../src/core/constants';
 import { resolveCarCollisions } from '../src/core/sim/collisions';
 import { buildResults } from '../src/core/sim/positions';
 import { stepRace } from '../src/core/sim/race';
@@ -251,7 +251,7 @@ describe('observeTick', () => {
     const { state, me, tick, collisions } = contactRig();
     const ai = state.cars[0];
     me.z = 20000; me.x = 0; me.speed = 5000;
-    ai.z = 20020; ai.x = 0.3; ai.speed = 5000;
+    ai.z = 20020; ai.x = CAR_HALF_WIDTH * 2 - 0.01; ai.speed = 5000; // 7 cm enfiado de lado
     tick();
     expect(state.events).toEqual([]);
     expect(collisions()).toBe(1);
@@ -262,10 +262,10 @@ describe('observeTick', () => {
     const ai = state.cars[0];
     ai.collisionCooldown = 10; // sem evento: só o estado mostra o contato
     me.z = 20000; me.x = 0; me.speed = 6000;
-    ai.z = 20100; ai.x = 0.43; ai.speed = 3000;
+    ai.z = 20100; ai.x = CAR_HALF_WIDTH * 2 - 0.01; ai.speed = 3000;
     tick();
     expect(state.events).toEqual([]);
-    expect(Math.abs(ai.x - me.x)).toBeGreaterThanOrEqual(0.44); // já não se sobrepõem depois do empurrão
+    expect(Math.abs(ai.x - me.x)).toBeGreaterThanOrEqual(CAR_HALF_WIDTH * 2); // já não se sobrepõem depois do empurrão
     expect(collisions()).toBe(1);
   });
 
@@ -291,8 +291,8 @@ describe('observeTick', () => {
     const { state, me, tick, collisions } = contactRig();
     const [a, b] = state.cars;
     me.z = 20000; me.x = -0.3; me.speed = 5000;
-    a.z = 20000; a.x = 0.3; a.speed = 5000; // 0,6 de distância lateral: caixas de 0,44 não se tocam
-    b.z = 20200; b.x = -0.3; b.speed = 5000; // 200 u à frente: carro tem 120
+    a.z = 20000; a.x = 0.3; a.speed = 5000; // 0,6 de distância lateral (4,2 m): caixas de 2 × CAR_HALF_WIDTH não se tocam
+    b.z = 20000 + CAR_LENGTH + 40; b.x = -0.3; b.speed = 5000; // 40 u (0,8 m) além do comprimento de colisão
     for (let i = 0; i < 3; i++) tick();
     expect(collisions()).toBe(0);
   });

@@ -55,7 +55,9 @@ Cada jogador anda pelos passos 1–5 no próprio ritmo; os de trecho só contam 
    `accel` (no asfalto), o carro dele fica no freio (`tutorialInput`) até o evento `tow` nele.
    Quem passa direto pelo carro parado sem empurrar recebe um aviso (`towMissed`). O empurrão exige
    o parado abaixo de 20% da máxima e o companheiro acima de 40% (`sim/coop.ts`), então o texto pede
-   para ficar atrás até ele parar e passar colado acelerando.
+   para ficar atrás até ele parar e passar colado acelerando. Colado é **ao lado**: desde a onda F um carro
+   não atravessa o outro (`docs/FISICA.md`), então mirar no carro parado é bater e ficar empurrando-o (ele
+   está no freio) a 10% da máxima; o piloto do teste de ponta a ponta passa a 0,31 de lado.
 
 Com 1 jogador são 5 passos. No fim: "TUTORIAL CONCLUÍDO!" por 2,5 s e a tela final.
 

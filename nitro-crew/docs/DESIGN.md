@@ -31,7 +31,7 @@ com nitro, box e combustível — e mecânicas que só existem porque há uma eq
 | Nitro | 3 por corrida, 2,5 s a +28% e aceleração ×2,2; no co-op, cofre da equipe (3 × jogadores) | `constants.ts` |
 | Câmbio | automático, ou manual com 5 marchas (marcha baixa acelera mais, limita a velocidade) | `constants.ts` (GEAR_*) |
 | Combustível | tanque dura ~2,4 voltas de 400.000 u em aceleração total; aliviar o pé economiza; box na reta de largada (x 1,3–1,9) a 25% da velocidade reabastece a 35%/s; o aviso ao jogador vem quando o tanque não garante 1,15 volta a fundo (nunca na última) | `sim/physics.ts`, `sim/fuel.ts` |
-| Colisão | por trás: quem bate cai a 90% da velocidade do outro (mínimo 10%), quem é batido ganha um pouco; lado a lado: −3% e empurrão lateral | `sim/collisions.ts` |
+| Colisão | caixa do tamanho do carro na tela (4,0 × 1,82 m); em fila: quem bate recua até encostar e cai a 90% da velocidade do outro (mínimo 10%), quem é batido ganha um pouco; lado a lado: cada um se afasta metade da sobreposição, perda que cresce com ela — ver `docs/FISICA.md` | `sim/collisions.ts` |
 | Empurrão | companheiro abaixo de 30% da máxima (carro seco, batida em árvore, parado; fora do box) recebe 80% da velocidade de quem passa a 2 segmentos e 0,7 de lateral acima de 60% da própria máxima (medido na onda D: com 20%/40% quase nunca acontecia) | `sim/coop.ts` |
 | Vácuo | atrás de qualquer carro (6 segmentos, 0,3 lateral): aceleração ×1,35 e +3% de máxima; de companheiro humano: +6% e alcance de 15 segmentos e 0,5 lateral (≈ −0,4 s/volta com 4 humanos) | `sim/coop.ts` |
 | Elástico | último humano da equipe a 60+ segmentos de todos os companheiros: +5% de máxima | `sim/coop.ts` |

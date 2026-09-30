@@ -3,8 +3,11 @@
 // (docs/DESEMPENHO.md): otimizar o stepRace não pode mudar um único bit da corrida. Os valores foram
 // gravados no commit 1605294, antes de qualquer otimização, e regravados em 28/09 depois do co-op afinado
 // (passo 1.4: empurrão, vácuo de equipe, elástico, box da IA) — com e sem a otimização deram o mesmo valor.
-// Regravados de novo em 30/09 (onda F, carros novos): a IA passou a sortear entre os 7 carros livres (eram 4),
-// então toda corrida com IA mudou de elenco; o contra-relógio (sem IA) ficou igual, e com ele PHYSICS_REVISION.
+// Regravados na onda F (30/09), com os dois lados juntos: a IA sorteia entre os 7 carros livres (eram 4), e a
+// colisão ficou do tamanho do carro na tela, com o grid mais espaçado e a IA que escolhe o lado da ultrapassagem e
+// não esterça para dentro de quem está do lado (docs/FISICA.md). Só o contra-relógio ficou igual — um carro sozinho
+// não bate em ninguém e não tem IA. Por isso PHYSICS_REVISION não subiu: ela anda presa a esse hash, e as constantes
+// novas já renovam sozinhas a impressão de toda volta (fantasmas e recordes antigos viram "outra versão").
 //
 // Mudou a jogabilidade DE PROPÓSITO (constante, IA, física)? Aí o hash muda e é esperado: rode
 // `npx tsx scripts/perf-sim.ts --fingerprints`, confira que só mudaram as corridas que deviam e atualize.
@@ -17,14 +20,14 @@ import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 import { PHYSICS_REVISION } from '../src/game/content-version';
 
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
-  'solo-sem-assistencias': { fingerprint: '58e69958', ticks: 8774 },
-  'coop4-tudo': { fingerprint: '810fda7c', ticks: 7924 },
-  'versus-cambio-manual': { fingerprint: '7c1d8240', ticks: 9682 },
-  escolta: { fingerprint: '27edfe81', ticks: 8520 },
-  revezamento: { fingerprint: '4729b167', ticks: 12583 },
-  'tomada-pela-ia': { fingerprint: '8c0387f7', ticks: 9261 },
+  'solo-sem-assistencias': { fingerprint: '57b0b304', ticks: 8306 },
+  'coop4-tudo': { fingerprint: '4aebaa41', ticks: 7860 },
+  'versus-cambio-manual': { fingerprint: '6f8073b3', ticks: 8950 },
+  escolta: { fingerprint: 'a44eeff9', ticks: 8491 },
+  revezamento: { fingerprint: 'ca459552', ticks: 11597 },
+  'tomada-pela-ia': { fingerprint: 'a7cca80f', ticks: 8910 },
   'contra-relogio': { fingerprint: '89f654e0', ticks: 7768 },
-  'sem-personalidades': { fingerprint: 'f14dca12', ticks: 10400 },
+  'sem-personalidades': { fingerprint: '0b8c4a83', ticks: 9887 },
 };
 
 describe('corridas de referência (impressão digital fixa)', () => {

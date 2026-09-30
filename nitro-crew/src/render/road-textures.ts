@@ -3,9 +3,10 @@
 // + marcas do grid) e a poça de luz dos postes. Tudo com mipmap: detalhe fino some na
 // distância em vez de cintilar. Ficam fora do textures.ts (que cenário e carros também usam).
 import * as THREE from 'three';
+import { GRID_FRONT_GAP, GRID_LANE_X, GRID_ROW_GAP, MAX_CARS, SEGMENT_LENGTH } from '../core/constants';
 import { fbm, hash2 } from './noise';
 import { hexToRgb, mix, shade, type Palette } from './palette';
-import { ROAD_HALF_WIDTH_M } from './units';
+import { ROAD_HALF_WIDTH_M, SEGMENT_M } from './units';
 
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
@@ -188,23 +189,27 @@ export function paintPit(p: Palette, anisotropy: number): THREE.CanvasTexture {
   return makeTexture(c, anisotropy);
 }
 
-/** Decalque da largada: cobre `START_BEHIND` segmentos antes da linha e `START_AHEAD` depois. */
-export const START_BEHIND = 18;
+/** Onde fica a última fila do grid cheio (unidades antes da linha). */
+const GRID_LAST_ROW = GRID_FRONT_GAP + (Math.ceil(MAX_CARS / 2) - 1) * GRID_ROW_GAP;
+/**
+ * Decalque da largada: cobre `START_BEHIND` segmentos antes da linha e `START_AHEAD` depois. Sai do grid do núcleo
+ * (mais um segmento para a traseira do último carro): era um 18 fixo, e o grid que se espaçou na onda F saiu dele.
+ */
+export const START_BEHIND = Math.ceil(GRID_LAST_ROW / SEGMENT_LENGTH) + 1;
 export const START_AHEAD = 1;
 
 /** Marca de uma posição de grid: distância (m) antes da linha e x (meia-larguras). */
 export interface GridMark { behindM: number; x: number }
 
 /**
- * Posições do grid como sim/race.ts as monta (2 por fila, humanos no fim): o primeiro carro a
- * 600 unidades (12 m) antes da linha, uma fila a cada 260 unidades (5,2 m), x = ±0,45.
- * tests/render.test.ts confere contra o `createRace` de verdade.
+ * Posições do grid como sim/race.ts as monta (2 por fila, humanos no fim), das mesmas constantes do núcleo
+ * (GRID_FRONT_GAP, GRID_ROW_GAP, GRID_LANE_X). tests/render-ground.test.ts confere contra o `createRace` de verdade.
  */
 export function gridMarks(cars: number): GridMark[] {
   const marks: GridMark[] = [];
   for (let i = 0; i < cars; i++) {
     const row = Math.floor(i / 2);
-    marks.push({ behindM: (600 + row * 260) * (4 / 200), x: i % 2 === 0 ? -0.45 : 0.45 });
+    marks.push({ behindM: (GRID_FRONT_GAP + row * GRID_ROW_GAP) * (SEGMENT_M / SEGMENT_LENGTH), x: i % 2 === 0 ? -GRID_LANE_X : GRID_LANE_X });
   }
   return marks;
 }
