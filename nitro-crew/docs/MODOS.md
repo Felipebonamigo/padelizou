@@ -91,6 +91,10 @@ profissional 0,7, campeão 1) e `ESCORT_VIP_TOP_FACTOR` foi de 0,98 para 0,99 (s
 | Profissional | 45% | 56% | 69% |
 | Campeão | 34% | 41% | 47% |
 
+⚠️ **Onda F** (colisão do tamanho do carro na tela, `docs/FISICA.md`): com 2 humanos (um empurra, o outro faz guarda),
+72 corridas de cada lado, VIP no top 3 passou de 100/62/46% para 100/50/21% (amador/profissional/campeão). Sem a caixa
+larga antiga a guarda segura menos gente; recalibrar `ESCORT_VIP_*` numa rodada própria.
+
 **Estatísticas e conquistas**: tudo conta como numa corrida normal para os humanos (a posição deles é a deles; o VIP é
 da IA e não soma perfil). Recordes valem.
 

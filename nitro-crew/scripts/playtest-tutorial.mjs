@@ -124,7 +124,8 @@ function decide(s, seat) {
   }
   if (step === 'tow' && s.towSeat >= 0) {
     const target = s.cars.find((c) => c.seat === s.towSeat);
-    lane = target.x;
+    // Passa colado AO LADO (0,31 = 2 × CAR_HALF_WIDTH + 0,05): um carro não atravessa o outro (docs/FISICA.md).
+    lane = target.x + (target.x > 0 ? -0.31 : 0.31);
     const gap = target.progress - car.progress;
     if (s.parked && target.speed > target.top * 0.2 && gap > 0 && gap < 200 * 25) { up = false; down = car.speed > 1500; }
   }

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { COUNTDOWN_TICKS, FINISH_GRACE_TICKS, POINTS_TABLE, TICK_RATE } from '../src/core/constants';
+import { CAR_LENGTH, COUNTDOWN_TICKS, FINISH_GRACE_TICKS, POINTS_TABLE, TICK_RATE } from '../src/core/constants';
+import { wrappedDelta } from '../src/core/sim/collisions';
 import { formatTicks, stepRace } from '../src/core/sim/race';
 import { NEUTRAL_INPUT } from '../src/core/types';
+import { zToMeters } from '../src/render/units';
 import { human, humanCar, idle, quickRace, run, skipCountdown, syntheticTrack } from './helpers';
 
 describe('corrida', () => {
@@ -24,6 +26,19 @@ describe('corrida', () => {
     const positions = new Set(state.cars.map((c) => `${c.z.toFixed(0)}:${c.x}`));
     expect(positions.size).toBe(20);
     expect(hs.every((c) => c.position >= 19)).toBe(true);
+  });
+
+  it('no grid sobra vão de verdade entre uma fila e a de trás: pelo menos 1,5 m na tela entre traseira e bico', () => {
+    // Onda F: com a colisão do tamanho do carro (4,4 m na tela, src/render/cars.ts), as filas a 5,2 m deixavam
+    // 0,8 m de vão — e quem arrancava melhor batia no da frente nos primeiros metros.
+    const { state, track } = quickRace({ totalCars: 20 });
+    const rows = [...new Set(state.cars.map((c) => c.z))].sort((a, b) => b - a);
+    expect(rows.length).toBe(10);
+    for (let i = 1; i < rows.length; i++) {
+      const centers = zToMeters(wrappedDelta(rows[i - 1], rows[i], track.length));
+      expect(centers - 4.4, `fila ${i}`).toBeGreaterThanOrEqual(1.5);
+      expect(rows[i - 1] - rows[i], `fila ${i}`).toBeGreaterThan(CAR_LENGTH);
+    }
   });
 
   it('cruzar a linha conta volta, registra o tempo e termina depois das voltas configuradas', () => {

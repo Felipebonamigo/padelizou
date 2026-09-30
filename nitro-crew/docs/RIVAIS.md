@@ -22,8 +22,9 @@ reproduz exatamente a IA de antes — os números antigos e multiplicadores 1.
 - Janela: humano até 3 segmentos atrás e até 0,9 de distância lateral.
 - A faixa anda no máximo 0,012 por tick (0,72/s) — dá para enganar e passar.
 - Nunca passa de |x| 0,7: fica no asfalto e não empurra ninguém para a grama.
-- **Respeita o desvio**: com o humano a menos de 1,5 carro (bico do lado), não fecha mais; e desviar de
-  quem está na frente dele vem antes de bloquear.
+- **Respeita o desvio**: com o humano a menos de 4,4 m entre centros (o comprimento do carro na tela: o bico dele
+  na traseira do bloqueador; `BLOCK_ALONGSIDE`, 220 u), não fecha mais; e desviar de quem está na frente dele vem
+  antes de bloquear. (Até a onda E eram "1,5 carro" de uma caixa de colisão de 2,4 m: 3,6 m; ver `docs/FISICA.md`.)
 - **Limite de tempo**: 4 s fechando a porta numa investida; depois descansa 8 s sem bloquear ninguém. O
   relógio da investida só volta devagar (1 tick por tick sem ninguém para fechar).
 
@@ -63,6 +64,24 @@ o humano perde +0,4% de tempo por corrida com ele (episódio médio 6–8 s atr�
 ⚠️ `follow` 1,0 cria um travamento lado a lado (o agressivo iguala a velocidade do humano e o atrito de colisão
 segura os dois a ~45% por até 80 s); 1,01 ainda deixa um resto (+11% no tempo do humano numa corrida medida). A
 causa é código — `nearestAhead` trata como "à frente" um carro sobreposto — e está anotada para caça a bug.
+
+**Onda F** (colisão do tamanho do carro na tela, `docs/FISICA.md`): a caixa antiga (3,08 m de largura) fazia boa parte
+das "batidas" desta tabela com ar entre os carros — no agressivo, 91 das 129 (ele passava a 0,42 de lado, dentro da
+caixa de 0,44). Com a caixa certa o agressivo deixou de bater mais que o limpo, e as batidas da largada (o grid a
+5,2 m entre filas, igual para todos) apagavam a diferença. Ajustes: grid a 8 m (`GRID_ROW_GAP`), o agressivo passa a
+0,36 (0,7 m de ar: "raspando" no carro de verdade), `BLOCK_ALONGSIDE` = o comprimento na tela, e a IA não esterça
+para dentro de quem está do lado (`sideBlocker`; o erro de frenagem do errático fica de fora). Mesma medição:
+
+| | nitros nos 1ºs 45 s | nitros com curva à frente | batidas | trocas de faixa | grama | ticks à frente do humano | maior bloqueio | volta média |
+|---|---|---|---|---|---|---|---|---|
+| neutro | 29 | 11 | 23 | 691 | 0,00% | 600 | — | 67,88 s |
+| limpo | 15 | **0** | **11** | **605** | 0,00% | 596 | — | 67,95 s |
+| agressivo | **27** | 10 | **32** | **1159** | 0,37% | 1192 | — | 67,76 s |
+| bloqueador | 27 | 8 | 15 | 685 | 0,00% | **1896** | 239 ticks (< 240) | 67,84 s |
+| errático | 28 | 11 | 15 | 810 | **0,76%** | 314 | — | 67,91 s |
+
+"À frente do humano" conta a mesma faixa pela largura de colisão (`2 × CAR_HALF_WIDTH`), que caiu de 0,44 para 0,26:
+os números caem junto. Batidas são só as por trás (evento `collision`); nenhuma com ar entre os carros.
 
 ## Rival principal da copa
 

@@ -36,13 +36,16 @@ Guardadas em `SaveData.stats`: `totals` (soma de todos) e `players` (um perfil p
 - **Vitória, pódio e melhor posição** não contam no contra-relógio (sozinho na pista, a posição é sempre 1).
   Pelo mesmo motivo `recordRaceResults` deixou de contar vitória no contra-relógio (`racesWon`).
 - **Vitória em co-op**: vencer uma corrida em que 2+ humanos estão na mesma equipe (`isCoop`).
-- **Colisões**: contatos carro-carro vistos pelo estado a cada tick (`observeTick`): as caixas do núcleo
-  (`CAR_LENGTH` × `2·CAR_HALF_WIDTH`) se sobrepõem, batida por trás ou raspão lado a lado, e os dois lados contam.
+- **Colisões**: contatos carro-carro vistos pelo estado a cada tick (`observeTick`): as caixas de colisão do núcleo
+  (`CAR_LENGTH` × `2·CAR_HALF_WIDTH`, 4,0 × 1,82 m; `docs/FISICA.md`) se sobrepõem ou se encostam, batida por trás
+  ou raspão lado a lado, e os dois lados contam.
   Não dá para contar só o evento `collision`: o núcleo só o emite com os dois carros fora do cooldown, mas
   aplica a batida mesmo assim (bater numa IA que acabou de bater em outra não gerava evento). Um contato que
   continua, ou outro com o mesmo carro em até `COLLISION_COOLDOWN_TICKS` (20), é a mesma colisão. A caixa
-  tem folga lateral de 0,06 (`CONTACT_LATERAL_MARGIN`) porque o núcleo separa os dois carros no mesmo tick;
-  o custo aceito é que passar a menos de 0,06 de outro carro também conta.
+  tem folga de 0,01 de lado e 5 u em fila (`CONTACT_LATERAL_MARGIN`, `CONTACT_LONGITUDINAL_MARGIN`: 5 × a folga
+  `COLLISION_SLOP_X/Z` do núcleo) porque o núcleo separa os dois carros no mesmo tick até se encostarem; o custo
+  aceito é que passar a menos de 7 cm de lado (10 cm em fila) de outro carro também conta. Era 0,06 só de lado,
+  do tempo em que o núcleo empurrava 0,03 fixo para cada lado (onda F).
 - Só corrida que chega ao fim conta: sair pelo menu de pausa ou reiniciar no meio descarta a corrida.
 - **Save anterior ao passo 3.6 começa as estatísticas do zero** (de propósito): `racesRun`/`racesWon` não viram
   `totals`, porque `racesRun` conta corridas e não jogadores, e o `racesWon` antigo contava o contra-relógio

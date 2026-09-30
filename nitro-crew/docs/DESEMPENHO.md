@@ -75,6 +75,15 @@ logo abaixo de len, NaN, ±∞) e 18 mil valores.
 Mudou a jogabilidade de propósito? O hash muda: `npx tsx scripts/perf-sim.ts --fingerprints` imprime os novos
 valores; confira que só mudaram as corridas que deviam e atualize o teste.
 
+### Onda F: colisão do tamanho do carro (`docs/FISICA.md`)
+
+Só simulação (o renderizador não mudou: draw calls, triângulos e texturas iguais). `perf-sim --quick`, base
+(e3e63b1) e depois, um em seguida do outro na mesma máquina carregada (leitura intrínseca, 3 repetições): média
+por tick +2 a +5 µs nas 20 linhas (ex.: básico com 1 humano 43 → 46 µs; modo de festa com 2, 46 → 51), ~+7% — a IA agora
+olha quem está do lado antes de mudar de faixa (`sideBlocker`, um laço pelos 20 carros) e a resolução de colisões
+faz uma segunda passada nos ticks com contato. Pior p99 81 → 75 µs; pior quadro de 4 ticks 399 → 397 µs, de
+16.667 µs a 60 Hz.
+
 ## 2. Vazamentos numa sessão longa
 
 `node scripts/playtest-memoria.mjs <url> <prefixo> [blocos=36]` (com `npx vite build && npx vite preview`):

@@ -1,6 +1,6 @@
 // Tutorial de 90 segundos (passo 1.9): pista própria, máquina de passos, sessão (driver) e save.
 import { describe, expect, it } from 'vitest';
-import { PIT_X, SEGMENT_LENGTH, SPEED_TO_KMH, TICK_RATE, TOW_MIN_SPEED_FACTOR } from '../src/core/constants';
+import { CAR_HALF_WIDTH, PIT_X, SEGMENT_LENGTH, SPEED_TO_KMH, TICK_RATE, TOW_MIN_SPEED_FACTOR } from '../src/core/constants';
 import { carDef } from '../src/core/data/cars';
 import { seatColor } from '../src/core/data/drivers';
 import { CUPS } from '../src/core/data/cups';
@@ -345,7 +345,7 @@ function fakeHost(save: SaveData = sanitizeSave({})): FakeRun {
 /**
  * Piloto roteirizado que faz o que o painel pede: acelera, compensa as curvas, freia antes da curva
  * forte, nitro na reta, entra no box, e no passo 6 fica atrás do carro parado até ele parar e então
- * passa colado acelerando.
+ * passa colado ao lado dele, acelerando.
  */
 function botInput(state: RaceState, track: Track, tut: TutorialState, seat: number, delayTicks: number): PlayerInput {
   const car = humanCar(state, seat);
@@ -366,7 +366,8 @@ function botInput(state: RaceState, track: Track, tut: TutorialState, seat: numb
   }
   if (view.step === 'tow' && tut.towSeat >= 0) {
     const target = humanCar(state, tut.towSeat);
-    lane = target.x;
+    // Passa colado AO LADO dele, como o painel pede: mirar no carro parado é bater e empurrar (um não atravessa o outro).
+    lane = target.x + (target.x > 0 ? -1 : 1) * (CAR_HALF_WIDTH * 2 + 0.05);
     const gap = target.progress - car.progress;
     if (tut.parked && target.speed > target.stats.topSpeed * TOW_MIN_SPEED_FACTOR && gap > 0 && gap < SEGMENT_LENGTH * 25) { throttle = false; brake = car.speed > 1500; }
   }

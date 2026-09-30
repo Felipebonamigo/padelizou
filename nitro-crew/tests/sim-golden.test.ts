@@ -3,6 +3,10 @@
 // (docs/DESEMPENHO.md): otimizar o stepRace não pode mudar um único bit da corrida. Os valores foram
 // gravados no commit 1605294, antes de qualquer otimização, e regravados em 28/09 depois do co-op afinado
 // (passo 1.4: empurrão, vácuo de equipe, elástico, box da IA) — com e sem a otimização deram o mesmo valor.
+// Regravados na onda F (30/09): colisão do tamanho do carro na tela, grid mais espaçado e a IA que escolhe o lado da
+// ultrapassagem e não esterça para dentro de quem está do lado (docs/FISICA.md). Só o contra-relógio ficou igual —
+// um carro sozinho não bate em ninguém. Por isso PHYSICS_REVISION não subiu: ela anda presa a esse hash, e as
+// constantes novas já renovam sozinhas a impressão de toda volta (fantasmas e recordes antigos viram "outra versão").
 //
 // Mudou a jogabilidade DE PROPÓSITO (constante, IA, física)? Aí o hash muda e é esperado: rode
 // `npx tsx scripts/perf-sim.ts --fingerprints`, confira que só mudaram as corridas que deviam e atualize.
@@ -15,14 +19,14 @@ import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 import { PHYSICS_REVISION } from '../src/game/content-version';
 
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
-  'solo-sem-assistencias': { fingerprint: '08a9194b', ticks: 9193 },
-  'coop4-tudo': { fingerprint: 'bf7ff410', ticks: 8078 },
-  'versus-cambio-manual': { fingerprint: '7b72a4b9', ticks: 10196 },
-  escolta: { fingerprint: '6b252411', ticks: 8476 },
-  revezamento: { fingerprint: 'ab70b19b', ticks: 11852 },
-  'tomada-pela-ia': { fingerprint: 'd1868c01', ticks: 9249 },
+  'solo-sem-assistencias': { fingerprint: '60f6482c', ticks: 7966 },
+  'coop4-tudo': { fingerprint: 'e2aa6f2f', ticks: 7879 },
+  'versus-cambio-manual': { fingerprint: 'de7deaeb', ticks: 8583 },
+  escolta: { fingerprint: '9fcad0e0', ticks: 8471 },
+  revezamento: { fingerprint: '7606a1ad', ticks: 11548 },
+  'tomada-pela-ia': { fingerprint: 'fcab678a', ticks: 8967 },
   'contra-relogio': { fingerprint: '89f654e0', ticks: 7768 },
-  'sem-personalidades': { fingerprint: 'aac2f1dc', ticks: 10146 },
+  'sem-personalidades': { fingerprint: '82efca68', ticks: 9918 },
 };
 
 describe('corridas de referência (impressão digital fixa)', () => {

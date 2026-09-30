@@ -1,5 +1,5 @@
 // Ciclo de vida da corrida: criação do grid, contagem, passo da simulação e resultado.
-import { COUNTDOWN_TICKS, MAX_CARS, TICK_RATE } from '../constants';
+import { COUNTDOWN_TICKS, GRID_ROW_GAP, MAX_CARS, TICK_RATE } from '../constants';
 import { AI_CAR_POOL } from '../data/cars';
 import { AI_DRIVERS, AI_TEAM_ID_BASE, personalityOf, rosterOffsetWith } from '../data/drivers';
 import { createRng, nextInt } from '../rng';
@@ -50,10 +50,9 @@ export function createRace(config: RaceConfig, track: Track): RaceState {
   const cars = arrangeGrid(state, ai, humanCars, (seat, name, teamId, carId) => blankCar(config, -1, seat, name, teamId, carId));
 
   // Grid 2 a 2: o primeiro da lista larga na frente. Humanos ficam por último.
-  const gridGap = 260;
   cars.forEach((c, i) => {
     const row = Math.floor(i / 2);
-    c.z = track.length - 600 - row * gridGap;
+    c.z = track.length - 600 - row * GRID_ROW_GAP;
     c.x = i % 2 === 0 ? -0.45 : 0.45;
     // Começam "atrás" da linha: z alto na volta 0 → a primeira passagem pela linha vira a volta 1.
     c.lap = 0;
