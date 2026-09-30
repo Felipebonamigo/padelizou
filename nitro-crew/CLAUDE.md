@@ -34,7 +34,7 @@ não use nada de fora desta pasta.
 - Conteúdo é dado: pistas em `track/tracks.ts` (DSL: `straight/curve/hill/s/pit`), carros em `data/cars.ts`,
   copas em `data/cups.ts`. Pista nova entra sozinha nos testes de IA, de pista e de combustível (corrida inteira por pista).
 - Desempenho do carro vem de `carStats(car)` (`sim/stats.ts`: CarDef + melhorias da carreira, guardado no estado); `carDef`
-  só para nome e cor. A IA da corrida usa só o `AI_CAR_POOL` (os 4 carros livres).
+  só para nome e cor. A IA da corrida usa só o `AI_CAR_POOL` (os 7 carros livres).
 - A tomada de um assento pela IA (online, jogador que caiu) é um comando de entrada (`PlayerInput.takeover`), aplicado
   dentro do `stepRace` — nada muda o estado por fora.
 - Constantes de jogabilidade só em `constants.ts`; mudou balanceamento, rode `npm run balance` e compare voltas.
@@ -59,7 +59,7 @@ não use nada de fora desta pasta.
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
 - **Estado atual** (28/09/2026): Fase 0 e as ondas A–E das Fases 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
-  Carreira (8 carros, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
+  Carreira (14 carros — 7 livres e 7 à venda —, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
   lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
   Onda B: rivais com personalidade e rival por copa, direção assistida e acessibilidade, modos de festa (torneio,
@@ -70,7 +70,7 @@ não use nada de fora desta pasta.
   desfazia, save com o armazenamento cheio (vai ao arquivo e avisa), fantasma e recordes com a versão do conteúdo.
   768 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: a parte
   gráfica (Fase 2) quando o Felipe pedir; antes disso, jogar com gente de verdade e trazer a lista de problemas.
 - **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).

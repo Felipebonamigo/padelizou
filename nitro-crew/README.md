@@ -45,7 +45,8 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
 ## Conteúdo
 - 32 pistas em 8 países (Brasil, EUA, Japão, Europa, África do Sul, Austrália, Escandinávia, Mediterrâneo), 6
   cenários × dia/entardecer/noite (`docs/PISTAS.md`).
-- 8 carros (4 livres, 4 da carreira) com trocas claras de velocidade, aceleração, curva e consumo.
+- 14 carros (7 livres, 7 à venda na carreira), um estilo de carroceria cada, com trocas claras de velocidade,
+  aceleração, curva e consumo (`docs/CARROS.md`).
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box pelo consumo medido volta a volta.
 - Estatísticas por jogador, recordes por pista e 25 conquistas (`docs/ESTATISTICAS.md`).
 - Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (procedural até a arte final).

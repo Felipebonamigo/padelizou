@@ -39,6 +39,16 @@ const check = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if
 
 const humans = (n) => Array.from({ length: n }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: ['falcao', 'trovao', 'tornado', 'camelo'][i], teamId: 0, color: ['#ffd23f', '#3ddc84', '#4fc3f7', '#ff7ab6'][i] }));
 
+// Pior caso da escolha de carro (onda F, 14 carros): os 7 à venda liberados e, nos assentos do lobby, os de
+// nome mais largo nos assentos que a corrida de preparação não troca (P3 "POROROCA V10", P4 "IARA TURBO").
+// Só num save vazio (a primeira carga): não apaga o save de ninguém.
+await page.addInitScript(() => {
+  if (localStorage.getItem('nitro-crew.save')) return;
+  localStorage.setItem('nitro-crew.save', JSON.stringify({
+    carsUnlocked: ['curupira', 'sucuri', 'carcara', 'pororoca', 'iara', 'boitata', 'beijaflor'],
+    seatCars: ['falcao', 'trovao', 'pororoca', 'iara'],
+  }));
+});
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(800);
 await page.evaluate(() => {
@@ -85,10 +95,21 @@ const SCREENS = [
   ['cups-last', () => { window.nc.session.menus.show('cups'); for (let i = 0; i < 7; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', bubbles: true })); }],
   ['tracks', () => window.nc.session.menus.show('tracks')],
   ['career', () => window.nc.session.menus.show('career')],
+  // Dois pilotos: P1 na vitrine do carro mais caro (a etiqueta de preço na coluna da metade da tela).
+  ['garage-2', () => {
+    const s = window.nc.session; for (let i = 0; i < 4; i++) s.input.unbindSeat(i); ['kb1', 'kb2'].forEach((d, i) => s.input.bindSeat(i, d));
+    const hs = [0, 1].map((i) => ({ seat: i, name: `Piloto ${i + 1}`, carId: ['falcao', 'tornado'][i], teamId: 0, color: '#fff' }));
+    s.handleMenuEvent({ type: 'startCareer', humans: hs, resume: false });
+    document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', bubbles: true }));
+  }],
   ['garage-4', () => {
     const s = window.nc.session; ['kb1', 'kb2', 'gp0', 'gp1'].forEach((d, i) => s.input.bindSeat(i, d));
-    const hs = [0, 1, 2, 3].map((i) => ({ seat: i, name: `Piloto ${i + 1}`, carId: 'falcao', teamId: 0, color: '#fff' }));
+    // Os nomes livres mais largos (o carro da carreira nova é o do lobby, se for livre).
+    const hs = [0, 1, 2, 3].map((i) => ({ seat: i, name: `Piloto ${i + 1}`, carId: ['trovao', 'tornado', 'saci', 'boto'][i], teamId: 0, color: '#fff' }));
     s.handleMenuEvent({ type: 'startCareer', humans: hs, resume: false });
+    // P1 (setas) volta dois carros (Trovão → Falcão → o último da lista): a vitrine do mais caro, com nome,
+    // preço e "faltam" na coluna estreita.
+    for (let i = 0; i < 2; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', bubbles: true }));
   }],
   ['party', () => window.nc.session.menus.show('party')],
   ['tournament-8', () => {
@@ -301,10 +322,10 @@ for (const [w, h] of RESOLUTIONS) {
         console.log(`✗ ${tag} (${screen}): ${m.problems.length} problema(s)`);
         for (const p of m.problems.slice(0, 6)) console.log(`    [${p.rule}] ${p.what}`);
         if (m.problems.length > 6) console.log(`    … e mais ${m.problems.length - 6}`);
-        await page.evaluate(() => { for (const a of document.getAnimations()) a.finish(); });
+        await page.evaluate(() => { for (const a of document.getAnimations()) { try { a.finish(); } catch { /* infinita (a barra fantasma da garagem): fica como está */ } } });
         await page.screenshot({ path: `${out}-FAIL-${id}-${w}x${h}${large ? '-grande' : ''}.png` });
       } else if (process.env.NC_LAYOUT_SHOTS) {
-        await page.evaluate(() => { for (const a of document.getAnimations()) a.finish(); });
+        await page.evaluate(() => { for (const a of document.getAnimations()) { try { a.finish(); } catch { /* infinita (a barra fantasma da garagem): fica como está */ } } });
         await page.screenshot({ path: `${out}-${id}-${w}x${h}${large ? '-grande' : ''}.png` });
       }
       worst.push({ id, w, h, large, slack: m.slack });
@@ -323,7 +344,7 @@ for (const x of tight) {
   await setLargeText(x.large);
   const def = SCREENS.find(([id]) => id === x.id);
   await mount(x.id, def[1], def[2]);
-  await page.evaluate(() => { for (const a of document.getAnimations()) a.finish(); });
+  await page.evaluate(() => { for (const a of document.getAnimations()) { try { a.finish(); } catch { /* infinita (a barra fantasma da garagem): fica como está */ } } });
   await page.screenshot({ path: `${out}-tight-${x.id}-${x.w}x${x.h}${x.large ? '-grande' : ''}.png` });
 }
 await setLargeText(false);

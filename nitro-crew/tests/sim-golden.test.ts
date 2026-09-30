@@ -3,6 +3,8 @@
 // (docs/DESEMPENHO.md): otimizar o stepRace não pode mudar um único bit da corrida. Os valores foram
 // gravados no commit 1605294, antes de qualquer otimização, e regravados em 28/09 depois do co-op afinado
 // (passo 1.4: empurrão, vácuo de equipe, elástico, box da IA) — com e sem a otimização deram o mesmo valor.
+// Regravados de novo em 30/09 (onda F, carros novos): a IA passou a sortear entre os 7 carros livres (eram 4),
+// então toda corrida com IA mudou de elenco; o contra-relógio (sem IA) ficou igual, e com ele PHYSICS_REVISION.
 //
 // Mudou a jogabilidade DE PROPÓSITO (constante, IA, física)? Aí o hash muda e é esperado: rode
 // `npx tsx scripts/perf-sim.ts --fingerprints`, confira que só mudaram as corridas que deviam e atualize.
@@ -15,14 +17,14 @@ import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 import { PHYSICS_REVISION } from '../src/game/content-version';
 
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
-  'solo-sem-assistencias': { fingerprint: '08a9194b', ticks: 9193 },
-  'coop4-tudo': { fingerprint: 'bf7ff410', ticks: 8078 },
-  'versus-cambio-manual': { fingerprint: '7b72a4b9', ticks: 10196 },
-  escolta: { fingerprint: '6b252411', ticks: 8476 },
-  revezamento: { fingerprint: 'ab70b19b', ticks: 11852 },
-  'tomada-pela-ia': { fingerprint: 'd1868c01', ticks: 9249 },
+  'solo-sem-assistencias': { fingerprint: '58e69958', ticks: 8774 },
+  'coop4-tudo': { fingerprint: '810fda7c', ticks: 7924 },
+  'versus-cambio-manual': { fingerprint: '7c1d8240', ticks: 9682 },
+  escolta: { fingerprint: '27edfe81', ticks: 8520 },
+  revezamento: { fingerprint: '4729b167', ticks: 12583 },
+  'tomada-pela-ia': { fingerprint: '8c0387f7', ticks: 9261 },
   'contra-relogio': { fingerprint: '89f654e0', ticks: 7768 },
-  'sem-personalidades': { fingerprint: 'aac2f1dc', ticks: 10146 },
+  'sem-personalidades': { fingerprint: 'f14dca12', ticks: 10400 },
 };
 
 describe('corridas de referência (impressão digital fixa)', () => {

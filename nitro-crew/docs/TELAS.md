@@ -88,7 +88,8 @@ Variáveis: `NC_LAYOUT_ONLY=options,lobby-4` (só essas telas; sem as que depend
 `NC_LAYOUT_CSS=arquivo.css` (injeta CSS antes de medir: experimente um ajuste sem refazer o build).
 
 Telas medidas: título, menu principal (com "Continuar"), lobby com 1 e com 4 jogadores, copas (primeira e
-última em foco), pistas, carreira, garagem com 4 pilotos, festa, inscrição do torneio com 8 pilotos,
+última em foco), pistas, carreira, garagem com 2 pilotos (P1 na vitrine do carro mais caro) e com 4
+(P1 na vitrine; os outros com os nomes de carro livre mais largos), festa, inscrição do torneio com 8 pilotos,
 "passe o controle", tabela do torneio, opções, acessibilidade, controles, recordes, créditos, online
 (conectar), "Como jogar" com 4 assentos, fim do tutorial (concluído e pulado), resultado (normal e com 14
 conquistas), classificação e pausa.
@@ -107,6 +108,8 @@ entrou depois: 364 hoje) e o HUD reprovado nos 4 casos medidos, número e rótul
 | Lobby / torneio | "Vácuo de equipe", "Carros na pista", "Rodadas classificatórias" cortados com texto grande | setas e valor mais estreitos no painel |
 | Controles | VOLTAR fora da tela em 1280×800 e 1024×640 (as colunas empilhavam abaixo de 1100 px); "Virar à esquer…", "Teclado 1" cortados | colunas pelo conteúdo, células mais baixas, duas colunas também em 1024; sem ícone no título e sem a linha de ajuda com texto grande |
 | Garagem, 4 pilotos | nome do piloto virava "P…" em toda resolução; "Próxima: … — corrid…"; painéis rolando e "Tanque"/"Falcão GT" recortados com texto grande | dinheiro numa linha própria; próxima pista quebra linha; aperto das telas 4:3 também no texto grande |
+| Garagem, 2 e 4 pilotos (onda F, 30/09) | com 2: "TORNA…", "BEIJA…", "Tanque" e "Piloto 1" cortados em toda resolução; com 2–4, a etiqueta "À VENDA $ 40.000 / faltam…" invadia as setas e fazia o painel rolar; "TORNADO RS" cortado com 4 e texto grande em 1024×640 | 2 pilotos usam a coluna única das 3–4; vitrine compacta (só o preço, vermelho se falta dinheiro); nome do carro um tamanho abaixo com 4 e texto grande (`garage.css`) |
+| Lobby (onda F) | "POROROCA V10" cortado na grade 2×2: com o contador "5/14" ao lado do nome em qualquer texto, e mesmo sem ele com texto grande | contador embaixo do desenho; nome um tamanho abaixo com texto grande (`lobby.css`) |
 | Online | "Código da…" cortado; VOLTAR fora da tela em 1024×640 (cartões empilhados) | campo do código com largura fixa, rótulo quebra; cartões lado a lado em 1024 |
 | Copas | detalhe da copa por baixo da dica com texto grande | corridas mais baixas com texto grande |
 | Fim do tutorial | "Menu principal" fora da tela com texto grande | caixa mais larga, menos respiro |

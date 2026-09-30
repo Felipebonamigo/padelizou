@@ -1,5 +1,6 @@
 /* Garagem da carreira e tela "Carreira". Usa os tokens de styles.css (--u, --accent, .glass…).
-   Painéis por piloto: 1 = um painel largo; 2 = lado a lado; 3–4 = grade 2×2 (compacta). */
+   Painéis por piloto: 1 = um painel largo (carro à esquerda, melhorias à direita); 2–4 = uma coluna por
+   piloto, lado a lado (compacta). */
 
 /* ───────────── Tela "Carreira" ───────────── */
 
@@ -102,7 +103,20 @@
 .gp-car.focus .sel-arrow { color: var(--accent); background: var(--accent-soft); }
 .gp-car.locked .sel-arrow { visibility: hidden; }
 .gp-car-body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: calc(2 * var(--u)) calc(10 * var(--u)); align-items: center; }
-.gp-car-name { grid-column: 1 / 3; font-size: var(--fs-md); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-car-name { grid-column: 1 / 3; display: flex; align-items: baseline; gap: calc(8 * var(--u)); min-width: 0; font-size: var(--fs-md); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+/* Nome e "5/14" na mesma linha: quem encolhe (com reticências) é o nome, nunca o contador. */
+.gp-car-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gp-car-count { flex: none; margin-left: auto; color: var(--muted); font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0; text-transform: none; }
+/* Com 2–4 pilotos a coluna é estreita: o nome do carro ocupa a linha inteira (playtest-layout, 1024×640). */
+.garage-panels.n-2 .gp-car-count, .garage-panels.n-3 .gp-car-count, .garage-panels.n-4 .gp-car-count { display: none; }
+/* Vitrine com 2–4 pilotos: a etiqueta é só o preço, numa linha, da altura do "NA PISTA" — em vermelho se não
+   dá para comprar. "À VENDA $ 40.000" invadia as setas e o "faltam" empurrava o painel para rolar. */
+.garage-panels.n-2 .gp-tag-k, .garage-panels.n-3 .gp-tag-k, .garage-panels.n-4 .gp-tag-k,
+.garage-panels.n-2 .gp-tag-need, .garage-panels.n-3 .gp-tag-need, .garage-panels.n-4 .gp-tag-need { display: none; }
+.garage-panels.n-2 .gp-tag.sale.cant b, .garage-panels.n-3 .gp-tag.sale.cant b, .garage-panels.n-4 .gp-tag.sale.cant b { color: var(--bad); }
+/* A frase do carro (a troca dele) só com um piloto: com 2–4 a coluna não tem altura sobrando. */
+.gp-car-blurb { display: none; margin: calc(2 * var(--u)) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.25; }
+.garage-panels.n-1 .gp-car-blurb { display: block; }
 .gp-car-visual { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .gp-car-visual .car-svg { max-height: calc(64 * var(--u)); }
 /* A etiqueta nunca quebra linha: quem encolhe é o desenho do carro (largura 100% da coluna). */
@@ -169,36 +183,35 @@
 .garage-panels:not(.n-1) .gp-tag.sale { align-items: center; padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
 .garage-panels:not(.n-1) .gp-tag-line { flex-direction: row; align-items: baseline; gap: calc(6 * var(--u)); }
 .garage-panels:not(.n-1) .gp-tag.sale b { font-size: var(--fs); }
-.garage-panels.n-2 .gp-car-visual .car-svg { max-height: calc(44 * var(--u)); }
 
 
-/* 3–4 pilotos: uma coluna por piloto, carro e atributos em cima,
+/* 2–4 pilotos: uma coluna por piloto, carro e atributos em cima,
    melhorias embaixo, tudo mais justo para caber em 720p sem rolar. */
 .garage-panels.n-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; }
 .garage-panels.n-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); align-content: start; }
-.garage-panels.n-3 .gp, .garage-panels.n-4 .gp {
+.garage-panels.n-2 .gp, .garage-panels.n-3 .gp, .garage-panels.n-4 .gp {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   padding: calc(6 * var(--u)) calc(10 * var(--u));
   gap: calc(5 * var(--u));
 }
-.garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { grid-column: 1; }
-.garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex-direction: column; align-items: flex-end; gap: 0; }
-.garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { font-size: calc(11 * var(--u)); }
-.garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { font-size: var(--fs-md); line-height: 1.1; }
-.garage-panels.n-3 .gp-left, .garage-panels.n-4 .gp-left,
-.garage-panels.n-3 .gp-right, .garage-panels.n-4 .gp-right { gap: calc(4 * var(--u)); }
-.garage-panels.n-3 .gp-car-name, .garage-panels.n-4 .gp-car-name { font-size: var(--fs); line-height: 1.15; }
-.garage-panels.n-3 .gp-car-visual .car-svg, .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(32 * var(--u)); }
-.garage-panels.n-3 .gs, .garage-panels.n-4 .gs { row-gap: calc(1 * var(--u)); }
-.garage-panels.n-3 .gs-label, .garage-panels.n-4 .gs-label,
-.garage-panels.n-3 .gs-value, .garage-panels.n-4 .gs-value { font-size: calc(14 * var(--u)); line-height: 1.15; }
-.garage-panels.n-3 .gp-parts .sub-title, .garage-panels.n-4 .gp-parts .sub-title { display: none; }
-.garage-panels.n-3 .gp-part, .garage-panels.n-4 .gp-part { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); font-size: var(--fs-sm); line-height: 1.25; }
-/* Com 3–4 pilotos a dica de teclas sai: a altura vai para os painéis. */
-.scr-garage:has(.garage-panels.n-3) > .hint, .scr-garage:has(.garage-panels.n-4) > .hint { display: none; }
-.garage-panels.n-3 .gp-msg, .garage-panels.n-4 .gp-msg { min-height: 1.1em; }
-.garage-panels.n-3 .btn-ready, .garage-panels.n-4 .btn-ready { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
+.garage-panels.n-2 .gp-head, .garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { grid-column: 1; }
+.garage-panels.n-2 .gp-money, .garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex-direction: column; align-items: flex-end; gap: 0; }
+.garage-panels.n-2 .gp-money small, .garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { font-size: calc(11 * var(--u)); }
+.garage-panels.n-2 .gp-money b, .garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { font-size: var(--fs-md); line-height: 1.1; }
+.garage-panels.n-2 .gp-left, .garage-panels.n-3 .gp-left, .garage-panels.n-4 .gp-left,
+.garage-panels.n-2 .gp-right, .garage-panels.n-3 .gp-right, .garage-panels.n-4 .gp-right { gap: calc(4 * var(--u)); }
+.garage-panels.n-2 .gp-car-name, .garage-panels.n-3 .gp-car-name, .garage-panels.n-4 .gp-car-name { font-size: var(--fs); line-height: 1.15; }
+.garage-panels.n-2 .gp-car-visual .car-svg, .garage-panels.n-3 .gp-car-visual .car-svg, .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(32 * var(--u)); }
+.garage-panels.n-2 .gs, .garage-panels.n-3 .gs, .garage-panels.n-4 .gs { row-gap: calc(1 * var(--u)); }
+.garage-panels.n-2 .gs-label, .garage-panels.n-3 .gs-label, .garage-panels.n-4 .gs-label,
+.garage-panels.n-2 .gs-value, .garage-panels.n-3 .gs-value, .garage-panels.n-4 .gs-value { font-size: calc(14 * var(--u)); line-height: 1.15; }
+.garage-panels.n-2 .gp-parts .sub-title, .garage-panels.n-3 .gp-parts .sub-title, .garage-panels.n-4 .gp-parts .sub-title { display: none; }
+.garage-panels.n-2 .gp-part, .garage-panels.n-3 .gp-part, .garage-panels.n-4 .gp-part { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); font-size: var(--fs-sm); line-height: 1.25; }
+/* Com 2–4 pilotos a dica de teclas sai: a altura vai para os painéis. */
+.scr-garage:has(.garage-panels.n-2) > .hint, .scr-garage:has(.garage-panels.n-3) > .hint, .scr-garage:has(.garage-panels.n-4) > .hint { display: none; }
+.garage-panels.n-2 .gp-msg, .garage-panels.n-3 .gp-msg, .garage-panels.n-4 .gp-msg { min-height: 1.1em; }
+.garage-panels.n-2 .btn-ready, .garage-panels.n-3 .btn-ready, .garage-panels.n-4 .btn-ready { padding-top: calc(3 * var(--u)); padding-bottom: calc(3 * var(--u)); }
 
 /* Tela estreita (4:3, janela) com 4 pilotos: linhas mais enxutas para os nomes caberem na coluna. */
 @media (max-aspect-ratio: 3/2) {
@@ -219,33 +232,33 @@
   .scr-garage .hint { display: none; }
 }
 
-/* 3–4 pilotos: o dinheiro desce para uma linha própria embaixo do nome — na mesma linha, o nome
+/* 2–4 pilotos: o dinheiro desce para uma linha própria embaixo do nome — na mesma linha, o nome
    virava "P…" em qualquer resolução (docs/TELAS.md). A cabeça fica da mesma altura: o dinheiro já
    ocupava duas linhas (rótulo em cima do valor). */
-.garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { flex-wrap: wrap; row-gap: calc(2 * var(--u)); }
-.garage-panels.n-3 .gp-name, .garage-panels.n-4 .gp-name { flex: 1 1 0; min-width: 0; }
-.garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex: 1 1 100%; flex-direction: row; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); margin-left: 0; }
-.garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { line-height: 1.1; min-width: 0; }
-.garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { white-space: nowrap; }
+.garage-panels.n-2 .gp-head, .garage-panels.n-3 .gp-head, .garage-panels.n-4 .gp-head { flex-wrap: wrap; row-gap: calc(2 * var(--u)); }
+.garage-panels.n-2 .gp-name, .garage-panels.n-3 .gp-name, .garage-panels.n-4 .gp-name { flex: 1 1 0; min-width: 0; }
+.garage-panels.n-2 .gp-money, .garage-panels.n-3 .gp-money, .garage-panels.n-4 .gp-money { flex: 1 1 100%; flex-direction: row; align-items: center; justify-content: space-between; gap: calc(6 * var(--u)); margin-left: 0; }
+.garage-panels.n-2 .gp-money small, .garage-panels.n-3 .gp-money small, .garage-panels.n-4 .gp-money small { line-height: 1.1; min-width: 0; }
+.garage-panels.n-2 .gp-money b, .garage-panels.n-3 .gp-money b, .garage-panels.n-4 .gp-money b { white-space: nowrap; }
 
-/* Texto grande com 3–4 pilotos: o mesmo aperto das telas 4:3 (peças, bolinhas, setas) e espaçamentos
+/* Texto grande com 2–4 pilotos: o mesmo aperto das telas 4:3 (peças, bolinhas, setas) e espaçamentos
    menores, para a coluna caber sem rolar e sem recortar "Tanque" nem "Falcão GT". */
-#ui.large-text .garage-panels.n-3 .gp, #ui.large-text .garage-panels.n-4 .gp { gap: calc(3 * var(--u)); padding-top: calc(4 * var(--u)); padding-bottom: calc(4 * var(--u)); }
-#ui.large-text .garage-panels.n-3 .gp-left, #ui.large-text .garage-panels.n-4 .gp-left,
-#ui.large-text .garage-panels.n-3 .gp-right, #ui.large-text .garage-panels.n-4 .gp-right { gap: calc(3 * var(--u)); }
-#ui.large-text .garage-panels.n-3 .gp-money b, #ui.large-text .garage-panels.n-4 .gp-money b { font-size: var(--fs); }
-#ui.large-text .garage-panels.n-3 .gp-car, #ui.large-text .garage-panels.n-4 .gp-car { padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
-#ui.large-text .garage-panels.n-3 .gp-car-visual .car-svg, #ui.large-text .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(26 * var(--u)); }
-#ui.large-text .garage-panels.n-4 .gp-car-name { letter-spacing: 0; }
+#ui.large-text .garage-panels.n-2 .gp, #ui.large-text .garage-panels.n-3 .gp, #ui.large-text .garage-panels.n-4 .gp { gap: calc(3 * var(--u)); padding-top: calc(4 * var(--u)); padding-bottom: calc(4 * var(--u)); }
+#ui.large-text .garage-panels.n-2 .gp-left, #ui.large-text .garage-panels.n-3 .gp-left, #ui.large-text .garage-panels.n-4 .gp-left,
+#ui.large-text .garage-panels.n-2 .gp-right, #ui.large-text .garage-panels.n-3 .gp-right, #ui.large-text .garage-panels.n-4 .gp-right { gap: calc(3 * var(--u)); }
+#ui.large-text .garage-panels.n-2 .gp-money b, #ui.large-text .garage-panels.n-3 .gp-money b, #ui.large-text .garage-panels.n-4 .gp-money b { font-size: var(--fs); }
+#ui.large-text .garage-panels.n-2 .gp-car, #ui.large-text .garage-panels.n-3 .gp-car, #ui.large-text .garage-panels.n-4 .gp-car { padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
+#ui.large-text .garage-panels.n-2 .gp-car-visual .car-svg, #ui.large-text .garage-panels.n-3 .gp-car-visual .car-svg, #ui.large-text .garage-panels.n-4 .gp-car-visual .car-svg { max-height: calc(26 * var(--u)); }
+#ui.large-text .garage-panels.n-4 .gp-car-name { letter-spacing: 0; font-size: var(--fs-sm); }
 #ui.large-text .garage-panels.n-4 .gp-car .sel-arrow { width: calc(24 * var(--u)); height: calc(24 * var(--u)); }
-#ui.large-text .garage-panels.n-3 .gs-label, #ui.large-text .garage-panels.n-4 .gs-label,
-#ui.large-text .garage-panels.n-3 .gs-value, #ui.large-text .garage-panels.n-4 .gs-value { line-height: 1.05; }
-#ui.large-text .garage-panels.n-3 .gp-part, #ui.large-text .garage-panels.n-4 .gp-part { line-height: 1.1; gap: calc(4 * var(--u)); padding-left: calc(9 * var(--u)); padding-right: calc(5 * var(--u)); }
+#ui.large-text .garage-panels.n-2 .gs-label, #ui.large-text .garage-panels.n-3 .gs-label, #ui.large-text .garage-panels.n-4 .gs-label,
+#ui.large-text .garage-panels.n-2 .gs-value, #ui.large-text .garage-panels.n-3 .gs-value, #ui.large-text .garage-panels.n-4 .gs-value { line-height: 1.05; }
+#ui.large-text .garage-panels.n-2 .gp-part, #ui.large-text .garage-panels.n-3 .gp-part, #ui.large-text .garage-panels.n-4 .gp-part { line-height: 1.1; gap: calc(4 * var(--u)); padding-left: calc(9 * var(--u)); padding-right: calc(5 * var(--u)); }
 #ui.large-text .garage-panels.n-4 .gp-part-price { min-width: 0; }
 #ui.large-text .garage-panels.n-4 .pips { gap: calc(2 * var(--u)); }
 #ui.large-text .garage-panels.n-4 .pips i { width: calc(8 * var(--u)); }
-#ui.large-text .garage-panels.n-3 .gp-msg, #ui.large-text .garage-panels.n-4 .gp-msg { line-height: 1.1; min-height: 1.1em; }
-#ui.large-text .garage-panels.n-3 .btn-ready, #ui.large-text .garage-panels.n-4 .btn-ready { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
+#ui.large-text .garage-panels.n-2 .gp-msg, #ui.large-text .garage-panels.n-3 .gp-msg, #ui.large-text .garage-panels.n-4 .gp-msg { line-height: 1.1; min-height: 1.1em; }
+#ui.large-text .garage-panels.n-2 .btn-ready, #ui.large-text .garage-panels.n-3 .btn-ready, #ui.large-text .garage-panels.n-4 .btn-ready { padding-top: calc(1 * var(--u)); padding-bottom: calc(1 * var(--u)); }
 
 /* ───────────── Lobby da carreira / de "Continuar" ───────────── */
 

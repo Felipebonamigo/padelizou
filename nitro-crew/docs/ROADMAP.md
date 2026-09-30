@@ -59,7 +59,7 @@ a pedido do dono: gráficos atuais); a arte final entra como modelos glTF e text
 |---|---|---|---|
 | 2.1 | Direção de arte fechada em documento de 1 página (paleta por bioma, proporção dos carros, o que é "premium" nas referências Horizon Chase Turbo / Art of Rally); **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
 | 2.2 | Contratar artista 3D low-poly (ou pipeline com IA + retoque no Blender) com o briefing gerado da lista de `SpriteKind`, carros e biomas já no código; formato glTF, orçamento de triângulos por modelo | V + T | 4–5 |
-| 2.3 | Assets: 8 carros (com variações de cor por material), ~60 modelos de cenário (6 biomas), skyboxes/céus e anéis de horizonte por bioma × período, arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
+| 2.3 | Assets: 14 carros (com variações de cor por material), ~60 modelos de cenário (6 biomas), skyboxes/céus e anéis de horizonte por bioma × período, arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
 | 2.4 | Integração: carregador glTF no renderizador (substitui os modelos procedurais um a um), materiais e LODs, animações (rodas, suspensão, chama), efeitos de clima; "visual procedural" pode ficar como opção de baixo custo | A | 8–14 |
 | 2.5 | Interface final: HUD e menus com design de produto (tipografia, ícones, transições), tela de vitória da copa, cinemática curta de pódio | T + A | 9–13 |
 | 2.6 | Áudio: trilha com 10–12 músicas para o jukebox (compositor synthwave/rock), ~40 efeitos gravados ou desenhados, locutor de contagem (opcional) | T + A | 8–14 |
@@ -127,7 +127,7 @@ ver as vendas na Steam.
 | Item | Estimativa |
 |---|---|
 | Steam Direct | US$ 100 (devolvidos após US$ 1.000 em vendas) |
-| Arte 3D low-poly (8 carros, cenários de 6 biomas, UI, cápsulas) | R$ 12–40 mil conforme escopo; menos com pipeline assistido por IA + Blender |
+| Arte 3D low-poly (14 carros, cenários de 6 biomas, UI, cápsulas) | R$ 12–40 mil conforme escopo; menos com pipeline assistido por IA + Blender |
 | Trilha (10–12 músicas) e efeitos | R$ 3–12 mil (compositor chiptune) ou bancos licenciados |
 | Marca no INPI (opcional, recomendado) | ~R$ 355 + honorários |
 | Servidor relay (só para o online próprio, Fase 4.2) | R$ 30–100/mês |
