@@ -103,3 +103,27 @@ mesa laranja, skyline) · `dunas_jalapao` (dunas laranja).
 `catedral_artica` · `positano` · `cupula_azul` · `moinho_santorini` · `vulcao_etna` · `coliseu` ·
 `cupula_sao_pedro`. Marcas reais (letreiros com logotipo) ficam sem a marca: a placa de Las Vegas diz
 "WELCOME", a de Osaka não tem o corredor da marca.
+
+## Mudança de 02/10: 3 pistas por estado (como as regiões do Horizon Chase Turbo)
+
+O dono pediu para subdividir por estado, com cerca de 3 pistas cada. **Isto substitui as 12 copas acima.**
+
+- **Turnê Brasil** (etapa 1): 27 copas, uma por estado, de 3 pistas cada (81 pistas), em ordem de região:
+  Sudeste (RJ, SP, MG, ES) → Sul (PR, SC, RS) → Centro-Oeste (DF, GO, MS, MT) → Nordeste (BA, SE, AL, PE, PB,
+  RN, CE, PI, MA) → Norte (PA, AM, AP, RR, RO, AC, TO). Dificuldade sobe ao longo da turnê (1 → 5); a região é
+  o agrupamento na tela, a copa é o estado. Copa id = `br_<uf>` (ex.: `br_rj`).
+- **Mundial** (etapa 2, destrava ao terminar a Turnê Brasil): as 8 copas de país de hoje, menos a Brasil — 7
+  copas de 4 pistas, com a sua própria rampa de dificuldade.
+- **Planetas** (etapa 3): depois.
+
+As 27 pistas da tabela acima são a primeira de cada estado; as outras 54 estão em
+`EXTRA_BRAZIL_PLACES` (`src/core/data/places.ts`), com o lugar no id e os marcos (ids novos = segunda leva de
+modelos, que entra depois do merge desta onda). Lugares: RJ Paraty, Serra dos Órgãos · SP Ilhabela, Campos do
+Jordão · MG Pampulha, Serra da Canastra · ES Pedra Azul, Itaúnas · PR Foz do Iguaçu, Curitiba · SC Balneário
+Camboriú, Serra do Rio do Rastro · RS Orla do Guaíba, Aparados da Serra · DF Lago Paranoá, Torre de TV · GO
+Pirenópolis, Caldas Novas · MS Estrada Parque, Campo Grande · MT Chapada dos Guimarães, Cuiabá · BA Chapada
+Diamantina, Porto Seguro · SE Xingó, São Cristóvão · AL Maceió, Foz do São Francisco · PE Recife Antigo, Fernando
+de Noronha · PB Campina Grande, Pedra da Boca · RN Ponta Negra, Cajueiro de Pirangi · CE Fortaleza, Canoa
+Quebrada · PI Delta do Parnaíba, Sete Cidades · MA São Luís, Chapada das Mesas · PA Alter do Chão, Marajó · AM
+Ponte Rio Negro, Parintins · AP Pororoca do Araguari, Serra do Navio · RR Boa Vista, Lago Caracaranã · RO Forte
+Príncipe da Beira, Vale do Guaporé · AC Geoglifos, Estrada do Pacífico · TO Palmas, Ilha do Bananal.
