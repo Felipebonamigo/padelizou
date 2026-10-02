@@ -110,7 +110,7 @@ function tintFor(seed: number, amount: number): [number, number, number] {
   return [k * (1 + warm * 0.5), k, k * (1 - warm * 0.6)];
 }
 
-function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy): void {
+function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
   const segs = track.segments;
   const def = track.def;
   for (let i = 0; i < segs.length; i++) {
@@ -160,6 +160,8 @@ function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: 
       const lat0 = vis.mode === 'building' ? edgeM : lat - Math.max(half, 1) * 1.3;
       const lat1 = vis.mode === 'building' ? edgeM + 26 : lat + Math.max(half, 1) * 1.3;
       occ.mark(i, side, Math.max(0, lat0), lat1, Math.ceil(alongHalf / SEGMENT_M));
+      // O que tapa a vista de um marco (prédio, torre, arquibancada, box, outdoor): grade à parte, da pista para fora.
+      if (sp.kind === 'building' || sp.kind === 'tower' || sp.kind === 'grandstand' || sp.kind === 'pit_wall' || sp.kind === 'billboard') tall.mark(i, side, 0, lat1, Math.ceil(alongHalf / SEGMENT_M));
     }
   }
 }
@@ -198,7 +200,7 @@ const LANDMARK_VIEW = 300;
 
 interface LandmarkFoot { k: number; cx: number; cz: number; r: number }
 
-function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy): void {
+function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
   const segs = track.segments; const n = segs.length;
   const entries: Array<{ id: string; def: LandmarkDef }> = [];
   for (const id of ids) {
@@ -244,7 +246,8 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const samples: Array<[number, number]> = [[0, 0], ...corners, [b.minX, 0], [b.maxX, 0]];
     const radius = Math.hypot(Math.max(-b.minX, b.maxX), Math.max(-b.minZ, b.maxZ));
     let done = false;
-    // Duas passadas: a primeira exige chão quase plano sob a pegada; a segunda aceita declive (a saia cobre).
+    // Três passadas: a primeira exige chão quase plano e (perto) a vista livre de quem chega; a segunda aceita declive
+    // e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
     for (let pass = 0; pass < 3 && !done; pass++) {
       const top = pass === 2 ? lat1 * 2 : lat1;
       for (let o = 0; o <= 2 * reach && !done; o += 4) {
@@ -274,6 +277,9 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             // a última passada abre mão disso.
             const corridor = place === 'near' && pass < 2;
             if (!occ.free(i, side, corridor ? FENCE_M : latA, latB, span)) continue;
+            // …e o caminho de quem chega (os ~120 m antes da pegada) sem sprite entre a cerca e ele, nem nada alto (prédio de
+            // Sampa, arquibancada, box, outdoor) da pista até ele: senão só se vê o marco com o carro do lado dele.
+            if (corridor && pass === 0 && (!occ.free(((i - span - 16) % n + n) % n, side, FENCE_M, latA, 15) || !tall.free(((i - span - 16) % n + n) % n, side, 0, latA, 15))) continue;
             // Pegada contra a linha central à vista (inclusive trechos vizinhos de grampo e curva em S).
             const k = i + n;
             const cx = (px[k] + px[k + 1]) / 2 + side * L * Math.cos(hd[k]);
@@ -311,6 +317,9 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
             out[i].push(p);
             occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
+            // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
+            // bosque de 26–142 m o esconde até o carro estar do lado dele.
+            if (place === 'near') for (let d = span + 1; d <= span + 40; d += 2) occ.mark(((i - d) % n + n) % n, side, FENCE_M + 2.5, latA, 1);
             placed.push({ k, cx, cz, r: radius });
             // Quadras de fundo da cidade (terreno) fora da pegada e do caminho de quem chega (~200 m antes).
             clearings.push({ seg: i, side, lat: latB + 15, back: span + 50, ahead: span + 4 });
@@ -511,8 +520,9 @@ export function sceneryLayout(track: Track, landmarks: readonly string[] = TRACK
   const table = new ModelTable();
   const bySeg: Placement[][] = track.segments.map(() => []);
   const occ = new Occupancy(track.segments.length);
-  placeSprites(track, table, bySeg, occ);
-  placeLandmarks(track, landmarks, table, bySeg, occ);
+  const tall = new Occupancy(track.segments.length);
+  placeSprites(track, table, bySeg, occ, tall);
+  placeLandmarks(track, landmarks, table, bySeg, occ, tall);
   dress(track, dressingRecipe(track.def), table, bySeg, occ);
   for (const list of bySeg) for (const p of list) { p.yawC = Math.cos(p.yaw); p.yawS = Math.sin(p.yaw); }
   return { models: table.ids, bySeg };
