@@ -375,7 +375,15 @@ export interface CupDef {
   trackIds: string[];
   /** Copa que precisa ter sido vencida (ou qualificada) para destravar esta. */
   requires: string | null;
+  /** Etapa: a Expedição Brasil (um estado por copa) ou o Mundial (um país por copa). */
+  stage: CupStage;
+  /** Expedição Brasil: região (a tela agrupa por ela) e sigla do estado (o carimbo do passaporte). */
+  region?: BrazilRegion;
+  state?: string;
 }
+
+export type CupStage = 'brasil' | 'mundial';
+export type BrazilRegion = 'sudeste' | 'sul' | 'centro_oeste' | 'nordeste' | 'norte';
 
 export interface StandingRow {
   /** Nome estável do participante (humanos: "seat:N"; IA: nome do piloto). */

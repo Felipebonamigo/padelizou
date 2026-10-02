@@ -286,7 +286,6 @@ conquista da lista tem linha nesta tabela.
 | ID | Nome (PT) | Nome (EN) | Como desbloquear |
 |---|---|---|---|
 | `PRIMEIRA_VITORIA` | Primeira vitória | First Win | Vencer qualquer corrida (o contra-relógio não conta). |
-| `COPA_BRASIL` | Copa Brasil | Brazil Cup | Concluir a Copa Brasil. |
 | `COPA_EUA` | Copa Estados Unidos | USA Cup | Concluir a Copa Estados Unidos. |
 | `COPA_JAPAO` | Copa Japão | Japan Cup | Concluir a Copa Japão. |
 | `COPA_EUROPA` | Copa Europa | Europe Cup | Concluir a Copa Europa. |
@@ -310,6 +309,39 @@ conquista da lista tem linha nesta tabela.
 | `DEZ_VITORIAS` | Dez vitórias | Ten Wins | Somar 10 vitórias (o contra-relógio não conta). |
 | `GIRO_COMPLETO` | Giro completo | Grand Tour | Correr em todas as pistas do jogo (o contra-relógio não conta). |
 | `RIVAL_DERROTADO` | Rival derrotado | Rival Defeated | Concluir uma copa (normal ou da carreira) terminando à frente do rival da copa em todas as corridas. |
+| `COPA_BR_RJ` | Copa Rio de Janeiro | Rio de Janeiro Cup | Concluir a Copa Rio de Janeiro (carimba RJ no passaporte). |
+| `COPA_BR_SP` | Copa São Paulo | São Paulo Cup | Concluir a Copa São Paulo (carimba SP no passaporte). |
+| `COPA_BR_MG` | Copa Minas Gerais | Minas Gerais Cup | Concluir a Copa Minas Gerais (carimba MG no passaporte). |
+| `COPA_BR_ES` | Copa Espírito Santo | Espírito Santo Cup | Concluir a Copa Espírito Santo (carimba ES no passaporte). |
+| `COPA_BR_PR` | Copa Paraná | Paraná Cup | Concluir a Copa Paraná (carimba PR no passaporte). |
+| `COPA_BR_SC` | Copa Santa Catarina | Santa Catarina Cup | Concluir a Copa Santa Catarina (carimba SC no passaporte). |
+| `COPA_BR_RS` | Copa Rio Grande do Sul | Rio Grande do Sul Cup | Concluir a Copa Rio Grande do Sul (carimba RS no passaporte). |
+| `COPA_BR_DF` | Copa Distrito Federal | Federal District Cup | Concluir a Copa Distrito Federal (carimba DF no passaporte). |
+| `COPA_BR_GO` | Copa Goiás | Goiás Cup | Concluir a Copa Goiás (carimba GO no passaporte). |
+| `COPA_BR_MS` | Copa Mato Grosso do Sul | Mato Grosso do Sul Cup | Concluir a Copa Mato Grosso do Sul (carimba MS no passaporte). |
+| `COPA_BR_MT` | Copa Mato Grosso | Mato Grosso Cup | Concluir a Copa Mato Grosso (carimba MT no passaporte). |
+| `COPA_BR_BA` | Copa Bahia | Bahia Cup | Concluir a Copa Bahia (carimba BA no passaporte). |
+| `COPA_BR_SE` | Copa Sergipe | Sergipe Cup | Concluir a Copa Sergipe (carimba SE no passaporte). |
+| `COPA_BR_AL` | Copa Alagoas | Alagoas Cup | Concluir a Copa Alagoas (carimba AL no passaporte). |
+| `COPA_BR_PE` | Copa Pernambuco | Pernambuco Cup | Concluir a Copa Pernambuco (carimba PE no passaporte). |
+| `COPA_BR_PB` | Copa Paraíba | Paraíba Cup | Concluir a Copa Paraíba (carimba PB no passaporte). |
+| `COPA_BR_RN` | Copa Rio Grande do Norte | Rio Grande do Norte Cup | Concluir a Copa Rio Grande do Norte (carimba RN no passaporte). |
+| `COPA_BR_CE` | Copa Ceará | Ceará Cup | Concluir a Copa Ceará (carimba CE no passaporte). |
+| `COPA_BR_PI` | Copa Piauí | Piauí Cup | Concluir a Copa Piauí (carimba PI no passaporte). |
+| `COPA_BR_MA` | Copa Maranhão | Maranhão Cup | Concluir a Copa Maranhão (carimba MA no passaporte). |
+| `COPA_BR_PA` | Copa Pará | Pará Cup | Concluir a Copa Pará (carimba PA no passaporte). |
+| `COPA_BR_AM` | Copa Amazonas | Amazonas Cup | Concluir a Copa Amazonas (carimba AM no passaporte). |
+| `COPA_BR_AP` | Copa Amapá | Amapá Cup | Concluir a Copa Amapá (carimba AP no passaporte). |
+| `COPA_BR_RR` | Copa Roraima | Roraima Cup | Concluir a Copa Roraima (carimba RR no passaporte). |
+| `COPA_BR_RO` | Copa Rondônia | Rondônia Cup | Concluir a Copa Rondônia (carimba RO no passaporte). |
+| `COPA_BR_AC` | Copa Acre | Acre Cup | Concluir a Copa Acre (carimba AC no passaporte). |
+| `COPA_BR_TO` | Copa Tocantins | Tocantins Cup | Concluir a Copa Tocantins (carimba TO no passaporte). |
+| `REGIAO_SUDESTE` | Sudeste carimbado | Southeast Stamped | Carimbar no passaporte todos os estados da região (RJ, SP, MG e ES). |
+| `REGIAO_SUL` | Sul carimbado | South Stamped | Carimbar no passaporte todos os estados da região (PR, SC e RS). |
+| `REGIAO_CENTRO_OESTE` | Centro-Oeste carimbado | Center-West Stamped | Carimbar no passaporte todos os estados da região (DF, GO, MS e MT). |
+| `REGIAO_NORDESTE` | Nordeste carimbado | Northeast Stamped | Carimbar no passaporte todos os estados da região (BA, SE, AL, PE, PB, RN, CE, PI e MA). |
+| `REGIAO_NORTE` | Norte carimbado | North Stamped | Carimbar no passaporte todos os estados da região (PA, AM, AP, RR, RO, AC e TO). |
+| `PASSAPORTE_COMPLETO` | Passaporte completo | Full Passport | Carimbar os 27 estados (a Expedição Brasil inteira). |
 
 O jogo chama `getDesktop()?.achievement(id)` e também guarda o id em `SaveData.achievements`, para o
 desbloqueio contar fora da Steam e ser reenviado se a Steam estiver fechada na hora.

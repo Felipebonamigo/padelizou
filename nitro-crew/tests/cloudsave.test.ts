@@ -115,7 +115,7 @@ describe('hydrateFromDisk (inicialização no Electron)', () => {
   // era gravado por cima do arquivo, que podia ser o mais novo, vindo da nuvem de outro computador. As
   // gravações funcionavam; o teste anterior só usava disco que também recusava gravação e não via isso.
   it('leitura do disco que falha ou atrasa: nada é gravado por cima do arquivo', async () => {
-    const cloud = '{"racesRun":42,"cupsCompleted":["brasil"]}';
+    const cloud = '{"racesRun":42,"cupsCompleted":["br_rj"]}';
     const reads = [
       () => Promise.reject(new Error('IPC morto')),
       () => new Promise<Record<string, string>>((resolve) => { setTimeout(() => resolve({ 'nitro-crew.save': cloud }), 60); }),
@@ -167,10 +167,10 @@ describe('hydrateFromDisk (inicialização no Electron)', () => {
   it('progresso de outro computador chega à sessão pelo loadSave de sempre', async () => {
     const storage = new MemoryStorage();
     vi.stubGlobal('localStorage', storage);
-    await hydrateFromDisk(fakeDisk({ [SAVE_KEY]: JSON.stringify({ racesRun: 7, cupsCompleted: ['brasil'] }) }), storage);
+    await hydrateFromDisk(fakeDisk({ [SAVE_KEY]: JSON.stringify({ racesRun: 7, cupsCompleted: ['br_rj'] }) }), storage);
     const save = loadSave();
     expect(save.racesRun).toBe(7);
-    expect(save.cupsCompleted).toEqual(['brasil']);
+    expect(save.cupsCompleted).toEqual(['br_rj']);
   });
 });
 

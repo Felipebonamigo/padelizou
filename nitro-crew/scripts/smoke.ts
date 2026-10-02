@@ -41,7 +41,7 @@ for (const r of state.results ?? []) {
 }
 console.log('Eventos:', Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' '));
 if (state.results) {
-  const champ = createChampionship('brasil', humans);
+  const champ = createChampionship('br_rj', humans);
   applyRaceResult(champ, state.results, humans);
   console.log(`Equipe humana: colocação ${teamRaceRank(state.results, 0)} entre equipes → ${champ.lastVerdict}`);
 }

@@ -85,9 +85,17 @@ os números caem junto. Batidas são só as por trás (evento `collision`); nenh
 
 ## Rival principal da copa
 
+Na Expedição Brasil (onda G) o rival é **da região**: o mesmo nos estados dela, perseguindo o jogador de estado em
+estado até a região fechar; no Mundial, um por país. Todos diferentes (`tests/rivals.test.ts`), todos com falas
+próprias.
+
 | Copa | Rival | Personalidade |
 |---|---|---|
-| Brasil | Zé Turbo | agressivo |
+| Expedição · Sudeste (RJ, SP, MG, ES) | Zé Turbo | agressivo |
+| Expedição · Sul (PR, SC, RS) | Caio Brasa | agressivo |
+| Expedição · Centro-Oeste (DF, GO, MS, MT) | Duda Ferraz | bloqueador |
+| Expedição · Nordeste (9 estados) | Nina Costa | limpo |
+| Expedição · Norte (7 estados) | Dani Souza | errático |
 | Estados Unidos | Tom Blake | bloqueador |
 | Japão | Kenji Sato | limpo |
 | Europa | Hugo Klein | bloqueador |

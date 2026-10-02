@@ -2,6 +2,7 @@
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
 import { hasUpgrades } from '../core/career';
 import { CARS } from '../core/data/cars';
+import { CUPS, currentCupId, LEGACY_CUP_IDS } from '../core/data/cups';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
 import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
 import { isFingerprint, lapFingerprint } from './content-version';
@@ -54,16 +55,42 @@ function seatList(v: unknown, defaults: readonly string[], valid: (s: string) =>
   return out;
 }
 
+/** Copas concluídas com o id de hoje (save de antes da onda G: `brasil` → `br_rj`), sem repetição. */
+function cupList(v: unknown): string[] {
+  return [...new Set(stringList(v).map(currentCupId))];
+}
+
+/** Conquista de copa que mudou de id (COPA_BRASIL → COPA_BR_RJ); as outras passam como estão. */
+function currentAchievement(id: string): string {
+  for (const [old, now] of Object.entries(LEGACY_CUP_IDS)) if (id === `COPA_${old.toUpperCase()}`) return `COPA_${now.toUpperCase()}`;
+  return id;
+}
+
+/** Sigla do estado que a copa carimba (copa da Expedição Brasil), ou null. */
+function stampOf(cupId: string): string | null {
+  return CUPS.find((c) => c.id === cupId && c.stage === 'brasil')?.state ?? null;
+}
+
+/** Carimbos válidos (estado de alguma copa da Expedição), sem repetição, mais os das copas de estado já concluídas. */
+function stampList(v: unknown, cupsCompleted: readonly string[]): string[] {
+  const valid = new Set(CUPS.flatMap((c) => (c.stage === 'brasil' && c.state ? [c.state] : [])));
+  const out = stringList(v).filter((s) => valid.has(s));
+  for (const id of cupsCompleted) { const s = stampOf(id); if (s && !out.includes(s)) out.push(s); }
+  return out;
+}
+
 /** Funde `raw` com os padrões e descarta entradas inválidas. Nunca lança. */
 export function sanitizeSave(raw: unknown): SaveData {
   const r = isRecord(raw) ? raw : {};
   const d = DEFAULT_SAVE;
   const knownCar = (id: string) => CARS.some((c) => c.id === id);
+  const cupsCompleted = cupList(r.cupsCompleted);
   return {
-    cupsCompleted: stringList(r.cupsCompleted),
+    cupsCompleted,
+    stamps: stampList(r.stamps, cupsCompleted),
     bestLaps: bestLapTable(r.bestLaps),
     bestRaces: bestLapTable(r.bestRaces),
-    achievements: stringList(r.achievements),
+    achievements: [...new Set(stringList(r.achievements).map(currentAchievement))],
     racesRun: pickNumber(r.racesRun, 0, Number.MAX_SAFE_INTEGER, d.racesRun, true),
     racesWon: pickNumber(r.racesWon, 0, Number.MAX_SAFE_INTEGER, d.racesWon, true),
     seatNames: seatList(r.seatNames, d.seatNames, () => true, NAME_MAX_LENGTH),
@@ -84,15 +111,21 @@ export function saveSave(s: SaveData): void {
   writeJson(SAVE_KEY, sanitizeSave(s));
 }
 
-/** Destravada quando não exige nada ou quando a copa exigida já foi concluída. Copa desconhecida: travada. */
+/**
+ * Destravada quando não exige nada, quando a copa exigida já foi concluída, ou quando ela mesma já foi concluída
+ * (save de antes da Expedição Brasil: quem venceu o Mundial antigo continua com ele aberto, mesmo sem os estados
+ * que agora vêm antes). Copa desconhecida: travada.
+ */
 export function isCupUnlocked(save: SaveData, cupId: string, cups: readonly CupDef[]): boolean {
   const cup = cups.find((c) => c.id === cupId);
   if (!cup) return false;
-  return cup.requires === null || save.cupsCompleted.includes(cup.requires);
+  return cup.requires === null || save.cupsCompleted.includes(cup.requires) || save.cupsCompleted.includes(cup.id);
 }
 
-/** Marca a copa como concluída (idempotente). Devolve verdadeiro se era a primeira vez. */
+/** Marca a copa como concluída (idempotente) e, se for de um estado, carimba o passaporte. Verdadeiro se era a primeira vez. */
 export function markCupCompleted(save: SaveData, cupId: string): boolean {
+  const stamp = stampOf(cupId);
+  if (stamp && !save.stamps.includes(stamp)) save.stamps.push(stamp);
   if (save.cupsCompleted.includes(cupId)) return false;
   save.cupsCompleted.push(cupId);
   return true;

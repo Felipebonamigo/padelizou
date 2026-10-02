@@ -160,7 +160,7 @@ describe('fechamento com as regras de online, copa salva e carreira', () => {
   it('copa normal: afterCup recebe a copa já com a corrida somada', () => {
     const { r } = race('cup');
     const save = sanitizeSave({});
-    const champ = createChampionship('brasil', r.humans);
+    const champ = createChampionship('br_rj', r.humans);
     let seen = -1;
     settleRace(save, r, { ...options({ achievements: [], hud: [], persisted: 0 }), champ, afterCup: (c) => { seen = c.raceIndex; } });
     expect(seen).toBe(1);
@@ -170,8 +170,8 @@ describe('fechamento com as regras de online, copa salva e carreira', () => {
     const { r } = race('career');
     const save = sanitizeSave({});
     let rows = -1;
-    settleRace(save, r, { ...options({ achievements: [], hud: [], persisted: 0 }), careerFinished: (results) => { rows = results.length; return 'brasil'; } });
+    settleRace(save, r, { ...options({ achievements: [], hud: [], persisted: 0 }), careerFinished: (results) => { rows = results.length; return 'br_rj'; } });
     expect(rows).toBe(r.state.results!.length);
-    expect(save.cupsCompleted).toContain('brasil');
+    expect(save.cupsCompleted).toContain('br_rj');
   });
 });

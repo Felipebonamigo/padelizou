@@ -3,17 +3,15 @@
 // (PROXY_SKILL): o que chega por volta de 4º na primeira copa, de fábrica, contra a IA nível 0 — o mesmo
 // piloto que a calibragem de dinheiro supõe (sempre 4º). Corridas inteiras: 20 carros, profissional,
 // assistências padrão, todas as voltas da pista.
-import { CAREER_START_MONEY, NO_UPGRADES, prizeFor, prizeMultiplier, UPGRADE_PARTS, upgradePrice } from '../src/core/career';
+import { AVERAGE_POSITION } from '../src/core/career';
 import { TICK_RATE } from '../src/core/constants';
-import { CUPS } from '../src/core/data/cups';
 import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
-import type { CupDef, Difficulty, RaceConfig, UpgradeLevels } from '../src/core/types';
+import type { Difficulty, RaceConfig, UpgradeLevels } from '../src/core/types';
 
 /** Habilidade do piloto-proxy: ~4º na primeira copa (profissional, 20 carros). Medida em docs/CARREIRA.md. */
 export const PROXY_SKILL = 0.97;
-/** Posição que a calibragem de dinheiro supõe para o piloto médio. */
-export const AVERAGE_POSITION = 4;
+export { AVERAGE_POSITION };
 const ALL_ASSISTS = { sharedNitro: true, tow: true, teamDraft: true, catchup: true };
 const MAX_TICKS = TICK_RATE * 60 * 20;
 
@@ -39,28 +37,5 @@ export function proxyPositions(trackIds: readonly string[], aiLevel: number, upg
   return out;
 }
 
-/**
- * Melhorias do piloto médio no início da copa `cupIndex`: chega sempre em AVERAGE_POSITION, e depois de
- * cada corrida compra a peça mais barata do Falcão enquanto der (a estratégia mais fraca em desempenho:
- * tanque e freios antes do motor — se ela chega, uma compra pensada chega com folga).
- */
-export function averagePlayerUpgrades(cupIndex: number, cups: readonly CupDef[] = CUPS): UpgradeLevels {
-  const levels: UpgradeLevels = { ...NO_UPGRADES };
-  let money = CAREER_START_MONEY;
-  for (let cup = 0; cup < cupIndex; cup++) {
-    for (let r = 0; r < cups[cup].trackIds.length; r++) {
-      money += prizeFor(AVERAGE_POSITION, prizeMultiplier(cup, cups.length));
-      for (;;) {
-        let best: { part: (typeof UPGRADE_PARTS)[number]; price: number } | null = null;
-        for (const part of UPGRADE_PARTS) {
-          const price = upgradePrice(part, levels[part], 'falcao');
-          if (price !== null && (!best || price < best.price)) best = { part, price };
-        }
-        if (!best || best.price > money) break;
-        money -= best.price;
-        levels[best.part]++;
-      }
-    }
-  }
-  return levels;
-}
+// As melhorias do piloto médio moram no núcleo (o nível da IA da carreira as segue): reexportadas aqui para a sonda.
+export { averagePlayerUpgrades } from '../src/core/career';

@@ -132,7 +132,7 @@ export function partyEventMessages(mode: RaceMode, state: RaceState, e: SimEvent
 
 export function createPartySession(host: PartyHost): PartyController {
   let tournament: TournamentState | null = null;
-  const draft: TournamentDraft = { players: [], rounds: 2, cupId: 'brasil' };
+  const draft: TournamentDraft = { players: [], rounds: 2, cupId: 'br_rj' };
   /** Linhas fixas do HUD por assento: o mesmo objeto enquanto o texto não muda (o HUD reanima a cada objeto novo). */
   const lines: Record<string, HudMessage> = {};
   function startMode(mode: 'escort' | 'relay', trackId: string, laps: number, humans: HumanEntry[]): void {

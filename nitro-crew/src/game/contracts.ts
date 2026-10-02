@@ -142,6 +142,8 @@ export interface BestLap {
 export interface SaveData {
   /** Copas concluídas (destravam a seguinte). */
   cupsCompleted: string[];
+  /** Passaporte da Expedição Brasil: siglas dos estados carimbados (copa do estado vencida), na ordem em que vieram. */
+  stamps: string[];
   bestLaps: Record<string, BestLap>;
   /** Melhor tempo total de corrida por pista, chave `${trackId}:${laps}`. */
   bestRaces: Record<string, BestLap>;
@@ -172,7 +174,7 @@ export interface SavedCup {
 }
 
 export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
-  cupsCompleted: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
+  cupsCompleted: [], stamps: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
   seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
   stats: EMPTY_STATS,
   carsUnlocked: [], career: null, cupInProgress: null, tutorialDone: false,

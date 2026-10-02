@@ -415,6 +415,39 @@ describe('prêmio e carteira', () => {
       expect(perRace, `${cupCount} copas: ${bought} itens em ${races} corridas`).toBeLessThanOrEqual(2);
     }
   });
+
+  // Onda G: 34 copas e 109 corridas (27 de estado com 3, 7 do Mundial com 4). A loja é finita (carros e níveis), então
+  // numa carreira tão longa o piloto médio compra um pouco menos de um item por corrida — e ainda tem o que comprar
+  // até o Mundial (docs/CARREIRA.md).
+  it('calibragem com o catálogo de verdade: o piloto médio compra ~1 item por corrida e ainda compra no Mundial', () => {
+    let money = CAREER_START_MONEY; let bought = 0; let races = 0; let boughtInMundial = 0;
+    const levels: Record<string, UpgradeLevels> = {};
+    let car = 'falcao';
+    const cheapest = (): { price: number; buy: () => void } | null => {
+      const lvls = (levels[car] ??= { ...ZERO });
+      let best: { price: number; buy: () => void } | null = null;
+      for (const part of PARTS) {
+        const price = upgradePrice(part, lvls[part], car);
+        if (price !== null && (!best || price < best.price)) best = { price, buy: () => { lvls[part]++; } };
+      }
+      if (best) return best;
+      const next = CARS.filter((c) => c.price > 0 && !levels[c.id]).sort((a, b) => a.price - b.price)[0];
+      return next ? { price: next.price, buy: () => { car = next.id; levels[car] = { ...ZERO }; } } : null;
+    };
+    CUPS.forEach((cup, i) => {
+      for (let r = 0; r < cup.trackIds.length; r++) {
+        money += prizeFor(4, prizeMultiplier(i, CUPS.length)); races++;
+        for (let item = cheapest(); item && item.price <= money; item = cheapest()) {
+          money -= item.price; item.buy(); bought++;
+          if (cup.stage === 'mundial') boughtInMundial++;
+        }
+      }
+    });
+    expect(races).toBe(109);
+    expect(bought / races, `${bought} itens em ${races} corridas`).toBeGreaterThanOrEqual(0.8);
+    expect(bought / races, `${bought} itens em ${races} corridas`).toBeLessThanOrEqual(2);
+    expect(boughtInMundial, 'nada a comprar no Mundial').toBeGreaterThan(0);
+  });
 });
 
 // ───────────────────────────── Garagem ─────────────────────────────
@@ -692,7 +725,7 @@ describe('save da carreira e da copa em andamento', () => {
 
   it('campeonato normal salvo a cada corrida: ida e volta, e continuar segue da próxima pista', () => {
     const humans = [human(0), human(1)];
-    const champ = createChampionship('brasil', humans);
+    const champ = createChampionship('br_rj', humans);
     applyRaceResult(champ, fakeResults({ 0: 2, 1: 4 }, humans), humans);
     const save = sanitizeSave({});
     saveCupProgress(save, champ, 4242, humans);
@@ -710,16 +743,16 @@ describe('save da carreira e da copa em andamento', () => {
   it('copa encerrada (concluída ou eliminado) some do save; copa salva inválida vira ausente', () => {
     const humans = [human(0)];
     const save = sanitizeSave({});
-    const champ = createChampionship('brasil', humans);
+    const champ = createChampionship('br_rj', humans);
     saveCupProgress(save, champ, 1, humans);
     expect(save.cupInProgress).not.toBeNull();
     champ.eliminated = true;
     saveCupProgress(save, champ, 1, humans);
     expect(save.cupInProgress).toBeNull();
-    saveCupProgress(save, createChampionship('brasil', humans), 1, humans);
+    saveCupProgress(save, createChampionship('br_rj', humans), 1, humans);
     clearCupProgress(save);
     expect(save.cupInProgress).toBeNull();
-    const bad = [{ champ: { cupId: 'lua' }, cupSeed: 1, humans }, { champ, cupSeed: 1, humans: [] }, { champ: createChampionship('brasil', humans), cupSeed: 'x', humans: [{ seat: 9 }] }];
+    const bad = [{ champ: { cupId: 'lua' }, cupSeed: 1, humans }, { champ, cupSeed: 1, humans: [] }, { champ: createChampionship('br_rj', humans), cupSeed: 'x', humans: [{ seat: 9 }] }];
     for (const b of bad) expect(sanitizeSave({ cupInProgress: b }).cupInProgress).toBeNull();
   });
 

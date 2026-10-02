@@ -29,12 +29,14 @@ export const PRIZE_CUP_GROWTH = 0.75;
 export const UPGRADE_PRICES: readonly number[] = [2000, 3500, 5500];
 export const PART_PRICE_FACTOR: Readonly<Record<UpgradePart, number>> = { engine: 1.2, turbo: 1, tires: 1, brakes: 0.8, tank: 0.7, nitro: 1.1 };
 /**
- * Nível de melhoria da IA na última copa (a primeira é 0; entre elas, linear). Calibrado com corridas
- * inteiras para o piloto médio (~4º na primeira copa) seguir por volta de 4º até a última, com as
- * melhorias que a economia lhe dá (tests/career-balance.test.ts, scripts/career-balance.ts). O antigo 3
- * levava esse piloto do pódio para o fim do grid na última copa.
+ * Nível de melhoria da IA na última copa (a primeira é 0; entre elas, careerAiLevel). Onda G (02/10): 3, o teto das
+ * melhorias — com 109 corridas o piloto médio tem o Falcão completo desde a 8ª copa, e a medida com corridas
+ * inteiras (docs/CARREIRA.md) mostrou que a rampa antiga até 1,25 o deixava vencendo tudo do RS em diante; no
+ * teto ele fica em ~2º na última copa (tests/career-balance.test.ts, scripts/career-balance.ts).
  */
-export const CAREER_AI_LEVEL_MAX = 1.25;
+export const CAREER_AI_LEVEL_MAX = 3;
+/** Quanto do nível da IA acompanha as melhorias do piloto médio (o resto sobe com a posição da copa). */
+export const CAREER_AI_FOLLOW = 0.8;
 /**
  * A corrida que elimina paga esta fração do prêmio da posição, nunca menos que a ajuda de custo
  * (PRIZE_PARTICIPATION no fator da copa), e sem bônus de equipe.
@@ -261,10 +263,55 @@ export function cupIndexOf(career: CareerState, cups: readonly CupDef[] = CUPS):
   return Math.max(0, cups.findIndex((c) => c.id === career.cupId));
 }
 
-/** Nível da IA na copa atual: 0 na primeira, CAREER_AI_LEVEL_MAX na última, linear entre elas. */
+/** Posição que a calibragem de dinheiro supõe para o piloto médio (docs/CARREIRA.md). */
+export const AVERAGE_POSITION = 4;
+
+/**
+ * Melhorias do piloto médio no início da copa `cupIndex`: chega sempre em AVERAGE_POSITION, e depois de cada corrida
+ * compra a peça mais barata do Falcão enquanto der (a estratégia mais fraca em desempenho: tanque e freios antes do
+ * motor — se ela chega, uma compra pensada chega com folga). Determinística; usada pelo nível da IA e pela sonda.
+ */
+export function averagePlayerUpgrades(cupIndex: number, cups: readonly CupDef[] = CUPS): UpgradeLevels {
+  const levels: UpgradeLevels = { ...NO_UPGRADES };
+  let money = CAREER_START_MONEY;
+  for (let cup = 0; cup < cupIndex && cup < cups.length; cup++) {
+    for (let r = 0; r < cups[cup].trackIds.length; r++) {
+      money += prizeFor(AVERAGE_POSITION, prizeMultiplier(cup, cups.length));
+      for (;;) {
+        let best: { part: UpgradePart; price: number } | null = null;
+        for (const part of UPGRADE_PARTS) {
+          const price = upgradePrice(part, levels[part], 'falcao');
+          if (price !== null && (!best || price < best.price)) best = { part, price };
+        }
+        if (!best || best.price > money) break;
+        money -= best.price;
+        levels[best.part]++;
+      }
+    }
+  }
+  return levels;
+}
+
+/** Fração (0–1) das melhorias do Falcão que o piloto médio já tem no início da copa `cupIndex`. */
+export function averagePlayerShare(cupIndex: number, cups: readonly CupDef[] = CUPS): number {
+  const lv = averagePlayerUpgrades(cupIndex, cups);
+  let have = 0; let max = 0;
+  for (const p of UPGRADE_PARTS) { have += lv[p]; max += partMaxLevel('falcao', p); }
+  return max > 0 ? have / max : 0;
+}
+
+/**
+ * Nível da IA na copa atual: 0 na primeira, CAREER_AI_LEVEL_MAX na última. Entre elas a IA acompanha o piloto
+ * médio — CAREER_AI_FOLLOW do caminho pela fração de melhorias que ele já comprou, o resto pela posição da copa
+ * (sobe sempre um pouco, mesmo depois de o Falcão dele estar no máximo). Com 34 copas e 109 corridas o piloto médio
+ * fecha o Falcão por volta da 10ª copa; uma rampa linear deixava a IA uma copa inteira atrás dele por 20 copas.
+ */
 export function careerAiLevel(career: CareerState, cups: readonly CupDef[] = CUPS): number {
   if (cups.length <= 1) return 0;
-  return (CAREER_AI_LEVEL_MAX * cupIndexOf(career, cups)) / (cups.length - 1);
+  const i = cupIndexOf(career, cups);
+  const linear = i / (cups.length - 1);
+  const share = i >= cups.length - 1 ? 1 : averagePlayerShare(i, cups);
+  return CAREER_AI_LEVEL_MAX * (CAREER_AI_FOLLOW * share + (1 - CAREER_AI_FOLLOW) * linear);
 }
 
 /** Começa (ou devolve) a copa atual. `rosterSeed` fixa o elenco da IA até a copa acabar. */
