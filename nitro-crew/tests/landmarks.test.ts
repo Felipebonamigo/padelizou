@@ -134,6 +134,30 @@ describe('marcos turísticos: posição', () => {
     expect(bad).toEqual([]);
   }, 120000);
 
+  it('modelos do tamanho dos das tarefas irmãs (ponte de 1 km, tepui de 1 × 2 km) também cabem, fora do alcance', async () => {
+    const THREE = await import('three');
+    const { paint } = await import('../src/render/scenery/geom');
+    const reg = LANDMARKS as Record<string, LandmarkDef>;
+    reg.__ponte_1km = { build: () => ({ parts: [{ geometry: paint(new THREE.BoxGeometry(30, 60, 1025).translate(0, 30, 0), '#cccccc'), mat: 'flat' }] }), place: 'far', side: 'sea', perLap: 2 };
+    reg.__tepui = { build: () => ({ parts: [{ geometry: paint(new THREE.BoxGeometry(1000, 800, 2050).translate(0, 400, 0), '#886644'), mat: 'flat' }] }), place: 'skyline', side: 'any', perLap: 1 };
+    try {
+      for (const [track, id] of [['copacabana', '__ponte_1km'], ['transpantaneira', '__tepui'], ['rota_66', '__tepui']] as const) {
+        const t = getTrack(track);
+        const got = landmarkPlacements(sceneryLayout(t, [id]));
+        expect(got.length, `${track} ${id}`).toBe(reg[id].perLap);
+        for (const { p } of got) {
+          const b = modelBounds(LANDMARK_PREFIX + id);
+          const side = p.x < 0 ? -1 : 1;
+          let edge = Infinity;
+          for (const [lx, lz] of [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]]) edge = Math.min(edge, Math.abs(p.x) + side * (Math.cos(p.yaw) * lx + Math.sin(p.yaw) * lz));
+          expect(edge, `${track} ${id}`).toBeGreaterThanOrEqual(LANDMARK_CLEAR_M);
+        }
+      }
+    } finally {
+      delete reg.__ponte_1km; delete reg.__tepui;
+    }
+  }, 60000);
+
   it('marco cujo id não tem modelo é ignorado sem erro', () => {
     const layout = sceneryLayout(getTrack('copacabana'), ['nao_existe', 'cristo_redentor']);
     const got = landmarkPlacements(layout);
@@ -254,14 +278,20 @@ describe('marcos turísticos: posição', () => {
     expect(bad).toEqual([]);
   }, 120000);
 
-  it('distância do centro da pista conforme o lugar (near 30–80 m na borda, far 120–400 m, skyline ≥ 400 m)', () => {
+  it('borda de dentro conforme o lugar (near 30–80 m, far 120–330 m, skyline 400–470 m; até o dobro sem lugar)', () => {
     const bad: string[] = [];
     for (const c of allCases()) {
       for (const { seg, p, id } of landmarkPlacements(c.layout)) {
         const d = LANDMARKS[id];
-        const lat = Math.abs(p.x);
-        const ok = d.place === 'near' ? lat >= 30 && lat <= 80 + 60 : d.place === 'far' ? lat >= 120 && lat <= 400 : lat >= 400;
-        if (!ok) bad.push(`${c.placeId} ${id}#${seg}: ${d.place} a ${lat.toFixed(0)} m`);
+        // Borda de dentro da pegada (o ponto do modelo mais perto da pista).
+        const b = modelBounds(LANDMARK_PREFIX + id);
+        const side = p.x < 0 ? -1 : 1;
+        let lat = Infinity;
+        for (const [lx, lz] of [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]]) lat = Math.min(lat, Math.abs(p.x) + side * (Math.cos(p.yaw) * lx + Math.sin(p.yaw) * lz));
+        // A faixa do lugar, ou até o dobro dela quando a pista não deixou lugar na faixa (a última passada da busca).
+        lat = Math.round(lat * 100) / 100;
+        const ok = d.place === 'near' ? lat >= 30 && lat <= 160 : d.place === 'far' ? lat >= 120 && lat <= 660 : lat >= 400 && lat <= 940;
+        if (!ok) bad.push(`${c.placeId} ${id}#${seg}: ${d.place} com a borda a ${lat.toFixed(0)} m`);
       }
     }
     expect(bad).toEqual([]);

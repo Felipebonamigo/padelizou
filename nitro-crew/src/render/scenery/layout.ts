@@ -174,8 +174,14 @@ type LandmarkPlace = 'near' | 'far' | 'skyline';
 
 /** Nenhuma parte de um marco a menos disto (m) do centro de qualquer trecho de pista à vista. */
 export const LANDMARK_CLEAR_M = 26;
-/** Faixa lateral (m) e passo da busca: near mede a borda de dentro do modelo; far e skyline, o centro. */
-const LANDMARK_LAT: Record<LandmarkPlace, [number, number, number]> = { near: [30, 80, 5], far: [130, 330, 20], skyline: [405, 470, 13] };
+/**
+ * Faixa lateral (m) e passo da busca, medidos na BORDA DE DENTRO da pegada (o ponto do modelo mais perto da pista):
+ * assim um tepui de 1 km de fundo ou uma ponte de 1 km continuam do lado de fora. Sem lugar na faixa, a última
+ * passada estende a faixa até o dobro (antes de desistir).
+ */
+const LANDMARK_LAT: Record<LandmarkPlace, [number, number, number]> = { near: [30, 80, 5], far: [120, 330, 15], skyline: [400, 470, 14] };
+/** Quanto (m) a ponta de um modelo comprido pode avançar para a pista por causa do giro `turn` (limita o giro). */
+const LANDMARK_TURN_SWEEP_M = 60;
 /** Giro padrão (rad) da pista para quem vem chegando (LandmarkDef.turn muda). */
 export const LANDMARK_TURN: Record<LandmarkPlace, number> = { near: 0.3, far: 0.45, skyline: 0.35 };
 /** O primeiro de cada marco: segmentos depois da largada (o mais importante) e o passo entre um marco e o seguinte. */
@@ -217,7 +223,9 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const b = modelBounds(modelId);
     const height = b.maxY;
     const place = def.place;
-    const turn = def.turn ?? LANDMARK_TURN[place];
+    // Modelo comprido (ponte de 1 km) gira menos: a ponta não pode avançar mais que LANDMARK_TURN_SWEEP_M.
+    const halfLen = Math.max(-b.minZ, b.maxZ);
+    const turn = Math.min(def.turn ?? LANDMARK_TURN[place], Math.asin(Math.min(1, LANDMARK_TURN_SWEEP_M / Math.max(1, halfLen))));
     const [lat0, lat1, latStep] = LANDMARK_LAT[place];
     const coast = biome === 'coast';
     // 'sea' fica no mar do litoral (direita); fora do litoral, qualquer lado. No litoral, o resto fica em terra.
@@ -229,7 +237,8 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const radius = Math.hypot(Math.max(-b.minX, b.maxX), Math.max(-b.minZ, b.maxZ));
     let done = false;
     // Duas passadas: a primeira exige chão quase plano sob a pegada; a segunda aceita declive (a saia cobre).
-    for (let pass = 0; pass < 2 && !done; pass++) {
+    for (let pass = 0; pass < 3 && !done; pass++) {
+      const top = pass === 2 ? lat1 * 2 : lat1;
       for (let o = 0; o <= 2 * reach && !done; o += 4) {
         // 0, +4, −4, +8, −8…; o primeiro de cada marco não volta para antes da largada.
         const off = o === 0 ? 0 : (o % 8 === 4 ? 1 : -1) * Math.ceil(o / 8) * 4;
@@ -249,8 +258,8 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             inMin = Math.min(inMin, lo); inMax = Math.max(inMax, lo); alMax = Math.max(alMax, Math.abs(s * lx - c * lz));
           }
           const span = Math.ceil(alMax / SEGMENT_M);
-          for (let v = lat0; v <= lat1 && !done; v += latStep) {
-            const L = place === 'near' ? v - inMin : v;
+          for (let v = lat0; v <= top && !done; v += latStep * (pass === 2 ? 2 : 1)) {
+            const L = v - inMin;
             const latA = L + inMin; const latB = L + inMax;
             if (latA < LANDMARK_CLEAR_M) continue;
             if (!occ.free(i, side, latA, latB, span)) continue;

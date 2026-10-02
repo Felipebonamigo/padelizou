@@ -74,6 +74,11 @@ function ageMessages(dt) { for (const l of messages.values()) for (let i = l.len
 for (let i = 0; i < preTicks; i++) { tick(); ageMessages(1 / 60); }
 const me = state.cars.find((c) => c.seat === 0);
 const SEG_M = 4 / 200; // metros por unidade de pista
+// seg=<n>: o carro do jogador vai para o início do segmento n (ver um marco turístico, um trecho de pista); os outros saem da frente.
+if (q.get('seg') !== null) {
+  me.z = (Number(q.get('seg')) * 200) % track.length; me.x = Number(q.get('x') ?? 0);
+  for (const c of state.cars) if (c !== me) c.z = (me.z + track.length / 2 + c.id * 300) % track.length;
+}
 if (carview !== null || showroom || sheet !== null) {
   for (const c of state.cars) { c.speed = 0; c.nitroTicks = 0; c.skidTicks = 0; c.steerPose = 0; }
   const away = (me.z + track.length / 2) % track.length;

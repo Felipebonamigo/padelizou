@@ -9,12 +9,12 @@ import * as THREE from 'three';
 import type { Track } from '../../core/types';
 import { mix } from '../palette';
 import type { RoadFrame } from '../roadframe';
-import { getModel } from './catalog';
+import { getModel, landmarkOf } from './catalog';
 import type { MatKey, Model } from './geom';
 import { sceneryLayout, type Layout, type Placement } from './layout';
 import { facadeTextures, panelAtlas } from './textures';
 
-type BatchKey = 'flat' | 'dress' | 'office' | 'apartment' | 'classic' | 'house' | 'glow' | 'beacon' | 'cone' | 'panel' | 'blob';
+type BatchKey = 'flat' | 'dress' | 'haze' | 'office' | 'apartment' | 'classic' | 'house' | 'glow' | 'beacon' | 'cone' | 'panel' | 'blob';
 
 /** Janela máxima do RoadFrame em segmentos (BEHIND + AHEAD alto + 1 = 291) com folga. */
 const WINDOW = 300;
@@ -26,7 +26,7 @@ const FULL_WINDOW = 290;
 const BLOB_AHEAD = 60;
 
 const ATTRS: Record<BatchKey, string[]> = {
-  flat: ['position', 'normal', 'color'], dress: ['position', 'normal', 'color'], glow: ['position', 'normal', 'color'], beacon: ['position', 'normal', 'color'],
+  flat: ['position', 'normal', 'color'], dress: ['position', 'normal', 'color'], haze: ['position', 'normal', 'color'], glow: ['position', 'normal', 'color'], beacon: ['position', 'normal', 'color'],
   office: ['position', 'normal', 'color', 'uv'], apartment: ['position', 'normal', 'color', 'uv'], classic: ['position', 'normal', 'color', 'uv'], house: ['position', 'normal', 'color', 'uv'],
   panel: ['position', 'normal', 'uv'], cone: ['position', 'normal'], blob: ['position', 'normal', 'uv'],
 };
@@ -49,8 +49,8 @@ function normalized(g: THREE.BufferGeometry, keys: string[]): THREE.BufferGeomet
   return out;
 }
 
-function batchKeyFor(mat: MatKey, sprite: boolean): BatchKey {
-  if (mat === 'flat') return sprite ? 'flat' : 'dress';
+function batchKeyFor(mat: MatKey, sprite: boolean, haze = false): BatchKey {
+  if (mat === 'flat') return haze ? 'haze' : sprite ? 'flat' : 'dress';
   return mat;
 }
 
@@ -91,12 +91,19 @@ function blobTexture(): THREE.CanvasTexture {
  * branco com névoa, e abaixo das luminárias, que devem brilhar (tests/render-ground.test.ts).
  */
 export const FACADE_LIT_EMISSIVE = 1.25;
+/**
+ * Marcos no horizonte (skyline: Cristo, Pão de Açúcar, vulcão): a névoa deles conta a distância × HAZE_FOG_SCALE. Ficam a
+ * 400 m+ da pista e são vistos a 600–1.000 m; com a névoa do resto do cenário (0,0019/m) chegariam 70–95% apagados.
+ * Com 0,55 entram na névoa (40–65%) como os planos do horizonte do terreno, que já trazem a névoa pintada.
+ */
+export const HAZE_FOG_SCALE = 0.55;
 export const GLOW_NIGHT = 2.0;
 
 export class Scenery {
   readonly group = new THREE.Group();
   private readonly materials: Record<BatchKey, THREE.Material>;
   private readonly flatMat: THREE.MeshStandardMaterial;
+  private readonly hazeMat: THREE.MeshStandardMaterial;
   private readonly facadeMats: THREE.MeshStandardMaterial[] = [];
   private readonly glowMat: THREE.MeshBasicMaterial;
   private readonly beaconMat: THREE.MeshBasicMaterial;
@@ -121,6 +128,14 @@ export class Scenery {
   constructor() {
     this.group.name = 'scenery';
     this.flatMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
+    this.hazeMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+    this.hazeMat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
+  float hazeD = fogDensity * ${HAZE_FOG_SCALE.toFixed(3)} * vFogDepth;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, 1.0 - exp(-hazeD * hazeD));
+#endif`);
+    };
+    this.hazeMat.customProgramCacheKey = () => 'scenery-haze';
     const facade = (style: 'office' | 'apartment' | 'classic' | 'house'): THREE.MeshStandardMaterial => {
       const t = facadeTextures(style);
       this.textures.push(t.map, t.light);
@@ -139,7 +154,7 @@ export class Scenery {
     this.blobMat = new THREE.MeshBasicMaterial({ map: blobTex, color: '#1c2248', transparent: true, opacity: 0.34, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const cone = new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
     this.materials = {
-      flat: this.flatMat, dress: this.flatMat, office: facade('office'), apartment: facade('apartment'), classic: facade('classic'), house: facade('house'),
+      flat: this.flatMat, dress: this.flatMat, haze: this.hazeMat, office: facade('office'), apartment: facade('apartment'), classic: facade('classic'), house: facade('house'),
       glow: this.glowMat, beacon: this.beaconMat, cone, panel: this.panelMat, blob: this.blobMat,
     };
     this.applyNight();
@@ -171,6 +186,7 @@ export class Scenery {
     // O mesmo filtro de hora da paleta (entardecer esquenta, noite azula): o cenário casa com o chão.
     this.flatMat.color.set(time === 'day' ? '#ffffff' : time === 'dusk' ? mix('#ffffff', '#5a2e4a', 0.22) : mix('#ffffff', '#0a1030', 0.42));
     for (const m of this.facadeMats) m.color.copy(this.flatMat.color);
+    this.hazeMat.color.copy(this.flatMat.color);
     this.blobMat.color.set(time === 'day' ? '#1c2a5a' : time === 'dusk' ? '#2c1a48' : '#050818');
     this.blobMat.opacity = time === 'night' ? 0.4 : 0.32;
 
@@ -202,7 +218,8 @@ export class Scenery {
       if (r) return r;
       const id = layout.models[model];
       const mdl: Model = getModel(id);
-      const ref: Ref = { slots: mdl.parts.map((p, pi) => addGeom(batchKeyFor(p.mat, sprite), p.geometry, `${id}#${pi}#${batchKeyFor(p.mat, sprite)}`)), blob: mdl.blob ?? 0 };
+      const haze = landmarkOf(id)?.place === 'skyline';
+      const ref: Ref = { slots: mdl.parts.map((p, pi) => { const key = batchKeyFor(p.mat, sprite, haze); return addGeom(key, p.geometry, `${id}#${pi}#${key}`); }), blob: mdl.blob ?? 0 };
       refs[k] = ref;
       return ref;
     };
@@ -248,7 +265,7 @@ export class Scenery {
       mesh.sortObjects = false;
       mesh.frustumCulled = false;
       mesh.castShadow = key === 'flat' || key === 'office' || key === 'apartment' || key === 'classic' || key === 'house';
-      mesh.receiveShadow = key !== 'glow' && key !== 'beacon' && key !== 'cone' && key !== 'blob';
+      mesh.receiveShadow = key !== 'haze' && key !== 'glow' && key !== 'beacon' && key !== 'cone' && key !== 'blob';
       if (key === 'blob') mesh.renderOrder = 1;
       const geomIds = geoms.map((g) => mesh.addGeometry(g));
       for (const g of geoms) g.dispose();
