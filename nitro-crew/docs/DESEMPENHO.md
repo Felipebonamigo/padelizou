@@ -390,3 +390,54 @@ ciclos — geometrias 53 → 53, texturas 97 → 97, programas 113 → 113, mate
 ciclo, 0 de 12 posições crescendo; heap JS 31,82 → 31,97 MB (+157 KB em 24 corridas; folga 1,5 MB). A seção 2 registrava
 ~24,7 MB na onda D; parte da diferença é do cenário (cache de modelos, layout da pista atual, cópias em CPU dos
 lotes), mas a base e3e63b1 não foi medida de novo nesta rodada — o que vale aqui é que não cresce.
+
+## 8. Marcos turísticos (onda G)
+
+Os marcos (`src/render/scenery/landmarks/`, `docs/VISUAL.md`, "Marcos turísticos") entram nos lotes que o cenário já
+tem (liso sem sombra, luz, fachadas, baliza): **nenhuma chamada de desenho nova**, salvo o lote `haze` (névoa mais
+rala) das pistas com marco no horizonte — **+1 por viewport**. Sem sombra própria, sem mancha, sem LOD (são poucos e
+leves). Montagem: 30–400 ms a mais no layout da pista (uma vez, na largada; a busca confere a pegada contra ±300
+segmentos da linha central).
+
+**Orçamento de triângulos por marco** (`tests/landmarks.test.ts`): perto ≤ 3.500 (visto de perto: porta, janela,
+telhado), longe ≤ 5.000 (ponte com cabos, morro com convento — grande, mas a 120–400 m), horizonte ≤ 2.500 (silhueta
+na névoa). Uma pista tem 2–3 marcos × 1–4 por volta, e só 1–3 instâncias cabem na janela de ~1 km: no pior caso,
+≤ ~15 mil triângulos por viewport, contra 50–450 mil do resto do cenário. Os 22 do Sudeste, Sul e Centro-Oeste:
+
+| marco | lugar | por volta | triângulos | partes |
+|---|---|---|---|---|
+| `cristo_redentor` | skyline | 2 | 376 | flat |
+| `pao_de_acucar` | skyline | 2 | 436 | flat |
+| `masp` | near | 2 | 180 | flat, office, glow |
+| `ponte_estaiada` | far | 2 | 1.032 | flat, glow, beacon |
+| `igreja_barroca` | near | 2 | 1.052 | flat, glow |
+| `casario_colonial` | near | 3 | 704 | flat, house, glow |
+| `convento_penha` | far | 2 | 352 | flat, glow |
+| `terceira_ponte` | far | 1 | 1.464 | flat, glow |
+| `trem_serra_verde` | far | 2 | 1.144 | flat |
+| `estufa_jardim_botanico` | near | 1 | 1.434 | flat, glow |
+| `ponte_hercilio_luz` | far | 2 | 1.248 | flat, glow |
+| `igreja_acoriana` | near | 2 | 404 | flat, glow |
+| `catedral_de_pedra` | near | 1 | 768 | flat, glow |
+| `cuia_chimarrao` | near | 2 | 348 | flat |
+| `araucaria` | near | 4 | 1.940 | flat |
+| `congresso_nacional` | far | 2 | 594 | flat, office, glow, beacon |
+| `catedral_brasilia` | near | 2 | 1.416 | flat, glow |
+| `cachoeira_veadeiros` | far | 2 | 960 | flat, glow |
+| `buriti` | near | 4 | 1.412 | flat |
+| `gruta_lago_azul` | near | 2 | 468 | flat, glow |
+| `tuiuiu_ninho` | near | 3 | 548 | flat |
+| `portal_transpantaneira` | near | 2 | 436 | flat, glow |
+
+**Medido** (`tools/scenery-harness.mjs`, 1280×720, qualidade alta, 1 jogador). "Antes" é o mesmo quadro com
+`&nolm=1`, que tira os marcos de `places.ts`:
+
+| cena | chamadas total | triângulos total | chamadas do cenário | triângulos do cenário |
+|---|---|---|---|---|
+| largada de Copacabana (Cristo na janela) | 60 → **61** | 200,6 k → **201,0 k** | 13 → **14** | 94,2 k → **94,5 k** |
+| Copacabana, tick 1500 | 57 → 57 | 129,8 k → 129,8 k | 11 → 11 | 69,8 k → 69,8 k |
+| Transpantaneira, tick 1500 | 51 → 51 | 140,7 k → 140,7 k | 8 → 8 | 51,9 k → 51,9 k |
+| Noite em Sampa, tick 1400 | 67 → 67 | 159,1 k → 159,1 k | 15 → 15 | 65,9 k → 65,9 k |
+
+Nas cenas de tick 1500 nenhum marco está na janela (é a posição fixa do harness), então o custo é zero. Com um marco
+à vista, o custo é o do modelo (centenas a ~2 mil triângulos) e, só no horizonte, a chamada do lote `haze`.
