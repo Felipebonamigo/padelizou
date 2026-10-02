@@ -117,10 +117,7 @@ describe('marcos turísticos: registro', () => {
 
   const missingIn = (places: typeof TRACK_PLACES) => [...new Set(Object.values(places).flatMap((p) => p.landmarks))].filter((id) => !Object.prototype.hasOwnProperty.call(LANDMARKS, id));
   it('todo id da primeira leva (TRACK_PLACES) tem modelo', () => expect(missingIn(FIRST_PLACES)).toEqual([]));
-  // Segunda leva (EXTRA_BRAZIL_PLACES): os modelos vêm em brasil-2-*.ts; com eles mesclados, isto vira `it` estrito.
-  const pending = missingIn(EXTRA_BRAZIL_PLACES);
-  if (pending.length > 0) it.todo(`todo id da segunda leva tem modelo — faltam ${pending.length}: ${pending.join(', ')}`);
-  else it('todo id da segunda leva tem modelo', () => expect(pending).toEqual([]));
+  it('todo id da segunda leva (EXTRA_BRAZIL_PLACES) tem modelo', () => expect(missingIn(EXTRA_BRAZIL_PLACES)).toEqual([]));
 });
 
 describe('marcos turísticos: posição', () => {
