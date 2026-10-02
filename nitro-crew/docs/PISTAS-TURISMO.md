@@ -127,3 +127,12 @@ de Noronha · PB Campina Grande, Pedra da Boca · RN Ponta Negra, Cajueiro de Pi
 Quebrada · PI Delta do Parnaíba, Sete Cidades · MA São Luís, Chapada das Mesas · PA Alter do Chão, Marajó · AM
 Ponte Rio Negro, Parintins · AP Pororoca do Araguari, Serra do Navio · RR Boa Vista, Lago Caracaranã · RO Forte
 Príncipe da Beira, Vale do Guaporé · AC Geoglifos, Estrada do Pacífico · TO Palmas, Ilha do Bananal.
+
+## Identidade (pedido do dono: "não pode ser igual ao Horizon Chase")
+
+O formato região → copas curtas é só referência. O que é nosso, e tem de aparecer nas telas e nos textos:
+- **Expedição Brasil** (não "turnê", não "world tour"): o jogador tem um **passaporte**; vencer a copa de um
+  estado **carimba** o passaporte (carimbo com a sigla e o marco do estado) e mostra o **cartão-postal** do
+  lugar. Região completa = conquista. Os nomes de tela, conquistas e textos usam esse vocabulário.
+- Lugares e marcos reais de cada estado; co-op de equipe (cofre de nitro, vácuo, revezamento) no centro.
+- Depois do Brasil, o **Mundial**; depois, os **planetas**.
