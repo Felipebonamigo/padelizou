@@ -4,6 +4,7 @@
 // regras puras de src/core/career.ts e gravam o save na hora; com todos prontos, a sessão corre.
 import '../../career/strings';
 import './garage.css';
+import './passport.css';
 import {
   buyCar, buyUpgrade, cupIndexOf, levelsOf, NO_UPGRADES, ownsCar, partMaxLevel, selectCar, UPGRADE_PARTS, upgradePrice, walletOf,
   type CareerState, type PurchaseResult,
@@ -17,7 +18,7 @@ import type { DeviceId, MenuContext, MenuNav } from '../../game/contracts';
 import { unlockCar } from '../../game/career-save';
 import { saveSave } from '../../game/save';
 import { getLanguage, t } from '../../i18n';
-import { arrowButton, button, carCount, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, button, carCount, createFocusList, h, listNav, screenFrame, trackName, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { carSilhouette, icon } from './icons';
 import { startCursor } from './lobby';
 import { garageRivalBlock } from './rival';
@@ -80,8 +81,10 @@ function cupStrip(ctx: MenuContext, career: CareerState | null): HTMLElement {
   return h('div', { class: 'cup-strip' }, ctx.cups.map((c, i) => {
     const done = career !== null && (career.completed || i < current);
     const now = career !== null && !career.completed && i === current;
-    return h('span', { class: `cup-pip${done ? ' done' : ''}${now ? ' now' : ''}`, title: cupName(c.id) },
-      h('span', { class: 'cup-pip-flag', text: c.flag }), done ? icon('check') : null);
+    // Expedição Brasil: a sigla do estado (27 bandeiras do Brasil iguais não diziam nada); Mundial: a bandeira.
+    const brasil = c.stage === 'brasil' && !!c.state;
+    return h('span', { class: `cup-pip${brasil ? ' uf' : ''}${done ? ' done' : ''}${now ? ' now' : ''}`, title: cupName(c.id), attrs: brasil ? { 'data-region': c.region ?? '' } : undefined },
+      h('span', { class: 'cup-pip-flag', text: brasil ? c.state ?? '' : c.flag }), done ? icon('check') : null);
   }));
 }
 
@@ -390,7 +393,6 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
 
   const cupIdx = cupIndexOf(career, ctx.cups);
   const cup = ctx.cups[cupIdx];
-  const trackName = (id: string) => ctx.tracks.find((x) => x.id === id)?.name ?? id;
 
   function headInfo(): string {
     if (career.completed || !cup) return '';

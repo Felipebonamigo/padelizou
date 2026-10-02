@@ -44,9 +44,14 @@ const humans = (n) => Array.from({ length: n }, (_, i) => ({ seat: i, name: `P${
 // Só num save vazio (a primeira carga): não apaga o save de ninguém.
 await page.addInitScript(() => {
   if (localStorage.getItem('nitro-crew.save')) return;
+  // Expedição Brasil no meio (onda G): Sudeste, Sul e Centro-Oeste carimbados e a Bahia; o Mundial ainda fechado
+  // (a aba dele mostra o aviso do porquê, a linha a mais que aperta a tela).
+  const done = ['br_rj', 'br_sp', 'br_mg', 'br_es', 'br_pr', 'br_sc', 'br_rs', 'br_df', 'br_go', 'br_ms', 'br_mt', 'br_ba'];
   localStorage.setItem('nitro-crew.save', JSON.stringify({
     carsUnlocked: ['curupira', 'sucuri', 'carcara', 'pororoca', 'iara', 'boitata', 'beijaflor'],
     seatCars: ['falcao', 'trovao', 'pororoca', 'iara'],
+    cupsCompleted: done,
+    stamps: ['RJ', 'SP', 'MG', 'ES', 'PR', 'SC', 'RS', 'DF', 'GO', 'MS', 'MT', 'BA'],
   }));
 });
 await page.goto(url, { waitUntil: 'networkidle' });
@@ -63,9 +68,9 @@ await page.evaluate(() => {
 // ───────────── Preparação: uma corrida de copa de verdade (resultado, classificação, "Continuar") ─────────────
 // Com NC_LAYOUT_ONLY sem as telas que dependem dela (resultado, classificação, "Continuar" no menu), pula a corrida.
 const ONLY = process.env.NC_LAYOUT_ONLY?.split(',') ?? null;
-if (!ONLY || ONLY.some((id) => ['main', 'results', 'results-busy', 'standings'].includes(id))) {
-  console.log('preparando: corrida da Copa Brasil com 2 jogadores…');
-  await page.evaluate((h) => { const s = window.nc.session; s.menus.hide(); s.debugBind(0, 'kb1'); s.debugBind(1, 'kb2'); s.startCup('brasil', h); }, humans(2));
+if (!ONLY || ONLY.some((id) => ['main', 'results', 'results-busy', 'results-stamp', 'standings'].includes(id))) {
+  console.log('preparando: corrida da Copa Rio de Janeiro com 2 jogadores…');
+  await page.evaluate((h) => { const s = window.nc.session; s.menus.hide(); s.debugBind(0, 'kb1'); s.debugBind(1, 'kb2'); s.startCup('br_rj', h); }, humans(2));
   await page.keyboard.down('ArrowUp'); await page.keyboard.down('KeyW');
   for (let i = 0; i < 60; i++) {
     const phase = await page.evaluate(() => { window.nc.session.debugStep(600); return window.nc.session.race?.state.phase; });
@@ -82,7 +87,7 @@ if (process.env.NC_LAYOUT_CSS) await page.addStyleTag({ content: readFileSync(pr
 await page.evaluate(() => { window.nc.session.stop(); });
 
 // Pior caso do resultado: 14 conquistas de uma vez (como no playtest.mjs) sobre a corrida de copa.
-const ACH = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_ARRANHAO', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'MADRUGADA', 'SEM_BOX', 'PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'COPA_BRASIL', 'CAMPEAO'];
+const ACH = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_ARRANHAO', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'MADRUGADA', 'SEM_BOX', 'PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'COPA_BR_RJ', 'CAMPEAO'];
 
 /** Cada tela: como montá-la dentro da página (roda a cada resolução/tamanho de texto, depois do redimensionamento). */
 const SCREENS = [
@@ -90,10 +95,22 @@ const SCREENS = [
   ['main', () => window.nc.session.menus.show('main')],
   ['lobby-1', () => { const s = window.nc.session; for (let i = 0; i < 4; i++) s.input.unbindSeat(i); s.input.bindSeat(0, 'kb1'); s.menus.show('lobby'); }],
   ['lobby-4', () => { const s = window.nc.session; ['kb1', 'kb2', 'gp0', 'gp1'].forEach((d, i) => s.input.bindSeat(i, d)); s.menus.show('lobby'); }],
+  // Copas em duas etapas (onda G): abre na aba da fronteira (Nordeste, 9 estados: a lista mais longa).
   ['cups', () => window.nc.session.menus.show('cups')],
-  // O detalhe muda com a copa em foco (rival, cadeado): a última é a mais longa.
-  ['cups-last', () => { window.nc.session.menus.show('cups'); for (let i = 0; i < 7; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', bubbles: true })); }],
+  // Mundial fechado: o aviso do porquê em cima da lista e a copa de 4 pistas (o detalhe mais alto), na última copa.
+  ['cups-last', () => {
+    window.nc.session.menus.show('cups');
+    const key = (code, n) => { for (let i = 0; i < n; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true })); };
+    key('ArrowRight', 5); key('ArrowDown', 6);
+  }],
+  // Uma região de 3 estados (Sul): a lista mais curta, todos carimbados.
+  ['cups-sul', () => { window.nc.session.menus.show('cups'); document.querySelector('.cup-tab[data-tab="sul"]')?.click(); }],
   ['tracks', () => window.nc.session.menus.show('tracks')],
+  // Fim da grade: o Mundial (copas de 4) depois das copas de 3 da Expedição.
+  ['tracks-end', () => { window.nc.session.menus.show('tracks'); for (let i = 0; i < 40; i++) document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', bubbles: true })); }],
+  // Passaporte: abre no último carimbo (Bahia, cartão-postal completo); e um estado sem carimbo (o aviso a mais).
+  ['passport', () => window.nc.session.menus.show('passport')],
+  ['passport-off', () => { window.nc.session.menus.show('passport'); document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowDown', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight', bubbles: true })); }],
   ['career', () => window.nc.session.menus.show('career')],
   // Dois pilotos: P1 na vitrine do carro mais caro (a etiqueta de preço na coluna da metade da tela).
   ['garage-2', () => {
@@ -135,6 +152,8 @@ const SCREENS = [
   ['tutorial-skipped', () => window.nc.session.menus.show('tutorialDone', { completed: false, players: 1 })],
   ['results', () => window.nc.session.menus.show('results', window.__shown.results)],
   ['results-busy', (ach) => window.nc.session.menus.show('results', { ...window.__shown.results, achievements: ach.map((id) => ({ id, seats: [0, 1] })) }), ACH],
+  // Carimbo novo que fecha a região (Espírito Santo, com o Sudeste todo carimbado no save): a linha a mais do resultado.
+  ['results-stamp', () => window.nc.session.menus.show('results', { ...window.__shown.results, newStamp: 'ES' })],
   ['standings', () => { window.nc.session.menus.show('results', window.__shown.results); document.querySelector('.scr-results .actions .btn-primary')?.click(); }],
   ['pause', () => window.nc.session.menus.show('pause')],
 ].filter(([id]) => !ONLY || ONLY.includes(id));

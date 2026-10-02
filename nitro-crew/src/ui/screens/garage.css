@@ -44,6 +44,16 @@
 .cup-pip.done { opacity: 1; filter: none; border-color: rgba(61, 220, 132, 0.6); }
 .cup-pip.done .ico { position: absolute; right: calc(-5 * var(--u)); bottom: calc(-5 * var(--u)); width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: #0d1a12; background: var(--ok); border-radius: 50%; padding: calc(1 * var(--u)); }
 .cup-pip.now { opacity: 1; filter: none; border-color: var(--accent); box-shadow: 0 0 0 1px rgba(255, 90, 54, 0.4), 0 6px 20px rgba(255, 90, 54, 0.25); }
+/* Onda G: 34 copas. As 27 da Expedição Brasil com a sigla do estado, mais estreitas, para a faixa caber em 2 linhas. */
+.cup-strip { gap: calc(4 * var(--u)); }
+.cup-pip { width: calc(36 * var(--u)); height: calc(28 * var(--u)); }
+.cup-pip-flag { font-size: calc(17 * var(--u)); }
+.cup-pip.uf .cup-pip-flag { font-size: calc(12 * var(--u)); font-weight: 900; letter-spacing: 0.04em; color: var(--ink, var(--text)); }
+.cup-pip.done .ico { width: calc(13 * var(--u)); height: calc(13 * var(--u)); right: calc(-4 * var(--u)); bottom: calc(-4 * var(--u)); }
+/* Texto grande: o "Copa 1 de 34" sai (o chip já diz a copa) e a próxima corrida desce um tamanho, senão o cabeçalho
+   ("Copa Rio de Janeiro", "Próxima: Orla de Copacabana — corrida 1 de 3") quebra em três linhas e os painéis rolam. */
+#ui.large-text .garage-head .garage-progress { display: none; }
+#ui.large-text .garage-head > .garage-next { font-size: var(--fs-sm); }
 
 /* ───────────── Garagem ───────────── */
 

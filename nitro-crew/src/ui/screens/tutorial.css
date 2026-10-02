@@ -16,7 +16,7 @@
 
 /* ───────────── Tela final ───────────── */
 .scr-tutorialDone { justify-content: center; }
-.tut-done { display: flex; flex-direction: column; align-items: center; gap: var(--gap); padding: calc(24 * var(--u)) calc(32 * var(--u)); width: min(100%, calc(760 * var(--u))); box-sizing: border-box; }
+.tut-done { display: flex; flex-direction: column; align-items: center; gap: calc(10 * var(--u)); padding: calc(18 * var(--u)) calc(32 * var(--u)); width: min(100%, calc(860 * var(--u))); box-sizing: border-box; }
 .tut-done .screen-title { margin-bottom: 0; }
 .tut-done-icon { font-size: calc(56 * var(--u)); color: #ffd23f; filter: drop-shadow(0 0 calc(16 * var(--u)) rgba(255, 210, 63, 0.5)); }
 .tut-rules { margin: 0; padding: 0; list-style: none; counter-reset: rule; display: flex; flex-direction: column; gap: calc(8 * var(--u)); width: 100%; }

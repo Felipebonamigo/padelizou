@@ -17,7 +17,7 @@ regra abaixo quebrar. Mudou CSS de menu ou do HUD? Rode o roteiro antes de commi
 | 2560×1440 | 1440p |
 | 1024×640 | o mínimo suportado (janela pequena) |
 
-Cada uma com texto normal e com texto grande (`--text-scale` 1,2): 26 telas × 14 combinações = 364 medições.
+Cada uma com texto normal e com texto grande (`--text-scale` 1,2): 31 telas × 14 combinações = 434 medições.
 
 ## Regras de layout
 
@@ -87,12 +87,50 @@ Variáveis: `NC_LAYOUT_ONLY=options,lobby-4` (só essas telas; sem as que depend
 `NC_LAYOUT_ONLY=none` (só o HUD), `NC_LAYOUT_SHOTS=1` (fotografa todas as combinações) e
 `NC_LAYOUT_CSS=arquivo.css` (injeta CSS antes de medir: experimente um ajuste sem refazer o build).
 
-Telas medidas: título, menu principal (com "Continuar"), lobby com 1 e com 4 jogadores, copas (primeira e
-última em foco), pistas, carreira, garagem com 2 pilotos (P1 na vitrine do carro mais caro) e com 4
+Telas medidas: título, menu principal (com "Continuar"), lobby com 1 e com 4 jogadores, copas (aba da fronteira —
+o Nordeste, 9 estados —, o Mundial fechado na última copa e o Sul, 3 estados), pistas (começo e fim da grade),
+carreira, garagem com 2 pilotos (P1 na vitrine do carro mais caro) e com 4
 (P1 na vitrine; os outros com os nomes de carro livre mais largos), festa, inscrição do torneio com 8 pilotos,
 "passe o controle", tabela do torneio, opções, acessibilidade, controles, recordes, créditos, online
-(conectar), "Como jogar" com 4 assentos, fim do tutorial (concluído e pulado), resultado (normal e com 14
-conquistas), classificação e pausa.
+(conectar), "Como jogar" com 4 assentos, fim do tutorial (concluído e pulado), passaporte (carimbado e um estado
+sem carimbo), resultado (normal, com 14 conquistas e com carimbo novo que fecha a região), classificação e pausa.
+O save da medição está no meio da Expedição: 12 estados carimbados, o Mundial fechado.
+
+## Telas da Expedição Brasil (onda G, 02/10/2026)
+
+Identidade (docs/PISTAS-TURISMO.md, "Identidade"): **Expedição Brasil, passaporte, carimbo, cartão-postal** — nunca
+"turnê" ou "world tour". Nomes de pista e de copa sempre por `t('core.track.<id>')` / `t('core.cup.<id>')`
+(`trackName()` em `common.ts`; a definição só como reserva para pista sem string).
+
+- **Copas** (`select.ts`): duas etapas numa barra de abas — *Expedição Brasil* (uma aba por região: Sudeste, Sul,
+  Centro-Oeste, Nordeste, Norte, cada uma com "carimbados/estados") e *Mundial* (uma aba "7 países", com cadeado
+  enquanto fechado). ←→ trocam de aba (clique também), ↑↓ andam na lista da aba, o detalhe acompanha. A tela abre
+  na aba e na copa da fronteira (`startTab`). Copa de estado mostra a sigla num carimbo (`.uf-badge`, tinta da
+  região) em vez da bandeira repetida, e "Carimbada no passaporte" quando vencida. Mundial fechado: um aviso em
+  cima da lista diz qual copa vencer ("vença a Copa Tocantins"); a linha do aviso não alarga a coluna
+  (`width: 0; min-width: 100%`). Com a barra de abas, o detalhe da copa de 4 pistas ficou mais baixo (miniaturas
+  de 48 u, 40 u com texto grande) e, com texto grande, a fala do rival sai do detalhe.
+- **Pistas** (`select.ts`): uma seção por copa, na ordem das abas, com "EXPEDIÇÃO BRASIL · SUDESTE" etc. em cima da
+  primeira copa de cada região; a linha ocupa a largura toda (3 colunas nas copas de estado, 4 no Mundial). A
+  navegação é de grade de linhas desiguais (`raggedGridMove`, `FocusListOptions.rows`): ↑↓ mantêm a coluna e
+  prendem na última numa copa de 3 (da 4ª coluna do Mundial para o Tocantins cai na 3ª), ←→ param nas pontas.
+- **Passaporte** (`passport.ts`, menu principal › Passaporte): 27 carimbos em 5 linhas (uma por região, com
+  "n/total"; a linha completa ganha a cor da região). A grade usa a mesma navegação de linhas desiguais e abre no
+  último carimbo ganho. Ao lado, o **cartão-postal** do estado em foco: papel claro, cenário em degradê por região
+  (céu, sol e morros só de CSS), "Lembranças de / ESTADO", região, as 3 pistas e os marcos
+  (`placeOf()` de `src/core/data/places.ts`, nomes em `src/ui/passport/strings.ts`) e o carimbo postal
+  ("Carimbado"/"Sem carimbo", desenhado por `::before/::after` para girar sem filhos sobrepostos). Sem carimbo, o
+  cartão sai esmaecido com "Vença a Copa X para carimbar o passaporte".
+- **Resultado com carimbo novo** (`results.ts`, `stampNews`): a corrida que fecha a copa de um estado pela primeira
+  vez (`RaceOutcome.newStamp`, `src/game/raceEnd.ts`) mostra o carimbo e "Bahia carimbado no passaporte!", com a
+  etiqueta "Região Nordeste completa!" quando ele fecha a região. Uma linha só.
+- **Torneio** (`party.ts`): o teto de rodadas é o da copa (`tournamentMaxRounds`: rodadas + final = pistas da
+  copa — 2 nas de estado, 3 no Mundial). Antes, 3 rodadas numa copa de 3 pistas travavam a inscrição em "Esta
+  copa não tem pistas suficientes".
+- **Carreira**: a faixa das 34 copas mostra a sigla dos 27 estados (eram 27 bandeiras do Brasil iguais) em pips
+  mais estreitos, para caber em duas linhas; com texto grande a garagem esconde o "Copa 1 de 34" (o chip já diz a
+  copa) e a próxima corrida desce um tamanho. O fim do tutorial ficou mais largo e mais baixo (rolava 28 px em
+  todas as resoluções na medição de 02/10, antes destas telas).
 
 ## O que a varredura achou (28/09/2026)
 

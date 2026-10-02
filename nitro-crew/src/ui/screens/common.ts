@@ -1,6 +1,7 @@
 // Infraestrutura comum das telas: construção de DOM, lista de foco (um cursor por tela,
 // navegável por teclado, gamepad e mouse), seletores ‹ valor › e miniaturas de pista.
 import { getTrack } from '../../core/track';
+import { TRACKS } from '../../core/track/tracks';
 import type { CarDef, TimeOfDay, TrackDef } from '../../core/types';
 import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData, TutorialDoneData } from '../../game/contracts';
 import { t } from '../../i18n';
@@ -136,6 +137,11 @@ export interface FocusList {
 export interface FocusListOptions {
   /** Colunas da grade; 1 = lista vertical (com volta nas pontas). */
   cols?: number;
+  /**
+   * Grade de linhas de tamanhos diferentes (a de pistas: copas de 3 e de 4): o tamanho de cada linha, na ordem dos
+   * itens. Vence `cols`; a navegação é a de `raggedGridMove`.
+   */
+  rows?: readonly number[];
   start?: number;
   sfx?: ScreenApi['sfx'];
 }
@@ -181,7 +187,9 @@ export function createFocusList(items: FocusItem[], opts: FocusListOptions = {})
       if (list.index < 0) return list.set(0);
       const i = list.index;
       let next = i;
-      if (cols === 1) {
+      if (opts.rows) {
+        next = raggedGridMove(opts.rows, i, dir);
+      } else if (cols === 1) {
         if (dir === 'up') next = (i - 1 + n) % n;
         else if (dir === 'down') next = (i + 1) % n;
         else return false;
@@ -222,6 +230,29 @@ export function createFocusList(items: FocusItem[], opts: FocusListOptions = {})
   });
   list.set(opts.start ?? 0);
   return list;
+}
+
+/**
+ * Movimento numa grade de linhas de tamanhos diferentes (`rows`: quantos itens em cada linha, na ordem). ← → andam
+ * dentro da linha e param nas pontas; ↑ ↓ trocam de linha mantendo a coluna, presos à última coluna da linha de
+ * destino quando ela é mais curta; nas pontas da grade ficam no lugar. Índice fora da grade: devolve o mesmo.
+ */
+export function raggedGridMove(rows: readonly number[], index: number, dir: NavDir): number {
+  let row = 0;
+  let start = 0;
+  while (row < rows.length && index >= start + rows[row]) { start += rows[row]; row++; }
+  if (row >= rows.length) return index;
+  const col = index - start;
+  if (dir === 'left') return col > 0 ? index - 1 : index;
+  if (dir === 'right') return col < rows[row] - 1 ? index + 1 : index;
+  // Linha vizinha (pulando linhas vazias, que não têm onde parar).
+  const step = dir === 'up' ? -1 : 1;
+  let r = row + step;
+  while (r >= 0 && r < rows.length && rows[r] === 0) r += step;
+  if (r < 0 || r >= rows.length) return index;
+  let rStart = 0;
+  for (let k = 0; k < r; k++) rStart += rows[k];
+  return rStart + Math.min(col, rows[r] - 1);
 }
 
 /** Navegação padrão de uma tela com uma lista: setas movem/ajustam, confirmar ativa, voltar chama `onBack`. */
@@ -287,6 +318,22 @@ export function onOff(v: boolean): string {
   return v ? t('ui.common.on') : t('ui.common.off');
 }
 
+/**
+ * Nome da pista no idioma atual (core.track.<id>, src/i18n/core.ts). Pista sem string (a fictícia de um teste) cai
+ * no nome da definição, e sem definição no próprio id.
+ */
+export function trackName(id: string, fallback?: string): string {
+  const key = `core.track.${id}`;
+  const name = t(key);
+  return name === key ? fallback ?? getTrackName(id) : name;
+}
+
+function getTrackName(id: string): string {
+  const def = TRACKS.find((d) => d.id === id);
+  if (def) return def.name;
+  try { return getTrack(id).def.name; } catch { return id; }
+}
+
 export function countryName(country: string): string {
   return t(`core.country.${country}`);
 }
@@ -303,7 +350,7 @@ export function dayIcon(timeOfDay: TimeOfDay): SVGSVGElement {
 /** Miniatura do contorno da pista num canvas quadrado de `size` px CSS (nítida em telas HiDPI). */
 export function trackThumb(ctx: MenuContext, def: TrackDef, size: number, color = 'rgba(255,255,255,0.92)'): HTMLCanvasElement {
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? Math.min(3, devicePixelRatio) : 1;
-  const canvas = h('canvas', { class: 'track-thumb', attrs: { width: String(Math.round(size * dpr)), height: String(Math.round(size * dpr)), 'aria-label': def.name } });
+  const canvas = h('canvas', { class: 'track-thumb', attrs: { width: String(Math.round(size * dpr)), height: String(Math.round(size * dpr)), 'aria-label': trackName(def.id, def.name) } });
   canvas.style.width = `${size}px`;
   canvas.style.height = `${size}px`;
   let points: Array<[number, number]> = [];

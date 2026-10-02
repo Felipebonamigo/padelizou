@@ -11,7 +11,7 @@ import {
 } from '../../game/stats';
 import { getLanguage, t } from '../../i18n';
 import '../../stats/strings';
-import { arrowButton, blurActive, button, lapsText, createFocusList, h, listNav, screenFrame, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, blurActive, button, lapsText, createFocusList, h, listNav, screenFrame, trackName, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { ghostRecordsView } from './ghost-records';
 import { icon, medal } from './icons';
 import './records.css';
@@ -54,8 +54,8 @@ function tracksTab(api: ScreenApi, rebuild: () => void): TabView {
       .sort((a, b) => a.laps - b.laps);
     const ghost = ghosts.ghost(def.id);
     if (!lap && races.length === 0 && !ghost) continue;
-    rows.push({ activate: ghost ? () => ghosts.exportTrack(ghost, def.name) : undefined, el: h('div', { class: `record-row glass${ghost ? ' has-ghost' : ''}` },
-      h('div', { class: 'record-track' }, h('strong', { text: def.name }), h('span', { class: 'muted', text: t(`core.country.${def.country}`) })),
+    rows.push({ activate: ghost ? () => ghosts.exportTrack(ghost, trackName(def.id, def.name)) : undefined, el: h('div', { class: `record-row glass${ghost ? ' has-ghost' : ''}` },
+      h('div', { class: 'record-track' }, h('strong', { text: trackName(def.id, def.name) }), h('span', { class: 'muted', text: t(`core.country.${def.country}`) })),
       h('div', { class: 'record-entries' },
         lap ? h('div', { class: 'record-entry' },
           h('span', { class: 'record-kind', text: t('ui.records.lap') }),

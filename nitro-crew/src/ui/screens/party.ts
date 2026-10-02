@@ -14,7 +14,7 @@ import { NAME_MAX_LENGTH } from '../../game/save';
 import { t } from '../../i18n';
 import { ordinalText } from '../../party/rules';
 import '../../party/strings';
-import { arrowButton, button, createFocusList, lapsText, h, listNav, screenFrame, selector, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, button, createFocusList, lapsText, h, listNav, screenFrame, selector, trackName, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal, type IconName } from './icons';
 import { availableCars, occupiedSeats, startCursor } from './lobby';
 import { commitSettings, raceOptionSelectors } from './options';
@@ -101,8 +101,18 @@ export function tournamentTracks(cup: CupDef, rounds: number): string[] {
   return [...ids.slice(0, Math.min(rounds, ids.length - 1)), ids[ids.length - 1]];
 }
 
+/**
+ * Teto de rodadas classificatórias numa copa: cada rodada usa uma pista e a final a última, então rodadas + final
+ * cabem nas pistas da copa (as de estado têm 3 → até 2 rodadas; as do Mundial, 4 → até 3).
+ */
+export function tournamentMaxRounds(cup: CupDef): number {
+  return Math.max(TOURNAMENT_MIN_ROUNDS, Math.min(TOURNAMENT_MAX_ROUNDS, cup.trackIds.length - 1));
+}
+
+/** Inscrição → torneio; rodadas pedidas acima do teto da copa (trocou para uma copa de 3 pistas) caem para o teto. */
 export function draftSetup(draft: TournamentDraft, cup: CupDef, controllers: number, laps: number): TournamentSetup {
-  return { players: draft.players.map((p) => ({ ...p })), controllers, rounds: draft.rounds, trackIds: tournamentTracks(cup, draft.rounds), laps };
+  const rounds = Math.min(draft.rounds, tournamentMaxRounds(cup));
+  return { players: draft.players.map((p) => ({ ...p })), controllers, rounds, trackIds: tournamentTracks(cup, rounds), laps };
 }
 
 export function tournamentScreen(api: ScreenApi): ScreenInstance {
@@ -173,8 +183,7 @@ export function tournamentScreen(api: ScreenApi): ScreenInstance {
       heats: t(`party.t.heats.${heats === 1 ? 'one' : 'other'}`, { n: heats }),
       final: fin > 0 ? t('party.t.final', { n: fin }) : t('party.t.noFinal'),
     });
-    const trackName = (id: string) => ctx.tracks.find((x) => x.id === id)?.name ?? id;
-    const rounds = s.trackIds.slice(0, s.rounds).map(trackName).join(', ');
+    const rounds = s.trackIds.slice(0, s.rounds).map((id) => trackName(id)).join(', ');
     tracksLine.textContent = t('party.t.tracksLine', { tracks: rounds, final: trackName(s.trackIds[s.trackIds.length - 1]) });
     const err = setupError(s);
     error.textContent = err ? t(err) : t('party.t.nameHint');
@@ -205,13 +214,15 @@ export function tournamentScreen(api: ScreenApi): ScreenInstance {
     remove.disabled = draft.players.length <= TOURNAMENT_MIN_PLAYERS;
     if (remove.disabled) remove.el.classList.add('disabled');
 
-    const rounds = selector(t('party.t.rounds'), () => String(draft.rounds), (d) => {
-      draft.rounds = Math.min(TOURNAMENT_MAX_ROUNDS, Math.max(TOURNAMENT_MIN_ROUNDS, draft.rounds + d));
+    // O seletor mostra as rodadas que vão valer: na copa de 3 pistas o teto é 2 (tournamentMaxRounds).
+    const rounds = selector(t('party.t.rounds'), () => String(Math.min(draft.rounds, tournamentMaxRounds(cupOf()))), (d) => {
+      draft.rounds = Math.min(tournamentMaxRounds(cupOf()), Math.max(TOURNAMENT_MIN_ROUNDS, Math.min(draft.rounds, tournamentMaxRounds(cupOf())) + d));
       refreshStatus();
     }, { sfx: api.sfx });
     const cup = selector(t('party.t.cup'), () => `${cupOf().flag} ${t(`core.cup.${cupOf().id}`)}`, (d) => {
       const k = cups.findIndex((c) => c.id === draft.cupId);
       draft.cupId = cups[(k + d + cups.length) % cups.length].id;
+      rounds.refresh();
       refreshStatus();
     }, { sfx: api.sfx });
     const laps = raceOptionSelectors(api, () => { commitSettings(api); refreshStatus(); }, { quickLaps: true, lapsLabel: t('party.t.laps') });
@@ -294,7 +305,7 @@ export function handoffScreen(api: ScreenApi): ScreenInstance {
     h('div', { class: 'screen-title-row' }, h('h1', { class: 'screen-title', text: t('party.handoff.title') }), h('span', { class: 'chip', text: heatLabel(tour, info) })),
     h('div', { class: 'handoff-track' },
       trackDef ? trackThumb(ctx, trackDef, 56) : null,
-      h('strong', { text: trackDef?.name ?? info.trackId }),
+      h('strong', { text: trackName(info.trackId, trackDef?.name) }),
       h('span', { class: 'muted', text: lapsText(tour.setup.laps) }),
     ),
     h('div', { class: `handoff-cards n-${cards.length}` }, cards),

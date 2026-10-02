@@ -398,8 +398,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function finishRace(r: ActiveRace): void {
-    const { newRecords, achievements } = settle(r);
-    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: withRaceAssists(r.humans, r.state.config.humans), champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state) };
+    const { newRecords, achievements, newStamp } = settle(r);
+    const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: withRaceAssists(r.humans, r.state.config.humans), champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state), newStamp: newStamp ?? null };
     if (r.driver) r.driver.finished(data);
     else menus.show('results', data);
     audio.update(null, 0);

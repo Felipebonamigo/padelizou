@@ -1,12 +1,14 @@
-// Roteiro Playwright das telas de copas e pistas (8 copas × 4 pistas), pelo fluxo real de teclado:
+// Roteiro Playwright das telas de copas e pistas (onda G: 34 copas — a Expedição Brasil, 27 estados × 3 pistas em
+// 5 regiões, e o Mundial, 7 países × 4 —, 109 pistas), pelo fluxo real de teclado:
 // título → menu → lobby (Enter entra, Enter fica pronto, ↑ até INICIAR) → copas/pistas.
 // Nas telas de seleção o teclado chega por keydown (menus.ts), então basta `press`; o lobby lê a
 // entrada por quadro. Com a máquina carregada o 3D por software leva segundos por quadro (captura
 // estourava 30 s), então o laço do requestAnimationFrame é parado e os quadros são dados à mão com
 // session.frame() — a mesma função que o laço chama — só onde a tela depende deles.
-// Partes: fluxo completo em 1280×720 e 1920×1080; contra-relógio (o cartão mostra as voltas com que
-// a corrida larga); e as duas telas em tamanhos intermediários (Steam Deck 1280×800, 1366×768,
-// 1600×900, 1024×600), onde nenhum nome pode sair cortado. `--tamanhos` roda só a última.
+// Partes: fluxo completo em 1280×720 e 1920×1080 (abas por região e Mundial, copa de 3 e de 4 pistas, grade de
+// linhas desiguais, passaporte); Mundial fechado; contra-relógio (o cartão mostra as voltas com que a corrida
+// larga); e as duas telas em tamanhos intermediários (Steam Deck 1280×800, 1366×768, 1600×900, 1024×600), onde
+// nenhum nome pode sair cortado. `--tamanhos` roda só a última.
 // Uso: npm run build && npx vite preview --port 4381 --strictPort &
 //      node scripts/pistas-ui.mjs [url] [prefixo das capturas] [pasta extra das capturas] [--tamanhos]
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -30,12 +32,16 @@ async function shot(page, name) {
   if (extra) copyFileSync(path, `${extra}/${basename(path)}`);
 }
 
-// Progresso de quem já fez as quatro copas antigas, com dois recordes (para ver tempos nas telas).
+const BRASIL = ['br_rj', 'br_sp', 'br_mg', 'br_es', 'br_pr', 'br_sc', 'br_rs', 'br_df', 'br_go', 'br_ms', 'br_mt', 'br_ba', 'br_se', 'br_al',
+  'br_pe', 'br_pb', 'br_rn', 'br_ce', 'br_pi', 'br_ma', 'br_pa', 'br_am', 'br_ap', 'br_rr', 'br_ro', 'br_ac', 'br_to'];
+// Progresso de quem fez a Expedição Brasil inteira (27 carimbos) e três copas do Mundial, com dois recordes.
 const SAVE = {
-  cupsCompleted: ['brasil', 'eua', 'japao', 'europa'],
+  cupsCompleted: [...BRASIL, 'eua', 'japao', 'europa'],
   bestLaps: { copacabana: { ticks: 3912, name: 'Fê', carId: 'falcao', date: '2026-09-25' }, kruger: { ticks: 5231, name: 'Bia', carId: 'tornado', date: '2026-09-25' } },
   bestRaces: {}, achievements: [], racesRun: 20, racesWon: 6, seatNames: ['Fê', 'Bia', 'P3', 'P4'], seatCars: ['falcao', 'tornado', 'tornado', 'camelo'],
 };
+// No meio da Expedição: 12 estados (Sudeste, Sul, Centro-Oeste e a Bahia); o Mundial fechado.
+const SAVE_MID = { ...SAVE, cupsCompleted: BRASIL.slice(0, 12) };
 const gp = (dir) => ({ up: false, down: false, left: false, right: false, confirm: false, back: false, start: false, [dir]: true, device: 'gp0' });
 
 // Espera N quadros do jogo (o laço da sessão roda no requestAnimationFrame).
@@ -45,11 +51,11 @@ async function press(page, code) { await page.keyboard.press(code); await page.w
 const menu = (page) => page.evaluate(() => window.nc.session.menus.current());
 const focused = (page, attr) => page.evaluate((a) => document.querySelector('#ui .focus')?.getAttribute(a) ?? null, attr);
 
-async function open(w, hgt, tag) {
+async function open(w, hgt, tag, save = SAVE) {
   const page = await browser.newPage({ viewport: { width: w, height: hgt } });
   page.on('pageerror', (e) => errors.push(`${tag} pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${tag} console: ${m.text()}`); });
-  await page.addInitScript((save) => { try { localStorage.setItem('nitro-crew.save', JSON.stringify(save)); } catch { /* sem storage */ } }, SAVE);
+  await page.addInitScript((sv) => { try { localStorage.setItem('nitro-crew.save', JSON.stringify(sv)); } catch { /* sem storage */ } }, save);
   page.setDefaultTimeout(180_000);
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.evaluate(() => { window.nc.session.settings.quality = 'low'; window.nc.session.stop(); });
@@ -103,7 +109,7 @@ async function layoutChecks(page, tag) {
       return b.right > vw + 1 || b.left < -1;
     }).length;
     // Texto cortado: nome com reticências ou com mais linhas do que o clamp mostra.
-    const cut = [...document.querySelectorAll('#ui .cup-row-name, #ui .cup-detail-title strong, #ui .cup-race-name, #ui .track-name, #ui .track-section-cup')]
+    const cut = [...document.querySelectorAll('#ui .cup-row-name, #ui .cup-detail-title strong, #ui .cup-race-name, #ui .track-name, #ui .track-section-cup, #ui .cup-tab-name, #ui .cup-stage-name')]
       .filter((el) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1).map((el) => el.textContent);
     const hint = document.querySelector('#ui .screen > .hint')?.getBoundingClientRect();
     const body = document.querySelector('#ui .track-scroll, #ui .cups-layout')?.getBoundingClientRect();
@@ -115,6 +121,11 @@ async function layoutChecks(page, tag) {
   check(r.cut.length === 0, `${tag}: nenhum nome cortado (${r.cut.join(' | ') || 'ok'})`);
   check(r.hintClear, `${tag}: a dica de teclas fica abaixo da lista, sem sobrepor`);
 }
+
+const activeTab = (page) => page.evaluate(() => document.querySelector('#ui .cup-tab.active')?.dataset.tab ?? null);
+const rowIds = (page) => page.evaluate(() => [...document.querySelectorAll('#ui .cup-row')].map((e) => e.dataset.cup));
+const detailTracks = (page) => page.evaluate(() => [...document.querySelectorAll('#ui .cup-race-name')].map((e) => e.textContent));
+const listFits = (page) => page.evaluate(() => { const list = document.querySelector('#ui .cup-rows').getBoundingClientRect(); const last = [...document.querySelectorAll('#ui .cup-row')].pop().getBoundingClientRect(); return last.bottom <= list.bottom + 1 && list.bottom <= window.innerHeight; });
 
 const inView = (page) => page.evaluate(() => {
   const box = document.querySelector('#ui .track-scroll').getBoundingClientRect();
@@ -131,13 +142,13 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   await toSelection(page, 0, tag);
   check(await menu(page) === 'cups', `${tag}: INICIAR no Campeonato abre as copas`);
   await page.waitForTimeout(300);
-  const rows = await page.evaluate(() => document.querySelectorAll('#ui .cup-row').length);
-  check(rows === 8, `${tag}: 8 copas na lista (${rows})`);
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('#ui .cup-tab')].map((e) => `${e.dataset.tab}:${e.querySelector('.cup-tab-count')?.textContent ?? ''}`));
+  check(tabs.join(' ') === 'sudeste:4/4 sul:3/3 centro_oeste:4/4 nordeste:9/9 norte:7/7 mundial:3/7', `${tag}: 5 abas de região com os carimbos e a do Mundial (${tabs.join(' ')})`);
+  check(await activeTab(page) === 'mundial' && (await rowIds(page)).length === 7, `${tag}: abre na aba da fronteira, o Mundial, com 7 copas (${await activeTab(page)})`);
   check(await focused(page, 'data-cup') === 'africa_do_sul', `${tag}: cursor começa na fronteira (África do Sul) — ${await focused(page, 'data-cup')}`);
-  const detail = await page.evaluate(() => [...document.querySelectorAll('#ui .cup-race-name')].map((e) => e.textContent));
+  const detail = await detailTracks(page);
   check(detail.length === 4 && detail[0] === 'Savana do Kruger', `${tag}: detalhe mostra as 4 pistas da copa em foco (${detail.join(', ')})`);
-  const fits = await page.evaluate(() => { const list = document.querySelector('#ui .cup-rows').getBoundingClientRect(); const last = [...document.querySelectorAll('#ui .cup-row')].pop().getBoundingClientRect(); return last.bottom <= list.bottom + 1 && list.bottom <= window.innerHeight; });
-  check(fits, `${tag}: as 8 copas cabem sem rolar`);
+  check(await listFits(page), `${tag}: as 7 copas do Mundial cabem sem rolar`);
   await layoutChecks(page, `${tag} copas`);
   await shot(page, `copas-${tag}`);
 
@@ -152,9 +163,9 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   check(await menu(page) === 'cups', `${tag}: Enter numa copa travada não começa corrida`);
   await layoutChecks(page, `${tag} copas travada`);
   await shot(page, `copas-travada-${tag}`);
-  // Controle (mesmo caminho que a sessão usa para gamepads): ↓ dá a volta para o Brasil.
+  // Controle (mesmo caminho que a sessão usa para gamepads): ↓ dá a volta para os Estados Unidos.
   await page.evaluate((n) => window.nc.session.menus.navigate(n), gp('down'));
-  check(await focused(page, 'data-cup') === 'brasil', `${tag}: ↓ no controle dá a volta até o Brasil`);
+  check(await focused(page, 'data-cup') === 'eua', `${tag}: ↓ no controle dá a volta até os Estados Unidos`);
   const doneChip = await page.evaluate(() => document.querySelector('#ui .cup-chip.done')?.textContent ?? '');
   check(doneChip.length > 0, `${tag}: copa concluída mostra o selo (${doneChip})`);
   // Mouse: passar por cima de uma copa também troca o detalhe.
@@ -163,19 +174,46 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   const hoverTitle = await page.evaluate(() => document.querySelector('#ui .cup-detail-title strong')?.textContent);
   check(hoverTitle === 'Copa Austrália', `${tag}: mouse por cima troca o detalhe (${hoverTitle})`);
   await page.mouse.move(2, 2);
+
+  // ← no controle: a aba do Norte, com os 7 estados; copa de 3 pistas no detalhe e o carimbo dela.
+  await page.evaluate((n) => window.nc.session.menus.navigate(n), gp('left'));
+  check(await activeTab(page) === 'norte', `${tag}: ← troca para a aba do Norte (${await activeTab(page)})`);
+  const norte = await rowIds(page);
+  check(norte.join(',') === 'br_pa,br_am,br_ap,br_rr,br_ro,br_ac,br_to', `${tag}: Norte com os 7 estados na ordem (${norte.join(',')})`);
+  check(await focused(page, 'data-cup') === 'br_to', `${tag}: com a região toda concluída, o cursor fica na última (${await focused(page, 'data-cup')})`);
+  const to = await detailTracks(page);
+  check(to.join(', ') === 'Dunas do Jalapão, Ponte de Palmas, Ilha do Bananal', `${tag}: copa de estado com 3 pistas no detalhe (${to.join(', ')})`);
+  const stampChip = await page.evaluate(() => ({ chip: document.querySelector('#ui .cup-chip.done')?.textContent ?? '', badge: document.querySelector('#ui .cup-detail .uf-badge.on')?.textContent ?? '' }));
+  check(stampChip.chip.includes('Carimbada') && stampChip.badge === 'TO', `${tag}: estado carimbado no detalhe (${stampChip.chip}; ${stampChip.badge})`);
+  await layoutChecks(page, `${tag} copas Norte`);
+  await shot(page, `copas-norte-${tag}`);
+  // Clique na aba do Nordeste: a lista mais longa (9 estados) cabe sem rolar.
+  await page.click('#ui .cup-tab[data-tab="nordeste"]');
+  check(await activeTab(page) === 'nordeste' && (await rowIds(page)).length === 9, `${tag}: clique abre o Nordeste com 9 estados`);
+  check(await listFits(page), `${tag}: as 9 copas do Nordeste cabem sem rolar`);
+  await layoutChecks(page, `${tag} copas Nordeste`);
+  await shot(page, `copas-nordeste-${tag}`);
+  // ← nas pontas: da 1ª aba não passa.
+  for (let i = 0; i < 6; i++) await press(page, 'ArrowLeft');
+  check(await activeTab(page) === 'sudeste', `${tag}: ← para na primeira aba (Sudeste)`);
   if (w === 1280) {
     // Inglês: textos da tela no outro idioma.
     await page.evaluate(() => { const s = window.nc.session; s.handleMenuEvent({ type: 'settingsChanged', settings: { ...s.settings, language: 'en' } }); });
     await page.waitForTimeout(300);
-    const en = await page.evaluate(() => document.querySelector('#ui .cup-detail-title strong')?.textContent);
-    check(typeof en === 'string' && en.endsWith(' Cup'), `${tag}: detalhe em inglês (${en}; a tela é remontada e o cursor volta à fronteira)`);
+    const en = await page.evaluate(() => ({ title: document.querySelector('#ui .cup-detail-title strong')?.textContent, stage: document.querySelector('#ui .cup-stage-name')?.textContent, track: document.querySelector('#ui .cup-race-name')?.textContent }));
+    check(typeof en.title === 'string' && en.title.endsWith(' Cup') && (en.stage ?? '').startsWith('Brazil Expedition'), `${tag}: copas em inglês (${en.title}; ${en.stage}; a tela é remontada e o cursor volta à fronteira)`);
+    check(en.track === 'Kruger Savanna', `${tag}: nome da pista em inglês pelas strings do núcleo (${en.track})`);
     await layoutChecks(page, `${tag} copas EN`);
     await shot(page, `copas-en-${tag}`);
     await page.evaluate(() => { const s = window.nc.session; s.handleMenuEvent({ type: 'settingsChanged', settings: { ...s.settings, language: 'pt' } }); });
     await page.waitForTimeout(300);
+  } else {
+    // Sem a troca de idioma a tela continua no Sudeste: volta ao Mundial, na África do Sul, para o passo seguinte.
+    await page.click('#ui .cup-tab[data-tab="mundial"]');
+    await page.mouse.move(2, 2);
   }
-  // Enter numa copa aberta começa a primeira corrida dela (a primeira pista do detalhe). Em 1280 a
-  // troca de idioma remontou a tela e o cursor voltou à África do Sul, então ↑ cai na Europa.
+  // Enter numa copa aberta começa a primeira corrida dela (a primeira pista do detalhe). A tela está na África do
+  // Sul (em 1280 a troca de idioma a remontou na fronteira), então ↑ cai na Europa.
   await page.evaluate((n) => window.nc.session.menus.navigate(n), gp('up'));
   const cupNow = await focused(page, 'data-cup');
   const firstName = await page.evaluate(() => document.querySelector('#ui .cup-race-name')?.textContent ?? null);
@@ -203,6 +241,36 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   check(st.cols === 8 && st.line.includes('2 de 4') && st.line.includes('Deserto do Karoo'), `${tag}: classificação com 4 corridas (${st.cols} colunas; "${st.line}")`);
   check(st.fits, `${tag}: classificação cabe na largura`);
   await shot(page, `classificacao-${tag}`);
+  // Copa de estado (3 corridas): 3 colunas de corrida e "2 de 3".
+  await page.evaluate(() => {
+    const s = window.nc.session;
+    const standings = Array.from({ length: 20 }, (_, i) => ({ key: i === 0 ? 'seat:0' : `ia${i}`, name: i === 0 ? 'Fê' : `IA ${i}`, seat: i === 0 ? 0 : -1, teamId: Math.floor(i / 2), points: Math.max(0, 20 - i * 2), wins: i === 0 ? 1 : 0, positions: [i + 1, 0, 0] }));
+    const teams = Array.from({ length: 10 }, (_, i) => ({ teamId: i, name: `Equipe ${i}`, points: 38 - i * 4, isHuman: i === 0 }));
+    const champ = { cupId: 'br_ba', raceIndex: 1, standings, teams, coop: false, eliminated: false, completed: false, lastRace: null, lastVerdict: 'qualified' };
+    const cup = { id: 'br_ba', name: 'Copa Bahia', country: 'Brasil', flag: '🇧🇷', stage: 'brasil', region: 'nordeste', state: 'BA', trackIds: ['porto_seguro', 'salvador', 'chapada_diamantina'], requires: 'br_mt' };
+    s.menus.show('standings', { champ, humans: [{ seat: 0, name: 'Fê', carId: 'falcao', teamId: 0, color: '#ffd23f' }], cup });
+  });
+  await page.waitForTimeout(300);
+  const st3 = await page.evaluate(() => ({ cols: document.querySelectorAll('#ui .standings-table thead th').length, line: document.querySelector('#ui .status-line')?.textContent ?? '' }));
+  check(st3.cols === 7 && st3.line.includes('2 de 3') && st3.line.includes('Orla de Salvador'), `${tag}: classificação de copa de estado com 3 corridas (${st3.cols} colunas; "${st3.line}")`);
+  await shot(page, `classificacao-3-${tag}`);
+  // Passaporte (menu principal › Passaporte): 27 carimbos, todos ganhos, e o cartão-postal com nomes de marco.
+  await page.evaluate(() => window.nc.session.menus.show('passport'));
+  await page.waitForTimeout(300);
+  const pp = await page.evaluate(() => ({
+    stamps: document.querySelectorAll('#ui .pp-stamp').length, on: document.querySelectorAll('#ui .pp-stamp.on').length,
+    regions: [...document.querySelectorAll('#ui .pp-region')].map((r) => r.querySelectorAll('.pp-stamp').length).join(','),
+    focus: document.querySelector('#ui .pp-stamp.focus')?.dataset.state, state: document.querySelector('#ui .pc-state')?.textContent,
+    tracks: document.querySelectorAll('#ui .pc-tracks li').length, landmarks: document.querySelector('#ui .pc-landmarks')?.textContent ?? '',
+  }));
+  check(pp.stamps === 27 && pp.on === 27 && pp.regions === '4,3,4,9,7', `${tag}: passaporte com 27 carimbos em 5 regiões (${pp.on}/${pp.stamps}; ${pp.regions})`);
+  check(pp.focus === 'TO' && pp.state === 'Tocantins' && pp.tracks === 3 && pp.landmarks.length > 0 && !pp.landmarks.includes('_'), `${tag}: cartão-postal do último carimbo (${pp.state}: ${pp.tracks} pistas; ${pp.landmarks})`);
+  await press(page, 'ArrowUp');
+  const pp2 = await page.evaluate(() => ({ focus: document.querySelector('#ui .pp-stamp.focus')?.dataset.state, state: document.querySelector('#ui .pc-state')?.textContent }));
+  check(pp2.focus === 'CE' && pp2.state === 'Ceará', `${tag}: ↑ no passaporte sobe para o Nordeste na mesma coluna (${pp2.focus})`);
+  await layoutChecks(page, `${tag} passaporte`);
+  await shot(page, `passaporte-${tag}`);
+
   await page.close();
 
   // ───────────── Pistas ─────────────
@@ -211,27 +279,34 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   check(await menu(p2) === 'tracks', `${tag}: INICIAR na Corrida rápida abre as pistas`);
   await p2.waitForTimeout(300);
   const cards = await p2.evaluate(() => document.querySelectorAll('#ui .track-card').length);
-  check(cards === 32, `${tag}: 32 pistas na grade (${cards})`);
-  const heads = await p2.evaluate(() => document.querySelectorAll('#ui .track-section').length);
-  check(heads === 8, `${tag}: uma seção por copa (${heads})`);
+  check(cards === 109, `${tag}: 109 pistas na grade (${cards})`);
+  const heads = await p2.evaluate(() => ({ sections: document.querySelectorAll('#ui .track-section').length, groups: [...document.querySelectorAll('#ui .track-group-head')].map((e) => e.textContent).join(' | ') }));
+  check(heads.sections === 34, `${tag}: uma seção por copa (${heads.sections})`);
+  check(heads.groups.startsWith('Expedição BrasilSudeste') && heads.groups.endsWith('Mundial') && heads.groups.split(' | ').length === 6, `${tag}: etapa e região em cima da primeira copa de cada uma (${heads.groups})`);
   await layoutChecks(p2, `${tag} pistas`);
   await shot(p2, `pistas-${tag}`);
-  // Teclado: ↓ troca de copa (mesma coluna), → anda na copa.
+  // Teclado: ↓ troca de copa (mesma coluna), → anda na copa; numa copa de 3, → para na 3ª.
   await press(p2, 'ArrowRight');
   await press(p2, 'ArrowDown');
-  check(await focused(p2, 'data-track') === 'rochosas', `${tag}: → ↓ vai à 2ª pista da copa seguinte (${await focused(p2, 'data-track')})`);
-  for (let i = 0; i < 6; i++) await press(p2, 'ArrowDown');
-  for (let i = 0; i < 2; i++) await press(p2, 'ArrowRight');
+  check(await focused(p2, 'data-track') === 'campos_do_jordao', `${tag}: → ↓ vai à 2ª pista da copa seguinte (${await focused(p2, 'data-track')})`);
+  for (let i = 0; i < 4; i++) await press(p2, 'ArrowRight');
+  check(await focused(p2, 'data-track') === 'sampa_noite', `${tag}: → para na 3ª pista de uma copa de 3 (${await focused(p2, 'data-track')})`);
+  for (let i = 0; i < 40; i++) await press(p2, 'ArrowDown');
+  check(await focused(p2, 'data-track') === 'etna', `${tag}: ↓ até o fim, da 3ª coluna para a 3ª do Mediterrâneo (${await focused(p2, 'data-track')})`);
+  await press(p2, 'ArrowRight');
   await settle(p2);
-  check(await focused(p2, 'data-track') === 'roma', `${tag}: ↓×6 →×2 chega à última pista (${await focused(p2, 'data-track')})`);
+  check(await focused(p2, 'data-track') === 'roma', `${tag}: → chega à última pista, a 4ª do Mediterrâneo (${await focused(p2, 'data-track')})`);
   const vEnd = await inView(p2);
   check(vEnd.card, `${tag}: a rolagem acompanhou o foco até o fim (cartão inteiro visível)`);
   await layoutChecks(p2, `${tag} pistas fim`);
   await shot(p2, `pistas-fim-${tag}`);
-  // Controle: ↑ ×4 volta à Europa na mesma coluna, e o cabeçalho da copa aparece junto.
-  for (let i = 0; i < 4; i++) await p2.evaluate((n) => window.nc.session.menus.navigate(n), gp('up'));
+  // Controle: ↑ ×6 volta aos Estados Unidos na 4ª coluna; mais um ↑ entra no Tocantins (3 pistas) preso na 3ª.
+  for (let i = 0; i < 6; i++) await p2.evaluate((n) => window.nc.session.menus.navigate(n), gp('up'));
   await settle(p2);
-  check(await focused(p2, 'data-track') === 'monaco_noite', `${tag}: ↑×4 no controle volta à Europa, mesma coluna (${await focused(p2, 'data-track')})`);
+  check(await focused(p2, 'data-track') === 'las_vegas', `${tag}: ↑×6 no controle volta aos Estados Unidos, mesma coluna (${await focused(p2, 'data-track')})`);
+  await p2.evaluate((n) => window.nc.session.menus.navigate(n), gp('up'));
+  await settle(p2);
+  check(await focused(p2, 'data-track') === 'ilha_do_bananal', `${tag}: ↑ da 4ª coluna para uma copa de 3 para na 3ª (${await focused(p2, 'data-track')})`);
   const vUp = await inView(p2);
   check(vUp.card && vUp.head, `${tag}: subindo, o cartão e o cabeçalho da copa ficam visíveis (${JSON.stringify(vUp)})`);
   await shot(p2, `pistas-meio-${tag}`);
@@ -241,6 +316,22 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   const qr = await p2.evaluate(() => window.nc.session.race?.state.trackId ?? null);
   check(await menu(p2) === null && qr === target, `${tag}: Enter começa a corrida rápida na pista em foco (${qr})`);
   await p2.close();
+}
+
+// ───────────── Mundial fechado (no meio da Expedição) ─────────────
+if (!onlySizes) {
+  const tag = '1280x720 Mundial fechado';
+  const page = await open(1280, 720, tag, SAVE_MID);
+  await toSelection(page, 0, tag);
+  check(await menu(page) === 'cups' && await activeTab(page) === 'nordeste' && await focused(page, 'data-cup') === 'br_se', `${tag}: abre no Nordeste, em Sergipe (${await activeTab(page)}, ${await focused(page, 'data-cup')})`);
+  for (let i = 0; i < 2; i++) await press(page, 'ArrowRight');
+  const lock = await page.evaluate(() => ({ tab: document.querySelector('#ui .cup-tab.active')?.dataset.tab, note: document.querySelector('#ui .cup-stage-lock')?.textContent ?? '', locked: document.querySelectorAll('#ui .cup-row.locked').length, icon: !!document.querySelector('#ui .cup-tab[data-tab="mundial"] .cup-tab-count .ico') }));
+  check(lock.tab === 'mundial' && lock.note.includes('Copa Tocantins') && lock.locked === 7 && lock.icon, `${tag}: Mundial fechado diz por quê ("${lock.note}"; ${lock.locked} travadas; cadeado na aba: ${lock.icon})`);
+  await press(page, 'Enter');
+  check(await menu(page) === 'cups', `${tag}: Enter numa copa do Mundial fechado não começa corrida`);
+  await layoutChecks(page, `${tag}`);
+  await shot(page, 'copas-mundial-fechado-1280x720');
+  await page.close();
 }
 
 // ───────────── Contra-relógio: o cartão mostra as voltas com que a corrida larga ─────────────
@@ -268,13 +359,15 @@ for (const [w, hgt] of [[1280, 800], [1366, 768], [1600, 900], [1024, 600]]) {
   const page = await open(w, hgt, tag);
   await page.evaluate(() => window.nc.session.menus.show('cups'));
   await page.waitForTimeout(300);
-  const fits = await page.evaluate(() => { const list = document.querySelector('#ui .cup-rows').getBoundingClientRect(); const last = [...document.querySelectorAll('#ui .cup-row')].pop().getBoundingClientRect(); return last.bottom <= list.bottom + 1 && list.bottom <= window.innerHeight; });
-  check(fits, `${tag}: as 8 copas cabem sem rolar`);
+  check(await listFits(page), `${tag}: as copas do Mundial cabem sem rolar`);
   await layoutChecks(page, `${tag} copas`);
   await shot(page, `tamanho-copas-${tag}`);
+  await page.click('#ui .cup-tab[data-tab="nordeste"]');
+  check(await listFits(page), `${tag}: as 9 copas do Nordeste cabem sem rolar`);
+  await layoutChecks(page, `${tag} copas Nordeste`);
   await page.evaluate(() => window.nc.session.menus.show('tracks'));
   await page.waitForTimeout(300);
-  await layoutChecks(page, `${tag} pistas`); // confere os 32 cartões, visíveis ou não
+  await layoutChecks(page, `${tag} pistas`); // confere os 109 cartões, visíveis ou não
   await shot(page, `tamanho-pistas-${tag}`);
   await page.close();
 }

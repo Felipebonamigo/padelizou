@@ -13,6 +13,8 @@ import { recordRaceStats } from './stats';
 export interface RaceOutcome {
   newRecords: NewRecord[];
   achievements: AchievementUnlock[];
+  /** Sigla do estado carimbado no passaporte nesta corrida (copa de estado concluída pela primeira vez), ou null. */
+  newStamp?: string | null;
 }
 
 /** A parte da corrida ativa da sessão que o fechamento lê (e marca). */
@@ -75,8 +77,9 @@ export function settleRace(save: SaveData, r: SettleTarget, o: SettleOptions): R
   // Marcado antes de qualquer efeito: se um passo lançar, a próxima chamada (a sessão chama de novo
   // no quadro seguinte) devolve o que já foi fechado em vez de somar a corrida outra vez, e o
   // resultado aparece. O que já entrou no save é gravado mesmo assim (finally).
-  const out: RaceOutcome = { newRecords: [], achievements: [] };
+  const out: RaceOutcome = { newRecords: [], achievements: [], newStamp: null };
   r.outcome = out;
+  const stampsBefore = save.stamps.length;
   try {
     const results = r.state.results ?? [];
     const local = o.localSeats ?? null;
@@ -98,6 +101,7 @@ export function settleRace(save: SaveData, r: SettleTarget, o: SettleOptions): R
       if (cupJustCompleted) markCupCompleted(save, cupJustCompleted);
       cupChamp = o.careerChamp?.() ?? null;
     }
+    if (save.stamps.length > stampsBefore) out.newStamp = save.stamps[save.stamps.length - 1];
     out.achievements = unlockAchievements(save, r.mode, r.state, mine, r.humans, r.telemetry, r.track.def.timeOfDay === 'night', cupJustCompleted, o.difficulty, cupChamp);
     for (const u of out.achievements) {
       save.achievements.push(u.id);

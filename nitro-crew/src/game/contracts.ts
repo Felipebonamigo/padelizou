@@ -310,7 +310,7 @@ export interface RaceDriver {
 
 export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online'
   | 'party' | 'tournament' | 'handoff' | 'tournamentTable' | 'access'
-  | 'tutorial' | 'tutorialDone';
+  | 'tutorial' | 'tutorialDone' | 'passport';
 
 /** Modos de festa, só locais (docs/MODOS.md; src/game/party-session.ts). */
 export type PartyMode = 'tournament' | 'escort' | 'relay';
@@ -363,6 +363,8 @@ export interface ResultsScreenData {
   achievements?: AchievementUnlock[];
   /** Modo de festa: veredito da escolta, trocas do revezamento, bateria do torneio. */
   party?: PartyResultsInfo;
+  /** Expedição Brasil: sigla do estado carimbado no passaporte nesta corrida (o resultado anuncia). */
+  newStamp?: string | null;
 }
 
 /** Tela final do tutorial: concluído (parabéns) ou pulado/sem tempo (só as regras de ouro). */
