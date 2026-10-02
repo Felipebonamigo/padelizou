@@ -8,12 +8,12 @@ import { seatColor } from '../src/core/data/drivers.ts';
 import { createRenderer } from '../src/render/renderer.ts';
 import { setLanguage, t } from '../src/i18n/index.ts';
 import * as THREE from 'three';
-import { TRACK_PLACES } from '../src/core/data/places.ts';
+import { EXTRA_BRAZIL_PLACES, TRACK_PLACES } from '../src/core/data/places.ts';
 import '../src/i18n/core.ts';
 
 const q = new URLSearchParams(location.search);
 // nolm=1: sem os marcos turísticos (o "antes" da medição de custo deles, docs/DESEMPENHO.md).
-if (q.get('nolm') === '1') for (const k of Object.keys(TRACK_PLACES)) TRACK_PLACES[k] = { ...TRACK_PLACES[k], landmarks: [] };
+if (q.get('nolm') === '1') for (const P of [TRACK_PLACES, EXTRA_BRAZIL_PLACES]) for (const k of Object.keys(P)) P[k] = { ...P[k], landmarks: [] };
 const trackId = q.get('track') ?? 'copacabana';
 const humanCount = Math.min(4, Math.max(1, Number(q.get('humans') ?? 1)));
 const idle = q.get('idle') === '1';

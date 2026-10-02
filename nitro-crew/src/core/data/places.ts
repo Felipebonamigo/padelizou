@@ -135,3 +135,11 @@ export const EXTRA_BRAZIL_PLACES: Readonly<Record<string, TrackPlace>> = {
   palmas: { state: 'TO', landmarks: ['palacio_araguaia', 'ponte_palmas'] },
   ilha_do_bananal: { state: 'TO', landmarks: ['praia_de_rio', 'maloca'] },
 };
+
+/** O lugar de uma pista, da primeira leva ou da segunda. */
+export function placeOf(trackId: string): TrackPlace | undefined {
+  return TRACK_PLACES[trackId] ?? EXTRA_BRAZIL_PLACES[trackId];
+}
+
+/** Todos os lugares (primeira e segunda leva). */
+export const ALL_PLACES: Readonly<Record<string, TrackPlace>> = { ...TRACK_PLACES, ...EXTRA_BRAZIL_PLACES };

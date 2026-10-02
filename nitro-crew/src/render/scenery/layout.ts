@@ -3,7 +3,7 @@
 // divisa do alcance do carro (|x| = 3,2 da física), matas com clareiras além dela, postes com fios,
 // barcos no mar e pontos de referência por país. Determinístico (hash do id da pista + segmento):
 // a mesma pista tem sempre o mesmo visual. Puro: sem Three nem DOM.
-import { TRACK_PLACES } from '../../core/data/places';
+import { placeOf } from '../../core/data/places';
 import { hashString } from '../../core/rng';
 import { SPRITE_HALF_WIDTH } from '../../core/track/sprites';
 import type { SpriteRef, Track } from '../../core/types';
@@ -534,7 +534,7 @@ function dress(track: Track, recipe: DressingRecipe, table: ModelTable, out: Pla
  * 32 pistas pesaria no heap da sessão inteira — quem desenha (runtime.ts) guarda só o da pista atual.
  * `landmarks`: ids dos marcos turísticos (padrão: os da pista em places.ts; os testes passam outros).
  */
-export function sceneryLayout(track: Track, landmarks: readonly string[] = TRACK_PLACES[track.def.id]?.landmarks ?? []): Layout {
+export function sceneryLayout(track: Track, landmarks: readonly string[] = placeOf(track.def.id)?.landmarks ?? []): Layout {
   const table = new ModelTable();
   const bySeg: Placement[][] = track.segments.map(() => []);
   const occ = new Occupancy(track.segments.length);
