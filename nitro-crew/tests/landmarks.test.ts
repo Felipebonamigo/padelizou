@@ -165,14 +165,15 @@ describe('marcos turísticos: posição', () => {
     expect(got.filter((g) => g.id === 'cristo_redentor').length).toBe(LANDMARKS.cristo_redentor.perLap);
   });
 
-  it('o primeiro de cada marco fica perto da largada (o mais importante em ≤ 150 segmentos, os outros em ≤ 300)', () => {
+  it('o primeiro de cada marco fica perto da largada (o mais importante em ≤ 150 segmentos, os outros em ≤ 300; o do horizonte, +150)', () => {
     const bad: string[] = [];
     for (const c of allCases()) {
       const n = c.track.segments.length;
       const got = landmarkPlacements(c.layout);
       c.ids.forEach((id, k) => {
         const ahead = Math.min(...got.filter((g) => g.id === id).map((g) => (g.seg - c.track.startIndex + n) % n));
-        const cap = k === 0 ? 150 : 300;
+        // O do horizonte fica mais adiante: só entra na tela (a ~30°) uns 150 segmentos antes do ponto em que está ao lado.
+        const cap = (k === 0 ? 150 : 300) + (LANDMARKS[id].place === 'skyline' ? 150 : 0);
         if (!(ahead <= cap)) bad.push(`${c.placeId} ${id}: primeiro a ${ahead} segmentos da largada (máx. ${cap})`);
       });
     }
@@ -278,7 +279,7 @@ describe('marcos turísticos: posição', () => {
     expect(bad).toEqual([]);
   }, 120000);
 
-  it('borda de dentro conforme o lugar (near 30–80 m, far 120–330 m, skyline 400–470 m; até o dobro sem lugar)', () => {
+  it('borda de dentro conforme o lugar (near 30–80 m, far 120–330 m, skyline 220–300 m; até o dobro sem lugar)', () => {
     const bad: string[] = [];
     for (const c of allCases()) {
       for (const { seg, p, id } of landmarkPlacements(c.layout)) {
@@ -290,7 +291,7 @@ describe('marcos turísticos: posição', () => {
         for (const [lx, lz] of [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]]) lat = Math.min(lat, Math.abs(p.x) + side * (Math.cos(p.yaw) * lx + Math.sin(p.yaw) * lz));
         // A faixa do lugar, ou até o dobro dela quando a pista não deixou lugar na faixa (a última passada da busca).
         lat = Math.round(lat * 100) / 100;
-        const ok = d.place === 'near' ? lat >= 30 && lat <= 160 : d.place === 'far' ? lat >= 120 && lat <= 660 : lat >= 400 && lat <= 940;
+        const ok = d.place === 'near' ? lat >= 30 && lat <= 160 : d.place === 'far' ? lat >= 120 && lat <= 660 : lat >= 220 && lat <= 600;
         if (!ok) bad.push(`${c.placeId} ${id}#${seg}: ${d.place} com a borda a ${lat.toFixed(0)} m`);
       }
     }

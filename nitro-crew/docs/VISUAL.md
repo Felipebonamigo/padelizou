@@ -110,7 +110,8 @@ saturada, na linha de Horizon Chase Turbo. Código em `src/render/scenery/` (a p
 | `textures.ts` | fachadas (4 estilos, 4 × 4 janelas por repetição, com o mapa das janelas acesas) e o atlas de painéis (8 outdoors de marcas inventadas, largada, box, chevrons, xadrez) |
 | `catalog.ts` | que modelo cada sprite vira por bioma e país, as receitas de decoração, o registro de modelos (montados uma vez) |
 | `ground.ts` | altura do chão — espelho do relevo de `terrain.ts` (ver "Chão") |
-| `layout.ts` | onde cada objeto fica, uma vez por pista e determinístico |
+| `layout.ts` | onde cada objeto fica, uma vez por pista e determinístico (inclusive os marcos turísticos) |
+| `landmarks/` | marcos turísticos (onda G): registro, contrato, kit e os modelos por região — ver "Marcos turísticos" |
 | `runtime.ts` | os lotes instanciados e a pose por quadro, por viewport |
 
 ### Duas fontes de objetos
@@ -226,6 +227,58 @@ apagou nem entra. LOD: silhueta de longe para vegetação e pedra (sprites a par
 a partir de 52), forração só até 34 segmentos, cerca até 70, fios até 60. Nas qualidades baixa e média (janela
 menor) só a fração correspondente dos enfeites dispensáveis entra (forração, mata, soltos — cada um com um sorteio
 fixo). Números medidos em `docs/DESEMPENHO.md` (seção 7, "Cenário da pista").
+
+### Marcos turísticos (onda G)
+
+Cada pista tem os seus pontos turísticos (`src/core/data/places.ts`, contrato em `docs/PISTAS-TURISMO.md`): o Cristo e
+o Pão de Açúcar em Copacabana, o MASP e a Ponte Estaiada em Sampa, o trem da Serra Verde na Serra do Mar, o ninho de
+tuiuiú e o portal na Transpantaneira… São modelos procedurais como o resto do cenário, só visuais (sem colisão), num
+registro por região: `landmarks/brasil-centro-sul.ts` (Sudeste, Sul, Centro-Oeste), `brasil-norte-nordeste.ts` e
+`mundo.ts`, juntos em `landmarks/index.ts` (`LANDMARKS`). O contrato de cada um (`landmarks/types.ts`, `LandmarkDef`):
+`place` (near / far / skyline), `side` (land / sea / any), `perLap` e, opcional, `turn`.
+
+**O modelo** (convenção comum às três tarefas de modelos): origem no centro da pegada, `y = 0` no chão (alicerce ou saia
+de pedra abaixo de 0 para pousar em declive), frente para `+X` (o lado que olha a pista), o comprimento ao longo de `Z`
+(paralelo à pista), com `side: 'sea'` o mar fica atrás (`−X`); metros reais (skyline já na escala grande). Peças por
+material: `flat` (cor por vértice, faces planas), `glow` (luz pintada: janelas, holofotes, cabos da Estaiada, a água
+da cachoeira, o lago azul da gruta — brilha à noite), fachadas com janelas que acendem à noite (`office` na caixa do
+MASP e nas torres do Congresso, `house` no casario), `beacon` (luz de topo que pisca). O kit em `landmarks/kit.ts`:
+`Kit` (acumula por material e funde), `beam`/`cable` (viga ou cabo entre dois pontos), `lathe` (cúpula, cuia,
+torre redonda), `facadeBox`, `hill` (morro facetado com saia).
+
+**Onde ele aparece** (`layout.ts`, `placeLandmarks`, uma vez por pista, depois dos sprites e antes da decoração):
+
+| lugar | borda de dentro da pegada | giro para quem chega | primeiro depois da largada |
+|---|---|---|---|
+| near (igreja, casario, portal, árvore-símbolo) | 30–80 m | 0,30 rad | 48 segmentos (+64 por marco seguinte) |
+| far (ponte, convento no penhasco, viaduto) | 120–330 m | 0,45 rad | +30 |
+| skyline (Cristo, Pão de Açúcar, montanha) | 220–300 m (o pico fica a ~400 m+) | 0,35 rad | +150 (só entra na tela a ~30° uns 150 segmentos antes do ponto em que fica ao lado) |
+
+- **A faixa mede a borda de dentro** (o ponto do modelo mais perto da pista), não o centro: uma ponte de 1 km ou um
+  tepui de 1 × 2 km continuam do lado de fora. Modelo comprido gira menos (a ponta avança no máximo 60 m).
+- **Nunca no alcance do carro**: a pegada inteira (caixa do modelo girada) fica a ≥ 26 m (`LANDMARK_CLEAR_M`) do centro
+  de todo trecho de pista à vista — o próprio e os vizinhos de grampo e curva em S (a linha central desenrolada,
+  ±300 segmentos).
+- **Não esconde a pista**: nada com mais de 8 m do lado de dentro de curva próxima (a mesma regra da mata), e o
+  marco perto pede o corredor entre a cerca e ele livre de prédio e arquibancada (senão some atrás deles, como o
+  MASP atrás da fileira de prédios de Sampa); a ocupação dele e do corredor fica marcada, e a mata não nasce na frente.
+- **No chão**: pousa no ponto mais baixo do chão (`groundOffset`) sob a pegada — nada flutua, a parte de cima do declive
+  enterra; a primeira passada da busca prefere chão quase plano. `side: 'sea'` no litoral vai para o mar (direita),
+  no nível da água; fora do litoral, qualquer lado; no litoral, o resto fica do lado de terra.
+- **Espalhado**: o primeiro de cada marco logo depois da largada (o jogador vê logo), os outros a cada `1/perLap` da
+  volta. A busca anda ±4 segmentos de cada vez a partir do alvo (até ¼ do espaço entre instâncias), nos dois lados
+  (`any`, sorteio por hash), e numa última passada estende a faixa até o dobro; sem lugar, o marco não entra (não
+  acontece nas pistas de hoje: `tests/landmarks.test.ts`). Determinístico (hash do id da pista), sem `Math.random`.
+- **Id sem modelo** no registro: ignorado sem erro (as três tarefas de modelos rodam em paralelo).
+
+**Névoa do horizonte**: o skyline fica a 400 m+ e é visto a 600–1.000 m — com a névoa do resto do cenário (0,0019/m)
+chegaria 70–95% apagado. Ele vai para um lote próprio (`haze`, `runtime.ts`) cujo material conta a distância × 0,55
+na névoa (`HAZE_FOG_SCALE`): entra na névoa (40–65%) como os planos do horizonte do terreno. Custa uma chamada de
+desenho a mais por viewport, só nas pistas com skyline.
+
+Ver: `node tools/scenery-showroom.mjs <porta> saida.png lm:cristo_redentor,lm:masp "&gap=100&yaw=-1.1&fog=0.001"`
+(ids com o prefixo `lm:`; `fog` e `ground` novos no showroom, para modelos grandes) e
+`tools/render-harness.html?track=copacabana&seg=60` (o carro vai para o segmento `seg`).
 
 ### Como ver
 

@@ -42,8 +42,10 @@ function fanLeaf(r: number, n: number, color: string, m: THREE.Matrix4): Geo {
 function cristoRedentor(): ReturnType<Kit['model']> {
   const k = new Kit();
   // Maciço com mata (largo e baixo) e a agulha de pedra por cima, mais para o fundo (a face íngreme olha a pista).
-  k.add(hill(200, 120, 150, 11, '#356f34', '#4a8a3c', 1, 0.14, 0.6));
-  k.add(tintUp(hill(62, 190, 52, 12, '#8b8a82', null, 1, 0.12, 0.3, tf(-14, 0, 6)), '#4a8340', 0.62, 0.9));
+  k.add(hill(190, 62, 150, 11, '#356f34', '#4a8a3c', 1, 0.14, 1.2, tf(-50, 0, 10)));
+  // A agulha: estreita e alta, face íngreme de granito, um pouco de mata nas saliências.
+  k.add(tintUp(hill(54, 190, 46, 12, '#8b8a82', null, 1, 0.1, 0.5, tf(-14, 0, 6)), '#4a8340', 0.7, 0.85));
+  k.add(tintUp(hill(80, 120, 70, 13, '#6f7a68', null, 1, 0.12, 0.6, tf(-40, 0, -20)), '#3f7a3a', 0.45, 1));
   const top = 186;
   k.add(paint(cyl(20, 26, 8, 8), '#cfc8b8', tf(-14, top + 2, 6))); // mirante
   // Estátua: pedestal, túnica afinando para cima, braços abertos ao longo de Z (a cruz lê de frente), cabeça.

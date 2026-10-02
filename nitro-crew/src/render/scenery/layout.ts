@@ -179,7 +179,7 @@ export const LANDMARK_CLEAR_M = 26;
  * assim um tepui de 1 km de fundo ou uma ponte de 1 km continuam do lado de fora. Sem lugar na faixa, a última
  * passada estende a faixa até o dobro (antes de desistir).
  */
-const LANDMARK_LAT: Record<LandmarkPlace, [number, number, number]> = { near: [30, 80, 5], far: [120, 330, 15], skyline: [400, 470, 14] };
+const LANDMARK_LAT: Record<LandmarkPlace, [number, number, number]> = { near: [30, 80, 5], far: [120, 330, 15], skyline: [220, 300, 10] };
 /** Quanto (m) a ponta de um modelo comprido pode avançar para a pista por causa do giro `turn` (limita o giro). */
 const LANDMARK_TURN_SWEEP_M = 60;
 /** Giro padrão (rad) da pista para quem vem chegando (LandmarkDef.turn muda). */
@@ -187,6 +187,11 @@ export const LANDMARK_TURN: Record<LandmarkPlace, number> = { near: 0.3, far: 0.
 /** O primeiro de cada marco: segmentos depois da largada (o mais importante) e o passo entre um marco e o seguinte. */
 const LANDMARK_FIRST = 48;
 const LANDMARK_FIRST_STEP = 64;
+/**
+ * Quanto mais adiante vai o primeiro de cada lugar: o marco fica no segmento em que está AO LADO da pista, e só é
+ * visto de frente uns 100–250 segmentos antes — o do horizonte, a 400 m+, entra na tela a ~30° só bem antes disso.
+ */
+const LANDMARK_FIRST_AHEAD: Record<LandmarkPlace, number> = { near: 0, far: 30, skyline: 150 };
 /** Trechos da linha central conferidos (o que está à vista enquanto o marco está na janela do RoadFrame). */
 const LANDMARK_VIEW = 300;
 
@@ -212,10 +217,11 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
   const placed: LandmarkFoot[] = [];
   // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
   const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean }> = [];
-  entries.forEach((e, j) => jobs.push({ ...e, m: 0, target: track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP, first: true }));
+  const firstAt = (e: (typeof entries)[number], j: number): number => track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + LANDMARK_FIRST_AHEAD[e.def.place];
+  entries.forEach((e, j) => jobs.push({ ...e, m: 0, target: firstAt(e, j), first: true }));
   entries.forEach((e, j) => {
     const per = Math.max(1, Math.round(e.def.perLap));
-    for (let m = 1; m < per; m++) jobs.push({ ...e, m, target: track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + Math.round((m * n) / per), first: false });
+    for (let m = 1; m < per; m++) jobs.push({ ...e, m, target: firstAt(e, j) + Math.round((m * n) / per), first: false });
   });
   for (const job of jobs) {
     const { id, def } = job;
@@ -262,7 +268,10 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             const L = v - inMin;
             const latA = L + inMin; const latB = L + inMax;
             if (latA < LANDMARK_CLEAR_M) continue;
-            if (!occ.free(i, side, latA, latB, span)) continue;
+            // Perto: o corredor entre a cerca e o marco também livre (prédio ou arquibancada na frente o esconderia);
+            // a última passada abre mão disso.
+            const corridor = place === 'near' && pass < 2;
+            if (!occ.free(i, side, corridor ? FENCE_M : latA, latB, span)) continue;
             // Pegada contra a linha central à vista (inclusive trechos vizinhos de grampo e curva em S).
             const k = i + n;
             const cx = (px[k] + px[k + 1]) / 2 + side * L * Math.cos(hd[k]);
@@ -299,7 +308,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             const p = base(table.of(modelId));
             p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
             out[i].push(p);
-            occ.mark(i, side, Math.max(0, latA - 2), latB + 2, span + 1);
+            occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
             placed.push({ k, cx, cz, r: radius });
             done = true;
           }

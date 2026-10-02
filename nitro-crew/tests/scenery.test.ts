@@ -213,6 +213,8 @@ describe('cenário: orçamento', () => {
     const ids = new Set<string>();
     for (const track of tracks) for (const id of layoutOf(track).models) ids.add(id);
     for (const id of ids) {
+      // Marcos turísticos ("lm:"): orçamento próprio por lugar em tests/landmarks.test.ts.
+      if (id.startsWith('lm:')) continue;
       const tris = modelTriangles(getModel(id));
       const cap = id.startsWith('far:') ? 60 : id.startsWith('tuft:') || id.startsWith('flowers:') || id.startsWith('pebbles:') ? 40 : id.startsWith('mesa:') || id.startsWith('bld:') || id.startsWith('stand:') || id.startsWith('house:') || id === 'pagoda' ? 3500 : 1600;
       expect(tris, id).toBeLessThanOrEqual(cap);
