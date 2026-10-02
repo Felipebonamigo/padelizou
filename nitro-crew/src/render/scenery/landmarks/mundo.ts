@@ -737,7 +737,7 @@ function shisa(): Model {
 /** Monte Fuji: cone côncavo de cratera achatada, neve em estrias, sopé azulado (escala do horizonte). */
 function monteFujiPico(): Model {
   const k = new Kit();
-  const H = 185; const R = 345; const Rt = 24;
+  const H = 215; const R = 345; const Rt = 24;
   const prof: Array<[number, number]> = [[0, H - 10], [Rt - 8, H - 3], [Rt, H]];
   for (let i = 1; i <= 10; i++) { const s = i / 10; prof.push([Rt + s * (R - Rt), H * Math.pow(1 - s, 1.75)]); }
   const g = paint(lathe(prof, 40), '#506684');
@@ -754,32 +754,32 @@ function monteFujiPico(): Model {
 
 /** Altura (m) do morro do pagode Chureito num ponto. */
 function chureitoHill(x: number, z: number): number {
-  const t = 1 - (x / 70) ** 2 - (z / 60) ** 2;
-  return t > 0 ? 28 * Math.sqrt(t) : 0;
+  const t = 1 - (x / 52) ** 2 - (z / 44) ** 2;
+  return t > 0 ? 16 * Math.sqrt(t) : 0;
 }
 
 /** Pagode Chureito: cinco andares vermelhos no alto de um morro, cerejeiras floridas e a escadaria. */
 function pagodeChureito(): Model {
   const k = new Kit();
-  const hill = paint(sphere(1, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#5a8a3a', tf(0, 0, 0, 70, 28, 60));
-  k.raw(speckle(roughen(hill, 1.6, 31), 0.1, 32));
+  const hill = paint(sphere(1, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#5a8a3a', tf(0, 0, 0, 52, 16, 44));
+  k.raw(speckle(roughen(hill, 1.2, 31), 0.1, 32));
   const px = -6; const py = chureitoHill(px, 0) - 0.6;
-  k.f(box(11, 1.6, 11), '#b8b0a0', tf(px, py + 0.8, 0));
+  k.f(box(14, 1.6, 14), '#b8b0a0', tf(px, py + 0.8, 0));
   let y = py + 1.6;
   for (let i = 0; i < 5; i++) {
-    const w = 6.2 - i * 0.6; const h = i === 0 ? 3.4 : 2.5;
+    const w = 8.2 - i * 0.8; const h = i === 0 ? 4.4 : 3.3;
     k.f(box(w, h, w), '#c8402a', tf(px, y + h / 2, 0));
     k.f(box(w + 0.1, 0.35, w + 0.1), '#efe6d2', tf(px, y + h - 0.6, 0));
-    k.f(box(w + 3.4, 0.22, w + 3.4), '#2e2e34', tf(px, y + h + 0.05, 0));
-    k.f(hip(w + 3.2, 1.0, w + 3.2, w * 0.45, w * 0.45), '#3a3a42', tf(px, y + h + 0.15, 0));
-    const e = (w + 3.2) / 2;
+    k.f(box(w + 4.4, 0.28, w + 4.4), '#2e2e34', tf(px, y + h + 0.05, 0));
+    k.f(hip(w + 4.2, 1.3, w + 4.2, w * 0.45, w * 0.45), '#3a3a42', tf(px, y + h + 0.18, 0));
+    const e = (w + 4.2) / 2;
     for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const) k.bar('#3a3a42', [px + sx * (e - 0.9), y + h + 0.2, sz * (e - 0.9)], [px + sx * (e + 0.3), y + h + 0.75, sz * (e + 0.3)], 0.3);
-    y += h + 1.15;
+    y += h + 1.5;
   }
   k.f(cyl(0.16, 0.22, 7, 6), '#c8a040', tf(px, y + 3.5, 0));
   for (let i = 0; i < 6; i++) k.f(cyl(0.55, 0.55, 0.16, 8), '#c8a040', tf(px, y + 1 + i * 0.8, 0));
   // Cerejeiras.
-  const trees: Array<[number, number]> = [[18, -22], [26, 14], [8, 26], [-24, -18], [-20, 22], [36, -6], [10, -34], [40, 24], [-36, 2]];
+  const trees: Array<[number, number]> = [[14, -17], [20, 11], [6, 20], [-18, -14], [-15, 17], [28, -5], [8, -26], [30, 18], [-28, 2]];
   trees.forEach(([x, z], i) => {
     const gy = chureitoHill(x, z) - 0.3;
     k.f(cyl(0.3, 0.45, 4, 5), '#5a3e30', tf(x, gy + 2, z));
@@ -789,7 +789,7 @@ function pagodeChureito(): Model {
   });
   // Escadaria que sobe pela frente.
   for (let i = 0; i < 14; i++) {
-    const x = 64 - i * 4.6; const gy = chureitoHill(x, 0);
+    const x = 50 - i * 3.6; const gy = chureitoHill(x, 0);
     k.f(box(4.6, 0.8, 3.2), '#c8c4bc', tf(x, gy - 0.1, 0));
   }
   return k.model(y + 8, { shade: [0.8, 1.05] });
@@ -1002,22 +1002,24 @@ function arcoTriunfo(): Model {
 function matterhorn(): Model {
   const k = new Kit();
   const H = 280; const R = 200;
-  const mk = (h: number, r: number, lean: number, seed: number, x: number, z: number): void => {
-    const g = new THREE.ConeGeometry(1, 1, 5, 8, true);
+  const mk = (h: number, r: number, hook: number, seed: number, x: number, z: number, segs: number): void => {
+    const g = new THREE.ConeGeometry(1, 1, segs, 12, true);
     const p = g.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
-      const t = p.getY(i) + 0.5;
-      const f = Math.pow(1 - t, 1.25) + (t > 0.98 ? 0.02 : 0);
-      p.setXYZ(i, (p.getX(i) / Math.max(1e-6, 1 - t + 1e-6)) * f * (1 - t > 1e-6 ? 1 : 0) * r + lean * t * t * r, t * h, (p.getZ(i) / Math.max(1e-6, 1 - t + 1e-6)) * f * (1 - t > 1e-6 ? 1 : 0) * r * 0.9 - 0.12 * t * t * t * r);
+      const t = p.getY(i) + 0.5; const ro = 1 - t;
+      const dx = ro > 1e-4 ? p.getX(i) / ro : 0; const dz = ro > 1e-4 ? p.getZ(i) / ro : 0;
+      // Base larga, flancos que se fecham depressa e o cume torto (o "gancho" do Matterhorn).
+      const rn = r * (0.9 * Math.pow(ro, 1.6) + 0.1 * Math.pow(ro, 5));
+      p.setXYZ(i, x + dx * rn + hook * r * t * t * t, t * h, z + dz * rn * 0.85 - 0.05 * r * t * t);
     }
-    const gg = paint(g, '#5a5450', tf(x, 0, z));
-    roughen(gg, h * 0.035, seed);
-    faceColor(gg, (_x, y, _z, up) => (up > 0.55 && y > h * 0.22 ? '#f2f5fa' : up > 0.8 ? '#e8eef4' : y < h * 0.12 ? '#5f6a54' : hash2(Math.round(y), seed) > 0.5 ? '#5a5450' : '#4e4946'));
+    const gg = paint(g, '#5a5450');
+    roughen(gg, 5, seed);
+    faceColor(gg, (_x, y, _z, up, f) => (y < h * 0.06 ? '#6a7660' : up > 0.62 && hash2(f, seed + 7) > 0.25 ? '#f2f5fa' : up > 0.45 && y > h * 0.5 ? '#e8eef4' : hash2(f, seed) > 0.5 ? '#5a5450' : '#4b4643'));
     k.raw(speckle(gg, 0.05, seed + 1));
   };
-  mk(H, R, 0.16, 91, 0, 0);
-  mk(H * 0.45, R * 0.7, 0.05, 93, -70, 90);
-  mk(H * 0.35, R * 0.6, -0.05, 95, -40, -120);
+  mk(H, R, 0.14, 91, 0, 0, 4);
+  mk(H * 0.42, R * 0.75, 0.04, 93, -70, 110, 5);
+  mk(H * 0.34, R * 0.6, -0.04, 95, -50, -130, 5);
   return k.model(H, { shade: [0.92, 1.03] });
 }
 
@@ -1183,25 +1185,26 @@ function igrejaKaroo(): Model {
 function anfiteatroDrakensberg(): Model {
   const k = new Kit();
   const R = 300; const A = 1.0;
-  const prof: Array<[number, number]> = [[130, 0], [72, 40], [36, 74], [20, 86], [8, 232], [-8, 240], [-160, 252]];
+  const prof: Array<[number, number]> = [[130, 0], [72, 40], [36, 74], [20, 86], [12, 160], [6, 232], [-8, 240], [-120, 250], [-200, 0]];
   const P = (u: number, j: number): P3 => {
     const th = -A + 2 * A * u;
     const [r0, y0] = prof[j];
-    const jag = j >= 3 && j <= 4 ? 10 * valueNoise(141, th * 14) + 5 * valueNoise(142, th * 31) : 0;
+    const jag = j >= 3 && j <= 5 ? 16 * valueNoise(141, th * 16) + 7 * valueNoise(142, th * 37) - (j === 4 ? 6 : 0) : 0;
     const r = r0 + jag;
-    const y = y0 + (j >= 4 ? 8 * valueNoise(143, th * 6) : 0);
+    const e = Math.min(1, Math.min(u, 1 - u) / 0.14); const fall = j >= 3 && j <= 7 ? 0.3 + 0.7 * e * e * (3 - 2 * e) : 1;
+    const y = (y0 + (j >= 5 && j <= 7 ? 8 * valueNoise(143, th * 6) : 0)) * fall;
     return [R - (R - r) * Math.cos(th), y, (R - r) * Math.sin(th)];
   };
   const g = paint(grid(56, prof.length - 1, (u, v) => P(u, Math.round(v * (prof.length - 1)))), '#7a6656');
   faceColor(g, (_x, y, _z, up) => {
     if (y < 80 && up > 0.3) return '#6f8f45';
-    if (y > 236 && up > 0.5) return '#8a9a5a';
+    if (y > 200 && up > 0.5) return '#8a9a5a';
     return Math.floor(y / 18) % 2 ? '#7a6656' : '#8c7663';
   });
   k.raw(speckle(g, 0.06, 144));
   // Cachoeira do Tugela: duas quedas brancas no paredão.
   const u0 = 0.62; const out: number[] = [];
-  for (let j = 3; j < 5; j++) {
+  for (let j = 3; j < 6; j++) {
     const a = P(u0, j); const b = P(u0, j + 1);
     const th = -A + 2 * A * u0; const cx = Math.cos(th); const sz = Math.sin(th);
     const w = 3.5; const off = 3;
@@ -1216,22 +1219,25 @@ function anfiteatroDrakensberg(): Model {
 /** Farol do Cabo da Boa Esperança: promontório de rocha e fynbos, farol branco no alto, facho para o mar. */
 function farolCapePoint(): Model {
   const k = new Kit();
-  const rock = paint(ico(1, 2), '#6f655a', tf(-12, 6, 0, 58, 50, 42));
-  k.raw(speckle(tintUp(roughen(rock, 4, 151), '#7a7a4a', 0.55, 0.9), 0.08, 152));
-  const lobe = paint(ico(1, 1), '#6a6056', tf(-62, 2, 18, 40, 26, 30));
+  const rock = paint(ico(1, 2), '#6f655a', tf(-12, 4, 0, 58, 36, 42));
+  k.raw(speckle(tintUp(roughen(rock, 3, 151), '#7a7a4a', 0.55, 0.9), 0.08, 152));
+  const lobe = paint(ico(1, 1), '#6a6056', tf(-62, 2, 18, 40, 22, 30));
   k.raw(speckle(tintUp(roughen(lobe, 3, 153), '#7a7a4a', 0.55, 0.9), 0.08, 154));
   const ring = new THREE.RingGeometry(55, 66, 20, 1).rotateX(-Math.PI / 2);
   k.f(ring, '#e8f2f6', tf(-20, 0.4, 0, 1, 1, 0.85));
-  const top = 55.5; const lx = -14;
-  k.f(box(8, 2, 8), '#d8d4ca', tf(lx, top, 0));
-  k.f(cyl(2.0, 2.5, 11, 10), '#f6f4ee', tf(lx, top + 6.5, 0));
-  k.f(cyl(2.8, 2.8, 0.4, 10), '#2a2e34', tf(lx, top + 12.2, 0));
-  k.l(cyl(1.5, 1.5, 2.0, 10), '#fff2c0', tf(lx, top + 13.4, 0));
-  k.f(cone(1.9, 1.8, 10), '#2a2e34', tf(lx, top + 15.3, 0));
-  k.f(box(6, 3.4, 4.5), '#f6f4ee', tf(lx + 6, top + 2.7, 3));
-  k.f(gable(6.4, 1.6, 4.9, 0.2), '#b84a3a', tf(lx + 6, top + 4.4, 3, 1, 1, 1, 0, Math.PI / 2, 0));
-  k.beam(new THREE.ConeGeometry(9, 110, 12, 1, true).rotateZ(-Math.PI / 2).translate(-55, 0, 0), tf(lx, top + 13.4, 0, 1, 1, 1, 0, -0.5, 0));
-  return k.model(top + 16, { shade: [0.85, 1.05] });
+  // O farol (1,6× o farol de sempre do cenário, para ler no alto do penhasco), montado no próprio referencial.
+  const top = 37.5; const lx = -12; const sc = 1.6;
+  const f = new Kit();
+  f.f(box(8, 4, 8), '#d8d4ca', tf(0, -1, 0));
+  f.f(cyl(2.0, 2.5, 11, 10), '#f6f4ee', tf(0, 6.5, 0));
+  f.f(cyl(2.8, 2.8, 0.4, 10), '#2a2e34', tf(0, 12.2, 0));
+  f.l(cyl(1.5, 1.5, 2.0, 10), '#fff2c0', tf(0, 13.4, 0));
+  f.f(cone(1.9, 1.8, 10), '#2a2e34', tf(0, 15.3, 0));
+  f.f(box(6, 3.4, 4.5), '#f6f4ee', tf(6, 1.7, 3));
+  f.f(gable(6.4, 1.6, 4.9, 0.2), '#b84a3a', tf(6, 3.4, 3, 1, 1, 1, 0, Math.PI / 2, 0));
+  k.add(f, tf(lx, top, 0, sc, sc, sc));
+  k.beam(new THREE.ConeGeometry(9, 110, 12, 1, true).rotateZ(-Math.PI / 2).translate(-55, 0, 0), tf(lx, top + 13.4 * sc, 0, 1, 1, 1, 0, -0.5, 0));
+  return k.model(top + 16 * sc, { shade: [0.85, 1.05] });
 }
 
 /** Table Mountain: mesa de arenito de topo plano com a "toalha" de nuvem, Lion's Head e Devil's Peak. */
@@ -1303,11 +1309,11 @@ function uluru(): Model {
 function arcoGreatOcean(): Model {
   const k = new Kit();
   const s = new THREE.Shape();
-  s.moveTo(-46, 0); s.lineTo(-30, 0); s.lineTo(-30, 10); s.absarc(-18, 10, 12, Math.PI, 0, true); s.lineTo(-6, 0);
+  s.moveTo(-46, 0); s.lineTo(-32, 0); s.lineTo(-32, 14); s.absarc(-19, 14, 13, Math.PI, 0, true); s.lineTo(-6, 0);
   s.lineTo(40, 0); s.lineTo(44, 18); s.lineTo(41, 36); s.lineTo(26, 43); s.lineTo(4, 45); s.lineTo(-18, 43); s.lineTo(-37, 39);
   s.lineTo(-46, 28); s.lineTo(-48, 12); s.lineTo(-46, 0);
   const band = (_x: number, y: number, _z: number, up: number): C => (up > 0.7 && y > 30 ? '#7a8a4a' : ['#d9a46a', '#c98f58', '#e2b27a', '#cf9a60'][Math.floor(y / 4.5) % 4]);
-  const g = paint(extrude(s, 26, 8), '#d9a46a', tf(0, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
+  const g = paint(extrude(s, 18, 8), '#d9a46a', tf(0, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
   k.raw(speckle(faceColor(roughen(g, 1.4, 181), band), 0.05, 182));
   const col = paint(cyl(6.5, 8.5, 34, 7), '#d9a46a', tf(-6, 17, 66));
   k.raw(speckle(faceColor(roughen(col, 1.2, 183), band), 0.05, 184));
@@ -1412,7 +1418,7 @@ function harbourBridge(): Model {
       k.bar(steel, [x, yb(z0), z0], [x, yb(z1), z1], 2.2, 2.6);
       k.bar(steel, [x, yt(z0), z0], [x, yt(z1), z1], 1.6, 2.0);
       k.bar(steel, [x, yb(z0), z0], [x, yt(z1), z1], 0.7);
-      if (i % 2 === 0) k.l(new THREE.OctahedronGeometry(1.0, 0), '#fff2c8', tf(x, yt(z0) + 1.6, z0));
+      k.l(new THREE.OctahedronGeometry(1.5, 0), '#fff2c8', tf(x, yt(z0) + 1.8, z0));
     }
     for (let i = 0; i <= n; i++) {
       const z = -S + (2 * S * i) / n;
@@ -1613,29 +1619,29 @@ function catedralArtica(): Model {
 
 /** Altura do morro de Positano (frente em +X descendo para o mar). */
 function positanoY(x: number, z: number): number {
-  const t = Math.min(1, Math.max(0, (40 - x) / 160));
-  const valley = 1 - 0.25 * Math.exp(-((z / 45) ** 2));
-  return 125 * Math.pow(t, 1.1) * valley + 4 * valueNoise(211, z / 25 + x / 31);
+  // Encosta que sobe da praia (+X) para o fundo, em vale: as pontas (±Z) sobem mais, como um anfiteatro.
+  const t = Math.min(1, Math.max(0, (40 - x) / 140));
+  return 105 * Math.pow(t, 0.95) + 60 * (z / 100) ** 2 * Math.sqrt(t) + 4 * valueNoise(211, z / 25 + x / 31);
 }
 
 /** Positano: casinhas pastel empilhadas no morro e a igreja com cúpula de majólica, no pé, junto à praia. */
 function positano(): Model {
   const k = new Kit();
-  const hill = paint(grid(16, 12, (u, v) => { const z = -100 + 200 * u; const x = 50 - 180 * v; return [x, positanoY(x, z), z]; }), '#6f7a4a');
+  const hill = paint(grid(18, 12, (u, v) => { const z = -100 + 200 * u; const x = 50 - 160 * v; return [x, positanoY(x, z), z]; }), '#6f7a4a');
   faceColor(hill, (_x, y, _z, up, f) => (up < 0.55 ? '#8a7a68' : hash2(f, 212) > 0.6 ? '#5a6a3a' : '#6f7a4a'));
   k.raw(speckle(hill, 0.07, 213));
   k.f(box(16, 0.6, 120), '#d8c8a0', tf(48, 0.3, 0));
   const walls = ['#f4c8a0', '#f2e2b0', '#f6b8a8', '#efe8dc', '#e8a878', '#f4d878', '#ffffff', '#f0d0c0'];
-  for (let r = 0; r < 8; r++) {
-    const x = 30 - r * 13; const n = 9 - Math.floor(r / 2);
+  for (let r = 0; r < 12; r++) {
+    const x = 30 - r * 9.5; const n = 9 - Math.floor(r / 3);
     for (let i = 0; i < n; i++) {
-      const z = (i - (n - 1) / 2) * (62 - r * 3) / Math.max(1, n - 1) * 2 + (hash2(r * 31 + i, 214) - 0.5) * 6;
+      const z = (i - (n - 1) / 2) * (58 - r * 2.5) / Math.max(1, n - 1) * 2 + (hash2(r * 31 + i, 214) - 0.5) * 6;
       const w = 6 + hash2(r, i) * 3; const h = 6 + hash2(i, r + 9) * 4; const d = 6 + hash2(i + 5, r) * 3;
       const gy = Math.min(positanoY(x + d / 2, z), positanoY(x - d / 2, z));
       const c = walls[(r * 3 + i * 5) % walls.length];
       k.f(box(d, h + 4, w), c, tf(x, gy + (h - 4) / 2, z));
       k.f(box(d + 0.4, 0.4, w + 0.4), '#f4f1ea', tf(x, gy + h, z));
-      k.f(box(0.12, 1.4, 1.0), '#3a5a4a', tf(x + d / 2 + 0.05, gy + h - 2.4, z - w * 0.2));
+      if ((r + i) % 2 === 0) k.f(box(0.12, 1.4, 1.0), '#3a5a4a', tf(x + d / 2 + 0.05, gy + h - 2.4, z - w * 0.2));
       if (hash2(r + 3, i * 7) > 0.6) k.f(box(d * 0.5, 0.6, w * 0.5), '#c8784a', tf(x - d * 0.2, gy + h + 0.5, z));
     }
   }
