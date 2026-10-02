@@ -12,9 +12,12 @@ import '../../career/strings';
 import { t } from '../../i18n';
 import '../../stats/strings';
 import './records.css';
-import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
+import './passport.css';
+import { button, createFocusList, h, listNav, screenFrame, trackName, type FocusItem, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
 import { isVipRow, partyResultsParts } from './party';
 import { VIP_COLOR } from '../../core/modes';
+import { BRAZIL_REGIONS } from '../../core/data/cups';
+import '../passport/strings';
 
 /** Título grande com um chip ao lado (pista ou copa), em vez de "Resultado — Nome" numa linha só que quebra. */
 function titleRow(title: string, chip: string): HTMLElement {
@@ -93,6 +96,8 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     extras.push(h('p', { class: 'team-line' }, icon('users'), h('span', { text: t('ui.results.team', { team: t('core.team.human'), points: teamRaceScore(d.results, teamId), rank: teamRaceRank(d.results, teamId) }) })));
   }
 
+  const stamp = stampNews(d.newStamp ?? null, ctx.save.stamps);
+  if (stamp) extras.push(stamp);
   const party = partyResultsParts(api, d);
   extras.push(...party.extras);
   const items: FocusItem[] = [];
@@ -110,7 +115,7 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
   const unlocked = achievementsPanel(d, ctx.settings.colorPalette);
   const wrap = h('div', { class: 'table-wrap glass' }, table);
   const el = screenFrame('results', null,
-    titleRow(t('ui.results.title'), d.trackDef.name),
+    titleRow(t('ui.results.title'), trackName(d.trackDef.id, d.trackDef.name)),
     h('div', { class: 'results-head' }, extras),
     unlocked,
     wrap,
@@ -128,6 +133,22 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
       revealRow(wrap, table.querySelector('tr.human'));
     },
   };
+}
+
+/**
+ * Carimbo ganho nesta corrida (copa de estado concluída pela primeira vez): o carimbo com a sigla e "Bahia carimbado
+ * no passaporte!"; se ele fechou a região, uma etiqueta "Região Nordeste completa!" ao lado. Uma linha só (o
+ * resultado é apertado).
+ */
+export function stampNews(state: string | null, stamps: readonly string[]): HTMLElement | null {
+  if (!state) return null;
+  const region = BRAZIL_REGIONS.find((r) => r.states.includes(state));
+  const regionDone = !!region && region.states.every((s) => s === state || stamps.includes(s));
+  return h('div', { class: 'stamp-news', attrs: { 'data-region': region?.id ?? '' } },
+    h('span', { class: 'stamp-news-mark', attrs: { title: t('passport.results.stamp') } }, h('span', { text: state })),
+    h('span', { class: 'stamp-news-text', text: t('core.passport.stamped', { state: t(`core.state.${state}`) }) }),
+    regionDone && region ? h('span', { class: 'stamp-news-region', text: t('passport.results.regionDone', { region: t(`core.region.${region.id}`) }) }) : null,
+  );
 }
 
 /** Rola `wrap` (só ele, não a tela) até `row` ficar visível abaixo do cabeçalho fixo da tabela. */
@@ -202,7 +223,7 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   let status: HTMLElement;
   if (champ.completed) status = h('div', { class: 'verdict good big' }, icon('trophy'), h('span', { text: t('ui.standings.champion') }));
   else if (champ.eliminated) status = h('div', { class: 'verdict bad big', text: t('ui.standings.eliminated') });
-  else status = h('p', { class: 'status-line' }, icon('flag'), h('span', { text: t('ui.standings.next', { n: champ.raceIndex + 1, m: raceCount, track: nextDef?.name ?? next ?? '?' }) }));
+  else status = h('p', { class: 'status-line' }, icon('flag'), h('span', { text: t('ui.standings.next', { n: champ.raceIndex + 1, m: raceCount, track: next ? trackName(next, nextDef?.name) : '?' }) }));
 
   const items: FocusItem[] = [];
   // Carreira: depois da classificação vem sempre a garagem (prêmio, compras, próxima corrida ou copa).

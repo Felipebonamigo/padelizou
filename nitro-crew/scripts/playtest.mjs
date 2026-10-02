@@ -104,7 +104,7 @@ check(end.unlocked !== null && end.chips === end.unlocked.length && end.unlocked
 // Pior caso do resultado em 720p: 20 carros, humanos no fim e 14 conquistas de uma vez.
 const busy = await page.evaluate(() => {
   const s = window.nc.session; const r = s.race;
-  const ids = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_ARRANHAO', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'MADRUGADA', 'SEM_BOX', 'PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'COPA_BRASIL', 'CAMPEAO'];
+  const ids = ['PRIMEIRA_VITORIA', 'EQUIPE_COMPLETA', 'SEM_ARRANHAO', 'NITRO_TRIPLO', 'EMPURRAO', 'VOLTA_PERFEITA', 'MESTRE_DO_VACUO', 'NITRO_NA_BANDEIRA', 'MADRUGADA', 'SEM_BOX', 'PODIO_DE_EQUIPE', 'DO_ULTIMO_AO_PRIMEIRO', 'COPA_BR_RJ', 'CAMPEAO'];
   const results = Array.from({ length: 20 }, (_, i) => ({ carId: i, seat: i === 19 ? 0 : -1, name: i === 19 ? r.humans[0].name : `IA ${i}`, teamId: i === 19 ? 0 : 100 + i, carDefId: 'falcao', position: i + 1, finished: true, totalTicks: 9000 + i * 30, bestLapTicks: 3000, points: 0 }));
   s.menus.show('results', { mode: 'quick', trackDef: r.track.def, results, humans: r.humans, champ: null, newRecords: [], achievements: ids.map((id) => ({ id, seats: [0] })) });
   for (const a of document.getAnimations()) a.finish();
@@ -141,7 +141,7 @@ console.log(`fps (3 viewports, swiftshader): ${fps}`);
 // Menus restantes por teclado: volta ao principal e passeia pelas telas.
 await page.evaluate(() => window.nc.session.handleMenuEvent({ type: 'toMain' }));
 await page.waitForTimeout(300);
-for (const [screen, file] of [['options', '11-options'], ['controls', '12-controls'], ['records', '13-records'], ['cups', '14-cups'], ['tracks', '15-tracks']]) {
+for (const [screen, file] of [['options', '11-options'], ['controls', '12-controls'], ['records', '13-records'], ['cups', '14-cups'], ['tracks', '15-tracks'], ['passport', '16-passport']]) {
   await page.evaluate((sc) => window.nc.session.menus.show(sc), screen);
   await page.waitForTimeout(300);
   const cur = await page.evaluate(() => window.nc.session.menus.current());

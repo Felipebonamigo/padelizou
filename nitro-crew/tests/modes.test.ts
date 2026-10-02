@@ -193,11 +193,26 @@ describe('torneio: inscrição e "passe o controle" (partes puras da tela)', asy
   const { CUPS } = await import('../src/core/data/cups');
 
   it('pistas: uma por rodada na ordem da copa e a última da copa na final', () => {
-    // Copa de 4 pistas (Mundial). As de estado têm 3: lá o torneio cabe em até 2 rodadas + final (tela: outra tarefa).
+    // Copa de 4 pistas (Mundial). As de estado têm 3: lá o torneio cabe em até 2 rodadas + final (teste abaixo).
     const cup = CUPS.find((c) => c.trackIds.length === 4)!;
     expect(tournamentTracks(cup, 1)).toEqual([cup.trackIds[0], cup.trackIds[3]]);
     expect(tournamentTracks(cup, 3)).toEqual(cup.trackIds);
     expect(setupError(draftSetup({ players: setup(3).players, rounds: 3, cupId: cup.id }, cup, 2, 3))).toBeNull();
+  });
+
+  // Onda G: copa de estado tem 3 pistas. Com 3 rodadas pedidas (o seletor ia até 3 em qualquer copa) o torneio
+  // pedia 4 pistas e a inscrição travava em "Esta copa não tem pistas suficientes". O teto de rodadas é o da copa:
+  // rodadas + final = número de pistas.
+  it('copa de 3 pistas: as rodadas param em 2 (+ final) e a inscrição não trava', async () => {
+    const { tournamentMaxRounds } = await import('../src/ui/screens/party');
+    const small = CUPS.find((c) => c.trackIds.length === 3)!;
+    const big = CUPS.find((c) => c.trackIds.length === 4)!;
+    expect(tournamentMaxRounds(small)).toBe(2);
+    expect(tournamentMaxRounds(big)).toBe(3);
+    const s = draftSetup({ players: setup(3).players, rounds: 3, cupId: small.id }, small, 2, 3);
+    expect(s.rounds).toBe(2);
+    expect(s.trackIds).toEqual(small.trackIds);
+    expect(setupError(s)).toBeNull();
   });
 
   it('pilotos iniciais: nomes recentes sem repetir, depois "Piloto N"', () => {

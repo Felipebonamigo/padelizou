@@ -174,4 +174,15 @@ describe('fechamento com as regras de online, copa salva e carreira', () => {
     expect(rows).toBe(r.state.results!.length);
     expect(save.cupsCompleted).toContain('br_rj');
   });
+
+  // Onda G: o resultado anuncia o carimbo ganho na corrida que fecha a copa de um estado (só a primeira vez).
+  it('carimbo novo: a copa de estado concluída devolve a sigla; repetida ou do Mundial, nada', () => {
+    const fx = () => options({ achievements: [], hud: [], persisted: 0 });
+    const save = sanitizeSave({});
+    expect(settleRace(save, race('career').r, { ...fx(), careerFinished: () => 'br_sp' }).newStamp).toBe('SP');
+    expect(save.stamps).toContain('SP');
+    expect(settleRace(save, race('career').r, { ...fx(), careerFinished: () => 'br_sp' }).newStamp ?? null).toBeNull();
+    expect(settleRace(save, race('career').r, { ...fx(), careerFinished: () => 'eua' }).newStamp ?? null).toBeNull();
+    expect(settleRace(save, race('quick').r, fx()).newStamp ?? null).toBeNull();
+  });
 });

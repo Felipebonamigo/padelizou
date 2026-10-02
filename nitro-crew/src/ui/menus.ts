@@ -11,6 +11,7 @@ import { lobbyScreen } from './screens/lobby';
 import { onlineScreen } from './screens/online';
 import { handoffScreen, partyScreen, tournamentScreen, tournamentTableScreen } from './screens/party';
 import { optionsScreen } from './screens/options';
+import { passportScreen } from './screens/passport';
 import { resultsScreen, standingsScreen } from './screens/results';
 import { cupsScreen, tracksScreen } from './screens/select';
 import { creditsScreen, loadingScreen, mainScreen, pauseScreen, titleScreen } from './screens/simple';
@@ -60,6 +61,7 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   access: accessScreen,
   tutorial: tutorialScreen,
   tutorialDone: tutorialDoneScreen,
+  passport: passportScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {

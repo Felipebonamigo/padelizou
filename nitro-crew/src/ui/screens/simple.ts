@@ -4,6 +4,7 @@ import type { MenuScreen, RaceMode } from '../../game/contracts';
 import { t } from '../../i18n';
 import '../../net/strings';
 import '../../party/strings';
+import '../passport/strings';
 import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenInstance } from './common';
 import { startCursor } from './lobby';
 import { shouldOfferTutorial, tutorialOfferCard } from './tutorial';
@@ -59,6 +60,7 @@ export function mainScreen(api: ScreenApi): ScreenInstance {
     { label: t('ui.main.party'), hint: t('ui.main.hint.party'), run: open('party') },
     { label: t('ui.main.online'), hint: t('ui.main.hint.online'), run: open('online') },
     { label: t('ui.main.records'), hint: t('ui.main.hint.records'), run: open('records') },
+    { label: t('passport.menu'), hint: t('passport.menu.hint'), run: open('passport') },
     { label: t('ui.main.options'), hint: t('ui.main.hint.options'), run: open('options') },
     { label: t('ui.main.controls'), hint: t('ui.main.hint.controls'), run: open('controls') },
     { label: t('tutorial.menu'), hint: t('tutorial.menu.hint'), run: open('tutorial') },

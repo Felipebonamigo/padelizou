@@ -1,4 +1,4 @@
-// Playtest da tela de recordes com recorde em 32 pistas, em 1280×720, rolada pelo controle (↑↓ movem o
+// Playtest da tela de recordes com recorde em todas as pistas (pelo menos 32), em 1280×720, rolada pelo controle (↑↓ movem o
 // foco pelas linhas) e pelo teclado. Se o jogo tiver menos de 32 pistas, completa com pistas fictícias
 // empurradas em TRACKS — por isso roda no servidor de desenvolvimento (`npm run dev`), onde a página
 // importa o mesmo módulo que a sessão usa. Ver docs/ESTATISTICAS.md.
@@ -7,7 +7,8 @@ import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:5174/';
 const out = process.argv[3] ?? 'scratch/rec';
 const exe = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
-const TOTAL = 32;
+/** Pistas com recorde: pelo menos 32 (completa com fictícias); com mais pistas no jogo (109 na onda G), todas. */
+let TOTAL = 32;
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.setDefaultTimeout(240_000);
@@ -40,6 +41,7 @@ const padTracks = () => page.evaluate(async (total) => {
 // várias); 2ª carga: a sessão lê esse save. As fictícias somem no reload e são empurradas de novo.
 await page.goto(url, { waitUntil: 'networkidle' });
 const tracks = await padTracks();
+TOTAL = tracks.length;
 await page.evaluate((ids) => {
   const zero = { races: 0, wins: 0, podiums: 0, laps: 0, meters: 0, nitros: 0, towsGiven: 0, towsReceived: 0, collisions: 0, crashes: 0, pitStops: 0, raceTicks: 0, coopWins: 0 };
   const bestLaps = {}; const bestRaces = {}; const bestPositions = {};
@@ -52,7 +54,7 @@ await page.evaluate((ids) => {
   const felipe = { ...zero, name: 'Felipe', races: 64, wins: 20, podiums: 40, laps: 190, meters: 1_234_000, raceTicks: 60 * 12000, bestPositions };
   const ana = { ...zero, name: 'Ana', races: 2, meters: 9000, bestPositions: { [ids[0]]: 2, [ids[19]]: 5 } };
   localStorage.setItem('nitro-crew.save', JSON.stringify({
-    cupsCompleted: ['brasil'], racesRun: 65, racesWon: 20, achievements: ['PRIMEIRA_VITORIA', 'GIRO_COMPLETO'],
+    cupsCompleted: ['br_rj'], racesRun: 65, racesWon: 20, achievements: ['PRIMEIRA_VITORIA', 'GIRO_COMPLETO'],
     bestLaps, bestRaces, seatNames: ['Felipe', 'Ana', 'P3', 'P4'],
     // Ana primeiro (mais recente): o Felipe, com as 32 pistas, é o último da lista, logo antes da grade.
     stats: { totals: { ...felipe, races: 66, meters: 1_243_000 }, players: [ana, felipe] },
@@ -63,9 +65,10 @@ await page.waitForTimeout(1000);
 check((await padTracks()).length === TOTAL, `${TOTAL} pistas em TRACKS (${tracks.filter((d) => d.id.startsWith('ficticia_')).length} fictícias)`);
 await page.evaluate(() => { window.nc.session.settings.quality = 'low'; });
 
-// Recordes pelo teclado: título → menu → Recordes.
+// Recordes pelo teclado: título → menu → Recordes (pelo rótulo: o menu ganhou Carreira, Online e Passaporte).
 await key('Enter');
-await key('ArrowDown', 3);
+const toRecords = await page.evaluate(() => [...document.querySelectorAll('.scr-main .menu-list > *')].findIndex((el) => /^recordes$/i.test((el.textContent ?? '').trim())));
+await key('ArrowDown', Math.max(0, toRecords));
 await key('Enter');
 check(await current() === 'records', `Recordes abre pelo menu (${await current()})`);
 await settle();
@@ -82,7 +85,8 @@ const leg = await page.evaluate(() => {
   return {
     name: px('.record-track strong'), time: px('.record-time'), who: px('.record-who'), over,
     screenScrolls: scr.scrollHeight > scr.clientHeight + 1, listScrolls: scroll.scrollHeight > scroll.clientHeight + 1,
-    backIn: back.length === 1 && back[0].bottom <= innerHeight && back[0].top >= 0,
+    // Voltar e, desde o fantasma, o Importar: todos os botões à vista.
+    backIn: back.length >= 1 && back.every((b) => b.bottom <= innerHeight && b.top >= 0),
   };
 });
 check(leg.name >= 16 && leg.time >= 14 && leg.who >= 12, `fontes legíveis em 720p (pista ${leg.name}px, tempo ${leg.time}px, quem ${leg.who}px)`);

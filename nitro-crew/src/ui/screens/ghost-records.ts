@@ -9,7 +9,7 @@ import {
 } from '../../game/ghost-store';
 import { t } from '../../i18n';
 import '../../ghost/strings';
-import { button, h, type FocusItem, type ScreenApi } from './common';
+import { button, h, trackName, type FocusItem, type ScreenApi } from './common';
 import './ghost-records.css';
 
 /** Aviso de cada arquivo recusado (nada muda na loja). */
@@ -47,13 +47,13 @@ export function ghostRecordsView(api: ScreenApi, rebuild: () => void): GhostReco
     status.classList.toggle('fail', !ok);
   };
   if (lastStatus) { show(lastStatus.text, lastStatus.ok); lastStatus = null; } else status.textContent = t('ghost.records.hint');
-  const trackName = (id: string) => api.ctx.tracks.find((d) => d.id === id)?.name ?? null;
+  const trackLabel = (id: string) => (api.ctx.tracks.some((d) => d.id === id) ? trackName(id) : null);
 
   const importItem = button(t('ghost.records.import'), () => {
     void importGhostFile().then((got) => {
       if (got === 'cancel') return;
       if (typeof got === 'string') { show(t(REFUSED[got]), false); return; }
-      const name = trackName(got.trackId);
+      const name = trackLabel(got.trackId);
       if (!name) { show(t('ghost.records.unknownTrack'), false); return; }
       const fresh = loadGhostStore();
       putGhost(fresh, got, new Date().toISOString());

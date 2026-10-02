@@ -16,7 +16,7 @@ import { t } from '../../i18n';
 import { MAX_INPUT_DELAY, MIN_INPUT_DELAY, normalizeServerUrl, PLAYER_NAME_MAX, ROOM_CODE_LENGTH, type RoomSettings } from '../../net/protocol';
 import '../../net/strings';
 import { isKeyboard } from '../input';
-import { button, createFocusList, dayIcon, flagFor, h, listNav, screenFrame, selector, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { button, createFocusList, dayIcon, flagFor, h, listNav, screenFrame, selector, trackName, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal } from './icons';
 import './online.css';
 import { assistMark } from './results';
@@ -246,7 +246,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       trackBox.replaceChildren(
         trackThumb(ctx, def, 92),
         h('div', { class: 'online-track-info' },
-          h('div', { class: 'online-track-name' }, h('span', { text: `${flagFor(ctx, def.country)} ${def.name}` })),
+          h('div', { class: 'online-track-name' }, h('span', { text: `${flagFor(ctx, def.country)} ${trackName(def.id, def.name)}` })),
           h('div', { class: 'online-track-meta' }, dayIcon(def.timeOfDay), h('span', { text: lapsText(s()?.laps ?? def.laps) })),
         ),
       );
@@ -405,7 +405,7 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       })),
     );
     const body = h('div', { class: 'online-results' },
-      h('div', { class: 'screen-title-row' }, h('h1', { class: 'screen-title', text: t('online.results.title') }), h('span', { class: 'chip', text: d.trackDef.name }), h('span', { class: 'chip online-code-chip-small mono', text: online!.code })),
+      h('div', { class: 'screen-title-row' }, h('h1', { class: 'screen-title', text: t('online.results.title') }), h('span', { class: 'chip', text: trackName(d.trackDef.id, d.trackDef.name) }), h('span', { class: 'chip online-code-chip-small mono', text: online!.code })),
       h('div', { class: 'table-wrap glass' }, table),
       h('div', { class: 'actions' }, back.el, leave.el),
     );

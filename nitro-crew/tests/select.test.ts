@@ -47,7 +47,7 @@ describe('tela de copas', () => {
 describe('tela de pistas', () => {
   // Onda G: as copas de estado da Expedição Brasil têm 3 pistas e as do Mundial, 4. A regra antiga (exatamente
   // TRACK_GRID_COLS por copa) caiu; a grade continua com uma copa por linha, e a linha de 3 deixa a 4ª coluna vazia
-  // (a tela das pistas é de outra tarefa: ↑↓ vindo da 4ª coluna para uma copa de 3 tem de parar na 3ª).
+  // (↑↓ vindo da 4ª coluna para uma copa de 3 para na 3ª: raggedGridMove, tests/expedicao-ui.test.ts).
   it('toda copa cabe numa linha da grade: de 3 a TRACK_GRID_COLS pistas', () => {
     for (const c of CUPS) {
       expect(cupTracks({ tracks: TRACKS }, c).length, c.id).toBeGreaterThanOrEqual(3);
