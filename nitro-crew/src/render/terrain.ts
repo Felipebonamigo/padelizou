@@ -12,6 +12,7 @@ import type { SceneryId, Track } from '../core/types';
 import { fbm, hash2, hash3, valueNoise } from './noise';
 import { type Palette } from './palette';
 import type { RoadFrame } from './roadframe';
+import { inClearing } from './scenery/clearings';
 import { windowTextures } from './textures';
 import { HEADING_PER_CURVE, SEGMENT_M, Y_SCALE } from './units';
 
@@ -721,6 +722,8 @@ export class Terrain {
         const inside = (side > 0) === (delta > 0) && delta !== 0;
         let dist = 45 + hash2(s.index, side + 20) * 240;
         if (inside) dist = Math.min(dist, 0.9 * SEGMENT_M / (Math.abs(delta) + 1e-6));
+        // Clareira de marco turístico (scenery/clearings.ts): a quadra não esconde o MASP nem a Ponte Estaiada.
+        if (inClearing(track, s.index, side, dist - 25)) continue;
         const ws = 0.8 + hash2(s.index, side + 30) * 0.6;
         d.position.set(frame.px[j] + side * dist * cx, frame.py[j] - 1, frame.pz[j] + side * dist * sz);
         d.rotation.set(0, -h + (hash2(s.index, side + 40) - 0.5) * 0.5, 0);

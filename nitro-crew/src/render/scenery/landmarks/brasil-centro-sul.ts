@@ -38,7 +38,7 @@ function fanLeaf(r: number, n: number, color: string, m: THREE.Matrix4): Geo {
 
 // ───────────────────────────── Sudeste ─────────────────────────────
 
-/** Cristo Redentor no alto do Corcovado (skyline): morro de mata, agulha de granito e a estátua (×2,5). */
+/** Cristo Redentor no alto do Corcovado (skyline): morro de mata, agulha de granito e a estátua (×3, lida a 600 m+). */
 function cristoRedentor(): ReturnType<Kit['model']> {
   const k = new Kit();
   // Maciço com mata (largo e baixo) e a agulha de pedra por cima, mais para o fundo (a face íngreme olha a pista).
@@ -49,7 +49,7 @@ function cristoRedentor(): ReturnType<Kit['model']> {
   const top = 186;
   k.add(paint(cyl(20, 26, 8, 8), '#cfc8b8', tf(-14, top + 2, 6))); // mirante
   // Estátua: pedestal, túnica afinando para cima, braços abertos ao longo de Z (a cruz lê de frente), cabeça.
-  const S = 2.5; const sx = -14; const sz = 6; const y0 = top + 6;
+  const S = 3; const sx = -14; const sz = 6; const y0 = top + 6;
   const stone = '#ecebe2';
   k.add(paint(box(8 * S, 8 * S, 8 * S), '#dcd8cc', tf(sx, y0 + 4 * S, sz)));
   const yb = y0 + 8 * S;
@@ -563,7 +563,7 @@ function buriti(): ReturnType<Kit['model']> {
       k.add(beam([x, H, z], tip, 0.16, '#6a8a3a'));
       // Leque perpendicular ao pecíolo, inclinado para fora.
       const m = new THREE.Matrix4().compose(new THREE.Vector3(...tip), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -a + Math.PI / 2, -(up - 0.35), 'YXZ')), new THREE.Vector3(1, 1, 1));
-      k.add(fanLeaf(3.2, 6, b % 2 ? '#4f8f3a' : '#5ea044', m));
+      k.add(fanLeaf(4.4, 7, b % 2 ? '#4f8f3a' : '#5ea044', m));
     }
   });
   for (let i = 0; i < 5; i++) k.add(paint(jitter(ico(1, 0), 0.2, 80 + i), i % 2 ? '#5a9a3a' : '#6aa844', tf(-5 + (hash2(i, 81) - 0.5) * 16, 0.4, (i - 2) * 6, 3.2, 1.2, 3.2)));

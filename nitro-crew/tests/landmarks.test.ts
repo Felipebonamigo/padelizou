@@ -256,13 +256,16 @@ describe('marcos turísticos: posição', () => {
     expect(bad.slice(0, 12), `${bad.length} marcos fora do chão`).toEqual([]);
   }, 120000);
 
-  it('de frente para a pista (+X do modelo aponta para o centro) e girado para quem vem chegando', () => {
+  it('de frente para a pista (+X do modelo aponta para o centro), girado para quem vem chegando, sem espelhar', () => {
     for (const c of allCases()) {
       for (const { seg, p, id } of landmarkPlacements(c.layout)) {
         const side = p.x < 0 ? -1 : 1;
         // +X do modelo no referencial da pista: (cos yaw) na lateral e (−sen yaw) em Z (+Z = de onde o carro vem).
         expect(Math.cos(p.yaw) * side, `${c.placeId} ${id}#${seg}`).toBeLessThan(0);
         expect(-Math.sin(p.yaw), `${c.placeId} ${id}#${seg}`).toBeGreaterThanOrEqual(-1e-9);
+        // Lado oposto da pista = giro, nunca espelho (escala negativa inverteria as letras das placas do mundo).
+        expect([p.sx, p.sy, p.sz], `${c.placeId} ${id}#${seg}`).toEqual([1, 1, 1]);
+        expect(p.pitch, `${c.placeId} ${id}#${seg}`).toBe(0);
       }
     }
   }, 120000);
@@ -337,3 +340,57 @@ describe('marcos turísticos: modelos', () => {
     }
   });
 });
+
+describe('marcos turísticos: terreno', () => {
+  // Defeito visto na captura (onda G): em Sampa as quadras de fundo do terreno (45–285 m) nasciam em cima do MASP e
+  // da Ponte Estaiada e na frente deles — os dois sumiam. As quadras respeitam as clareiras que o layout marca.
+  it('as quadras de fundo da cidade não nascem na pegada nem na frente de um marco (Sampa: MASP e Ponte Estaiada)', async () => {
+    const THREE = await import('three');
+    const ctx = new Proxy({}, { get: () => () => ({ addColorStop: () => undefined }), set: () => true });
+    const g = globalThis as { document?: unknown };
+    const had = g.document;
+    g.document = { createElement: () => ({ width: 0, height: 0, getContext: () => ctx }) };
+    try {
+      const { Terrain } = await import('../src/render/terrain');
+      const { palette } = await import('../src/render/palette');
+      const { buildRoadFrame } = await import('../src/render/roadframe');
+      const track = getTrack('sampa_noite');
+      const layout = sceneryLayout(track);
+      const marks = landmarkPlacements(layout);
+      expect(marks.length).toBeGreaterThan(0);
+      const terrain = new Terrain(300);
+      terrain.setTrack(track, palette(track.def.scenery, track.def.timeOfDay), 'sampa:test');
+      const bad: string[] = [];
+      const m = new THREE.Matrix4(); const pos = new THREE.Vector3();
+      for (const { seg, p, id } of marks) {
+        // O carro 40 segmentos antes do marco: o que está entre ele e o marco, e o próprio lugar do marco.
+        const frame = buildRoadFrame(track, ((seg - 40 + track.segments.length) % track.segments.length) * 200, 30, 200);
+        terrain.update(frame, track, 0, new THREE.Vector3(0, 1, 0), 0);
+        const j = frame.behind + 40;
+        const side = p.x < 0 ? -1 : 1;
+        const b = modelBounds(LANDMARK_PREFIX + id);
+        // Até a borda de fora da pegada (o que fica atrás do marco é fundo, pode ter quadra).
+        let far = 0;
+        for (const [lx, lz] of [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]]) far = Math.max(far, Math.abs(p.x) + side * (Math.cos(p.yaw) * lx + Math.sin(p.yaw) * lz));
+        for (const im of terrain.group.children) {
+          if (!(im instanceof THREE.InstancedMesh) || !im.visible || im.count === 0) continue;
+          if (im.geometry.attributes.position.count !== 24) continue;
+          for (let k = 0; k < im.count; k++) {
+            im.getMatrixAt(k, m); pos.setFromMatrixPosition(m);
+            // Para o referencial do segmento do marco: lateral e ao longo.
+            const h = frame.heading[j];
+            const dx = pos.x - frame.px[j]; const dz = pos.z - frame.pz[j];
+            const lat = dx * Math.cos(h) + dz * Math.sin(h);
+            const along = dx * Math.sin(h) - dz * Math.cos(h); // + = à frente
+            if (lat * side > 30 && lat * side < far && along > -160 && along < 20) bad.push(`${id}#${seg}: quadra a ${(lat * side).toFixed(0)} m, ${along.toFixed(0)} m`);
+          }
+        }
+      }
+      expect(bad.slice(0, 6), `${bad.length} quadras`).toEqual([]);
+      terrain.dispose();
+    } finally {
+      g.document = had;
+    }
+  }, 60000);
+});
+

@@ -10,6 +10,7 @@ import type { SpriteRef, Track } from '../../core/types';
 import { hash2, hash3, valueNoise } from '../noise';
 import { HEADING_PER_CURVE, ROAD_HALF_WIDTH_M, SEGMENT_M, Y_SCALE } from '../units';
 import { dressingRecipe, farModelFor, LANDMARK_PREFIX, landmarkOf, modelBandRadius, modelBounds, modelFrontX, modelHeight, spriteVisual, type DressingRecipe } from './catalog';
+import { setClearings, type Clearing } from './clearings';
 import { groundOffset, isSeaSide, seaLevelOffset } from './ground';
 import type { LandmarkDef } from './landmarks/types';
 
@@ -204,7 +205,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const def = landmarkOf(LANDMARK_PREFIX + id);
     if (def) entries.push({ id, def });
   }
-  if (entries.length === 0) return;
+  if (entries.length === 0) { setClearings(track, []); return; }
   const biome = track.def.scenery;
   const seed = hashString(track.def.id) & 0xffff;
   // Linha central desenrolada em três voltas: o marco do segmento i é medido na volta do meio (k = i + n).
@@ -215,6 +216,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     px[k + 1] = px[k] + SEGMENT_M * Math.sin(a); pz[k + 1] = pz[k] - SEGMENT_M * Math.cos(a); hd[k + 1] = hd[k] + d;
   }
   const placed: LandmarkFoot[] = [];
+  const clearings: Clearing[] = [];
   // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
   const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean }> = [];
   const firstAt = (e: (typeof entries)[number], j: number): number => track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + LANDMARK_FIRST_AHEAD[e.def.place];
@@ -310,12 +312,15 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             out[i].push(p);
             occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
             placed.push({ k, cx, cz, r: radius });
+            // Quadras de fundo da cidade (terreno) fora da pegada e do caminho de quem chega (~200 m antes).
+            clearings.push({ seg: i, side, lat: latB + 15, back: span + 50, ahead: span + 4 });
             done = true;
           }
         }
       }
     }
   }
+  setClearings(track, clearings);
 }
 
 // ───────────────────────────── Decoração ─────────────────────────────
