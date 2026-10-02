@@ -1283,7 +1283,7 @@ function tableMountain(): Model {
 /** Uluru: monólito vermelho de lados íngremes e topo arredondado, com sulcos verticais (horizonte). */
 function uluru(): Model {
   const k = new Kit();
-  const H = 88; const L = 290; const W = 140;
+  const H = 110; const L = 360; const W = 175; // ≥ 90 m: o horizonte some na névoa abaixo disso
   const g = new THREE.SphereGeometry(1, 56, 12, 0, Math.PI * 2, 0, Math.PI / 2);
   const p = g.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < p.count; i++) {

@@ -3,13 +3,16 @@
 // divisa do alcance do carro (|x| = 3,2 da física), matas com clareiras além dela, postes com fios,
 // barcos no mar e pontos de referência por país. Determinístico (hash do id da pista + segmento):
 // a mesma pista tem sempre o mesmo visual. Puro: sem Three nem DOM.
+import { TRACK_PLACES } from '../../core/data/places';
 import { hashString } from '../../core/rng';
 import { SPRITE_HALF_WIDTH } from '../../core/track/sprites';
 import type { SpriteRef, Track } from '../../core/types';
 import { hash2, hash3, valueNoise } from '../noise';
-import { HEADING_PER_CURVE, ROAD_HALF_WIDTH_M, SEGMENT_M } from '../units';
-import { dressingRecipe, farModelFor, modelBandRadius, modelFrontX, modelHeight, spriteVisual, type DressingRecipe } from './catalog';
+import { HEADING_PER_CURVE, ROAD_HALF_WIDTH_M, SEGMENT_M, Y_SCALE } from '../units';
+import { dressingRecipe, farModelFor, LANDMARK_PREFIX, landmarkOf, modelBandRadius, modelBounds, modelFrontX, modelHeight, spriteVisual, type DressingRecipe } from './catalog';
+import { setClearings, type Clearing } from './clearings';
 import { groundOffset, isSeaSide, seaLevelOffset } from './ground';
+import type { LandmarkDef } from './landmarks/types';
 
 /** |x| máximo do carro na física (sim/physics.ts) em metros, mais a meia largura visual dele. */
 export const CAR_REACH_M = 3.2 * ROAD_HALF_WIDTH_M + 0.95;
@@ -107,7 +110,7 @@ function tintFor(seed: number, amount: number): [number, number, number] {
   return [k * (1 + warm * 0.5), k, k * (1 - warm * 0.6)];
 }
 
-function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy): void {
+function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
   const segs = track.segments;
   const def = track.def;
   for (let i = 0; i < segs.length; i++) {
@@ -157,14 +160,200 @@ function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: 
       const lat0 = vis.mode === 'building' ? edgeM : lat - Math.max(half, 1) * 1.3;
       const lat1 = vis.mode === 'building' ? edgeM + 26 : lat + Math.max(half, 1) * 1.3;
       occ.mark(i, side, Math.max(0, lat0), lat1, Math.ceil(alongHalf / SEGMENT_M));
+      // O que tapa a vista de um marco (prédio, torre, arquibancada, box, outdoor): grade à parte, da pista para fora.
+      if (sp.kind === 'building' || sp.kind === 'tower' || sp.kind === 'grandstand' || sp.kind === 'pit_wall' || sp.kind === 'billboard') tall.mark(i, side, 0, lat1, Math.ceil(alongHalf / SEGMENT_M));
     }
   }
+}
+
+// ───────────────────────────── Marcos turísticos ─────────────────────────────
+// Os marcos de places.ts (landmarks/), postos uma vez por pista depois dos sprites e antes da decoração (que
+// respeita a ocupação deles). Regras: pegada inteira a ≥ LANDMARK_CLEAR_M do centro de todo trecho à vista
+// (o próprio e os vizinhos de grampo); nada alto do lado de dentro de curva próxima; de frente para a pista e
+// girado para quem chega; pousado no ponto mais baixo do chão sob a pegada; o primeiro de cada marco logo depois
+// da largada e os outros espalhados pela volta. Id sem modelo no registro: ignorado.
+
+type LandmarkPlace = 'near' | 'far' | 'skyline';
+
+/** Nenhuma parte de um marco a menos disto (m) do centro de qualquer trecho de pista à vista. */
+export const LANDMARK_CLEAR_M = 26;
+/**
+ * Faixa lateral (m) e passo da busca, medidos na BORDA DE DENTRO da pegada (o ponto do modelo mais perto da pista):
+ * assim um tepui de 1 km de fundo ou uma ponte de 1 km continuam do lado de fora. Sem lugar na faixa, a última
+ * passada estende a faixa até o dobro (antes de desistir).
+ */
+const LANDMARK_LAT: Record<LandmarkPlace, [number, number, number]> = { near: [30, 80, 5], far: [120, 330, 15], skyline: [220, 300, 10] };
+/** Quanto (m) a ponta de um modelo comprido pode avançar para a pista por causa do giro `turn` (limita o giro). */
+const LANDMARK_TURN_SWEEP_M = 60;
+/** Giro padrão (rad) da pista para quem vem chegando (LandmarkDef.turn muda). */
+export const LANDMARK_TURN: Record<LandmarkPlace, number> = { near: 0.3, far: 0.45, skyline: 0.35 };
+/** O primeiro de cada marco: segmentos depois da largada (o mais importante) e o passo entre um marco e o seguinte. */
+const LANDMARK_FIRST = 48;
+const LANDMARK_FIRST_STEP = 64;
+/**
+ * Quanto mais adiante vai o primeiro de cada lugar: o marco fica no segmento em que está AO LADO da pista, e só é
+ * visto de frente uns 100–250 segmentos antes — o do horizonte, a 400 m+, entra na tela a ~30° só bem antes disso.
+ */
+const LANDMARK_FIRST_AHEAD: Record<LandmarkPlace, number> = { near: 0, far: 30, skyline: 150 };
+/** Até onde (segmentos depois da largada) o primeiro de cada marco pode ir: o mais importante, os outros; o do horizonte, + o AHEAD dele. */
+export const LANDMARK_FIRST_MAX = { primary: 150, other: 300 } as const;
+/** Trechos da linha central conferidos (o que está à vista enquanto o marco está na janela do RoadFrame). */
+const LANDMARK_VIEW = 300;
+
+/** Pegada de um marco já posto: centro, raio do círculo que o contém e a caixa no referencial dele (ct/st do giro). */
+interface LandmarkFoot { k: number; cx: number; cz: number; r: number; ct: number; st: number; b: { minX: number; maxX: number; minZ: number; maxZ: number } }
+
+/** Distância de um ponto do mundo à caixa de uma pegada (0 dentro). */
+function distToFoot(f: Pick<LandmarkFoot, 'cx' | 'cz' | 'ct' | 'st' | 'b'>, x: number, z: number): number {
+  const dx = x - f.cx; const dz = z - f.cz;
+  const lx = dx * f.ct - dz * f.st; const lz = dx * f.st + dz * f.ct;
+  return Math.hypot(Math.max(f.b.minX - lx, 0, lx - f.b.maxX), Math.max(f.b.minZ - lz, 0, lz - f.b.maxZ));
+}
+
+function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
+  const segs = track.segments; const n = segs.length;
+  const entries: Array<{ id: string; def: LandmarkDef }> = [];
+  for (const id of ids) {
+    const def = landmarkOf(LANDMARK_PREFIX + id);
+    if (def) entries.push({ id, def });
+  }
+  if (entries.length === 0) { setClearings(track, []); return; }
+  const biome = track.def.scenery;
+  const seed = hashString(track.def.id) & 0xffff;
+  // Linha central desenrolada em três voltas: o marco do segmento i é medido na volta do meio (k = i + n).
+  const px = new Float64Array(3 * n + 1); const pz = new Float64Array(3 * n + 1); const hd = new Float64Array(3 * n + 1);
+  for (let k = 0; k < 3 * n; k++) {
+    const d = segs[k % n].curve * HEADING_PER_CURVE;
+    const a = hd[k] + d / 2;
+    px[k + 1] = px[k] + SEGMENT_M * Math.sin(a); pz[k + 1] = pz[k] - SEGMENT_M * Math.cos(a); hd[k + 1] = hd[k] + d;
+  }
+  const placed: LandmarkFoot[] = [];
+  const clearings: Clearing[] = [];
+  // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
+  const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean; window: number }> = [];
+  const firstAt = (e: (typeof entries)[number], j: number): number => track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + LANDMARK_FIRST_AHEAD[e.def.place];
+  // O primeiro procura antes dentro da janela perto da largada (todas as passadas) e só depois fora dela.
+  entries.forEach((e, j) => {
+    const max = (j === 0 ? LANDMARK_FIRST_MAX.primary : LANDMARK_FIRST_MAX.other) + (e.def.place === 'skyline' ? LANDMARK_FIRST_AHEAD.skyline : 0);
+    jobs.push({ ...e, m: 0, target: firstAt(e, j), first: true, window: track.startIndex + max - firstAt(e, j) });
+  });
+  entries.forEach((e, j) => {
+    const per = Math.max(1, Math.round(e.def.perLap));
+    for (let m = 1; m < per; m++) jobs.push({ ...e, m, target: firstAt(e, j) + Math.round((m * n) / per), first: false, window: Infinity });
+  });
+  for (const job of jobs) {
+    const { id, def } = job;
+    const modelId = LANDMARK_PREFIX + id;
+    const b = modelBounds(modelId);
+    const height = b.maxY;
+    const place = def.place;
+    // Modelo comprido (ponte de 1 km) gira menos: a ponta não pode avançar mais que LANDMARK_TURN_SWEEP_M.
+    const halfLen = Math.max(-b.minZ, b.maxZ);
+    const turn = Math.min(def.turn ?? LANDMARK_TURN[place], Math.asin(Math.min(1, LANDMARK_TURN_SWEEP_M / Math.max(1, halfLen))));
+    const [lat0, lat1, latStep] = LANDMARK_LAT[place];
+    const coast = biome === 'coast';
+    // 'sea' fica no mar do litoral (direita); fora do litoral, qualquer lado. No litoral, o resto fica em terra.
+    const sides: number[] = def.side === 'sea' ? (coast ? [1] : [-1, 1]) : coast ? [-1] : hash3(seed, job.m, id.length) < 0.5 ? [-1, 1] : [1, -1];
+    const per = Math.max(1, Math.round(def.perLap));
+    const reach = Math.max(8, Math.min(200, Math.floor(n / (4 * per))));
+    const corners: Array<[number, number]> = [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]];
+    const samples: Array<[number, number]> = [[0, 0], ...corners, [b.minX, 0], [b.maxX, 0]];
+    const radius = Math.hypot(Math.max(-b.minX, b.maxX), Math.max(-b.minZ, b.maxZ));
+    let done = false;
+    // Três passadas: a primeira exige chão quase plano e (perto) a vista livre de quem chega; a segunda aceita declive
+    // e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
+    for (let attempt = 0; attempt < (job.first ? 2 : 1) && !done; attempt++)
+    for (let pass = 0; pass < 3 && !done; pass++) {
+      const top = pass === 2 ? lat1 * 2 : lat1;
+      for (let o = 0; o <= 2 * reach && !done; o += 4) {
+        // 0, +4, −4, +8, −8…; o primeiro de cada marco não volta para antes da largada.
+        const off = o === 0 ? 0 : (o % 8 === 4 ? 1 : -1) * Math.ceil(o / 8) * 4;
+        if (job.first && off < -20) continue;
+        if (attempt === 0 && off > job.window) continue;
+        const i = (((job.target + off) % n) + n) % n;
+        if (segs[i].pit) continue;
+        for (const side of sides) {
+          if (done) break;
+          if (height > 8 && place !== 'skyline' && innerCurve(track, i, side)) continue;
+          const sea = def.side === 'sea' && isSeaSide(biome, side);
+          // Giro relativo ao rumo da pista: +X do modelo para a pista, e `turn` para quem vem chegando (+Z).
+          const yaw = side > 0 ? Math.PI + turn : -turn;
+          const c = Math.cos(yaw); const s = Math.sin(yaw);
+          let inMin = Infinity; let inMax = -Infinity; let alMax = 0;
+          for (const [lx, lz] of corners) {
+            const lo = side * (c * lx + s * lz);
+            inMin = Math.min(inMin, lo); inMax = Math.max(inMax, lo); alMax = Math.max(alMax, Math.abs(s * lx - c * lz));
+          }
+          const span = Math.ceil(alMax / SEGMENT_M);
+          for (let v = lat0; v <= top && !done; v += latStep * (pass === 2 ? 2 : 1)) {
+            const L = v - inMin;
+            const latA = L + inMin; const latB = L + inMax;
+            if (latA < LANDMARK_CLEAR_M) continue;
+            // Perto: o corredor entre a cerca e o marco também livre (prédio ou arquibancada na frente o esconderia);
+            // a última passada abre mão disso.
+            const corridor = place === 'near' && pass < 2;
+            if (!occ.free(i, side, corridor ? FENCE_M : latA, latB, span)) continue;
+            // …e o caminho de quem chega (os ~120 m antes da pegada) sem sprite entre a cerca e ele, nem nada alto (prédio de
+            // Sampa, arquibancada, box, outdoor) da pista até ele: senão só se vê o marco com o carro do lado dele.
+            if (corridor && pass === 0 && (!occ.free(((i - span - 16) % n + n) % n, side, FENCE_M, latA, 15) || !tall.free(((i - span - 16) % n + n) % n, side, 0, latA, 15))) continue;
+            // Pegada contra a linha central à vista (inclusive trechos vizinhos de grampo e curva em S).
+            const k = i + n;
+            const cx = (px[k] + px[k + 1]) / 2 + side * L * Math.cos(hd[k]);
+            const cz = (pz[k] + pz[k + 1]) / 2 + side * L * Math.sin(hd[k]);
+            const th = yaw - hd[k];
+            const ct = Math.cos(th); const st = Math.sin(th);
+            const far = radius + LANDMARK_CLEAR_M + 2;
+            let clear = true;
+            for (let q = k - LANDMARK_VIEW; q <= k + LANDMARK_VIEW; q++) {
+              const dx = px[q] - cx; const dz = pz[q] - cz;
+              if (Math.abs(dx) > far || Math.abs(dz) > far) continue;
+              const lx = dx * ct - dz * st; const lz = dx * st + dz * ct;
+              const ex = Math.max(b.minX - lx, 0, lx - b.maxX); const ez = Math.max(b.minZ - lz, 0, lz - b.maxZ);
+              if (ex * ex + ez * ez < (LANDMARK_CLEAR_M + 0.5) ** 2) { clear = false; break; }
+            }
+            if (!clear) continue;
+            // Outro marco já posto ali (a grade de ocupação só vai até 180 m).
+            // O menor (pelo círculo) contra a caixa do maior: o círculo de um tepui de 2 km bloqueava meia volta.
+            const me = { cx, cz, ct, st, b };
+            if (placed.some((f) => Math.abs(f.k - k) < LANDMARK_VIEW * 2 && (radius <= f.r ? distToFoot(f, cx, cz) < radius : distToFoot(me, f.cx, f.cz) < f.r))) continue;
+            // Chão: o ponto mais baixo sob a pegada (nada flutua; o lado de cima do declive enterra).
+            let y: number;
+            if (sea) y = seaLevelOffset(track, segs[i]);
+            else {
+              let lo = Infinity; let hi = -Infinity;
+              for (const [lx, lz] of samples) {
+                const lat = side * L + c * lx + s * lz;
+                const fs = i + 0.5 + (s * lx - c * lz) / SEGMENT_M;
+                const j = ((Math.floor(fs) % n) + n) % n;
+                const g = groundOffset(track, j, fs - Math.floor(fs), lat < 0 ? -1 : 1, Math.abs(lat)) + (segs[j].y0 - segs[i].y0) * Y_SCALE;
+                lo = Math.min(lo, g); hi = Math.max(hi, g);
+              }
+              if (pass === 0 && hi - lo > Math.max(3, height * 0.12)) continue;
+              y = lo;
+            }
+            const p = base(table.of(modelId));
+            p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
+            out[i].push(p);
+            occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
+            // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
+            // bosque de 26–142 m o esconde até o carro estar do lado dele.
+            if (place === 'near') for (let d = span + 1; d <= span + 40; d += 2) occ.mark(((i - d) % n + n) % n, side, FENCE_M + 2.5, latA, 1);
+            placed.push({ k, cx, cz, r: radius, ct, st, b });
+            // Quadras de fundo da cidade (terreno) fora da pegada e do caminho de quem chega (~200 m antes).
+            clearings.push({ seg: i, side, lat: latB + 15, back: span + 50, ahead: span + 4 });
+            done = true;
+          }
+        }
+      }
+    }
+  }
+  setClearings(track, clearings);
 }
 
 // ───────────────────────────── Decoração ─────────────────────────────
 
 /** Lado de dentro de curva logo à frente (as árvores altas ali esconderiam a pista). */
-function innerCurve(track: Track, i: number, side: number): boolean {
+export function innerCurve(track: Track, i: number, side: number): boolean {
   const segs = track.segments; const n = segs.length;
   let count = 0;
   for (let d = -25; d < 55; d++) {
@@ -343,12 +532,15 @@ function dress(track: Track, recipe: DressingRecipe, table: ModelTable, out: Pla
 /**
  * Layout do cenário da pista. Sem cache aqui de propósito: são ~10 mil posições por pista, e guardar as
  * 32 pistas pesaria no heap da sessão inteira — quem desenha (runtime.ts) guarda só o da pista atual.
+ * `landmarks`: ids dos marcos turísticos (padrão: os da pista em places.ts; os testes passam outros).
  */
-export function sceneryLayout(track: Track): Layout {
+export function sceneryLayout(track: Track, landmarks: readonly string[] = TRACK_PLACES[track.def.id]?.landmarks ?? []): Layout {
   const table = new ModelTable();
   const bySeg: Placement[][] = track.segments.map(() => []);
   const occ = new Occupancy(track.segments.length);
-  placeSprites(track, table, bySeg, occ);
+  const tall = new Occupancy(track.segments.length);
+  placeSprites(track, table, bySeg, occ, tall);
+  placeLandmarks(track, landmarks, table, bySeg, occ, tall);
   dress(track, dressingRecipe(track.def), table, bySeg, occ);
   for (const list of bySeg) for (const p of list) { p.yawC = Math.cos(p.yaw); p.yawS = Math.sin(p.yaw); }
   return { models: table.ids, bySeg };

@@ -20,12 +20,12 @@ renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(night ? '#0b1440' : '#8fc8f0');
-scene.fog = new THREE.FogExp2(night ? '#25336b' : '#bfe6ff', 0.004);
+scene.fog = new THREE.FogExp2(night ? '#25336b' : '#bfe6ff', Number(q.get('fog') ?? 0.004));
 const hemi = new THREE.HemisphereLight(night ? '#6f86c8' : '#9fd0ff', '#3a6a2a', night ? 1.3 : 0.75); scene.add(hemi);
 const sun = new THREE.DirectionalLight(night ? '#9fb0ff' : '#fff3d8', night ? 0.6 : 3); sun.position.set(40, 60, 30); sun.castShadow = true;
 const sc = sun.shadow.camera; sc.left = -80; sc.right = 80; sc.top = 80; sc.bottom = -80; sc.far = 300; sc.updateProjectionMatrix();
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.normalBias = 0.12; scene.add(sun);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ color: '#5aa84a', roughness: 1 }));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(Number(q.get('ground') ?? 600), Number(q.get('ground') ?? 600)), new THREE.MeshStandardMaterial({ color: '#5aa84a', roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const flat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, side: THREE.DoubleSide });
 const fac = {}; for (const s of ['office', 'apartment', 'classic', 'house']) { const t = facadeTextures(s); fac[s] = new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, emissiveMap: t.light, emissive: '#ffffff', emissiveIntensity: night ? 1.25 : 0, roughness: s === 'office' ? 0.32 : 0.78, metalness: s === 'office' ? 0.35 : 0, flatShading: true }); }
@@ -44,7 +44,7 @@ ids.forEach((id, i) => {
   }
 });
 const rows = Math.ceil(ids.length / cols);
-const cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 2000);
+const cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.5, 8000);
 const span = Math.max(cols * gap, rows * gap);
 cam.position.set(span * 0.35 * camD, (maxH * 0.9 + span * 0.35) * camD, (span * 0.9 + 6) * camD);
 cam.lookAt(0, maxH * 0.35, -rows * gap * 0.45);

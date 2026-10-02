@@ -1187,7 +1187,8 @@ export const LANDMARKS_BRASIL_NORTE_NORDESTE: LandmarkRegistry = {
   farol_cabo_branco: def(farolCaboBranco, 'far', 'sea', 1),
   estacao_cabo_branco: def(estacaoCaboBranco, 'near', 'land', 1),
   // Rio Grande do Norte
-  forte_reis_magos: def(forteReisMagos, 'far', 'sea', 1),
+  // 21 m de altura: a 120–330 m (far) lia pequeno; perto, de frente para quem chega.
+  forte_reis_magos: def(forteReisMagos, 'near', 'sea', 1),
   ponte_newton_navarro: def(ponteNewtonNavarro, 'far', 'sea', 1),
   // Ceará
   pedra_furada_jeri: def(pedraFuradaJeri, 'near', 'sea', 1),
@@ -1206,7 +1207,8 @@ export const LANDMARKS_BRASIL_NORTE_NORDESTE: LandmarkRegistry = {
   barco_regional: def(barcoRegional, 'near', 'sea', 3),
   // Amapá
   marco_zero_equador: def(marcoZeroEquador, 'near', 'any', 1),
-  fortaleza_macapa: def(fortalezaMacapa, 'far', 'any', 1),
+  // Forte baixo (16 m) e largo: a 120–330 m (far) sumia; perto, de frente para quem chega.
+  fortaleza_macapa: def(fortalezaMacapa, 'near', 'any', 1),
   // Roraima
   tepui: def(tepui, 'skyline', 'any', 1),
   maloca: def(maloca, 'near', 'land', 2),

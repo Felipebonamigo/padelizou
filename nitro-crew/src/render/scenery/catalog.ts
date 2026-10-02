@@ -4,6 +4,8 @@
 import type { SceneryId, SpriteKind, TrackDef } from '../../core/types';
 import { hash2 } from '../noise';
 import { bandPoints, type Model } from './geom';
+import { LANDMARKS } from './landmarks';
+import type { LandmarkDef } from './landmarks/types';
 import * as P from './props';
 import * as S from './structures';
 import * as V from './vegetation';
@@ -124,11 +126,22 @@ const BUILDERS: Record<string, () => Model> = {
 
 const cache = new Map<string, Model>();
 
+/** Prefixo dos marcos turísticos no registro de modelos: "lm:<id de places.ts>" (landmarks/index.ts). */
+export const LANDMARK_PREFIX = 'lm:';
+
+/** Definição do marco de um id de modelo "lm:<id>" (undefined se não for marco ou não tiver modelo). */
+export function landmarkOf(modelId: string): LandmarkDef | undefined {
+  if (!modelId.startsWith(LANDMARK_PREFIX)) return undefined;
+  const key = modelId.slice(LANDMARK_PREFIX.length);
+  return Object.prototype.hasOwnProperty.call(LANDMARKS, key) ? LANDMARKS[key] : undefined;
+}
+
 /** Modelo pelo id (montado na primeira vez; o chamador não libera: o cache vive o jogo inteiro). */
 export function getModel(id: string): Model {
   let m = cache.get(id);
   if (m) return m;
-  const b = BUILDERS[id] ?? dynamicBuilder(id);
+  const lm = landmarkOf(id);
+  const b = BUILDERS[id] ?? dynamicBuilder(id) ?? (lm ? lm.build : undefined);
   if (!b) throw new Error(`modelo desconhecido: ${id}`);
   m = b();
   cache.set(id, m);
@@ -170,6 +183,27 @@ export function modelBandRadius(id: string): number {
   }
   bandRadii.set(id, r);
   return r;
+}
+
+export interface ModelBounds { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number }
+const bounds = new Map<string, ModelBounds>();
+
+/** Caixa do modelo inteiro (m, escala 1), todas as partes. */
+export function modelBounds(id: string): ModelBounds {
+  let v = bounds.get(id);
+  if (v) return v;
+  v = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+  for (const part of getModel(id).parts) {
+    const pos = part.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i); const y = pos.getY(i); const z = pos.getZ(i);
+      if (x < v.minX) v.minX = x; if (x > v.maxX) v.maxX = x;
+      if (y < v.minY) v.minY = y; if (y > v.maxY) v.maxY = y;
+      if (z < v.minZ) v.minZ = z; if (z > v.maxZ) v.maxZ = z;
+    }
+  }
+  bounds.set(id, v);
+  return v;
 }
 
 const heights = new Map<string, number>();
