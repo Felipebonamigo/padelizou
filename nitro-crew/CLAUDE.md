@@ -23,6 +23,7 @@ não use nada de fora desta pasta.
   `playtest-records.mjs` exige `npm run dev`. `npx tsx scripts/perf-sim.ts` mede o custo por tick da simulação.
   Chromium: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--use-gl=swiftshader --enable-unsafe-swiftshader`). Sob carga a
   captura de 4 jogadores passa dos 30 s padrão: rode uma cópia com `page.setDefaultTimeout(240000)`.
+- Arte: `npm run car-templates` (modelos-base em `art/templates/cars/`) · `npm run check-car -- x.glb` · carro em `src/assets/cars/<estilo>.glb` substitui o procedural (`docs/ARTE.md`).
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
 - ⚠️ Para matar um relay órfão, filtre pelo processo `node` (`ps -eo pid,comm,args`); `pkill -f relay.mjs` casa com o próprio shell.
 
@@ -72,7 +73,7 @@ não use nada de fora desta pasta.
   por bioma × período, cenário refeito por bioma e país com pegada = colisão, colisão carro-carro do tamanho do
   carro na tela; e o modo Retrô (pseudo-3D) opcional em Opções › Visual. 847 testes. Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
-  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
+  `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `ARTE.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
   gente de verdade e trazer a lista de problemas; na Fase 2, a direção de arte (2.1) e a arte final em glTF (2.2–2.4).
 - **Como ver o jogo sem browser**: `tools/render-harness.mjs` (Chromium headless, capturas por pista/cenário;
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).

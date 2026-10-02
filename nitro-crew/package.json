@@ -14,7 +14,9 @@
     "smoke": "tsx scripts/smoke.ts",
     "balance": "tsx scripts/balance.ts",
     "playtest": "node scripts/playtest.mjs",
-    "relay": "node server/relay.mjs"
+    "relay": "node server/relay.mjs",
+    "car-templates": "tsx scripts/export-car-templates.ts",
+    "check-car": "tsx scripts/check-car-glb.ts"
   },
   "license": "MIT",
   "devDependencies": {

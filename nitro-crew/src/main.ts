@@ -4,12 +4,13 @@ import { createErrorReporter, dropStoredErrors, GAME_VERSION, installGlobalHandl
 import { dropOldestGhost } from './game/ghost-store';
 import { createSaveNotice } from './game/save-notice';
 import { createSession, type Session } from './game/session';
+import { loadCarAssets, type CarAssetReport } from './render/cars/assets';
 import { saveHealth, setSpaceFreers } from './game/storage';
 import { showFatal } from './errors/fatal';
 import { createErrorToast, createSaveToast } from './errors/toast';
 
 // API de depuração/playtest: window.nc.session, window.nc.startQuick(...)
-declare global { interface Window { nc: { session: Session } } }
+declare global { interface Window { nc: { session: Session; carAssets?: CarAssetReport } } }
 
 function localStore(): Storage | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
@@ -47,6 +48,11 @@ async function boot(): Promise<void> {
     installSaveMirror(desktop, storage);
   }
 
+  // 3) Carros da arte (src/assets/cars/*.glb) antes do renderizador: o recusado fica procedural, com o motivo no console.
+  const carAssets = await loadCarAssets();
+  for (const r of carAssets.rejected) console.warn(`[carros] ${r.file} recusado: ${r.problems.join('; ')}`);
+  for (const w of carAssets.warnings) console.warn(`[carros] ${w}`);
+
   const canvas = document.getElementById('game') as HTMLCanvasElement | null;
   const hud = document.getElementById('hud');
   const ui = document.getElementById('ui');
@@ -61,7 +67,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pointerdown', unlock);
 
   s.start();
-  window.nc = { session: s };
+  window.nc = { session: s, carAssets };
 
   // Gravação que não ficou em lugar nenhum: aviso no canto, no menu principal ou no resultado (save-notice.ts).
   const saveToast = createSaveToast(document.body);
@@ -69,7 +75,7 @@ async function boot(): Promise<void> {
   setInterval(() => saveNotice.update(s.menus.current()), 500);
 }
 
-// 3) Se o jogo nem começar (WebGL recusado, por exemplo), uma tela explica e oferece o relatório — nada de janela preta.
+// 4) Se o jogo nem começar (WebGL recusado, por exemplo), uma tela explica e oferece o relatório — nada de janela preta.
 boot().catch((err: unknown) => {
   console.error(err);
   reporter.report(err, 'fatal');
