@@ -132,7 +132,7 @@ export const GOLDEN_SCENARIOS: readonly SimScenario[] = [
   { name: 'solo-sem-assistencias', trackId: 'copacabana', humans: 1, seed: 101 },
   {
     name: 'coop4-tudo', trackId: 'serra_do_mar', humans: 4, difficulty: 'campeao', assists: ALL_ASSISTS,
-    assistLevels: ['none', 'brake', 'steer', 'full'], aiLevel: 1.5, rival: CUP_RIVALS.brasil, seed: 202,
+    assistLevels: ['none', 'brake', 'steer', 'full'], aiLevel: 1.5, rival: CUP_RIVALS.br_rj, seed: 202,
   },
   { name: 'versus-cambio-manual', trackId: 'sampa_noite', humans: 2, versus: true, manualGear: true, difficulty: 'amador', seed: 303 },
   { name: 'escolta', trackId: 'rota_66', humans: 2, mode: 'escort', assists: ALL_ASSISTS, assistLevels: ['full', 'none'], seed: 404 },

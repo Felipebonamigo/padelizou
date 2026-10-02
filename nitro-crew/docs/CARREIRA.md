@@ -158,9 +158,78 @@ Medido na revisão (piloto 0,97, 5 sementes × 3 pistas por copa; posição méd
 ao fim, que é o que a economia supõe. Uma carreira inteira simulada com ele (compras reais entre as
 corridas, save ida e volta a cada corrida) terminou em 13 corridas, com uma eliminação nos EUA.
 
+### Onda G: 34 copas, 109 corridas (02/10/2026)
+
+A carreira passa por todas as copas da lista: a Expedição Brasil (27 estados × 3 corridas) e o Mundial (7 × 4) —
+**109 corridas** em vez de 32. O prêmio continua pela posição relativa da copa (`prizeMultiplier`), então o piloto
+médio (sempre 4º, compra a peça mais barata) junta ~$ 426.000 na carreira e compra **102 itens em 109 corridas
+(0,94 por corrida)**; ainda há o que comprar no Mundial (teste "catálogo de verdade" em `tests/career.test.ts`).
+O Falcão dele fecha as 18 melhorias por volta da 8ª copa (DF).
+
+**O nível da IA deixou de ser linear.** Medido com a sonda (piloto 0,97, 2 sementes, todas as pistas da copa), a
+rampa antiga (0 → 1,25, linear nas 34 copas) deixava a IA muito atrás: o piloto médio vencia **todas** as corridas
+do RS em diante (média 1,0 até no Mediterrâneo), porque com 109 corridas ele tem o Falcão no máximo desde a 8ª copa.
+Mesmo com a IA no teto (nível 3 = motor, turbo, pneus e freios no máximo em todos os carros; `clampLevel` não
+passa disso) o Falcão no máximo do piloto médio fica em ~2º na última copa: **a medida atual é bem mais fácil para
+o jogador do que a tabela de 26/09 dizia** (4,7 na Europa com 1,25), provavelmente pelas mudanças de física e
+colisão das ondas seguintes. Agora:
+
+- `CAREER_AI_LEVEL_MAX` = **3** (o teto das melhorias) na última copa;
+- entre a primeira (0) e a última, `careerAiLevel` = máximo × (`CAREER_AI_FOLLOW` (0,8) × fração das melhorias do
+  Falcão que o piloto médio já comprou + 0,2 × posição da copa). A IA acompanha o dinheiro dele em vez de chegar
+  20 copas atrasada, e sobe sempre um pouco (o teste exige subida estrita).
+
+Sonda (`npx tsx scripts/career-balance.ts`, aqui com 2 sementes; posição média e corridas no top 5):
+
+| Copa | IA | Melhorias do piloto | Posições | Média | Top 5 |
+|---|---|---|---|---|---|
+| br_rj | 0,00 | 000000 | 2,3,2,4,7,3 | 3,50 | 5/6 |
+| br_sp | 0,68 | 011111 | 2,2,3,5,5,6 | 3,83 | 5/6 |
+| br_mg | 1,10 | 111221 | 2,2,2,4,5,4 | 3,17 | 6/6 |
+| br_es | 1,52 | 122231 | 2,2,2,5,4,3 | 3,00 | 6/6 |
+| br_pr | 1,81 | 222232 | 2,2,2,4,3,3 | 2,67 | 6/6 |
+| br_sc | 2,09 | 232332 | 2,2,2,3,3,4 | 2,67 | 6/6 |
+| br_rs | 2,24 | 233332 | 2,2,2,4,3,3 | 2,67 | 6/6 |
+| br_df | 2,53 | 333333 | 2,1,1,3,1,2 | 1,67 | 6/6 |
+| br_go | 2,55 | 333333 | 1,1,1,3,2,3 | 1,83 | 6/6 |
+| br_ms | 2,56 | 333333 | 1,1,2,2,2,2 | 1,67 | 6/6 |
+| br_mt | 2,58 | 333333 | 2,1,1,3,2,2 | 1,83 | 6/6 |
+| br_ba | 2,60 | 333333 | 2,1,1,2,2,2 | 1,67 | 6/6 |
+| br_se | 2,62 | 333333 | 2,1,2,2,2,2 | 1,83 | 6/6 |
+| br_al | 2,64 | 333333 | 2,1,1,3,1,2 | 1,67 | 6/6 |
+| br_pe | 2,65 | 333333 | 1,2,1,1,1,2 | 1,33 | 6/6 |
+| br_pb | 2,67 | 333333 | 1,1,1,2,1,1 | 1,17 | 6/6 |
+| br_rn | 2,69 | 333333 | 2,1,1,3,2,1 | 1,67 | 6/6 |
+| br_ce | 2,71 | 333333 | 1,1,2,2,1,2 | 1,50 | 6/6 |
+| br_pi | 2,73 | 333333 | 2,2,1,2,2,3 | 2,00 | 6/6 |
+| br_ma | 2,75 | 333333 | 1,1,1,1,3,3 | 1,67 | 6/6 |
+| br_pa | 2,76 | 333333 | 1,1,1,2,2,2 | 1,50 | 6/6 |
+| br_am | 2,78 | 333333 | 2,1,1,2,1,1 | 1,33 | 6/6 |
+| br_ap | 2,80 | 333333 | 2,2,2,2,2,3 | 2,17 | 6/6 |
+| br_rr | 2,82 | 333333 | 1,1,1,3,4,1 | 1,83 | 6/6 |
+| br_ro | 2,84 | 333333 | 1,1,2,3,2,2 | 1,83 | 6/6 |
+| br_ac | 2,85 | 333333 | 2,1,2,2,2,2 | 1,83 | 6/6 |
+| br_to | 2,87 | 333333 | 2,1,1,4,2,4 | 2,33 | 6/6 |
+| eua | 2,89 | 333333 | 2,2,2,2,5,3,4,3 | 2,88 | 8/8 |
+| japao | 2,91 | 333333 | 2,2,2,1,3,3,2,2 | 2,13 | 8/8 |
+| europa | 2,93 | 333333 | 1,2,2,2,3,3,4,3 | 2,50 | 8/8 |
+| africa_do_sul | 2,95 | 333333 | 2,2,2,1,3,3,2,2 | 2,13 | 8/8 |
+| australia | 2,96 | 333333 | 2,1,1,2,3,2,5,2 | 2,25 | 8/8 |
+| escandinavia | 2,98 | 333333 | 1,1,1,1,3,2,4,3 | 2,00 | 8/8 |
+| mediterraneo | 3,00 | 333333 | 1,1,1,2,2,6,4,2 | 2,38 | 7/8 |
+
+Linear 0 → 1,25 (antes), mesmas sementes: RJ 2,67 · MG 1,67 · RS 1,00 · MT 1,00 · PE 1,00 · CE 1,00 · PA 1,00 ·
+TO 1,00 · Europa 1,25 · Mediterrâneo 1,00. Com o máximo fixo em 2 ou 2,5 o Mediterrâneo continuava em 1,0–1,4.
+
+Leitura: o piloto médio fica entre 3º e 4º nas 7 primeiras copas (sem o Falcão completo) e entre 1º e 2º do DF
+em diante — a IA já está quase no teto e não tem mais o que comprar. Para a segunda metade ficar mais dura do que
+isso, a alavanca não é mais `aiLevel` (está no teto): seria habilidade da IA por copa, ou melhorias que passem do
+nível 3 — decisão de design em aberto. Anotar também: a âncora (RJ, de fábrica, IA 0) deu 3,5, dentro da faixa do
+teste (2,5–5,5); o `PROXY_SKILL` 0,97 continua valendo.
+
 ## Rivais que evoluem
 
-O nível da IA vai de 0 na primeira copa a `CAREER_AI_LEVEL_MAX` = **1,25** na última, linear entre
+(Até a onda G; a regra de agora está em "Onda G" acima.) O nível da IA ia de 0 na primeira copa a `CAREER_AI_LEVEL_MAX` = **1,25** na última, linear entre
 elas (`careerAiLevel`, fracionário: 0 · 0,42 · 0,83 · 1,25 com 4 copas). Ele aplica motor, turbo,
 pneus e freios no mesmo nível a todos os carros da IA (tanque e nitro ficam de fábrica): na última
 copa, +3,1% de velocidade máxima, +10% de aceleração, +0,05 de dirigibilidade e +15% de freio.

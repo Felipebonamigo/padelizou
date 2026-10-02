@@ -4,7 +4,7 @@
 import {
   CAR_HALF_WIDTH, CAR_LENGTH, COLLISION_COOLDOWN_TICKS, COLLISION_SLOP_X, COLLISION_SLOP_Z, TICK_RATE,
 } from '../core/constants';
-import { CUPS } from '../core/data/cups';
+import { BRAZIL_REGIONS, CUPS } from '../core/data/cups';
 import { wrappedDelta } from '../core/sim/collisions';
 import { computeModifiers } from '../core/sim/coop';
 import { TRACKS } from '../core/track';
@@ -213,6 +213,16 @@ export function unlockAchievements(
     if (difficulty === 'campeao') add('CAMPEAO', everyone);
     // A equipe (algum humano) terminou à frente do rival da copa em todas as corridas.
     if (cupChamp && cupChamp.cupId === cupJustCompleted && rivalBeatenEveryRace(cupChamp)) add('RIVAL_DERROTADO', everyone);
+    // Passaporte da Expedição Brasil: os carimbos do save mais o da copa recém-vencida (a sessão já carimbou, mas
+    // a regra não depende da ordem).
+    const state = CUPS.find((c) => c.id === cupJustCompleted && c.stage === 'brasil')?.state;
+    if (state) {
+      const stamps = new Set([...(save.stamps ?? []), state]);
+      for (const r of BRAZIL_REGIONS) {
+        if (r.states.includes(state) && r.states.every((s) => stamps.has(s))) add(`REGIAO_${r.id.toUpperCase()}`, everyone);
+      }
+      if (BRAZIL_REGIONS.every((r) => r.states.every((s) => stamps.has(s)))) add('PASSAPORTE_COMPLETO', everyone);
+    }
   }
   return [...out].map(([id, seats]) => ({ id, seats: [...seats].sort((a, b) => a - b) }));
 }
@@ -241,6 +251,8 @@ export function achievementDescription(id: string): string {
   const key = `stats.achDesc.${id}`;
   const own = t(key);
   if (own !== key) return own;
+  const region = BRAZIL_REGIONS.find((r) => `REGIAO_${r.id.toUpperCase()}` === id);
+  if (region) return t('stats.achDescRegion', { region: t(`core.region.${region.id}`) });
   const cup = CUPS.find((c) => `COPA_${c.id.toUpperCase()}` === id);
   if (!cup) return own;
   const nameKey = `core.cup.${cup.id}`;

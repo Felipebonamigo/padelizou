@@ -1,83 +1,254 @@
-# Pistas e copas — 32 pistas em 8 copas de 4 (passo 3.1 do roteiro)
+# Pistas e copas — 109 pistas: Expedição Brasil (27 estados × 3) e Mundial (7 países × 4)
 
-Como o original: oito copas de quatro pistas, destravadas em sequência. As quatro copas da Fase 0
-(Brasil, Estados Unidos, Japão, Europa) ganharam uma pista cada; as quatro novas são África do Sul,
-Austrália, Escandinávia e Mediterrâneo. Tudo é dado: pistas em `src/core/track/tracks.ts` (DSL
-`straight/curve/hill/s/pit`), copas em `src/core/data/cups.ts`.
+Onda G (02/10/2026, pedido do dono; contrato em `docs/PISTAS-TURISMO.md`): **3 pistas por estado do Brasil**, uma copa
+por estado, e os 7 países de antes. Duas etapas, destravadas em sequência:
+
+- **Expedição Brasil** — 27 copas de 3 pistas (`br_<uf>`, ex. `br_rj`), região por região: Sudeste (RJ, SP, MG, ES)
+  → Sul (PR, SC, RS) → Centro-Oeste (DF, GO, MS, MT) → Nordeste (BA, SE, AL, PE, PB, RN, CE, PI, MA) → Norte (PA, AM,
+  AP, RR, RO, AC, TO). Vencer a copa de um estado **carimba o passaporte** (`save.stamps`); a região inteira
+  carimbada dá `REGIAO_<REGIÃO>`, os 27 estados dão `PASSAPORTE_COMPLETO`. Vocabulário: passaporte, carimbo,
+  cartão-postal — nunca "turnê"/"world tour".
+- **Mundial** — Estados Unidos, Japão, Europa, África do Sul, Austrália, Escandinávia, Mediterrâneo (4 pistas cada);
+  a primeira exige a última copa da Expedição (`br_to`).
+- Planetas (etapa 3): depois.
+
+Tudo é dado: pistas em `src/core/track/tracks.ts` (DSL `straight/curve/hill/s/pit`), copas em `src/core/data/cups.ts`
+(`stage`, `region`, `state`; `BRAZIL_REGIONS`, `stageCups`, `stateCup`), lugar e marcos de cada pista em
+`src/core/data/places.ts`. As 4 pistas do Brasil que já existiam (Copacabana, Noite em Sampa, Serra do Mar,
+Transpantaneira) mantiveram id e traçado; a Copa Brasil antiga virou a Copa Rio de Janeiro (migração abaixo).
 
 ## Regras do catálogo (e o teste que segura cada uma)
 
 | Regra | Onde é conferida |
 |---|---|
-| 8 copas × 4 pistas; toda pista em exatamente uma copa | `tests/track.test.ts` (catálogo) |
+| 109 pistas; 27 copas `brasil` de 3 pistas e depois 7 copas `mundial` de 4; toda pista em exatamente uma copa | `tests/track.test.ts` (catálogo) |
+| Uma copa `br_<uf>` por estado, na ordem das regiões; cada pista é do estado da copa (`places.ts`); todo lugar do contrato virou pista | `tests/track.test.ts` |
 | Ids ASCII minúsculos (`^[a-z][a-z0-9_]*$`): o id da copa vira a conquista `COPA_<ID>` | `tests/track.test.ts`, `tests/desktop.test.ts` |
-| Destravamento linear na ordem da lista (brasil → eua → japao → europa → africa_do_sul → australia → escandinavia → mediterraneo) | `tests/track.test.ts` |
-| Dificuldade (1–5) não cai dentro da copa, e a média sobe de uma copa para a seguinte | `tests/track.test.ts` |
-| O índice técnico médio (medido no traçado) também sobe de copa para copa | `tests/track.test.ts` |
-| Rótulo não mente: pista dois níveis acima tem traçado mais técnico | `tests/track.test.ts` |
+| Destravamento linear na ordem da lista (br_rj → … → br_to → eua → … → mediterraneo); copa já concluída fica aberta (save antigo) | `tests/track.test.ts`, `tests/ui.test.ts`, `tests/migration-brasil.test.ts` |
+| **Rampa por etapa**: a dificuldade (1–5) não cai dentro da copa; a média por copa não cai na Expedição e sobe a cada copa no Mundial; cada etapa começa ≤ 2,25 e termina ≥ 4,75 | `tests/track.test.ts` |
+| O índice técnico médio (medido no traçado) sobe de uma copa para a seguinte, em cada etapa | `tests/track.test.ts` |
+| Rótulo não mente: pista dois níveis acima tem traçado mais técnico (em todas as 109) | `tests/track.test.ts` |
 | 1.500–3.000 segmentos, 3–5 voltas; pelo menos uma pista de entardecer ou noite por copa | `tests/track.test.ts` |
-| Copa e país com nome em PT e EN (`core.cup.<id>`, `core.country.<País>`) | `tests/track.test.ts`, `tests/i18n.test.ts` |
-| Uma conquista `COPA_<ID>` para cada copa de `CUPS` | `tests/desktop.test.ts` |
+| Copa, país, região, estado e pista com nome em PT e EN (`core.cup.<id>`, `core.country.<País>`, `core.region.<id>`, `core.state.<UF>`, `core.track.<id>` — PT = `name` da pista) | `tests/track.test.ts`, `tests/i18n.test.ts` |
+| A Cuia da Serra Gaúcha desenha uma cuia no minimapa (bojo > boca > cintura, de pé, simétrica, fundo redondo) | `tests/track.test.ts` (Cuia) |
+| Uma conquista `COPA_<ID>` para cada copa, `REGIAO_<ID>` por região, `PASSAPORTE_COMPLETO` | `tests/desktop.test.ts` |
+| Um rival por região na Expedição (o mesmo nos estados dela) e um por país no Mundial, todos diferentes, com falas próprias | `tests/rivals.test.ts` |
 | IA completa volta sem travar em toda pista; fica na pista nas de dificuldade 5 | `tests/ai.test.ts` (um teste por pista) |
 | IA termina a corrida INTEIRA (todas as voltas) sem ficar sem combustível, em toda pista | `tests/ai.test.ts` (corrida inteira, um teste por pista) |
 | Aviso de combustível ao jogador chega ≥ 0,1 volta antes do último box que salva a corrida, guiando como a IA ou de pé no fundo, e nunca na última volta | `tests/fuel.test.ts` (dois estilos por pista) |
 | Box logo depois da linha de chegada (o aviso e a IA contam com isso) | `tests/track.test.ts` |
-| Toda copa com exatamente 4 pistas (a grade de pistas usa uma linha por copa) | `tests/select.test.ts` |
+| Toda copa cabe numa linha da grade de pistas (3 a `TRACK_GRID_COLS` = 4) | `tests/select.test.ts` |
 
-**Índice técnico** (só nos testes, não entra no jogo): perda média de velocidade nas curvas, em %,
-do carro de referência (`falcao`, via `holdableSpeedFraction`) + inclinação média × 20. Média por
-copa hoje: Brasil 3,0 · EUA 4,7 · Japão 7,5 · Europa 8,6 · África do Sul 10,3 · Austrália 10,9 ·
-Escandinávia 12,2 · Mediterrâneo 14,1.
+A regra antiga "8 copas × 4, média de dificuldade sempre subindo" não cabe em 27 copas de 3 pistas: a média só anda
+de 1/3 em 1/3, então de 1 a 5 há 13 valores para 27 copas. Na Expedição a média **não cai**; quem sobe a cada copa é o
+índice técnico, que é contínuo.
+
+**Índice técnico** (só nos testes, não entra no jogo): perda média de velocidade nas curvas, em %, do carro de
+referência (`falcao`, via `holdableSpeedFraction`) + inclinação média × 20. Faixas por nível hoje: 1 → 0,3–1,2 ·
+2 → 0,0–5,0 · 3 → 4,9–9,3 · 4 → 9,4–11,9 · 5 → 12,2–16,4.
+
+Média por copa (índice · dificuldade média):
+
+- Expedição Brasil: RJ 1,4 (dif. 1,33) · SP 3,4 (dif. 2,00) · MG 3,5 (dif. 2,00) · ES 3,7 (dif. 2,00) · PR 4,2 (dif. 2,33) · SC 4,4 (dif. 2,33) · RS 6,1 (dif. 2,67) · DF 6,4 (dif. 2,67) · GO 6,7 (dif. 2,67) · MS 7,1 (dif. 3,00) · MT 7,3 (dif. 3,00) · BA 7,9 (dif. 3,00) · SE 8,1 (dif. 3,33) · AL 8,3 (dif. 3,33) · PE 9,2 (dif. 3,67) · PB 9,5 (dif. 3,67) · RN 9,6 (dif. 3,67) · CE 10,0 (dif. 4,00) · PI 10,2 (dif. 4,00) · MA 10,3 (dif. 4,00) · PA 11,2 (dif. 4,33) · AM 11,4 (dif. 4,33) · AP 11,5 (dif. 4,33) · RR 12,4 (dif. 4,67) · RO 12,8 (dif. 4,67) · AC 13,0 (dif. 4,67) · TO 13,8 (dif. 5,00)
+- Mundial: eua 4,7 (dif. 2,25) · japao 7,5 (dif. 3,25) · europa 8,6 (dif. 3,75) · africa_do_sul 10,3 (dif. 4,00) · australia 10,9 (dif. 4,25) · escandinavia 12,2 (dif. 4,50) · mediterraneo 14,1 (dif. 4,75)
+
+## Como as 77 pistas novas foram traçadas
+
+Cada pista tem um **traçado-base** com a identidade do lugar (comentário em cima dela em `tracks.ts`): as 23 da
+primeira leva foram escritas à mão a partir da tabela do contrato; as 54 de `EXTRA_BRAZIL_PLACES` saíram de um
+estilo por lugar — orla (retas e curvas abertas), serra (morros e grampos), cidade (esquinas fortes), dunas
+(lombadas em sequência), rio (curvas longas), estrada (retas com ondulações), esses. Depois cada traçado foi
+**ajustado ao índice técnico alvo da sua copa** escalando as curvas (teto 6) e os morros, e, quando não bastava,
+encurtando as retas — a rampa acima é o resultado. Volta inteira não gira para lado nenhum (soma das curvas ~0)
+desenha um risco no minimapa: os traçados novos giram de verdade para um lado.
+
+**A cuia (RS, `cuia_gaucha`).** O minimapa integra o rumo (`trackOutline`, `src/render/minimap.ts`) normalizando a
+soma das curvas para uma volta: o desenho depende só da proporção entre as curvas. A cuia é horária, largando no
+lado esquerdo do bojo: arco aberto de 1,4 subindo o bojo, curva à esquerda de -6 (a cintura), reta inclinada para
+fora (o gargalo abrindo), cotovelo de 6, a borda da boca, cotovelo de 6, gargalo descendo, -6 de novo, e quatro arcos
+de 1,4 dão a volta no bojo. Separar o fundo em vários arcos (cada operação de curva tem entrada e saída suaves)
+foi o que fez o bojo ficar redondo — um arco só de 180° desenhava um "U" alto. Os morros (serra) só entram nas
+retas e como subida das curvas: altura não muda o contorno. `npx tsx scripts/track-outline.ts cuia_gaucha` desenha
+(ASCII ou `--svg`):
+
+```
+
+
+                    ####################
+                    #                  ##
+                    ##                  #
+                     ####            ####
+                        ####       ###
+                           ##   ####
+                           ##   #
+                       #####    ##
+                   #####         #####
+                 ###                 #####
+               ###                       ###
+               #                           ##
+              ##                            ##
+              #                              #
+              #                              #
+              #                              ##
+              S                               #
+             ##                               #
+             #                               ##
+             ##                              #
+              ##                            ##
+               ##                          ##
+                ###                      ###
+                  ####                ####
+                     ####         #####
+                        ###########
+```
+
+## Migração (save de antes da onda G)
+
+`LEGACY_CUP_IDS` (`cups.ts`): `brasil` → `br_rj`. Na leitura do save (`src/game/save.ts`, `career-save.ts`):
+
+| O que | Vira |
+|---|---|
+| `cupsCompleted: ['brasil', …]` | `br_rj` (e o carimbo do RJ) |
+| conquista `COPA_BRASIL` | `COPA_BR_RJ` |
+| carreira com `cupId: 'brasil'` | carreira na `br_rj`, com dinheiro, garagem e estatísticas; a copa em andamento e a contagem de tentativas recomeçam (as corridas eram outras) |
+| campeonato normal em andamento na `brasil` | some do save (sem erro; o menu deixa de oferecer "Continuar") |
+| recordes, fantasmas, estatísticas | nada muda: são por id de pista, e nenhum id mudou |
+| quem já tinha vencido copas do Mundial | elas continuam abertas (`isCupUnlocked`: copa concluída fica aberta), e a seguinte também; a Expedição começa em SP |
+
+Carreira antiga numa copa do Mundial (eua, japao…) continua nela: o nível da IA e o prêmio passam a ser os da posição
+nova da copa (mais altos), e a carreira termina no Mediterrâneo sem passar pelo Brasil. Teste:
+`tests/migration-brasil.test.ts` (save gravado como era antes).
 
 ## Catálogo
 
-Só cenários que já existem (`tropical, desert, city_night, alpine, coast, savanna`) × `day/dusk/night`;
-cenário novo (neve, vulcão, fiorde) é trabalho gráfico e fica para a Fase 2. Os nomes usam lugares
-reais só como referência geográfica, sem marca nenhuma.
+Só cenários que já existem (`tropical, desert, city_night, alpine, coast, savanna`) × `day/dusk/night`. Os nomes usam
+lugares reais só como referência geográfica, sem marca nenhuma; o nome em EN traduz a descrição, não o lugar.
 
-| Copa | Pista (id) | Nome | Cenário | Período | Voltas | Dif. | Segm. | Índice | Identidade |
+| Copa | Pista (id) | Nome | Nome (EN) | Cenário | Período | Voltas | Dif. | Segm. | Índice |
 |---|---|---|---|---|---|---|---|---|---|
-| Brasil | `copacabana` | Orla de Copacabana | coast | dia | 3 | 1 | 1800 | 0,6 | orla, curvas abertas |
-| Brasil | `transpantaneira` ★ | Transpantaneira | savanna | entardecer | 3 | 1 | 2130 | 0,3 | estrada de terra reta no Pantanal; pontes de madeira como lombadas curtas |
-| Brasil | `serra_do_mar` | Serra do Mar | tropical | dia | 3 | 2 | 1730 | 4,9 | serra com morros |
-| Brasil | `sampa_noite` | Noite em Sampa | city_night | noite | 4 | 3 | 1850 | 6,1 | cidade |
-| EUA | `rota_66` | Rota 66 | desert | dia | 3 | 1 | 1800 | 0,3 | rodovia de retas longas |
-| EUA | `rochosas` ★ | Montanhas Rochosas | alpine | dia | 3 | 2 | 2080 | 4,3 | rodovia de montanha: subidas e descidas grandes, curvas longas médias |
-| EUA | `canion` | Cânion de Nevada | desert | entardecer | 3 | 3 | 1660 | 9,3 | cânion |
-| EUA | `las_vegas` | Strip de Las Vegas | city_night | noite | 4 | 3 | 1760 | 5,0 | cidade |
-| Japão | `baia_toquio` | Baía de Tóquio | coast | entardecer | 3 | 2 | 1800 | 1,5 | baía |
-| Japão | `yanbaru` ★ | Floresta de Yanbaru | tropical | dia | 3 | 3 | 1940 | 7,6 | mata subtropical de Okinawa: esses encadeados entre morrotes |
-| Japão | `monte_fuji` | Monte Fuji | alpine | dia | 3 | 4 | 1670 | 11,0 | montanha |
-| Japão | `osaka_neon` | Neon de Osaka | city_night | noite | 4 | 4 | 1800 | 10,0 | cidade |
-| Europa | `autobahn` | Autobahn | savanna | dia | 3 | 2 | 2010 | 0,0 | rodovia |
-| Europa | `paris` ★ | Boulevards de Paris | city_night | entardecer | 4 | 3 | 2010 | 5,8 | avenidas retas cortadas por esquinas de 90°, subida da Champs-Élysées |
-| Europa | `passo_alpino` | Passo Alpino | alpine | dia | 3 | 5 | 1570 | 16,2 | passo de montanha |
-| Europa | `monaco_noite` | Porto de Mônaco | coast | noite | 4 | 5 | 1840 | 12,2 | circuito de rua no porto |
-| África do Sul | `kruger` ★ | Savana do Kruger | savanna | dia | 3 | 3 | 2110 | 6,6 | estrada de safári: retas longas, curvas médias, ondulações |
-| África do Sul | `karoo` ★ | Deserto do Karoo | desert | entardecer | 3 | 4 | 2090 | 10,2 | retas enormes com lombadas cegas e curva forte depois da crista |
-| África do Sul | `drakensberg` ★ | Serra do Drakensberg | alpine | dia | 3 | 4 | 1910 | 10,9 | grampos em aclive, esses no alto |
-| África do Sul | `boa_esperanca` ★ | Cabo da Boa Esperança | coast | noite | 4 | 5 | 1760 | 13,5 | penhasco sobre o Atlântico: esses fortes à beira-mar |
-| Austrália | `outback` ★ | Poeira do Outback | desert | dia | 3 | 3 | 2090 | 4,9 | retas sem fim, valas de enchente (baixadas), curva forte no fim da reta |
-| Austrália | `great_ocean` ★ | Great Ocean Road | coast | entardecer | 3 | 4 | 1970 | 10,1 | estrada de falésias: curvas e esses com morros |
-| Austrália | `daintree` ★ | Selva de Daintree | tropical | dia | 3 | 5 | 1760 | 16,1 | estrada estreita na floresta: esses e curvas fortes quase sem reta |
-| Austrália | `sydney` ★ | Ponte de Sydney | city_night | noite | 4 | 5 | 1800 | 12,4 | rua na baía: esquinas, esses e a ponte (lombada longa) |
-| Escandinávia | `atlantico` ★ | Estrada do Atlântico | coast | dia | 3 | 4 | 1810 | 9,4 | de ilhota em ilhota: pontes como lombadas íngremes |
-| Escandinávia | `laponia` ★ | Meia-Noite na Lapônia | alpine | entardecer | 3 | 4 | 2030 | 10,1 | pinheiros sob o sol da meia-noite: retas com cristas e curvas rápidas |
-| Escandinávia | `trollstigen` ★ | Trollstigen | alpine | dia | 3 | 5 | 1790 | 16,4 | a escada dos trolls: grampos alternados subindo, esses descendo |
-| Escandinávia | `tromso` ★ | Aurora de Tromsø | coast | noite | 4 | 5 | 1870 | 13,0 | cidade-ilha no Ártico: ponte sobre o fiorde, esses à beira-mar |
-| Mediterrâneo | `amalfi` ★ | Costa Amalfitana | coast | dia | 3 | 4 | 1880 | 11,9 | estrada pendurada no penhasco: esses sem fim com morros |
-| Mediterrâneo | `santorini` ★ | Caldeira de Santorini | coast | entardecer | 3 | 5 | 1810 | 15,6 | grampos subindo do porto, esses no alto da caldeira |
-| Mediterrâneo | `etna` ★ | Vulcão Etna | desert | dia | 3 | 5 | 1810 | 16,0 | subida longa com grampos no campo de lava, descida com esses |
-| Mediterrâneo | `roma` ★ | Noite em Roma | city_night | noite | 4 | 5 | 1870 | 13,0 | ruas de pedra: esquinas, esses, a volta do Coliseu e a reta dos Fóruns |
+| RJ | `copacabana` | Orla de Copacabana | Copacabana Beachfront | coast | dia | 3 | 1 | 1800 | 0,6 |
+| RJ | `paraty` | Caminho do Ouro de Paraty | Paraty Gold Trail | coast | entardecer | 3 | 1 | 2060 | 1,2 |
+| RJ | `serra_dos_orgaos` | Serra dos Órgãos | Organ Mountains | tropical | dia | 3 | 2 | 1970 | 2,5 |
+| SP | `ilhabela` | Canal de Ilhabela | Ilhabela Channel | coast | dia | 3 | 1 | 1800 | 1,0 |
+| SP | `campos_do_jordao` | Campos do Jordão | Campos do Jordão | alpine | entardecer | 3 | 2 | 1890 | 3,0 |
+| SP | `sampa_noite` | Noite em Sampa | São Paulo Nights | city_night | noite | 4 | 3 | 1850 | 6,1 |
+| MG | `pampulha` | Lagoa da Pampulha | Pampulha Lake | city_night | entardecer | 3 | 1 | 2050 | 1,2 |
+| MG | `ouro_preto` | Ladeiras de Ouro Preto | Ouro Preto Hills | tropical | entardecer | 3 | 2 | 1870 | 3,6 |
+| MG | `serra_da_canastra` | Serra da Canastra | Canastra Range | savanna | dia | 3 | 3 | 1930 | 5,8 |
+| ES | `itaunas` | Dunas de Itaúnas | Itaúnas Dunes | coast | dia | 3 | 1 | 1830 | 1,2 |
+| ES | `convento_penha` | Convento da Penha | Penha Convent | coast | dia | 3 | 2 | 1980 | 4,0 |
+| ES | `pedra_azul` | Pedra Azul | Blue Rock | alpine | entardecer | 3 | 3 | 1860 | 6,0 |
+| PR | `foz_do_iguacu` | Cataratas do Iguaçu | Iguaçu Falls | tropical | dia | 3 | 2 | 1960 | 2,1 |
+| PR | `serra_do_mar` | Serra do Mar | Serra do Mar | tropical | dia | 3 | 2 | 1730 | 4,9 |
+| PR | `curitiba` | Ópera de Arame | Wire Opera House | city_night | noite | 4 | 3 | 1990 | 5,6 |
+| SC | `floripa` | Ponte Hercílio Luz | Hercílio Luz Bridge | coast | entardecer | 3 | 2 | 2010 | 3,0 |
+| SC | `camboriu` | Avenida Atlântica de Camboriú | Camboriú Beachfront | city_night | noite | 4 | 2 | 1780 | 4,1 |
+| SC | `rio_do_rastro` | Serra do Rio do Rastro | Rio do Rastro Pass | alpine | dia | 3 | 3 | 2040 | 6,1 |
+| RS | `orla_guaiba` | Orla do Guaíba | Guaíba Waterfront | coast | entardecer | 3 | 2 | 2020 | 3,7 |
+| RS | `cuia_gaucha` | Cuia da Serra Gaúcha | Gaúcha Gourd Circuit | alpine | entardecer | 3 | 3 | 1970 | 7,0 |
+| RS | `aparados_da_serra` | Aparados da Serra | Aparados Canyons | alpine | dia | 3 | 3 | 1860 | 7,5 |
+| DF | `lago_paranoa` | Lago Paranoá | Paranoá Lake | coast | dia | 3 | 2 | 1770 | 4,5 |
+| DF | `torre_de_tv` | Torre de TV | TV Tower | city_night | noite | 4 | 3 | 1720 | 7,0 |
+| DF | `brasilia` | Eixo Monumental | Monumental Axis | city_night | entardecer | 3 | 3 | 2120 | 7,7 |
+| GO | `pirenopolis` | Ruas de Pirenópolis | Pirenópolis Streets | tropical | entardecer | 3 | 2 | 1840 | 4,9 |
+| GO | `caldas_novas` | Águas de Caldas Novas | Caldas Novas Springs | savanna | dia | 3 | 3 | 1990 | 7,2 |
+| GO | `chapada_veadeiros` | Chapada dos Veadeiros | Veadeiros Plateau | savanna | dia | 3 | 3 | 1940 | 7,8 |
+| MS | `bonito` | Rios de Bonito | Bonito Rivers | tropical | dia | 3 | 3 | 2020 | 7,0 |
+| MS | `campo_grande` | Avenidas de Campo Grande | Campo Grande Avenues | city_night | entardecer | 3 | 3 | 1820 | 7,0 |
+| MS | `estrada_parque` | Estrada Parque do Pantanal | Pantanal Park Road | savanna | entardecer | 3 | 3 | 1990 | 7,2 |
+| MT | `transpantaneira` | Transpantaneira | Transpantaneira | savanna | entardecer | 3 | 1 | 2130 | 0,3 |
+| MT | `cuiaba` | Centro Geodésico de Cuiabá | Cuiabá Geodesic Center | city_night | noite | 4 | 4 | 1770 | 10,7 |
+| MT | `chapada_guimaraes` | Chapada dos Guimarães | Guimarães Plateau | savanna | dia | 3 | 4 | 1900 | 11,0 |
+| BA | `porto_seguro` | Costa de Porto Seguro | Porto Seguro Coast | coast | dia | 3 | 2 | 1870 | 5,0 |
+| BA | `salvador` | Orla de Salvador | Salvador Waterfront | coast | entardecer | 3 | 3 | 1980 | 8,9 |
+| BA | `chapada_diamantina` | Chapada Diamantina | Diamantina Plateau | savanna | dia | 3 | 4 | 2040 | 9,9 |
+| SE | `aracaju` | Orla de Atalaia | Atalaia Beach | coast | noite | 4 | 3 | 1790 | 6,8 |
+| SE | `sao_cristovao` | Praça de São Cristóvão | São Cristóvão Square | tropical | entardecer | 3 | 3 | 1850 | 7,4 |
+| SE | `xingo` | Cânions do Xingó | Xingó Canyons | desert | dia | 3 | 4 | 1890 | 10,0 |
+| AL | `maragogi` | Piscinas de Maragogi | Maragogi Reefs | coast | dia | 3 | 2 | 1930 | 3,3 |
+| AL | `maceio` | Orla de Maceió | Maceió Waterfront | coast | noite | 4 | 4 | 1760 | 10,6 |
+| AL | `foz_sao_francisco` | Foz do São Francisco | São Francisco River Mouth | desert | entardecer | 3 | 4 | 1950 | 11,0 |
+| PE | `recife_antigo` | Recife Antigo | Old Recife | city_night | noite | 4 | 3 | 2070 | 7,6 |
+| PE | `olinda` | Ladeiras de Olinda | Olinda Hills | coast | dia | 3 | 4 | 1770 | 10,0 |
+| PE | `noronha` | Fernando de Noronha | Fernando de Noronha | coast | entardecer | 3 | 4 | 1970 | 10,0 |
+| PB | `joao_pessoa` | Ponta do Seixas | Easternmost Point | coast | entardecer | 3 | 3 | 1930 | 8,2 |
+| PB | `campina_grande` | Parque do Povo | People's Park | city_night | noite | 4 | 4 | 1820 | 10,0 |
+| PB | `pedra_da_boca` | Pedra da Boca | Mouth Rock | desert | dia | 3 | 4 | 1960 | 10,3 |
+| RN | `natal` | Dunas de Genipabu | Genipabu Dunes | coast | dia | 3 | 3 | 1910 | 8,0 |
+| RN | `ponta_negra` | Morro do Careca | Bald Hill Beach | coast | entardecer | 3 | 4 | 1950 | 10,2 |
+| RN | `cajueiro_pirangi` | Cajueiro de Pirangi | Pirangi Cashew Tree | tropical | dia | 3 | 4 | 2030 | 10,4 |
+| CE | `jericoacoara` | Jericoacoara | Jericoacoara | coast | entardecer | 3 | 4 | 1890 | 10,1 |
+| CE | `fortaleza_beira_mar` | Beira-Mar de Fortaleza | Fortaleza Seafront | city_night | noite | 4 | 4 | 1680 | 9,9 |
+| CE | `canoa_quebrada` | Falésias de Canoa Quebrada | Canoa Quebrada Cliffs | desert | dia | 3 | 4 | 1950 | 10,0 |
+| PI | `delta_parnaiba` | Delta do Parnaíba | Parnaíba Delta | tropical | dia | 3 | 4 | 1930 | 10,0 |
+| PI | `sete_cidades` | Pedras de Sete Cidades | Seven Cities Rocks | savanna | entardecer | 3 | 4 | 2090 | 10,2 |
+| PI | `serra_capivara` | Serra da Capivara | Capivara Range | desert | entardecer | 3 | 4 | 1890 | 10,3 |
+| MA | `sao_luis` | Casarões de São Luís | São Luís Tiles | city_night | noite | 4 | 4 | 2070 | 10,2 |
+| MA | `chapada_das_mesas` | Chapada das Mesas | Mesas Plateau | savanna | dia | 3 | 4 | 1720 | 10,3 |
+| MA | `lencois` | Lençóis Maranhenses | Lençóis Maranhenses | desert | entardecer | 3 | 4 | 1700 | 10,5 |
+| PA | `alter_do_chao` | Praias de Alter do Chão | Alter do Chão Beaches | tropical | dia | 3 | 4 | 1920 | 10,4 |
+| PA | `belem` | Ver-o-Peso | Belém Docks | coast | entardecer | 3 | 4 | 1800 | 10,6 |
+| PA | `marajo` | Campos do Marajó | Marajó Fields | savanna | entardecer | 3 | 5 | 1940 | 12,7 |
+| AM | `manaus` | Encontro das Águas | Meeting of Waters | coast | dia | 3 | 4 | 2110 | 10,6 |
+| AM | `ponte_rio_negro` | Ponte do Rio Negro | Rio Negro Bridge | city_night | noite | 4 | 4 | 1990 | 10,8 |
+| AM | `parintins` | Bumbódromo de Parintins | Parintins Arena | tropical | entardecer | 3 | 5 | 1930 | 12,9 |
+| AP | `macapa` | Marco Zero do Equador | Equator Line | tropical | dia | 3 | 3 | 1750 | 8,7 |
+| AP | `pororoca_araguari` | Pororoca do Araguari | Araguari Tidal Bore | tropical | entardecer | 3 | 5 | 1900 | 12,8 |
+| AP | `serra_do_navio` | Serra do Navio | Navio Range | tropical | dia | 3 | 5 | 1800 | 13,0 |
+| RR | `boa_vista` | Avenidas de Boa Vista | Boa Vista Avenues | city_night | noite | 4 | 4 | 1620 | 11,0 |
+| RR | `monte_roraima` | Monte Roraima | Mount Roraima | savanna | dia | 3 | 5 | 2040 | 13,0 |
+| RR | `lago_caracarana` | Lago Caracaranã | Caracaranã Lake | savanna | entardecer | 3 | 5 | 1880 | 13,3 |
+| RO | `porto_velho` | Madeira-Mamoré | Madeira-Mamoré Railway | tropical | entardecer | 3 | 4 | 1960 | 11,3 |
+| RO | `forte_principe` | Forte Príncipe da Beira | Prince of Beira Fort | tropical | dia | 3 | 5 | 1820 | 13,4 |
+| RO | `vale_guapore` | Vale do Guaporé | Guaporé Valley | savanna | entardecer | 3 | 5 | 1920 | 13,6 |
+| AC | `rio_branco` | Gameleira de Rio Branco | Rio Branco Riverside | tropical | dia | 3 | 4 | 2080 | 11,4 |
+| AC | `geoglifos` | Geoglifos do Acre | Acre Geoglyphs | savanna | entardecer | 3 | 5 | 1940 | 13,6 |
+| AC | `estrada_pacifico` | Estrada do Pacífico | Pacific Highway | tropical | dia | 3 | 5 | 1890 | 13,8 |
+| TO | `jalapao` | Dunas do Jalapão | Jalapão Dunes | desert | entardecer | 3 | 5 | 1890 | 13,6 |
+| TO | `palmas` | Ponte de Palmas | Palmas Bridge | city_night | noite | 4 | 5 | 1780 | 13,8 |
+| TO | `ilha_do_bananal` | Ilha do Bananal | Bananal Island | savanna | dia | 3 | 5 | 1770 | 14,0 |
+| Estados Unidos | `rota_66` | Rota 66 | Route 66 | desert | dia | 3 | 1 | 1800 | 0,3 |
+| Estados Unidos | `rochosas` | Montanhas Rochosas | Rocky Mountains | alpine | dia | 3 | 2 | 2080 | 4,3 |
+| Estados Unidos | `canion` | Cânion de Nevada | Nevada Canyon | desert | entardecer | 3 | 3 | 1660 | 9,3 |
+| Estados Unidos | `las_vegas` | Strip de Las Vegas | Las Vegas Strip | city_night | noite | 4 | 3 | 1760 | 5,0 |
+| Japão | `baia_toquio` | Baía de Tóquio | Tokyo Bay | coast | entardecer | 3 | 2 | 1800 | 1,5 |
+| Japão | `yanbaru` | Floresta de Yanbaru | Yanbaru Forest | tropical | dia | 3 | 3 | 1940 | 7,6 |
+| Japão | `monte_fuji` | Monte Fuji | Mount Fuji | alpine | dia | 3 | 4 | 1670 | 11,0 |
+| Japão | `osaka_neon` | Neon de Osaka | Osaka Neon | city_night | noite | 4 | 4 | 1800 | 10,0 |
+| Europa | `autobahn` | Autobahn | Autobahn | savanna | dia | 3 | 2 | 2010 | 0,0 |
+| Europa | `paris` | Boulevards de Paris | Paris Boulevards | city_night | entardecer | 4 | 3 | 2010 | 5,8 |
+| Europa | `passo_alpino` | Passo Alpino | Alpine Pass | alpine | dia | 3 | 5 | 1570 | 16,2 |
+| Europa | `monaco_noite` | Porto de Mônaco | Monaco Harbour | coast | noite | 4 | 5 | 1840 | 12,2 |
+| África do Sul | `kruger` | Savana do Kruger | Kruger Savanna | savanna | dia | 3 | 3 | 2110 | 6,6 |
+| África do Sul | `karoo` | Deserto do Karoo | Karoo Desert | desert | entardecer | 3 | 4 | 2090 | 10,2 |
+| África do Sul | `drakensberg` | Serra do Drakensberg | Drakensberg Range | alpine | dia | 3 | 4 | 1910 | 10,9 |
+| África do Sul | `boa_esperanca` | Cabo da Boa Esperança | Cape of Good Hope | coast | noite | 4 | 5 | 1760 | 13,5 |
+| Austrália | `outback` | Poeira do Outback | Outback Dust | desert | dia | 3 | 3 | 2090 | 4,9 |
+| Austrália | `great_ocean` | Great Ocean Road | Great Ocean Road | coast | entardecer | 3 | 4 | 1970 | 10,1 |
+| Austrália | `daintree` | Selva de Daintree | Daintree Rainforest | tropical | dia | 3 | 5 | 1760 | 16,1 |
+| Austrália | `sydney` | Ponte de Sydney | Sydney Bridge | city_night | noite | 4 | 5 | 1800 | 12,4 |
+| Escandinávia | `atlantico` | Estrada do Atlântico | Atlantic Road | coast | dia | 3 | 4 | 1810 | 9,4 |
+| Escandinávia | `laponia` | Meia-Noite na Lapônia | Lapland Midnight | alpine | entardecer | 3 | 4 | 2030 | 10,1 |
+| Escandinávia | `trollstigen` | Trollstigen | Trollstigen | alpine | dia | 3 | 5 | 1790 | 16,4 |
+| Escandinávia | `tromso` | Aurora de Tromsø | Tromsø Aurora | coast | noite | 4 | 5 | 1870 | 13,0 |
+| Mediterrâneo | `amalfi` | Costa Amalfitana | Amalfi Coast | coast | dia | 3 | 4 | 1880 | 11,9 |
+| Mediterrâneo | `santorini` | Caldeira de Santorini | Santorini Caldera | coast | entardecer | 3 | 5 | 1810 | 15,6 |
+| Mediterrâneo | `etna` | Vulcão Etna | Mount Etna | desert | dia | 3 | 5 | 1810 | 16,0 |
+| Mediterrâneo | `roma` | Noite em Roma | Rome by Night | city_night | noite | 4 | 5 | 1870 | 13,0 |
 
-★ = pista nova (20). O cenário é o mais próximo que existe: o Pantanal usa a savana; o campo de lava
-do Etna usa o deserto; a Lapônia e o Trollstigen usam o alpino.
+O cenário é o mais próximo que existe: o Pantanal usa a savana; o campo de lava do Etna usa o deserto; a Lapônia e o
+Trollstigen usam o alpino; dunas do Nordeste e do Jalapão usam o deserto; o lavrado de Roraima e o cerrado, a savana.
 
-**Bandeiras de regiões.** Escandinávia usa 🇳🇴 (três das quatro pistas são na Noruega — Atlântico,
-Trollstigen, Tromsø; a Lapônia é de três países). Mediterrâneo usa 🇮🇹 (Amalfi, Etna e Roma; Santorini
-é grega). A Europa segue com 🇪🇺.
+**Bandeiras de regiões.** Escandinávia usa 🇳🇴 (três das quatro pistas são na Noruega — Atlântico, Trollstigen,
+Tromsø; a Lapônia é de três países). Mediterrâneo usa 🇮🇹 (Amalfi, Etna e Roma; Santorini é grega). A Europa segue
+com 🇪🇺; as 27 copas de estado usam 🇧🇷 (a sigla do estado é o carimbo).
 
 ## Balanceamento (dados, 25/09/2026)
+
+As tabelas abaixo são das 32 pistas de antes da onda G. As 77 novas passam pelos mesmos testes por pista (IA
+completa a volta sem travar e fica na pista nas de nível 5; corrida inteira sem pane seca; aviso de combustível nos
+dois estilos — `tests/ai.test.ts` 251 testes, `tests/fuel.test.ts` 227, todos verdes em 02/10), mas a rodada de
+`scripts/balance.ts` (melhor volta, grama, batidas) ainda não foi feita nelas.
 
 `npx tsx scripts/balance.ts 150 profissional 11 <id>`: 19 carros de IA + 1 humano parado, 150 s de
 corrida. "Voltas IA 2–2" = toda a IA completou a primeira volta (as pistas novas, mais longas, não
@@ -169,38 +340,44 @@ um carro colado do lado direito o impediu de chegar à faixa do box. É a entrad
 (comportamento anterior a este passo), não a decisão. Com 8 voltas (o máximo da corrida rápida) em
 cinco pistas longas, 2 sementes, profissional e campeão: 0, com duas ou três paradas por carro.
 
-## Interface (src/ui/screens/select.ts + select.css)
+## Interface (src/ui/screens/select.ts + select.css) — o que a onda G pede às telas
 
-- **Copas**: lista das 8 à esquerda (bandeira, nome, ✓ concluída / cadeado) e o detalhe da copa em
-  foco à direita (país, número de corridas, dificuldade média, selo Aberta/Concluída/"Conclua a …" e
-  as 4 pistas com período, voltas, dificuldade e melhor volta). O cursor começa na primeira copa
-  aberta ainda não concluída. Cabe sem rolar em 1280×720 e 1920×1080.
-- **Pistas**: grade com uma seção por copa (cabeçalho com bandeira e nome da copa) e uma linha de 4
-  pistas por copa. ↑↓ trocam de copa na mesma coluna, ←→ andam na copa; a área rola acompanhando o
-  foco (`scrollIntoView` + `scroll-margin` que traz o cabeçalho da copa junto). Mouse e roda também.
-- Classificação da copa, "Próxima corrida: N de M" e colunas por corrida já saíam de
-  `cup.trackIds.length`; nada assumia 3 pistas.
+As telas são de outra tarefa; o núcleo já entrega o dado. O que mudou para elas:
 
-- Telas mais altas que 16:9 (Steam Deck 1280×800, 1024×600): a letra cresce com a altura e a
-  largura não. A lista de copas nunca fica mais estreita que o nome mais longo
-  (`minmax(max-content, …)`), e nome, voltas e recorde do cartão de pista encolhem juntos com o
-  cartão (container query, `cqi`) — "Transpantaneira" é uma palavra só e não quebra.
-- O cartão mostra as voltas com que a corrida larga: corrida rápida e contra-relógio usam as voltas
-  da corrida rápida (`session.ts`); só a copa corre as voltas da pista.
+- **34 copas em vez de 8, em duas etapas.** `cup.stage` (`'brasil'` | `'mundial'`); na Expedição, `cup.region` e
+  `cup.state` (sigla). `BRAZIL_REGIONS` dá a ordem das regiões e dos estados; `stageCups(stage)`, `stateCup(uf)`.
+  A lista de copas precisa agrupar por etapa e, na Expedição, por região (27 linhas não cabem sem rolar em 720p).
+- **Copas de 3 pistas** (estados) ao lado de copas de 4 (Mundial). A grade de pistas com uma copa por linha
+  continua valendo, mas a linha de estado deixa a 4ª coluna vazia: ↑↓ vindo da 4ª coluna para uma copa de 3 tem de
+  parar na 3ª (`tests/select.test.ts` agora exige só "cabe numa linha": 3 a `TRACK_GRID_COLS`). A dificuldade média
+  da copa e o "Próxima corrida: N de M" já saem de `trackIds.length`. Torneio (modo de festa) numa copa de 3 pistas
+  só cabe em até 2 rodadas + final (`tournamentTracks`/`setupError` recusam 3 rodadas); a tela devia limitar.
+- **Nomes**: `core.track.<id>` (PT = `def.name`, EN traduzido), `core.cup.<id>`, `core.region.<id>`,
+  `core.state.<UF>`, `core.stage.brasil` ("Expedição Brasil" / "Brazil Expedition"), `core.stage.mundial`
+  ("Mundial" / "World Circuit"). Até aqui a tela mostrava `def.name` nos dois idiomas.
+- **Passaporte**: `save.stamps` (siglas, na ordem em que foram carimbadas); `markCupCompleted` carimba. Textos
+  prontos em `core.passport.*` (título, carimbo, cartão-postal, "{state} carimbado no passaporte!", "{n} de {total}
+  estados carimbados", "Região {region} completa no passaporte!"). Marcos para o cartão-postal: `places.ts`.
+- **Destravamento**: copa já concluída fica aberta (`isCupUnlocked`); com save antigo, mais de uma copa pode estar
+  "aberta" ao mesmo tempo (o cursor começa na primeira aberta não concluída — `frontierCupIndex` já faz isso).
+- `scripts/pistas-ui.mjs`, `playtest-layout.mjs`, `playtest-records.mjs` e `playtest.mjs` ainda usam o id `brasil`
+  e `COPA_BRASIL` (o save de teste passa pela migração, mas o roteiro que espera o foco em "brasil" vai falhar).
 
-Roteiro de verificação: `scripts/pistas-ui.mjs` (Playwright, fluxo real de teclado e controle, em
-1280×720 e 1920×1080; contra-relógio; e as duas telas em 1280×800, 1366×768, 1600×900 e 1024×600
-sem nome cortado). `node scripts/pistas-ui.mjs <url> [prefixo] [pasta] [--tamanhos]`.
+Como era até a onda F (8 copas de 4): lista de copas à esquerda com o detalhe à direita; grade de pistas com uma
+linha de 4 por copa, ↑↓ trocando de copa na mesma coluna; cabe sem rolar em 1280×720 e 1920×1080; Steam Deck e
+1024×600 conferidos com `scripts/pistas-ui.mjs`.
 
 ## Pista nova — passo a passo
 
 1. Escreva a pista em `tracks.ts`, na posição da copa, com um comentário de identidade (o que o
-   traçado representa). Curva 2 fácil / 4 média / 6 forte; lombada = `hl(comprimento, altura)`.
-2. Ponha o id em `trackIds` da copa (`cups.ts`). Copa nova: id ASCII minúsculo, `requires` = a copa
-   anterior, `core.cup.<id>` e `core.country.<País>` em `src/i18n/core.ts`, conquista `COPA_<ID>` em
-   `ACHIEVEMENTS` (`src/game/desktop.ts`) e na tabela de `desktop/README.md` (Steamworks).
+   traçado representa). Curva 2 fácil / 4 média / 6 forte; lombada = `hl(comprimento, altura)`. Volta que não gira
+   para lado nenhum (soma das curvas ~0) vira um risco no minimapa.
+2. Ponha o id em `trackIds` da copa (`cups.ts`) e o lugar em `places.ts`. Nome em `core.track.<id>` (PT e EN). Copa
+   nova: id ASCII minúsculo, `stage` (e `region`/`state` na Expedição), `requires` = a copa anterior,
+   `core.cup.<id>` e `core.country.<País>` em `src/i18n/core.ts`, conquista `COPA_<ID>` em `ACHIEVEMENTS`
+   (`src/game/desktop.ts`), na tabela de `desktop/README.md` (Steamworks) e um rival em `CUP_RIVALS`.
 3. `npx vitest run tests/track.test.ts tests/ai.test.ts tests/fuel.test.ts` e
    `npx tsx scripts/balance.ts 150 profissional 11 <id>` (IA completa a volta, grama < 1%, melhor volta
-   ~1:00–1:40). Se o índice técnico contradisser o rótulo, ajuste o traçado ou a dificuldade — não o
-   teste. Volta muito mais longa que 2.100 segmentos pede olhar o combustível: os testes de corrida
+   ~1:00–1:40). Se o índice técnico contradisser o rótulo ou a rampa da etapa, ajuste o traçado ou a dificuldade —
+   não o teste. Volta muito mais longa que 2.100 segmentos pede olhar o combustível: os testes de corrida
    inteira e de aviso dizem se o tanque ainda fecha.

@@ -13,9 +13,9 @@ describe('idiomas', () => {
   });
   it('t substitui parâmetros e cai para PT quando falta', () => {
     setLanguage('en');
-    expect(t('core.cup.brasil')).toBe('Brazil Cup');
+    expect(t('core.cup.br_rj')).toBe('Rio de Janeiro Cup');
     setLanguage('pt');
-    expect(t('core.cup.brasil')).toBe('Copa Brasil');
+    expect(t('core.cup.br_rj')).toBe('Copa Rio de Janeiro');
     expect(t('inexistente.chave')).toBe('inexistente.chave');
   });
 });

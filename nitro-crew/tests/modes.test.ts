@@ -193,7 +193,8 @@ describe('torneio: inscrição e "passe o controle" (partes puras da tela)', asy
   const { CUPS } = await import('../src/core/data/cups');
 
   it('pistas: uma por rodada na ordem da copa e a última da copa na final', () => {
-    const cup = CUPS[0];
+    // Copa de 4 pistas (Mundial). As de estado têm 3: lá o torneio cabe em até 2 rodadas + final (tela: outra tarefa).
+    const cup = CUPS.find((c) => c.trackIds.length === 4)!;
     expect(tournamentTracks(cup, 1)).toEqual([cup.trackIds[0], cup.trackIds[3]]);
     expect(tournamentTracks(cup, 3)).toEqual(cup.trackIds);
     expect(setupError(draftSetup({ players: setup(3).players, rounds: 3, cupId: cup.id }, cup, 2, 3))).toBeNull();

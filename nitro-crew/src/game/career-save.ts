@@ -7,7 +7,7 @@ import {
 } from '../core/career';
 import { MAX_SEATS } from '../core/constants';
 import { CARS } from '../core/data/cars';
-import { CUPS } from '../core/data/cups';
+import { CUPS, currentCupId } from '../core/data/cups';
 import { AI_TEAM_ID_BASE, seatColor } from '../core/data/drivers';
 import type { CarDef, ChampionshipState, HumanEntry, RaceResultRow, StandingRow, TeamStandingRow, UpgradeLevels } from '../core/types';
 import type { SaveData, SavedCup } from './contracts';
@@ -164,14 +164,18 @@ export function sanitizeCareer(v: unknown): CareerState | null {
   const coop = v.coop === true && drivers.length >= 2;
   const rawWallets = Array.isArray(v.wallets) ? v.wallets : [];
   const wallets = Array.from({ length: coop ? 1 : drivers.length }, (_, i) => int(rawWallets[i], 0, MONEY_MAX, 0));
-  const cupKnown = typeof v.cupId === 'string' && CUPS.some((c) => c.id === v.cupId);
-  const cupId = cupKnown ? (v.cupId as string) : CUPS[0].id;
+  // Copa que mudou de id (save de antes da onda G: `brasil` → `br_rj`) segue na de hoje, recomeçando: as corridas
+  // e a contagem de tentativas eram de outra copa. Dinheiro, garagem e estatísticas da carreira ficam.
+  const savedCup = typeof v.cupId === 'string' ? currentCupId(v.cupId) : null;
+  const legacy = savedCup !== null && savedCup !== v.cupId;
+  const cupKnown = savedCup !== null && CUPS.some((c) => c.id === savedCup);
+  const cupId = cupKnown ? savedCup : CUPS[0].id;
   let champ = sanitizeChampionship(v.champ);
   // Copa salva que não bate com a atual, ou já encerrada, recomeça do zero.
   if (champ && (champ.cupId !== cupId || champ.eliminated || champ.completed)) champ = null;
   return {
     version: CAREER_VERSION, coop, drivers, wallets, cupId, champ,
-    rosterSeed: int(v.rosterSeed, 0, UINT32_MAX, 0), attempts: int(v.attempts, 1, 999_999, 1),
+    rosterSeed: int(v.rosterSeed, 0, UINT32_MAX, 0), attempts: legacy ? 1 : int(v.attempts, 1, 999_999, 1),
     completed: v.completed === true, racesRun: int(v.racesRun, 0, Number.MAX_SAFE_INTEGER, 0),
     lastReport: sanitizeReport(v.lastReport),
   };

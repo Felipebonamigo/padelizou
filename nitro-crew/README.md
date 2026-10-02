@@ -3,7 +3,7 @@
 Corrida arcade no espírito do Top Gear (SNES) com visual **3D atual, low-poly estilizado** (referência:
 Horizon Chase Turbo), e **cooperativo local para até 4 jogadores em tela dividida**: a equipe divide um cofre
 de nitro, empurra o companheiro que parou, ganha vácuo atrás dele e pontua junta nas copas contra 19 pilotos
-de IA. Tem carreira com dinheiro e melhorias, 32 pistas em 8 países e jogo online por lockstep. Feito em
+de IA. Tem carreira com dinheiro e melhorias, 109 pistas — a Expedição Brasil (27 estados, 3 pistas cada) e o Mundial (7 países) — e jogo online por lockstep. Feito em
 TypeScript + Three.js (WebGL), com simulação determinística, e empacotável com Electron para a Steam.
 
 ![Cânion de Nevada ao entardecer](docs/screenshot.png)
@@ -43,12 +43,12 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
   texto grande e reduzir efeitos (`docs/ASSISTENCIAS.md`).
 
 ## Conteúdo
-- 32 pistas em 8 países (Brasil, EUA, Japão, Europa, África do Sul, Austrália, Escandinávia, Mediterrâneo), 6
+- 109 pistas: a Expedição Brasil (27 copas de estado, com passaporte e carimbos) e o Mundial (EUA, Japão, Europa, África do Sul, Austrália, Escandinávia, Mediterrâneo), 6
   cenários × dia/entardecer/noite (`docs/PISTAS.md`).
 - 14 carros (7 livres, 7 à venda na carreira), um estilo de carroceria cada, com trocas claras de velocidade,
   aceleração, curva e consumo (`docs/CARROS.md`).
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box pelo consumo medido volta a volta.
-- Estatísticas por jogador, recordes por pista e 25 conquistas (`docs/ESTATISTICAS.md`).
+- Estatísticas por jogador, recordes por pista e 57 conquistas (`docs/ESTATISTICAS.md`).
 - Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (procedural até a arte final).
 - **Modo Retrô** opcional (Opções › Visual): pseudo-3D de 16 bits no estilo Top Gear, com a mesma corrida, HUD e tela
   dividida — ver `docs/RETRO.md`.

@@ -255,7 +255,10 @@ describe('rival da copa', () => {
   it('é estável por copa, é um piloto do elenco e cada copa tem o seu', () => {
     const names = CUPS.map((c) => cupRival(c.id).name);
     expect(CUPS.map((c) => cupRival(c.id).name)).toEqual(names);
-    expect(new Set(names).size).toBe(CUPS.length);
+    // Expedição Brasil: um rival por região (o mesmo em todos os estados dela); Mundial: um por país; todos diferentes.
+    const groups = [...new Set(CUPS.map((c) => c.region ?? c.id))];
+    for (const g of groups) expect(new Set(CUPS.filter((c) => (c.region ?? c.id) === g).map((c) => cupRival(c.id).name)).size, g).toBe(1);
+    expect(new Set(names).size).toBe(groups.length);
     for (const n of names) expect(AI_DRIVERS).toContain(n);
     for (const c of CUPS) expect(CUP_RIVALS[c.id], c.id).toBe(cupRival(c.id).name);
     // Copa nova sem rival escolhido: um piloto do elenco, sempre o mesmo.
@@ -265,7 +268,7 @@ describe('rival da copa', () => {
 
   it('entra no grid da copa qualquer que seja o elenco sorteado, com o bônus leve de habilidade', () => {
     const track = getTrack('copacabana');
-    const rival = cupRival('brasil').name;
+    const rival = cupRival('br_rj').name;
     for (let rosterSeed = 0; rosterSeed < 40; rosterSeed++) {
       for (const totalCars of [4, 8, 20]) {
         const base: RaceConfig = { trackId: 'copacabana', laps: 2, humans: [human(0)], totalCars, difficulty: 'profissional', manualGear: false, assists: NO_ASSISTS, seed: 9, rosterSeed };
@@ -323,7 +326,7 @@ describe('rival da copa', () => {
       }
     }
     setLanguage('pt');
-    const ze = cupRival('brasil');
+    const ze = cupRival('br_rj');
     const pt = rivalLine(ze, 'taunt');
     setLanguage('en');
     expect(rivalLine(ze, 'taunt')).not.toBe(pt);
@@ -337,11 +340,11 @@ function row(name: string, seat: number, position: number): RaceResultRow {
   return { carId: position, seat, name, teamId: seat >= 0 ? 0 : 100, carDefId: 'falcao', position, finished: true, totalTicks: 1000 + position, bestLapTicks: 300, points: 0 };
 }
 
-/** Copa Brasil com um humano e o rival, nas posições dadas corrida a corrida ([humano, rival]). */
+/** Copa Rio de Janeiro (3 corridas) com um humano e o rival, nas posições dadas corrida a corrida ([humano, rival]). */
 function cupWith(positions: Array<[number, number]>): { champ: ReturnType<typeof createChampionship>; humans: HumanEntry[]; results: RaceResultRow[][] } {
   const humans = [human(0)];
-  const champ = createChampionship('brasil', humans);
-  const rival = cupRival('brasil').name;
+  const champ = createChampionship('br_rj', humans);
+  const rival = cupRival('br_rj').name;
   const all: RaceResultRow[][] = [];
   for (const [hp, rp] of positions) {
     const others = AI_DRIVERS.filter((n) => n !== rival).slice(0, 8);
@@ -366,7 +369,7 @@ describe('duelo com o rival', () => {
     const s = rivalRaceSummary(champ, results[1]);
     expect(s?.kind).toBe('revenge');
     expect(s?.title).toBe('Rival: Zé Turbo — 1º');
-    expect(s?.line).toBe(rivalLine(cupRival('brasil'), 'revenge'));
+    expect(s?.line).toBe(rivalLine(cupRival('br_rj'), 'revenge'));
     setLanguage('en');
     expect(rivalRaceSummary(champ, results[1])?.title).toBe('Rival: Zé Turbo — 1st');
     setLanguage('pt');
@@ -391,32 +394,32 @@ describe('duelo com o rival', () => {
   });
 
   it('RIVAL_DERROTADO: à frente do rival em todas as corridas da copa, e só na copa concluída', () => {
-    const won = cupWith([[1, 2], [3, 4], [2, 9], [5, 6]]);
+    const won = cupWith([[1, 2], [3, 4], [2, 9]]);
     expect(rivalBeatenEveryRace(won.champ)).toBe(true);
-    const lostOne = cupWith([[1, 2], [3, 4], [5, 2], [5, 6]]);
+    const lostOne = cupWith([[1, 2], [3, 4], [5, 2]]);
     expect(rivalBeatenEveryRace(lostOne.champ)).toBe(false);
     expect(rivalBeatenEveryRace(cupWith([[1, 2], [3, 4]]).champ)).toBe(false);
 
     const { state } = quickRace({ totalCars: 4, seed: 2 });
     const save = (): SaveData => ({ ...structuredClone(DEFAULT_SAVE), achievements: [] });
-    const unlock = (c: typeof won) => unlockAchievements(save(), 'cup', state, c.results[3], c.humans, newTelemetry(), false, 'brasil', 'profissional', c.champ).map((u) => u.id);
+    const unlock = (c: typeof won) => unlockAchievements(save(), 'cup', state, c.results[2], c.humans, newTelemetry(), false, 'br_rj', 'profissional', c.champ).map((u) => u.id);
     expect(unlock(won)).toContain('RIVAL_DERROTADO');
     expect(unlock(lostOne)).not.toContain('RIVAL_DERROTADO');
     // Sem a copa (versão antiga do gancho): nada.
-    expect(unlockAchievements(save(), 'cup', state, won.results[3], won.humans, newTelemetry(), false, 'brasil', 'profissional').map((u) => u.id)).not.toContain('RIVAL_DERROTADO');
+    expect(unlockAchievements(save(), 'cup', state, won.results[2], won.humans, newTelemetry(), false, 'br_rj', 'profissional').map((u) => u.id)).not.toContain('RIVAL_DERROTADO');
   });
 
   it('RIVAL_DERROTADO na carreira: o fechamento lê a copa depois de careerFinished (careerChamp)', () => {
-    const won = cupWith([[1, 2], [3, 4], [2, 9], [5, 6]]);
+    const won = cupWith([[1, 2], [3, 4], [2, 9]]);
     const { state, track } = quickRace({ totalCars: 4, seed: 2 });
-    state.results = won.results[3];
+    state.results = won.results[2];
     const unlocked: string[] = [];
     let after: typeof won.champ | null = null;
     settleRace(sanitizeSave({}), { state, track, mode: 'career', humans: won.humans, telemetry: newTelemetry(), outcome: null }, {
       champ: null, difficulty: 'profissional', hudTtl: 1,
       effects: { achievement: (id) => { unlocked.push(id); }, hud() {}, persist() {} },
       // Como a sessão: careerFinished devolve a copa concluída e deixa a copa somada à mão da sessão.
-      careerFinished: () => { after = won.champ; return 'brasil'; },
+      careerFinished: () => { after = won.champ; return 'br_rj'; },
       careerChamp: () => after,
     });
     expect(unlocked).toContain('RIVAL_DERROTADO');

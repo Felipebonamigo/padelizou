@@ -65,6 +65,9 @@ registerStrings('stats', {
     'achDesc.DEZ_VITORIAS': 'Somar 10 vitórias (o contra-relógio não conta).',
     'achDesc.GIRO_COMPLETO': 'Correr em todas as pistas do jogo (o contra-relógio não conta).',
     'achDesc.RIVAL_DERROTADO': 'Concluir uma copa terminando à frente do rival da copa em todas as corridas.',
+    /** Toda REGIAO_<REGIÃO> (Expedição Brasil), com o nome de core.region.<id>. */
+    achDescRegion: 'Carimbar no passaporte todos os estados do {region}.',
+    'achDesc.PASSAPORTE_COMPLETO': 'Carimbar no passaporte os 27 estados da Expedição Brasil.',
   },
   en: {
     'tab.tracks': 'Tracks',
@@ -127,5 +130,7 @@ registerStrings('stats', {
     'achDesc.DEZ_VITORIAS': 'Win 10 races (time trial does not count).',
     'achDesc.GIRO_COMPLETO': 'Race on every track in the game (time trial does not count).',
     'achDesc.RIVAL_DERROTADO': 'Finish a cup ahead of the cup rival in every race.',
+    achDescRegion: 'Stamp every state of the {region} region in your passport.',
+    'achDesc.PASSAPORTE_COMPLETO': 'Stamp all 27 states of the Brazil Expedition in your passport.',
   },
 });

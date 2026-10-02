@@ -29,8 +29,8 @@ describe('campeonato', () => {
 
   it('solo: fica na copa terminando entre os 5, é eliminado em 6º', () => {
     const humans = [human(0)];
-    const champ = createChampionship('brasil', humans);
-    const [first, second] = cupDef('brasil').trackIds;
+    const champ = createChampionship('br_rj', humans);
+    const [first, second] = cupDef('br_rj').trackIds;
     expect(nextTrackId(champ)).toBe(first);
     applyRaceResult(champ, fakeResults({ 0: 5 }, humans), humans);
     expect(champ.lastVerdict).toBe('qualified'); expect(champ.eliminated).toBe(false);
@@ -41,9 +41,9 @@ describe('campeonato', () => {
 
   it('solo: uma corrida boa em cada pista completa a copa (só na última), com pontos e vitórias somados', () => {
     const humans = [human(0)];
-    const champ = createChampionship('brasil', humans);
-    // Copas de 4 pistas (eram 3): a copa só fecha depois da última, e as posições cabem todas.
-    const places = cupDef('brasil').trackIds.map((_, i) => (i % 2 === 0 ? 1 : 2));
+    const champ = createChampionship('eua', humans);
+    // Copa de 4 pistas (as do Mundial; as de estado têm 3): só fecha depois da última, e as posições cabem todas.
+    const places = cupDef('eua').trackIds.map((_, i) => (i % 2 === 0 ? 1 : 2));
     expect(places).toHaveLength(4);
     places.forEach((p, i) => {
       expect(champ.completed, `antes da corrida ${i + 1}`).toBe(false);

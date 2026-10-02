@@ -81,7 +81,7 @@ const SETTINGS_KEY = 'nitro-crew.settings';
 function winLastCupRace(g: Game, save: SaveData): void {
   const humans = [human(0)];
   const { state, track } = quickRace({ track: syntheticTrack([{ op: 'straight', length: 300 }]), humans, totalCars: 1, laps: 1, seed: 5 });
-  const champ = createChampionship('brasil', humans);
+  const champ = createChampionship('br_rj', humans);
   champ.raceIndex = 3;
   const r = { state, track, mode: 'cup' as const, humans, telemetry: g.achievements.newTelemetry(), outcome: null };
   const effects = { achievement: () => undefined, hud: () => undefined, persist: () => g.save.saveSave(save) };
@@ -121,11 +121,11 @@ describe('localStorage cheio no Electron', () => {
 
     const save = g.save.loadSave();
     winLastCupRace(g, save);
-    expect(save.cupsCompleted).toEqual(['brasil']);
+    expect(save.cupsCompleted).toEqual(['br_rj']);
     expect(storage.getItem(SAVE_KEY)).toBe(before); // o cenário é mesmo de cota: o localStorage recusou
     await settle();
     const onDisk = JSON.parse(disk.files[SAVE_KEY]) as SaveData;
-    expect(onDisk.cupsCompleted).toEqual(['brasil']);
+    expect(onDisk.cupsCompleted).toEqual(['br_rj']);
     expect(onDisk.racesRun).toBe(4);
     expect(onDisk.stats.totals.races).toBe(1);
     // Com o arquivo recebendo, nada a avisar.
@@ -135,9 +135,9 @@ describe('localStorage cheio no Electron', () => {
     g = await boot(storage);
     await g.cloud.hydrateFromDisk(disk, storage);
     const next = g.save.loadSave();
-    expect(next.cupsCompleted).toEqual(['brasil']);
+    expect(next.cupsCompleted).toEqual(['br_rj']);
     expect(next.racesRun).toBe(4);
-    expect(next.achievements).toContain('COPA_BRASIL');
+    expect(next.achievements).toContain('COPA_BR_RJ');
   });
 
   it('abertura com o localStorage cheio: o arquivo mais novo vale para a sessão mesmo sem caber no local', async () => {
@@ -145,12 +145,12 @@ describe('localStorage cheio no Electron', () => {
     const g = await boot(storage);
     storage.setItem(SAVE_KEY, saveJson(g, { racesRun: 3 }));
     storage.fill();
-    const newer = saveJson(g, { racesRun: 9, cupsCompleted: ['brasil', 'eua'] });
+    const newer = saveJson(g, { racesRun: 9, cupsCompleted: ['br_rj', 'eua'] });
     const report = await g.cloud.hydrateFromDisk(fakeDisk({ [SAVE_KEY]: newer }), storage);
     expect(report.fromDisk).toEqual([SAVE_KEY]);
     const save = g.save.loadSave();
     expect(save.racesRun).toBe(9);
-    expect(save.cupsCompleted).toEqual(['brasil', 'eua']);
+    expect(save.cupsCompleted).toEqual(['br_rj', 'eua']);
   });
 
   it('a sessão relê o que acabou de gravar, com ou sem o espelho', async () => {
@@ -177,7 +177,7 @@ describe('localStorage cheio no Electron', () => {
     g.cloud.installSaveMirror(disk, storage);
     const save = g.save.loadSave();
     save.racesRun = 4;
-    save.cupsCompleted.push('brasil');
+    save.cupsCompleted.push('br_rj');
     save.bestLaps.copacabana = { ticks: 4321, name: 'P1', carId: 'falcao', date: '2026-09-29T10:00:00.000Z' };
     g.save.saveSave(save);
     expect(storage.getItem(SAVE_KEY)).toBe(before);
@@ -197,7 +197,7 @@ describe('localStorage cheio no Electron', () => {
     g.storage.setSpaceFreers([(k) => g.errors.dropStoredErrors(storage, k)]);
     g.cloud.installSaveMirror(fakeDisk({}, { fail: true }), storage);
     const save = g.save.loadSave();
-    save.cupsCompleted.push('brasil');
+    save.cupsCompleted.push('br_rj');
     g.save.saveSave(save);
     expect(g.storage.saveHealth().lost).toEqual([]); // até o disco responder, conta como gravado
     await settle();
@@ -205,7 +205,7 @@ describe('localStorage cheio no Electron', () => {
     // Com o arquivo no jogo, o localStorage não é podado: o log de erros continua lá.
     expect(storage.getItem(g.errors.ERRORS_KEY)).not.toBeNull();
     // A sessão segue com o progresso na memória.
-    expect(g.save.loadSave().cupsCompleted).toEqual(['brasil']);
+    expect(g.save.loadSave().cupsCompleted).toEqual(['br_rj']);
   });
 
   it('só a resposta da gravação mais recente decide o aviso', async () => {

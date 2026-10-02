@@ -111,3 +111,16 @@ estatísticas antes de avaliar as conquistas.
   Como a grade lista todas as pistas, o número de linhas não depende do jogador. Ao voltar à lista, o detalhe
   volta ao topo.
 - **Conquistas**: barra de progresso, desbloqueadas primeiro, bloqueadas depois, cada uma com a descrição.
+
+## Onda G: conquistas da Expedição Brasil (57 no total)
+
+- `COPA_BRASIL` saiu (a copa deixou de existir). Save antigo: vira `COPA_BR_RJ` na leitura (`src/game/save.ts`); na
+  Steam, se o ID já estiver cadastrado, esconda-o em vez de apagar.
+- `COPA_BR_<UF>` × 27: concluir a copa do estado (carimba o passaporte, `save.stamps`).
+- `REGIAO_SUDESTE`, `REGIAO_SUL`, `REGIAO_CENTRO_OESTE`, `REGIAO_NORDESTE`, `REGIAO_NORTE`: todos os estados da região
+  carimbados. Descrição montada como a das copas (`stats.achDescRegion` com `core.region.<id>`).
+- `PASSAPORTE_COMPLETO`: os 27 estados carimbados.
+- A regra lê os carimbos do save **mais** o da copa recém-vencida, então não depende de a sessão carimbar antes
+  (`unlockAchievements`; teste em `tests/desktop.test.ts`). Copa do Mundial não carimba.
+- Com 109 pistas a tela de recordes passa de 11 para ~37 linhas de 3: a navegação por linha focável já cobre; o
+  `GIRO_COMPLETO` (posição registrada em toda pista) ficou bem mais longo — quem já o tinha não perde.

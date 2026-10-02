@@ -15,8 +15,8 @@ const ctxWith = (cupsCompleted: string[]) => {
 
 describe('tela de copas', () => {
   it('status: concluída, aberta (a próxima da fila) e travada (o resto)', () => {
-    const ctx = ctxWith(['brasil', 'eua']);
-    expect(CUPS.map((c) => cupStatus(ctx, c))).toEqual(['done', 'done', 'open', 'locked', 'locked', 'locked', 'locked', 'locked']);
+    const ctx = ctxWith(['br_rj', 'br_sp']);
+    expect(CUPS.map((c) => cupStatus(ctx, c))).toEqual(['done', 'done', 'open', ...new Array(CUPS.length - 3).fill('locked')]);
     expect(CUPS.map((c) => cupStatus(ctxWith([]), c))).toEqual(['open', ...new Array(CUPS.length - 1).fill('locked')]);
   });
 
@@ -45,9 +45,14 @@ describe('tela de copas', () => {
 });
 
 describe('tela de pistas', () => {
-  it('a grade tem uma copa por linha: toda copa tem exatamente TRACK_GRID_COLS pistas', () => {
-    // Se uma copa tiver pista a mais ou a menos, ↑↓ deixam de trocar de copa na mesma coluna.
-    for (const c of CUPS) expect(cupTracks({ tracks: TRACKS }, c), c.id).toHaveLength(TRACK_GRID_COLS);
+  // Onda G: as copas de estado da Expedição Brasil têm 3 pistas e as do Mundial, 4. A regra antiga (exatamente
+  // TRACK_GRID_COLS por copa) caiu; a grade continua com uma copa por linha, e a linha de 3 deixa a 4ª coluna vazia
+  // (a tela das pistas é de outra tarefa: ↑↓ vindo da 4ª coluna para uma copa de 3 tem de parar na 3ª).
+  it('toda copa cabe numa linha da grade: de 3 a TRACK_GRID_COLS pistas', () => {
+    for (const c of CUPS) {
+      expect(cupTracks({ tracks: TRACKS }, c).length, c.id).toBeGreaterThanOrEqual(3);
+      expect(cupTracks({ tracks: TRACKS }, c).length, c.id).toBeLessThanOrEqual(TRACK_GRID_COLS);
+    }
   });
 
   // Revisão de 25/09: no contra-relógio o cartão mostrava as voltas da pista (4 nas de noite), mas a

@@ -59,9 +59,9 @@ não use nada de fora desta pasta.
 ## Memória do projeto (ler primeiro em toda sessão)
 - **Roteiro e cronograma**: `docs/ROADMAP.md` (fases 0–6, passos numerados, V/A/T, marcos, custos, riscos). Documento vivo.
 - **Design e arquitetura**: `docs/DESIGN.md` · **Steam**: `docs/STEAM.md` e `desktop/README.md`.
-- **Estado atual** (30/09/2026): Fase 0 e as ondas A–F das Fases 1/3/4/5 concluídas e mescladas — 32 pistas em 8 copas,
+- **Estado atual** (30/09/2026): Fase 0 e as ondas A–F das Fases 1/3/4/5 concluídas e mescladas — 109 pistas em 34 copas (onda G: Expedição Brasil, 27 estados × 3 com passaporte e carimbos, e o Mundial, 7 países × 4; `docs/PISTAS.md`),
   Carreira (14 carros — 7 livres e 7 à venda —, melhorias, rivais que evoluem, campeonato salvo), controles remapeáveis e vibração, online por
-  lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 25 conquistas, build Electron
+  lockstep com relay (reconexão, queda do anfitrião, janela escondida), estatísticas e 57 conquistas, build Electron
   (Linux conferido), save em arquivo para o Steam Cloud, relatório de erros, textos de loja/legal/QA/imprensa.
   Onda B: rivais com personalidade e rival por copa, direção assistida e acessibilidade, modos de festa (torneio,
   escolta, revezamento), tutorial "Como jogar" e fantasma do contra-relógio. Onda C: caça a bugs em 4 lentes

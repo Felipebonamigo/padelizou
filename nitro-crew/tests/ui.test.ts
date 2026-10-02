@@ -86,8 +86,8 @@ describe('sanitizeSave', () => {
   });
 
   it('listas e contagens: só strings, sem repetição, contagem nunca negativa', () => {
-    const s = sanitizeSave({ cupsCompleted: ['brasil', 3, 'brasil', ''], achievements: 'x', racesRun: -3, racesWon: 2.7 });
-    expect(s.cupsCompleted).toEqual(['brasil']);
+    const s = sanitizeSave({ cupsCompleted: ['br_rj', 3, 'br_rj', ''], achievements: 'x', racesRun: -3, racesWon: 2.7 });
+    expect(s.cupsCompleted).toEqual(['br_rj']);
     expect(s.achievements).toEqual([]);
     expect(s.racesRun).toBe(0);
     expect(s.racesWon).toBe(3);
@@ -103,14 +103,18 @@ describe('sanitizeSave', () => {
 describe('isCupUnlocked / markCupCompleted', () => {
   it('a primeira copa está sempre aberta; as outras exigem a anterior', () => {
     const save = sanitizeSave({});
-    expect(isCupUnlocked(save, 'brasil', CUPS)).toBe(true);
+    expect(isCupUnlocked(save, 'br_rj', CUPS)).toBe(true);
     expect(isCupUnlocked(save, 'eua', CUPS)).toBe(false);
     expect(isCupUnlocked(save, 'inexistente', CUPS)).toBe(false);
-    expect(markCupCompleted(save, 'brasil')).toBe(true);
-    expect(markCupCompleted(save, 'brasil')).toBe(false);
-    expect(save.cupsCompleted).toEqual(['brasil']);
+    expect(markCupCompleted(save, 'br_rj')).toBe(true);
+    expect(markCupCompleted(save, 'br_rj')).toBe(false);
+    expect(save.cupsCompleted).toEqual(['br_rj']);
+    expect(isCupUnlocked(save, 'br_sp', CUPS)).toBe(true);
+    expect(isCupUnlocked(save, 'br_mg', CUPS)).toBe(false);
+    // O Mundial abre ao terminar a Expedição Brasil (a última copa de estado, o Tocantins).
+    expect(isCupUnlocked(save, 'eua', CUPS)).toBe(false);
+    markCupCompleted(save, 'br_to');
     expect(isCupUnlocked(save, 'eua', CUPS)).toBe(true);
-    expect(isCupUnlocked(save, 'japao', CUPS)).toBe(false);
   });
 });
 

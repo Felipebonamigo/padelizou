@@ -120,9 +120,22 @@ export const PERSONALITY_TUNING: Readonly<Record<Personality, Readonly<Personali
 /**
  * Rival principal de cada copa (src/game/rivals.ts). Fixo por copa para a tela de copas poder mostrá-lo
  * antes da largada (o elenco sorteado só nasce na primeira corrida); createRace o põe no grid da copa.
+ * Na Expedição Brasil o rival é da REGIÃO: ele persegue o jogador de estado em estado até a região fechar
+ * (tests/rivals.test.ts: um rival diferente por região e por copa do Mundial).
  */
 export const CUP_RIVALS: Readonly<Record<string, string>> = {
-  brasil: 'Zé Turbo', eua: 'Tom Blake', japao: 'Kenji Sato', europa: 'Hugo Klein',
+  // sudeste: Zé Turbo
+  br_rj: 'Zé Turbo', br_sp: 'Zé Turbo', br_mg: 'Zé Turbo', br_es: 'Zé Turbo',
+  // sul: Caio Brasa
+  br_pr: 'Caio Brasa', br_sc: 'Caio Brasa', br_rs: 'Caio Brasa',
+  // centro_oeste: Duda Ferraz
+  br_df: 'Duda Ferraz', br_go: 'Duda Ferraz', br_ms: 'Duda Ferraz', br_mt: 'Duda Ferraz',
+  // nordeste: Nina Costa
+  br_ba: 'Nina Costa', br_se: 'Nina Costa', br_al: 'Nina Costa', br_pe: 'Nina Costa', br_pb: 'Nina Costa', br_rn: 'Nina Costa', br_ce: 'Nina Costa', br_pi: 'Nina Costa', br_ma: 'Nina Costa',
+  // norte: Dani Souza
+  br_pa: 'Dani Souza', br_am: 'Dani Souza', br_ap: 'Dani Souza', br_rr: 'Dani Souza', br_ro: 'Dani Souza', br_ac: 'Dani Souza', br_to: 'Dani Souza',
+  // Mundial
+  eua: 'Tom Blake', japao: 'Kenji Sato', europa: 'Hugo Klein',
   africa_do_sul: 'Bianca Rey', australia: 'Sasha Kova', escandinavia: 'Iris Lund', mediterraneo: 'Marco Rossi',
 };
 
