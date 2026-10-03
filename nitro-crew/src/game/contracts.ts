@@ -142,6 +142,11 @@ export interface BestLap {
 export interface SaveData {
   /** Copas concluídas (destravam a seguinte). */
   cupsCompleted: string[];
+  /**
+   * Copas abertas sem a anterior concluída: herança de save antigo (antes da onda G, vencer a Copa Brasil abria os
+   * EUA, que hoje exigem a Expedição inteira). Só a migração do save põe copa aqui (`legacyCupOpens`, save.ts).
+   */
+  cupsUnlocked: string[];
   /** Passaporte da Expedição Brasil: siglas dos estados carimbados (copa do estado vencida), na ordem em que vieram. */
   stamps: string[];
   bestLaps: Record<string, BestLap>;
@@ -174,7 +179,7 @@ export interface SavedCup {
 }
 
 export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
-  cupsCompleted: [], stamps: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
+  cupsCompleted: [], cupsUnlocked: [], stamps: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
   seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
   stats: EMPTY_STATS,
   carsUnlocked: [], career: null, cupInProgress: null, tutorialDone: false,

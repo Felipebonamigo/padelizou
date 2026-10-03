@@ -108,16 +108,19 @@ retas e como subida das curvas: altura não muda o contorno. `npx tsx scripts/tr
 
 | O que | Vira |
 |---|---|
-| `cupsCompleted: ['brasil', …]` | `br_rj` (e o carimbo do RJ) |
+| `cupsCompleted: ['brasil', …]` | `br_rj` (e o carimbo do RJ); e os EUA, que a Copa Brasil abria, continuam abertos (`save.cupsUnlocked`, `legacyCupOpens`) |
 | conquista `COPA_BRASIL` | `COPA_BR_RJ` |
 | carreira com `cupId: 'brasil'` | carreira na `br_rj`, com dinheiro, garagem e estatísticas; a copa em andamento e a contagem de tentativas recomeçam (as corridas eram outras) |
+| relatório da garagem de uma corrida da `brasil` | sai (a garagem mostraria a chave `core.cup.brasil`) |
 | campeonato normal em andamento na `brasil` | some do save (sem erro; o menu deixa de oferecer "Continuar") |
-| recordes, fantasmas, estatísticas | nada muda: são por id de pista, e nenhum id mudou |
+| campeonato normal ou carreira no meio de uma copa do Mundial | continua da mesma corrida |
+| recordes, fantasmas, estatísticas | ficam (são por id de pista, e nenhum id mudou); nas 6 pistas de cidade de antes as praças mudaram a colisão: recorde com a marca "versão anterior", fantasma fora como rival |
 | quem já tinha vencido copas do Mundial | elas continuam abertas (`isCupUnlocked`: copa concluída fica aberta), e a seguinte também; a Expedição começa em SP |
 
 Carreira antiga numa copa do Mundial (eua, japao…) continua nela: o nível da IA e o prêmio passam a ser os da posição
-nova da copa (mais altos), e a carreira termina no Mediterrâneo sem passar pelo Brasil. Teste:
-`tests/migration-brasil.test.ts` (save gravado como era antes).
+nova da copa (mais altos), e a carreira termina no Mediterrâneo sem passar pelo Brasil. Nos EUA isso leva o piloto médio
+de 1,75 para 9,38 de média (`docs/SAVE.md`, "Save de antes da onda G", com a tabela inteira e os dois defeitos achados
+em 03/10). Teste: `tests/migration-brasil.test.ts` (saves gravados como eram antes).
 
 ## Catálogo
 
@@ -150,20 +153,20 @@ nem outdoor — onde o renderizador põe cada marco de perto/longe, para ele ser
 | SC | `camboriu` | Avenida Atlântica de Camboriú | Camboriú Beachfront | city_night | noite | 4 | 2 | 1780 | 4,1 |
 | SC | `rio_do_rastro` | Serra do Rio do Rastro | Rio do Rastro Pass | alpine | dia | 3 | 3 | 2040 | 6,1 |
 | RS | `orla_guaiba` | Orla do Guaíba | Guaíba Waterfront | coast | entardecer | 3 | 2 | 2020 | 3,7 |
-| RS | `cuia_gaucha` | Cuia da Serra Gaúcha | Gaúcha Gourd Circuit | alpine | entardecer | 3 | 3 | 1970 | 7,0 |
 | RS | `aparados_da_serra` | Aparados da Serra | Aparados Canyons | alpine | dia | 3 | 3 | 1860 | 7,5 |
+| RS | `cuia_gaucha` | Cuia da Serra Gaúcha | Gaúcha Gourd Circuit | alpine | entardecer | 3 | 3 | 1970 | 7,0 |
 | DF | `lago_paranoa` | Lago Paranoá | Paranoá Lake | coast | dia | 3 | 2 | 1770 | 4,5 |
-| DF | `torre_de_tv` | Torre de TV | TV Tower | city_night | noite | 4 | 3 | 1720 | 7,0 |
 | DF | `brasilia` | Eixo Monumental | Monumental Axis | city_night | entardecer | 3 | 3 | 2120 | 7,7 |
+| DF | `torre_de_tv` | Torre de TV | TV Tower | city_night | noite | 4 | 3 | 1720 | 7,0 |
 | GO | `pirenopolis` | Ruas de Pirenópolis | Pirenópolis Streets | tropical | entardecer | 3 | 2 | 1840 | 4,9 |
-| GO | `caldas_novas` | Águas de Caldas Novas | Caldas Novas Springs | savanna | dia | 3 | 3 | 1990 | 7,2 |
 | GO | `chapada_veadeiros` | Chapada dos Veadeiros | Veadeiros Plateau | savanna | dia | 3 | 3 | 1940 | 7,8 |
+| GO | `caldas_novas` | Águas de Caldas Novas | Caldas Novas Springs | savanna | dia | 3 | 3 | 1990 | 7,2 |
 | MS | `bonito` | Rios de Bonito | Bonito Rivers | tropical | dia | 3 | 3 | 2020 | 7,0 |
 | MS | `campo_grande` | Avenidas de Campo Grande | Campo Grande Avenues | city_night | entardecer | 3 | 3 | 1820 | 7,0 |
 | MS | `estrada_parque` | Estrada Parque do Pantanal | Pantanal Park Road | savanna | entardecer | 3 | 3 | 1990 | 7,2 |
 | MT | `transpantaneira` | Transpantaneira | Transpantaneira | savanna | entardecer | 3 | 1 | 2130 | 0,3 |
-| MT | `cuiaba` | Centro Geodésico de Cuiabá | Cuiabá Geodesic Center | city_night | noite | 4 | 4 | 1770 | 10,7 |
 | MT | `chapada_guimaraes` | Chapada dos Guimarães | Guimarães Plateau | savanna | dia | 3 | 4 | 1900 | 11,0 |
+| MT | `cuiaba` | Centro Geodésico de Cuiabá | Cuiabá Geodesic Center | city_night | noite | 4 | 4 | 1770 | 10,7 |
 | BA | `porto_seguro` | Costa de Porto Seguro | Porto Seguro Coast | coast | dia | 3 | 2 | 1870 | 5,0 |
 | BA | `salvador` | Orla de Salvador | Salvador Waterfront | coast | entardecer | 3 | 3 | 1980 | 8,9 |
 | BA | `chapada_diamantina` | Chapada Diamantina | Diamantina Plateau | savanna | dia | 3 | 4 | 2040 | 9,9 |
@@ -171,31 +174,31 @@ nem outdoor — onde o renderizador põe cada marco de perto/longe, para ele ser
 | SE | `sao_cristovao` | Praça de São Cristóvão | São Cristóvão Square | tropical | entardecer | 3 | 3 | 1850 | 7,4 |
 | SE | `xingo` | Cânions do Xingó | Xingó Canyons | desert | dia | 3 | 4 | 1890 | 10,0 |
 | AL | `maragogi` | Piscinas de Maragogi | Maragogi Reefs | coast | dia | 3 | 2 | 1930 | 3,3 |
-| AL | `maceio` | Orla de Maceió | Maceió Waterfront | coast | noite | 4 | 4 | 1760 | 10,6 |
 | AL | `foz_sao_francisco` | Foz do São Francisco | São Francisco River Mouth | desert | entardecer | 3 | 4 | 1950 | 11,0 |
-| PE | `recife_antigo` | Recife Antigo | Old Recife | city_night | noite | 4 | 3 | 2070 | 7,6 |
+| AL | `maceio` | Orla de Maceió | Maceió Waterfront | coast | noite | 4 | 4 | 1760 | 10,6 |
+| PE | `recife_antigo` | Recife Antigo | Old Recife | city_night | noite | 3 | 3 | 2070 | 7,6 |
 | PE | `olinda` | Ladeiras de Olinda | Olinda Hills | coast | dia | 3 | 4 | 1770 | 10,0 |
 | PE | `noronha` | Fernando de Noronha | Fernando de Noronha | coast | entardecer | 3 | 4 | 1970 | 10,0 |
 | PB | `joao_pessoa` | Ponta do Seixas | Easternmost Point | coast | entardecer | 3 | 3 | 1930 | 8,2 |
-| PB | `campina_grande` | Parque do Povo | People's Park | city_night | noite | 4 | 4 | 1820 | 10,0 |
 | PB | `pedra_da_boca` | Pedra da Boca | Mouth Rock | desert | dia | 3 | 4 | 1960 | 10,3 |
+| PB | `campina_grande` | Parque do Povo | People's Park | city_night | noite | 4 | 4 | 1820 | 10,0 |
 | RN | `natal` | Dunas de Genipabu | Genipabu Dunes | coast | dia | 3 | 3 | 1910 | 8,0 |
 | RN | `ponta_negra` | Morro do Careca | Bald Hill Beach | coast | entardecer | 3 | 4 | 1950 | 10,2 |
 | RN | `cajueiro_pirangi` | Cajueiro de Pirangi | Pirangi Cashew Tree | tropical | dia | 3 | 4 | 2030 | 10,4 |
 | CE | `jericoacoara` | Jericoacoara | Jericoacoara | coast | entardecer | 3 | 4 | 1890 | 10,1 |
-| CE | `fortaleza_beira_mar` | Beira-Mar de Fortaleza | Fortaleza Seafront | city_night | noite | 4 | 4 | 1680 | 9,9 |
 | CE | `canoa_quebrada` | Falésias de Canoa Quebrada | Canoa Quebrada Cliffs | desert | dia | 3 | 4 | 1950 | 10,0 |
+| CE | `fortaleza_beira_mar` | Beira-Mar de Fortaleza | Fortaleza Seafront | city_night | noite | 4 | 4 | 1680 | 9,9 |
 | PI | `delta_parnaiba` | Delta do Parnaíba | Parnaíba Delta | tropical | dia | 3 | 4 | 1930 | 10,0 |
 | PI | `sete_cidades` | Pedras de Sete Cidades | Seven Cities Rocks | savanna | entardecer | 3 | 4 | 2090 | 10,2 |
 | PI | `serra_capivara` | Serra da Capivara | Capivara Range | desert | entardecer | 3 | 4 | 1890 | 10,3 |
-| MA | `sao_luis` | Casarões de São Luís | São Luís Tiles | city_night | noite | 4 | 4 | 2070 | 10,2 |
-| MA | `chapada_das_mesas` | Chapada das Mesas | Mesas Plateau | savanna | dia | 3 | 4 | 1720 | 10,3 |
 | MA | `lencois` | Lençóis Maranhenses | Lençóis Maranhenses | desert | entardecer | 3 | 4 | 1700 | 10,5 |
+| MA | `chapada_das_mesas` | Chapada das Mesas | Mesas Plateau | savanna | dia | 3 | 4 | 1720 | 10,3 |
+| MA | `sao_luis` | Casarões de São Luís | São Luís Tiles | city_night | noite | 3 | 4 | 2070 | 10,2 |
 | PA | `alter_do_chao` | Praias de Alter do Chão | Alter do Chão Beaches | tropical | dia | 3 | 4 | 1920 | 10,4 |
 | PA | `belem` | Ver-o-Peso | Belém Docks | coast | entardecer | 3 | 4 | 1800 | 10,6 |
 | PA | `marajo` | Campos do Marajó | Marajó Fields | savanna | entardecer | 3 | 5 | 1940 | 12,7 |
 | AM | `manaus` | Encontro das Águas | Meeting of Waters | coast | dia | 3 | 4 | 2110 | 10,6 |
-| AM | `ponte_rio_negro` | Ponte do Rio Negro | Rio Negro Bridge | city_night | noite | 4 | 4 | 1990 | 10,8 |
+| AM | `ponte_rio_negro` | Ponte do Rio Negro | Rio Negro Bridge | city_night | noite | 3 | 4 | 1990 | 10,8 |
 | AM | `parintins` | Bumbódromo de Parintins | Parintins Arena | tropical | entardecer | 3 | 5 | 1930 | 12,9 |
 | AP | `macapa` | Marco Zero do Equador | Equator Line | tropical | dia | 3 | 3 | 1750 | 8,7 |
 | AP | `pororoca_araguari` | Pororoca do Araguari | Araguari Tidal Bore | tropical | entardecer | 3 | 5 | 1900 | 12,8 |
@@ -204,8 +207,8 @@ nem outdoor — onde o renderizador põe cada marco de perto/longe, para ele ser
 | RR | `monte_roraima` | Monte Roraima | Mount Roraima | savanna | dia | 3 | 5 | 2040 | 13,0 |
 | RR | `lago_caracarana` | Lago Caracaranã | Caracaranã Lake | savanna | entardecer | 3 | 5 | 1880 | 13,3 |
 | RO | `porto_velho` | Madeira-Mamoré | Madeira-Mamoré Railway | tropical | entardecer | 3 | 4 | 1960 | 11,3 |
-| RO | `forte_principe` | Forte Príncipe da Beira | Prince of Beira Fort | tropical | dia | 3 | 5 | 1820 | 13,4 |
 | RO | `vale_guapore` | Vale do Guaporé | Guaporé Valley | savanna | entardecer | 3 | 5 | 1920 | 13,6 |
+| RO | `forte_principe` | Forte Príncipe da Beira | Prince of Beira Fort | tropical | dia | 3 | 5 | 1820 | 13,4 |
 | AC | `rio_branco` | Gameleira de Rio Branco | Rio Branco Riverside | tropical | dia | 3 | 4 | 2080 | 11,4 |
 | AC | `geoglifos` | Geoglifos do Acre | Acre Geoglyphs | savanna | entardecer | 3 | 5 | 1940 | 13,6 |
 | AC | `estrada_pacifico` | Estrada do Pacífico | Pacific Highway | tropical | dia | 3 | 5 | 1890 | 13,8 |
@@ -248,12 +251,204 @@ Trollstigen usam o alpino; dunas do Nordeste e do Jalapão usam o deserto; o lav
 Tromsø; a Lapônia é de três países). Mediterrâneo usa 🇮🇹 (Amalfi, Etna e Roma; Santorini é grega). A Europa segue
 com 🇪🇺; as 27 copas de estado usam 🇧🇷 (a sigla do estado é o carimbo).
 
-## Balanceamento (dados, 25/09/2026)
+## Balanceamento
 
-As tabelas abaixo são das 32 pistas de antes da onda G. As 77 novas passam pelos mesmos testes por pista (IA
-completa a volta sem travar e fica na pista nas de nível 5; corrida inteira sem pane seca; aviso de combustível nos
-dois estilos — `tests/ai.test.ts` 251 testes, `tests/fuel.test.ts` 227, todos verdes em 02/10), mas a rodada de
-`scripts/balance.ts` (melhor volta, grama, batidas) ainda não foi feita nelas.
+### As 109 pistas, corrida inteira (03/10/2026)
+
+Medido com `npm run balance -- corrida <dificuldade> <semente>` — o modo novo do `scripts/balance.ts`: a corrida
+inteira (as voltas da pista), 20 carros, sem assistências, com o piloto médio da calibragem (`PROXY_SKILL` 0,97,
+Falcão de fábrica) no lugar do carro parado. Sete rodadas × 109 pistas: profissional nas sementes 11, 12 e 13, amador
+e campeão nas 11 e 12. E o modo de sempre (`npm run balance -- 150 profissional 11` e `150 amador 12`): a IA completa
+a volta nas 109, grama ≤ 0,6% no profissional (0,7% no amador), melhor volta no profissional entre 1:07 e 1:37. Na
+corrida inteira a grama chega a 1,4% (Roma): a faixa do box conta como grama, e as de 4 voltas param mais no box.
+
+**Duração da corrida — o alvo saiu das 32 antigas.** No profissional elas vão de 3:18 (Serra do Mar) a 5:45 (Roma),
+média 4:15; as de 3 voltas, 3:18–4:22, as de 4 voltas, 4:44–5:45. Três novas passavam do teto — mais longas que
+qualquer corrida de antes, inclusive a última do jogo — e foram de 4 para 3 voltas (só `laps`; traçado igual):
+
+| Pista | Copa | Volta (pro) | Corrida antes, 4 voltas (am. / pro / camp.) | Depois, 3 voltas | Batidas no cenário por corrida |
+|---|---|---|---|---|---|
+| `recife_antigo` | PE (dif. 3) | 1:31 | 6:19 / 6:01 / 5:42 | 4:45 / 4:31 / 4:18 | 31,7 → 18,7 |
+| `sao_luis` | MA (dif. 4) | 1:30 | 6:15 / 5:54 / 5:35 | 4:43 / 4:25 / 4:11 | 22,7 → 11,0 |
+| `ponte_rio_negro` | AM (dif. 4) | 1:31 | 6:13 / 5:57 / 5:40 | 4:38 / 4:26 / 4:14 | 14,7 → 6,3 |
+
+Com 3 voltas o piloto médio tem menos tempo para subir do fundo do grid: no campeão ele chega 2–4 posições pior
+nessas três (Recife 7,5º → 12,0º). As outras 74 novas ficam entre 3:21 e 5:37 no profissional.
+
+**Dificuldade medida.** "Medido" é a velocidade média da IA (÷ velocidade máxima do carro, em todos os ticks da
+corrida; profissional, 3 sementes) posta na escala das 32 antigas, onde cada nível tem a sua média: 1 → 0,877 ·
+2 → 0,871 · 3 → 0,824 · 4 → 0,798 · 5 → 0,730 (linear entre elas). Nas 32 antigas o medido fica a menos de 1 nível do
+rótulo em todas, menos a Autobahn (2 → 1,0: é reta pura). Entre 1 e 2 a velocidade quase não separa: ali vale o
+índice técnico. Os outros sinais: batidas no cenário por corrida e a posição do piloto médio no campeão. No
+profissional ele chega entre 1º e 7º em toda pista: não separa nada.
+
+**Ordem dentro da copa — o que mudou.** Regra: duas pistas do mesmo nível fora de ordem (a anterior medida ≥ 0,5 mais
+difícil, e o piloto médio no campeão chegando pior nela) trocam de lugar. Os rótulos não mudam, e a rampa dos testes
+continua valendo. Em 6 das 9 copas a que vai para o fim é a de noite (5 de cidade e Maceió), como no Mundial (lá a pista
+de noite fecha toda copa):
+
+| Copa | Antes | Depois | Medido · piloto médio no campeão · batidas no cenário |
+|---|---|---|---|
+| RS | Guaíba, **Cuia**, Aparados | Guaíba, Aparados, **Cuia** | Cuia 4,1 · 4,5º · 6,7 × Aparados 2,4 · 3,5º · 5,7 |
+| DF | Paranoá, **Torre de TV**, Brasília | Paranoá, Brasília, **Torre de TV** | Torre 4,3 · 12,0º · 17,3 × Brasília 3,0 · 11,5º · 3,7 |
+| GO | Pirenópolis, **Caldas Novas**, Veadeiros | Pirenópolis, Veadeiros, **Caldas Novas** | Caldas 3,8 · 8,5º · 6,0 × Veadeiros 2,4 · 5,0º · 0,0 |
+| MT | Transpantaneira, **Cuiabá**, Guimarães | Transpantaneira, Guimarães, **Cuiabá** | Cuiabá 5,0 · 10,0º · 13,0 × Guimarães 4,1 · 4,0º · 1,3 |
+| AL | Maragogi, **Maceió**, Foz | Maragogi, Foz, **Maceió** | Maceió 4,7 · 10,0º · 5,7 × Foz 4,1 · 3,5º · 0,7 |
+| PB | João Pessoa, **Campina Grande**, Pedra da Boca | João Pessoa, Pedra da Boca, **Campina Grande** | Campina 4,8 · 11,0º · 2,0 × Pedra 3,0 · 3,5º · 6,3 |
+| CE | Jericoacoara, **Fortaleza**, Canoa | Jericoacoara, Canoa, **Fortaleza** | Fortaleza 4,9 · 12,0º · 17,3 × Canoa 4,0 · 5,5º · 0,7 |
+| MA | São Luís, Mesas, **Lençóis** | **Lençóis**, Mesas, São Luís | Lençóis 2,8 · 4,0º · 1,3: era a última e é a mais fácil; São Luís (4,4 · 10,5º · 11,0) fecha |
+| RO | Porto Velho, **Forte Príncipe**, Guaporé | Porto Velho, Guaporé, **Forte Príncipe** | Forte 5,3 · 7,0º · 7,7 × Guaporé 4,7 · 4,5º · 0,3 |
+
+Ficaram como estavam: AP (Pororoca × Serra do Navio: os sinais se contradizem) e TO (Palmas é a pista mais difícil
+do Brasil por todos os sinais — medido 5,4, piloto médio 7,3º no profissional, 29 batidas por corrida —, mas fica
+só 0,4 acima da Ilha do Bananal, abaixo da regra; trocar as duas põe a mais dura no fim da Expedição, se o dono quiser).
+
+**Rótulo que não bate com o medido (≥ 1 nível) e que só dado não conserta.** A rampa da Expedição (a média da copa não
+cai) trava o relabel. As de cidade à noite jogam ~1 nível acima do rótulo: o índice técnico (curvas e morros) não vê o
+paredão de prédios, onde a IA bate 13–32 vezes por corrida. As dunas, o contrário: o morro conta no índice e quase
+não freia ninguém. Consertar pede outro traçado (fora desta tarefa) ou outra regra de rampa (decisão do dono).
+
+| Pista | Dif. | Medido | Por que o rótulo ficou |
+|---|---|---|---|
+| `pedra_azul` (ES) | 3 | 1,6 | rebaixar põe ES (1,67) abaixo de MG (2,0) |
+| `cuia_gaucha` (RS) | 3 | 4,1 | subir põe RS (3,0) acima de DF (2,67) |
+| `torre_de_tv` (DF) | 3 | 4,3 | DF (3,0) acima de GO (2,67) |
+| `campo_grande`, `estrada_parque` (MS) | 3 | 4,2 · 4,0 | MS acima de MT (3,0) |
+| `cuiaba` (MT) | 4 | 5,0 | MT (3,33) acima de BA (3,0) |
+| `recife_antigo` (PE) | 3 | 4,6 | PE (4,0) acima de PB (3,67); e é a 1ª da copa com rótulo menor, então também não troca de lugar |
+| `lencois` (MA) | 4 | 2,8 | MA (3,67) abaixo de PI (4,0) |
+| `macapa` (AP) | 3 | 4,1 | subir daria (AP 4,67 = RR); ficou porque o índice técnico (8,7) e o piloto médio no profissional (2º) dizem 3 |
+| `boa_vista` (RR) | 4 | 5,0 | RR (5,0) acima de RO (4,67) |
+
+**Regiões.** Média medida: Sudeste 1,55 → Sul 2,35 → Centro-Oeste 3,23 → Nordeste 3,71 → Norte 4,76; o Mundial vai de
+2,27 (EUA) a 4,87 (Mediterrâneo). A região sempre sobe. Dentro dela a copa oscila ±0,5; a Bahia (2,8, depois de MT
+3,4) abre o Nordeste mais leve.
+
+**Combustível.** Toda pista fecha a corrida inteira: `tests/ai.test.ts` (corrida inteira no campeão, 10 carros, um teste
+por pista, nenhum carro da IA sem combustível) e `tests/fuel.test.ts` (aviso nos dois estilos) passam nas 109, com as
+voltas novas (03/10).
+
+As 77 novas, na ordem das copas de hoje (medido e batidas: profissional, 3 sementes; corrida: média das sementes de
+cada dificuldade; piloto médio: campeão, 2 sementes):
+
+| Copa | Pista | Dif. | Medido | Voltas | Corrida (am./pro/camp.) | Volta (pro) | Batidas no cenário | v média | Piloto médio no campeão |
+|---|---|---|---|---|---|---|---|---|---|
+| RJ | `paraty` | 1 | 1,0 | 3 | 4:14 / 3:50 / 3:32 | 1:19 | 2,7 | 0,88 | 8,0º |
+| RJ | `serra_dos_orgaos` | 2 | 1,6 | 3 | 4:03 / 3:41 / 3:24 | 1:16 | 9,0 | 0,87 | 7,0º |
+| SP | `ilhabela` | 1 | 1,0 | 3 | 3:43 / 3:21 / 3:03 | 1:09 | 2,7 | 0,88 | 7,5º |
+| SP | `campos_do_jordao` | 2 | 1,6 | 3 | 3:54 / 3:33 / 3:19 | 1:13 | 1,3 | 0,87 | 5,0º |
+| MG | `pampulha` | 1 | 0,4 | 3 | 4:13 / 3:48 / 3:33 | 1:19 | 4,3 | 0,88 | 9,5º |
+| MG | `ouro_preto` | 2 | 1,6 | 3 | 3:51 / 3:30 / 3:14 | 1:12 | 2,0 | 0,87 | 7,0º |
+| MG | `serra_da_canastra` | 3 | 2,8 | 3 | 4:07 / 3:50 / 3:39 | 1:18 | 0,0 | 0,83 | 5,5º |
+| ES | `itaunas` | 1 | 1,0 | 3 | 3:46 / 3:25 / 3:10 | 1:11 | 5,3 | 0,88 | 8,5º |
+| ES | `convento_penha` | 2 | 2,1 | 3 | 4:06 / 3:45 / 3:31 | 1:17 | 1,7 | 0,87 | 5,0º |
+| ES | `pedra_azul` | 3 | 1,6 | 3 | 3:49 / 3:31 / 3:22 | 1:12 | 5,3 | 0,87 | 2,0º |
+| PR | `foz_do_iguacu` | 2 | 1,6 | 3 | 4:01 / 3:41 / 3:24 | 1:16 | 3,3 | 0,87 | 6,5º |
+| PR | `curitiba` | 3 | 2,6 | 4 | 5:35 / 5:15 / 5:01 | 1:20 | 3,3 | 0,84 | 7,5º |
+| SC | `floripa` | 2 | 1,6 | 3 | 4:09 / 3:46 / 3:30 | 1:18 | 8,7 | 0,87 | 9,0º |
+| SC | `camboriu` | 2 | 2,2 | 4 | 4:56 / 4:32 / 4:18 | 1:09 | 4,7 | 0,86 | 10,0º |
+| SC | `rio_do_rastro` | 3 | 2,5 | 3 | 4:17 / 3:60 / 3:49 | 1:22 | 4,0 | 0,85 | 13,0º |
+| RS | `orla_guaiba` | 2 | 2,0 | 3 | 4:08 / 3:49 / 3:37 | 1:19 | 1,7 | 0,87 | 4,0º |
+| RS | `aparados_da_serra` | 3 | 2,4 | 3 | 3:52 / 3:37 / 3:27 | 1:14 | 5,7 | 0,85 | 3,5º |
+| RS | `cuia_gaucha` | 3 | 4,1 | 3 | 4:24 / 4:07 / 3:56 | 1:24 | 6,7 | 0,79 | 4,5º |
+| DF | `lago_paranoa` | 2 | 2,2 | 3 | 3:42 / 3:24 / 3:13 | 1:10 | 4,3 | 0,86 | 8,0º |
+| DF | `brasilia` | 3 | 3,0 | 3 | 4:32 / 4:18 / 4:06 | 1:27 | 3,7 | 0,82 | 11,5º |
+| DF | `torre_de_tv` | 3 | 4,3 | 4 | 5:12 / 4:55 / 4:40 | 1:14 | 17,3 | 0,78 | 12,0º |
+| GO | `pirenopolis` | 2 | 2,2 | 3 | 3:48 / 3:31 / 3:22 | 1:12 | 2,3 | 0,86 | 4,0º |
+| GO | `chapada_veadeiros` | 3 | 2,4 | 3 | 4:04 / 3:47 / 3:37 | 1:17 | 0,0 | 0,85 | 5,0º |
+| GO | `caldas_novas` | 3 | 3,8 | 3 | 4:24 / 4:07 / 3:57 | 1:24 | 6,0 | 0,80 | 8,5º |
+| MS | `bonito` | 3 | 2,5 | 3 | 4:14 / 3:57 / 3:50 | 1:21 | 3,0 | 0,85 | 10,5º |
+| MS | `campo_grande` | 3 | 4,2 | 3 | 4:05 / 3:50 / 3:39 | 1:18 | 5,7 | 0,79 | 7,0º |
+| MS | `estrada_parque` | 3 | 4,0 | 3 | 4:26 / 4:08 / 3:55 | 1:24 | 0,7 | 0,80 | 6,5º |
+| MT | `chapada_guimaraes` | 4 | 4,1 | 3 | 4:14 / 3:59 / 3:48 | 1:21 | 1,3 | 0,79 | 4,0º |
+| MT | `cuiaba` | 4 | 5,0 | 4 | 5:40 / 5:22 / 5:06 | 1:22 | 13,0 | 0,73 | 10,0º |
+| BA | `porto_seguro` | 2 | 2,4 | 3 | 3:55 / 3:38 / 3:27 | 1:14 | 5,0 | 0,85 | 5,0º |
+| BA | `salvador` | 3 | 2,8 | 3 | 4:13 / 3:57 / 3:45 | 1:20 | 9,0 | 0,83 | 4,0º |
+| BA | `chapada_diamantina` | 4 | 3,3 | 3 | 4:19 / 4:09 / 3:54 | 1:24 | 4,3 | 0,82 | 15,0º |
+| SE | `aracaju` | 3 | 2,9 | 4 | 5:06 / 4:48 / 4:33 | 1:13 | 10,0 | 0,83 | 10,0º |
+| SE | `sao_cristovao` | 3 | 2,9 | 3 | 3:55 / 3:43 / 3:31 | 1:16 | 2,3 | 0,83 | 6,5º |
+| SE | `xingo` | 4 | 3,0 | 3 | 4:05 / 3:48 / 3:39 | 1:18 | 7,3 | 0,82 | 2,0º |
+| AL | `maragogi` | 2 | 2,2 | 3 | 4:01 / 3:41 / 3:29 | 1:16 | 2,0 | 0,86 | 4,0º |
+| AL | `foz_sao_francisco` | 4 | 4,1 | 3 | 4:23 / 4:07 / 3:56 | 1:24 | 0,7 | 0,79 | 3,5º |
+| AL | `maceio` | 4 | 4,7 | 4 | 5:28 / 5:11 / 4:55 | 1:18 | 5,7 | 0,75 | 10,0º |
+| PE | `recife_antigo` | 3 | 4,6 | 3 | 4:45 / 4:31 / 4:18 | 1:31 | 18,7 | 0,76 | 12,0º |
+| PE | `olinda` | 4 | 3,9 | 3 | 3:53 / 3:39 / 3:28 | 1:15 | 8,7 | 0,80 | 6,0º |
+| PE | `noronha` | 4 | 4,2 | 3 | 4:21 / 4:08 / 3:54 | 1:25 | 3,3 | 0,79 | 7,5º |
+| PB | `joao_pessoa` | 3 | 2,9 | 3 | 4:06 / 3:52 / 3:40 | 1:19 | 8,0 | 0,83 | 6,5º |
+| PB | `pedra_da_boca` | 4 | 3,0 | 3 | 4:14 / 3:57 / 3:46 | 1:21 | 6,3 | 0,82 | 3,5º |
+| PB | `campina_grande` | 4 | 4,8 | 4 | 5:39 / 5:23 / 5:06 | 1:22 | 2,0 | 0,75 | 11,0º |
+| RN | `natal` | 3 | 2,4 | 3 | 4:01 / 3:43 / 3:31 | 1:16 | 3,3 | 0,85 | 4,5º |
+| RN | `ponta_negra` | 4 | 4,3 | 3 | 4:25 / 4:09 / 3:57 | 1:25 | 7,3 | 0,78 | 4,5º |
+| RN | `cajueiro_pirangi` | 4 | 4,4 | 3 | 4:32 / 4:20 / 4:06 | 1:28 | 13,7 | 0,77 | 12,5º |
+| CE | `jericoacoara` | 4 | 3,7 | 3 | 4:07 / 3:53 / 3:44 | 1:19 | 4,0 | 0,81 | 3,5º |
+| CE | `canoa_quebrada` | 4 | 4,0 | 3 | 4:21 / 4:04 / 3:52 | 1:23 | 0,7 | 0,80 | 5,5º |
+| CE | `fortaleza_beira_mar` | 4 | 4,9 | 4 | 5:20 / 5:03 / 4:49 | 1:17 | 17,3 | 0,73 | 12,0º |
+| PI | `delta_parnaiba` | 4 | 4,1 | 3 | 4:19 / 4:03 / 3:54 | 1:23 | 2,0 | 0,79 | 3,0º |
+| PI | `sete_cidades` | 4 | 4,1 | 3 | 4:39 / 4:24 / 4:10 | 1:29 | 1,3 | 0,79 | 8,5º |
+| PI | `serra_capivara` | 4 | 4,4 | 3 | 4:17 / 4:04 / 3:52 | 1:23 | 2,3 | 0,77 | 6,0º |
+| MA | `lencois` | 4 | 2,8 | 3 | 3:37 / 3:23 / 3:13 | 1:09 | 1,3 | 0,83 | 4,0º |
+| MA | `chapada_das_mesas` | 4 | 4,8 | 3 | 4:02 / 3:49 / 3:39 | 1:18 | 0,7 | 0,74 | 5,0º |
+| MA | `sao_luis` | 4 | 4,4 | 3 | 4:43 / 4:25 / 4:11 | 1:30 | 11,0 | 0,77 | 10,5º |
+| PA | `alter_do_chao` | 4 | 4,3 | 3 | 4:18 / 4:03 / 3:52 | 1:23 | 8,3 | 0,78 | 5,5º |
+| PA | `belem` | 4 | 4,9 | 3 | 4:15 / 4:02 / 3:50 | 1:23 | 4,7 | 0,73 | 8,0º |
+| PA | `marajo` | 5 | 4,8 | 3 | 4:32 / 4:19 / 4:05 | 1:28 | 0,7 | 0,74 | 7,0º |
+| AM | `manaus` | 4 | 4,1 | 3 | 4:39 / 4:27 / 4:11 | 1:30 | 6,3 | 0,79 | 12,0º |
+| AM | `ponte_rio_negro` | 4 | 4,8 | 3 | 4:38 / 4:26 / 4:14 | 1:31 | 6,3 | 0,74 | 13,5º |
+| AM | `parintins` | 5 | 4,9 | 3 | 4:34 / 4:19 / 4:06 | 1:29 | 1,7 | 0,74 | 8,5º |
+| AP | `macapa` | 3 | 4,1 | 3 | 3:54 / 3:41 / 3:30 | 1:15 | 5,3 | 0,79 | 4,5º |
+| AP | `pororoca_araguari` | 5 | 4,8 | 3 | 4:27 / 4:13 / 4:03 | 1:26 | 3,3 | 0,74 | 5,0º |
+| AP | `serra_do_navio` | 5 | 4,2 | 3 | 4:02 / 3:49 / 3:37 | 1:18 | 1,0 | 0,78 | 6,0º |
+| RR | `boa_vista` | 4 | 5,0 | 4 | 5:05 / 4:54 / 4:37 | 1:15 | 15,3 | 0,73 | 10,0º |
+| RR | `monte_roraima` | 5 | 5,1 | 3 | 4:54 / 4:40 / 4:26 | 1:35 | 8,0 | 0,72 | 10,5º |
+| RR | `lago_caracarana` | 5 | 4,8 | 3 | 4:25 / 4:12 / 4:00 | 1:26 | 2,7 | 0,74 | 5,0º |
+| RO | `porto_velho` | 4 | 4,8 | 3 | 4:38 / 4:22 / 4:10 | 1:30 | 2,3 | 0,74 | 11,5º |
+| RO | `vale_guapore` | 5 | 4,7 | 3 | 4:29 / 4:15 / 4:03 | 1:27 | 0,3 | 0,75 | 4,5º |
+| RO | `forte_principe` | 5 | 5,3 | 3 | 4:26 / 4:12 / 4:01 | 1:26 | 7,7 | 0,71 | 7,0º |
+| AC | `rio_branco` | 4 | 4,4 | 3 | 4:40 / 4:26 / 4:14 | 1:30 | 1,0 | 0,77 | 9,5º |
+| AC | `geoglifos` | 5 | 4,9 | 3 | 4:39 / 4:22 / 4:09 | 1:30 | 2,3 | 0,73 | 5,5º |
+| AC | `estrada_pacifico` | 5 | 4,6 | 3 | 4:24 / 4:09 / 3:59 | 1:25 | 5,7 | 0,76 | 5,0º |
+| TO | `jalapao` | 5 | 4,6 | 3 | 4:23 / 4:08 / 3:57 | 1:24 | 2,7 | 0,76 | 5,0º |
+| TO | `palmas` | 5 | 5,4 | 4 | 5:51 / 5:37 / 5:21 | 1:26 | 29,3 | 0,70 | 9,5º |
+| TO | `ilha_do_bananal` | 5 | 5,0 | 3 | 4:15 / 4:00 / 3:48 | 1:22 | 0,7 | 0,73 | 5,0º |
+
+As 32 de antes, na mesma rodada (a régua do "medido" e da duração):
+
+| Copa | Pista | Dif. | Medido | Voltas | Corrida (am./pro/camp.) | Volta (pro) | Batidas no cenário | v média | Piloto médio no campeão |
+|---|---|---|---|---|---|---|---|---|---|
+| RJ | `copacabana` | 1 | 1,0 | 3 | 3:43 / 3:21 / 3:01 | 1:09 | 3,3 | 0,88 | 9,5º |
+| SP | `sampa_noite` | 3 | 3,0 | 4 | 5:17 / 5:01 / 4:44 | 1:15 | 25,7 | 0,82 | 12,0º |
+| PR | `serra_do_mar` | 2 | 2,2 | 3 | 3:36 / 3:18 / 3:06 | 1:08 | 2,3 | 0,86 | 7,0º |
+| MT | `transpantaneira` | 1 | 1,0 | 3 | 4:25 / 3:59 / 3:32 | 1:22 | 0,0 | 0,88 | 12,5º |
+| EUA | `rota_66` | 1 | 1,0 | 3 | 3:42 / 3:20 / 2:60 | 1:09 | 1,7 | 0,88 | 9,0º |
+| EUA | `rochosas` | 2 | 2,0 | 3 | 4:17 / 3:55 / 3:35 | 1:20 | 11,0 | 0,87 | 11,5º |
+| EUA | `canion` | 3 | 3,0 | 3 | 3:35 / 3:20 / 3:10 | 1:08 | 1,7 | 0,82 | 6,5º |
+| EUA | `las_vegas` | 3 | 3,0 | 4 | 5:05 / 4:44 / 4:29 | 1:12 | 19,0 | 0,82 | 13,0º |
+| JAPAO | `baia_toquio` | 2 | 1,6 | 3 | 3:43 / 3:22 / 3:05 | 1:10 | 4,7 | 0,87 | 8,0º |
+| JAPAO | `yanbaru` | 3 | 2,8 | 3 | 4:07 / 3:51 / 3:42 | 1:19 | 6,3 | 0,83 | 8,0º |
+| JAPAO | `monte_fuji` | 4 | 3,3 | 3 | 3:38 / 3:23 / 3:12 | 1:09 | 8,3 | 0,82 | 4,0º |
+| JAPAO | `osaka_neon` | 4 | 4,5 | 4 | 5:28 / 5:13 / 4:55 | 1:19 | 26,0 | 0,77 | 11,0º |
+| EUROPA | `autobahn` | 2 | 1,0 | 3 | 4:08 / 3:45 / 3:21 | 1:17 | 3,0 | 0,88 | 10,0º |
+| EUROPA | `paris` | 3 | 3,6 | 4 | 5:52 / 5:31 / 5:18 | 1:23 | 24,7 | 0,81 | 12,5º |
+| EUROPA | `passo_alpino` | 5 | 4,6 | 3 | 3:38 / 3:25 / 3:15 | 1:10 | 3,7 | 0,76 | 6,0º |
+| EUROPA | `monaco_noite` | 5 | 4,8 | 4 | 5:48 / 5:30 / 5:14 | 1:24 | 3,0 | 0,74 | 10,5º |
+| AFRICA_DO_SUL | `kruger` | 3 | 3,0 | 3 | 4:31 / 4:15 / 4:03 | 1:26 | 2,3 | 0,82 | 12,0º |
+| AFRICA_DO_SUL | `karoo` | 4 | 4,0 | 3 | 4:37 / 4:22 / 4:09 | 1:28 | 1,7 | 0,80 | 9,5º |
+| AFRICA_DO_SUL | `drakensberg` | 4 | 3,6 | 3 | 4:09 / 3:54 / 3:42 | 1:20 | 4,3 | 0,81 | 7,0º |
+| AFRICA_DO_SUL | `boa_esperanca` | 5 | 5,0 | 4 | 5:34 / 5:20 / 5:03 | 1:21 | 2,0 | 0,73 | 9,5º |
+| AUSTRALIA | `outback` | 3 | 2,8 | 3 | 4:26 / 4:10 / 3:54 | 1:24 | 2,7 | 0,83 | 14,0º |
+| AUSTRALIA | `great_ocean` | 4 | 3,8 | 3 | 4:17 / 4:04 / 3:51 | 1:23 | 7,0 | 0,80 | 12,0º |
+| AUSTRALIA | `daintree` | 5 | 5,3 | 3 | 4:20 / 4:05 / 3:54 | 1:24 | 2,7 | 0,71 | 8,0º |
+| AUSTRALIA | `sydney` | 5 | 5,1 | 4 | 5:47 / 5:31 / 5:14 | 1:24 | 25,0 | 0,72 | 11,0º |
+| ESCANDINAVIA | `atlantico` | 4 | 3,3 | 3 | 3:54 / 3:41 / 3:29 | 1:15 | 4,7 | 0,82 | 5,0º |
+| ESCANDINAVIA | `laponia` | 4 | 4,1 | 3 | 4:28 / 4:15 / 4:04 | 1:26 | 13,0 | 0,79 | 9,0º |
+| ESCANDINAVIA | `trollstigen` | 5 | 4,8 | 3 | 4:12 / 3:59 / 3:47 | 1:22 | 0,7 | 0,74 | 8,0º |
+| ESCANDINAVIA | `tromso` | 5 | 5,0 | 4 | 5:54 / 5:39 / 5:23 | 1:26 | 18,0 | 0,73 | 12,5º |
+| MEDITERRANEO | `amalfi` | 4 | 4,2 | 3 | 4:11 / 3:57 / 3:45 | 1:21 | 2,7 | 0,78 | 7,0º |
+| MEDITERRANEO | `santorini` | 5 | 5,1 | 3 | 4:21 / 4:08 / 3:57 | 1:25 | 3,7 | 0,72 | 9,0º |
+| MEDITERRANEO | `etna` | 5 | 4,9 | 3 | 4:17 / 4:03 / 3:49 | 1:23 | 3,3 | 0,74 | 6,5º |
+| MEDITERRANEO | `roma` | 5 | 5,2 | 4 | 6:02 / 5:45 / 5:29 | 1:28 | 25,3 | 0,71 | 10,5º |
+
+### Antes da onda G (25/09/2026, 32 pistas)
 
 `npx tsx scripts/balance.ts 150 profissional 11 <id>`: 19 carros de IA + 1 humano parado, 150 s de
 corrida. "Voltas IA 2–2" = toda a IA completou a primeira volta (as pistas novas, mais longas, não
@@ -363,8 +558,9 @@ As telas são de outra tarefa; o núcleo já entrega o dado. O que mudou para el
 - **Passaporte**: `save.stamps` (siglas, na ordem em que foram carimbadas); `markCupCompleted` carimba. Textos
   prontos em `core.passport.*` (título, carimbo, cartão-postal, "{state} carimbado no passaporte!", "{n} de {total}
   estados carimbados", "Região {region} completa no passaporte!"). Marcos para o cartão-postal: `places.ts`.
-- **Destravamento**: copa já concluída fica aberta (`isCupUnlocked`); com save antigo, mais de uma copa pode estar
-  "aberta" ao mesmo tempo (o cursor começa na primeira aberta não concluída — `frontierCupIndex` já faz isso).
+- **Destravamento**: copa já concluída fica aberta (`isCupUnlocked`), e a herdada do save antigo também (os EUA de quem
+  venceu a Copa Brasil, `save.cupsUnlocked`); com save antigo, mais de uma copa pode estar "aberta" ao mesmo tempo (o
+  cursor começa na primeira aberta não concluída — `frontierCupIndex` já faz isso).
 - `scripts/pistas-ui.mjs`, `playtest-layout.mjs`, `playtest-records.mjs` e `playtest.mjs` ainda usam o id `brasil`
   e `COPA_BRASIL` (o save de teste passa pela migração, mas o roteiro que espera o foco em "brasil" vai falhar).
 
@@ -383,6 +579,8 @@ linha de 4 por copa, ↑↓ trocando de copa na mesma coluna; cabe sem rolar em 
    (`src/game/desktop.ts`), na tabela de `desktop/README.md` (Steamworks) e um rival em `CUP_RIVALS`.
 3. `npx vitest run tests/track.test.ts tests/ai.test.ts tests/fuel.test.ts` e
    `npx tsx scripts/balance.ts 150 profissional 11 <id>` (IA completa a volta, grama < 1%, melhor volta
-   ~1:00–1:40). Se o índice técnico contradisser o rótulo ou a rampa da etapa, ajuste o traçado ou a dificuldade —
-   não o teste. Volta muito mais longa que 2.100 segmentos pede olhar o combustível: os testes de corrida
+   ~1:00–1:40) e `npx tsx scripts/balance.ts corrida profissional 11 <id>` (corrida inteira entre 3:18 e 5:45, a
+   faixa das 32 antigas; v média na escala de "Balanceamento" perto do rótulo; mais batidas no cenário que as
+   vizinhas de copa = ela fecha a copa). Se o índice técnico contradisser o rótulo ou a rampa da etapa, ajuste o
+   traçado ou a dificuldade — não o teste. Volta muito mais longa que 2.100 segmentos pede olhar o combustível: os testes de corrida
    inteira e de aviso dizem se o tanque ainda fecha.

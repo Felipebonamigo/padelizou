@@ -2,7 +2,7 @@
 // assento. Mesmo contrato do settings.ts: saneado na leitura, nunca lança.
 import { hasUpgrades } from '../core/career';
 import { CARS } from '../core/data/cars';
-import { CUPS, currentCupId, LEGACY_CUP_IDS } from '../core/data/cups';
+import { CUPS, currentCupId, LEGACY_CUP_IDS, legacyCupOpens } from '../core/data/cups';
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
 import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
 import { isFingerprint, lapFingerprint } from './content-version';
@@ -60,6 +60,20 @@ function cupList(v: unknown): string[] {
   return [...new Set(stringList(v).map(currentCupId))];
 }
 
+/**
+ * Copas abertas fora da fila: as que o save já guardava (só copa que existe) mais as que uma copa antiga concluída
+ * abria e hoje não abre (`legacyCupOpens`: Copa Brasil → EUA). Lido de `rawCompleted` ANTES da troca de id — depois
+ * dela, `br_rj` vencida hoje e `brasil` vencida antes da onda G são iguais, e só a segunda abria os EUA.
+ */
+function unlockedList(v: unknown, rawCompleted: unknown): string[] {
+  const known = (id: string) => CUPS.some((c) => c.id === id);
+  const out = stringList(v).filter(known);
+  for (const old of stringList(rawCompleted)) {
+    for (const id of legacyCupOpens(old)) if (known(id) && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 /** Conquista de copa que mudou de id (COPA_BRASIL → COPA_BR_RJ); as outras passam como estão. */
 function currentAchievement(id: string): string {
   for (const [old, now] of Object.entries(LEGACY_CUP_IDS)) if (id === `COPA_${old.toUpperCase()}`) return `COPA_${now.toUpperCase()}`;
@@ -87,6 +101,7 @@ export function sanitizeSave(raw: unknown): SaveData {
   const cupsCompleted = cupList(r.cupsCompleted);
   return {
     cupsCompleted,
+    cupsUnlocked: unlockedList(r.cupsUnlocked, r.cupsCompleted),
     stamps: stampList(r.stamps, cupsCompleted),
     bestLaps: bestLapTable(r.bestLaps),
     bestRaces: bestLapTable(r.bestRaces),
@@ -112,14 +127,16 @@ export function saveSave(s: SaveData): void {
 }
 
 /**
- * Destravada quando não exige nada, quando a copa exigida já foi concluída, ou quando ela mesma já foi concluída
- * (save de antes da Expedição Brasil: quem venceu o Mundial antigo continua com ele aberto, mesmo sem os estados
- * que agora vêm antes). Copa desconhecida: travada.
+ * Destravada quando não exige nada, quando a copa exigida já foi concluída, quando ela mesma já foi concluída, ou
+ * quando o save a herdou aberta (`cupsUnlocked`). Os dois últimos são do save de antes da Expedição Brasil: quem
+ * venceu o Mundial antigo continua com ele aberto, e quem venceu a Copa Brasil continua com os EUA abertos, mesmo
+ * sem os estados que agora vêm antes. Copa desconhecida: travada.
  */
 export function isCupUnlocked(save: SaveData, cupId: string, cups: readonly CupDef[]): boolean {
   const cup = cups.find((c) => c.id === cupId);
   if (!cup) return false;
-  return cup.requires === null || save.cupsCompleted.includes(cup.requires) || save.cupsCompleted.includes(cup.id);
+  return cup.requires === null || save.cupsCompleted.includes(cup.requires) || save.cupsCompleted.includes(cup.id)
+    || save.cupsUnlocked.includes(cup.id);
 }
 
 /** Marca a copa como concluída (idempotente) e, se for de um estado, carimba o passaporte. Verdadeiro se era a primeira vez. */
