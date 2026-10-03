@@ -1,5 +1,5 @@
 // Versão do conteúdo do jogo: impressões (hash de 8 dígitos hex) do que decide uma corrida. Duas:
-// - CONTENT_FINGERPRINT (online): o jogo inteiro; vai no create/join e o relay só junta quem tem a mesma.
+// - onlineFingerprint() (online): o jogo inteiro; vai no create/join e o relay só junta quem tem a mesma.
 // - lapFingerprint(pista, carro) (fantasma e recordes): só o que decide uma volta daquele carro naquela pista.
 //   Uma pista nova, um ajuste de outro carro ou um enfeite trocado não invalidam o fantasma de ninguém.
 // Puro: nada de DOM, armazenamento ou relógio.
@@ -28,7 +28,7 @@ export function contentFingerprint(content: unknown): string {
 }
 
 /**
- * Impressão deste jogo: carros, pistas, constantes da simulação e os dados da IA (habilidade, ritmo, elenco e
+ * Impressão deste jogo: carros, pistas (definição e o traçado construído), constantes da simulação e os dados da IA (habilidade, ritmo, elenco e
  * personalidades). Vai no
  * create/join e o relay só põe na mesma sala quem tem a mesma. Sem isso, com o mesmo
  * PROTOCOL_VERSION, um build com uma pista nova largava nela e o outro descartava a largada calado
@@ -41,10 +41,22 @@ export function fingerprintContent(): Record<string, unknown> {
     // Dados que decidem a pilotagem da IA sem estar em constants.ts: elenco, personalidade de cada um e ritmo.
     aiSpeed: DIFFICULTY_SPEED, aiDrivers: AI_DRIVERS, driverPersonality: DRIVER_PERSONALITY,
     personalityTuning: PERSONALITY_TUNING, neutralTuning: NEUTRAL_TUNING,
+    // O traçado construído (obstáculos sólidos do builder): as definições não bastam — as praças da cidade tiraram
+    // prédios sem mudar definição nenhuma, e dois builds assim dessincronizavam na mesma sala.
+    layouts: TRACKS.map((t) => trackLayout(getTrack(t.id))),
   };
 }
 
-export const CONTENT_FINGERPRINT = contentFingerprint(fingerprintContent());
+let onlineFp: string | null = null;
+
+/**
+ * A impressão do online (vai no create/join). Calculada na primeira vez que o online pede: montar as 109 pistas
+ * para o traçado custa ~1,3 s, e o jogo não pode pagar isso ao abrir.
+ */
+export function onlineFingerprint(): string {
+  onlineFp ??= contentFingerprint(fingerprintContent());
+  return onlineFp;
+}
 
 // ───────────────────────────── Impressão de uma volta ─────────────────────────────
 

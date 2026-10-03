@@ -15,7 +15,7 @@ nem colide: é lido do estado depois de cada tick e desenhado por cima. Nada mud
 | Parte | Arquivo | O quê |
 |---|---|---|
 | Gravação, codificação, reprodução | `src/game/ghost.ts` (puro) | `recordTick`, `encodeTrace`/`decodeTrace`, `ghostPoseAt`, `liveDelta`, `createGhostRun`, `checkGhost` |
-| Versão do conteúdo | `src/game/content-version.ts` (puro) | `lapFingerprint(pista, carro)`, `PHYSICS_REVISION`; também a `CONTENT_FINGERPRINT` do online |
+| Versão do conteúdo | `src/game/content-version.ts` (puro) | `lapFingerprint(pista, carro)`, `PHYSICS_REVISION`; também a `onlineFingerprint()` do online |
 | Armazenamento e arquivo | `src/game/ghost-store.ts` | chave `nitro-crew.ghosts`, teto e descarte, `ghostFor` (só o que vale), exportar/importar (`judgeGhostFile`) |
 | Ligação com a sessão | `src/game/ghost-session.ts` | `startGhost` → `afterTick` / `frame`; mensagens do HUD |
 | Sessão | `src/game/session.ts` | três ganchos: `beginRace`, `stepOnce`, `buildFrame` |
@@ -84,7 +84,7 @@ fantasma de `copacabana` entrava como de `monaco_noite`, pistas de tamanhos dife
 - **Impressão da volta** (`lapFingerprint(pista, carro)`, 8 hex, `content-version.ts`): `PHYSICS_REVISION`,
   **todas** as constantes da simulação, os atributos do carro de fábrica como a física os lê
   (`effectiveStats`) e o traçado como a simulação o lê (comprimento, largada e, por segmento, curva, box e
-  os obstáculos sólidos: lado e meia largura). É por pista e por carro, e não a `CONTENT_FINGERPRINT` do
+  os obstáculos sólidos: lado e meia largura). É por pista e por carro, e não a `onlineFingerprint()` do
   online (o jogo inteiro), para uma pista nova, um ajuste de outro carro ou um enfeite trocado não apagarem o
   fantasma de ninguém. Fica de fora o que é só de exibição — nome e cor do carro, nome da pista, zebra,
   relevo (a física não lê a altura), enfeites não sólidos —, então a arte da Fase 2 pode trocar o cenário

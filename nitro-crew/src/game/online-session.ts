@@ -22,11 +22,11 @@ import {
   type RoomView, type SeatAssignment, type ServerMessage, type Snapshot, type StartConfig,
 } from '../net/protocol';
 import { carAvailable } from './career-save';
-import { CONTENT_FINGERPRINT } from './content-version';
+import { onlineFingerprint } from './content-version';
 import type { DeviceId, InputProvider, RaceDriver, ResultsScreenData, SaveData, Settings } from './contracts';
 
 // A impressão do conteúdo mora em content-version.ts (o fantasma e os recordes também a usam); daqui só reexportada.
-export { CONTENT_FINGERPRINT, contentFingerprint, fingerprintContent } from './content-version';
+export { contentFingerprint, fingerprintContent, onlineFingerprint } from './content-version';
 
 const DT = 1 / TICK_RATE;
 /** No máximo quanto tempo de simulação um quadro tenta recuperar (o resto é esquecido). */
@@ -395,14 +395,14 @@ export class OnlineController implements RaceDriver {
 
   create(device: DeviceId): void {
     this.ensurePrimary(device);
-    this.connect({ t: 'create', v: PROTOCOL_VERSION, b: CONTENT_FINGERPRINT, seats: this.locals.length, info: this.info() });
+    this.connect({ t: 'create', v: PROTOCOL_VERSION, b: onlineFingerprint(), seats: this.locals.length, info: this.info() });
   }
 
   join(codeText: string, device: DeviceId): boolean {
     const code = normalizeRoomCode(codeText);
     if (!code) { this.error = 'online.err.badCode'; this.phase = 'error'; this.changed(); return false; }
     this.ensurePrimary(device);
-    this.connect({ t: 'join', v: PROTOCOL_VERSION, b: CONTENT_FINGERPRINT, room: code, seats: this.locals.length, info: this.info() });
+    this.connect({ t: 'join', v: PROTOCOL_VERSION, b: onlineFingerprint(), room: code, seats: this.locals.length, info: this.info() });
     return true;
   }
 

@@ -35,7 +35,7 @@ usou (`withRaceAssists`), e não os humanos da sessão: copa retomada e carreira
   `nearestAhead` passou a ser exportado.
 - Constantes em `constants.ts` (`ASSIST_*`): margens de curva 0,9 (freio, o jogador esterça), 1,1 (volante
   assistido: só o limite físico) e 1,05 (completa), olhar 26 segmentos (+30 em velocidade máxima), borda 0,7 com
-  ganho 6, faixa da completa ±0,55. Entram na impressão do conteúdo do online (`CONTENT_FINGERPRINT`).
+  ganho 6, faixa da completa ±0,55. Entram na impressão do conteúdo do online (`onlineFingerprint()`).
 - De onde vem o nível: lobby (cartão de cada assento) e, para o que monta os humanos a partir do save (copa
   retomada, carreira), a opção do assento (`Settings.seatAssists`) — `src/access/humans.ts`.
 

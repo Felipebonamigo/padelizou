@@ -8,7 +8,7 @@ import { createRace, stepRace } from '../src/core/sim/race';
 import { getTrack } from '../src/core/track';
 import type { PlayerInput, RaceConfig, RaceState } from '../src/core/types';
 import { DEFAULT_SAVE, DEFAULT_SETTINGS, type DeviceId, type InputProvider, type MenuNav, type RaceDriver, type SaveData, type Settings } from '../src/game/contracts';
-import { CONTENT_FINGERPRINT, OnlineController, raceConfigFrom, type OnlineHost, type OnlineOptions } from '../src/game/online-session';
+import { OnlineController, onlineFingerprint, raceConfigFrom, type OnlineHost, type OnlineOptions } from '../src/game/online-session';
 import { NetClient } from '../src/net/client';
 import { decodeInput, TAKEOVER_BIT, type StartConfig } from '../src/net/protocol';
 
@@ -142,7 +142,7 @@ describe('sessão online: remetente conferido', () => {
     if (myId === 0) ctl.create('kb1'); else ctl.join('KQXTR', 'kb1');
     sock.open();
     // A impressão do conteúdo vai junto: o relay não põe na mesma sala builds diferentes.
-    expect(sock.sent[0]).toMatchObject({ t: myId === 0 ? 'create' : 'join', v: 1, b: CONTENT_FINGERPRINT });
+    expect(sock.sent[0]).toMatchObject({ t: myId === 0 ? 'create' : 'join', v: 1, b: onlineFingerprint() });
     sock.push({ t: 'welcome', room: 'KQXTR', id: myId, token: TOKEN, rejoined: false });
     sock.push(roomMsg(0));
     expect(ctl.phase).toBe('lobby');

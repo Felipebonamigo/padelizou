@@ -103,7 +103,7 @@ soluço do relay ou do VPS), quem volta primeiro vira anfitrião e segue do pró
 dos outros até o tick em que parou — e manda o snapshot a quem voltar depois.
 
 **Mesmo jogo dos dois lados.** `create`/`join` levam `b`, a impressão do conteúdo
-(`CONTENT_FINGERPRINT`: carros, pistas, constantes da simulação e habilidade da IA). O relay só põe
+(`onlineFingerprint()`: carros, pistas — a definição e os obstáculos sólidos construídos —, constantes da simulação e habilidade da IA). O relay só põe
 na mesma sala quem tem a mesma; o outro vê "Esta sala foi criada com outra versão do jogo". Sem
 isso, um build com uma pista nova largava nela e o outro descartava a largada calado, com o
 anfitrião esperando por ele para sempre. Mudança só no código da física não muda a impressão:

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { seatColor } from '../src/core/data/drivers';
 import { DEFAULT_SETTINGS } from '../src/game/contracts';
-import { CONTENT_FINGERPRINT, assignSeats, contentFingerprint, fingerprintContent, raceConfigFrom, seatName } from '../src/game/online-session';
+import { onlineFingerprint, assignSeats, contentFingerprint, fingerprintContent, raceConfigFrom, seatName } from '../src/game/online-session';
 import { AI_DRIVERS, DRIVER_PERSONALITY, PERSONALITY_TUNING } from '../src/core/data/drivers';
 import { DIFFICULTY_SPEED } from '../src/core/sim/ai';
 import { sanitizeSettings } from '../src/game/settings';
@@ -77,7 +77,7 @@ describe('impressão do conteúdo (vai no create/join)', () => {
     expect(contentFingerprint({ tracks: [{ id: 'copacabana' }], cars: [{ topSpeed: 100, id: 'falcao' }], constants: { GRIP: 0.8, TICK_RATE: 60 } })).toBe(fp);
     expect(contentFingerprint({ ...base, tracks: [{ id: 'copacabana' }, { id: 'pista_nova' }] })).not.toBe(fp);
     expect(contentFingerprint({ ...base, constants: { TICK_RATE: 60, GRIP: 0.81 } })).not.toBe(fp);
-    expect(CONTENT_FINGERPRINT).toMatch(/^[0-9a-f]{8}$/);
+    expect(onlineFingerprint()).toMatch(/^[0-9a-f]{8}$/);
   });
 
   it('cobre o que decide a pilotagem da IA: personalidades, elenco e ritmo por dificuldade', () => {

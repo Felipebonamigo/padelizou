@@ -6,7 +6,7 @@ import { CARS } from '../src/core/data/cars';
 import { getTrack } from '../src/core/track';
 import type { HumanEntry, RaceResultRow, Segment, SpriteRef } from '../src/core/types';
 import {
-  CONTENT_FINGERPRINT, contentFingerprint, fingerprintContent, lapContent, lapFingerprint, PHYSICS_REVISION, trackLength,
+  onlineFingerprint, contentFingerprint, fingerprintContent, lapContent, lapFingerprint, PHYSICS_REVISION, trackLength,
 } from '../src/game/content-version';
 import type { BestLap } from '../src/game/contracts';
 import * as online from '../src/game/online-session';
@@ -95,10 +95,21 @@ describe('impressão de uma volta (pista + carro)', () => {
     for (const [name, tweak] of tweaks) withTweak(tweak, () => expect(fp(), name).toBe(before));
   });
 
+  // Defeito (onda G, praças nas pistas de cidade): o builder deixou de pôr prédios sólidos em trechos das pistas de
+  // cidade sem mudar a definição delas. O online só olhava as definições: um build velho e um novo entravam na mesma
+  // sala e dessincronizavam na primeira batida. Obstáculo sólido construído muda a impressão do online.
+  it('obstáculo sólido construído pelo builder muda a impressão do online', () => {
+    const seg = getTrack('sampa_noite').segments.find((s) => s.sprites.some((sp) => sp.solid));
+    if (!seg) throw new Error('sampa_noite sem obstáculo sólido');
+    const before = contentFingerprint(fingerprintContent());
+    withTweak(() => { const removed = seg.sprites.splice(0, seg.sprites.length); return () => { seg.sprites.push(...removed); }; },
+      () => expect(contentFingerprint(fingerprintContent())).not.toBe(before));
+  });
+
   it('a impressão do online é a mesma de antes, e o online-session só a reexporta', () => {
-    expect(online.CONTENT_FINGERPRINT).toBe(CONTENT_FINGERPRINT);
+    expect(online.onlineFingerprint).toBe(onlineFingerprint);
     expect(online.contentFingerprint).toBe(contentFingerprint);
-    expect(CONTENT_FINGERPRINT).toBe(contentFingerprint(fingerprintContent()));
+    expect(onlineFingerprint()).toBe(contentFingerprint(fingerprintContent()));
   });
 });
 
