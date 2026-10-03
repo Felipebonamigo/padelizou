@@ -267,12 +267,14 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const samples: Array<[number, number]> = [[0, 0], ...corners, [b.minX, 0], [b.maxX, 0]];
     const radius = Math.hypot(Math.max(-b.minX, b.maxX), Math.max(-b.minZ, b.maxZ));
     let done = false;
-    // Três passadas: a primeira exige chão quase plano e (perto) a vista livre de quem chega; a segunda aceita declive
-    // e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
+    // Três passadas: a primeira exige chão quase plano (longe: só na metade de dentro da faixa) e (perto) a vista livre
+    // de quem chega; a segunda aceita declive e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
     for (let mode = plaza ? 0 : 1; mode < 2 && !done; mode++)
     for (let attempt = 0; attempt < (job.first && mode === 1 ? 2 : 1) && !done; attempt++)
     for (let pass = 0; pass < 3 && !done; pass++) {
-      const top = pass === 2 ? lat1 * 2 : lat1;
+      // Longe: a passada de chão plano fica na metade de dentro da faixa — senão a pegada grande (duna, cânion de
+      // 300 m) só achava chão plano a 285–330 m e sumia na névoa; perto com declive (o lado de cima enterra) lê melhor.
+      const top = pass === 2 ? lat1 * 2 : pass === 0 && place === 'far' ? (lat0 + lat1) / 2 : lat1;
       const sides = mode === 0 && plaza ? [plaza.side] : anySides;
       const target = mode === 0 && plaza ? plaza.at : job.target;
       for (let o = 0; o <= (mode === 0 ? 2 * PLAZA_SLACK : 2 * reach) && !done; o += 4) {

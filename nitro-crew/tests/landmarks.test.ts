@@ -300,6 +300,24 @@ describe('marcos turísticos: posição', () => {
     expect(bad).toEqual([]);
   }, 120000);
 
+  // Defeito (onda H, capturas do polimento): dunas, cânions e o Bumbódromo, pegadas de 150–390 m, só achavam chão
+  // plano no alto da faixa (borda a 285–330 m, o resto a 450–630 m) e sumiam na névoa; perto, com um pouco de declive,
+  // cabiam. O longe fica na metade de dentro da faixa.
+  it('marco longe fica com a borda de dentro a ≤ 250 m (não é empurrado para o fim da faixa pelo declive)', () => {
+    const bad: string[] = [];
+    for (const c of allCases()) {
+      for (const { seg, p, id } of landmarkPlacements(c.layout)) {
+        if (LANDMARKS[id].place !== 'far') continue;
+        const b = modelBounds(LANDMARK_PREFIX + id);
+        const side = p.x < 0 ? -1 : 1;
+        let lat = Infinity;
+        for (const [lx, lz] of [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]]) lat = Math.min(lat, Math.abs(p.x) + side * (Math.cos(p.yaw) * lx + Math.sin(p.yaw) * lz));
+        if (lat > 250) bad.push(`${c.placeId} ${id}#${seg}: borda a ${lat.toFixed(0)} m`);
+      }
+    }
+    expect(bad).toEqual([]);
+  }, 120000);
+
   it('é determinístico e as pistas existentes mostram os seus marcos (Copacabana: Cristo e Pão de Açúcar)', () => {
     const a = sceneryLayout(getTrack('copacabana'));
     const b = sceneryLayout(getTrack('copacabana'));
