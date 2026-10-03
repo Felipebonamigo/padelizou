@@ -241,7 +241,7 @@ export const TRACKS: TrackDef[] = [
   // ───────── Expedição Brasil · nordeste · PE ─────────
   // Bairro do Recife à noite: as pontes sobre o Capibaribe e as esquinas do Marco Zero.
   {
-    id: 'recife_antigo', name: 'Recife Antigo', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 4, difficulty: 3,
+    id: 'recife_antigo', name: 'Recife Antigo', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 3, difficulty: 3,
     ops: [pit(40), st(130), cv(70, 5.4), st(120), cv(70, 6), st(110), cv(60, 6), st(110), ss(160, 5.7), st(80), cv(60, 6), st(90), cv(70, -5.4), st(140), st(170), cv(60, -6), st(80), cv(60, 6), st(90), st(200), st(100)],
   },
   // Colinas coloniais sobre o mar: esses curtos e fechados entre as igrejas, ladeiras no meio.
@@ -321,7 +321,7 @@ export const TRACKS: TrackDef[] = [
   // ───────── Expedição Brasil · nordeste · MA ─────────
   // Centro histórico de azulejos à noite: ladeiras de pedra e esquinas fechadas.
   {
-    id: 'sao_luis', name: 'Casarões de São Luís', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 4, difficulty: 4,
+    id: 'sao_luis', name: 'Casarões de São Luís', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 3, difficulty: 4,
     ops: [pit(40), st(90), ss(130, 5.1), st(60), hl(80, 19), st(50), cv(70, 5.5), st(60), cv(70, 5.1), st(60), cv(80, 5.1), st(70), ss(120, 4.7), st(60), ss(160, 4.3), st(70), ss(140, 4.7), st(50), hl(80, 19), st(60), cv(80, 5.1), st(60), ss(160, 5.2), st(70), st(100)],
   },
   // Morros de topo plano e cachoeiras: estrada de terra com ondulações e curvas fortes.
@@ -358,7 +358,7 @@ export const TRACKS: TrackDef[] = [
   },
   // Manaus à noite e a ponte estaiada sobre o Rio Negro: esquinas e a lombada longa da ponte.
   {
-    id: 'ponte_rio_negro', name: 'Ponte do Rio Negro', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 4, difficulty: 4,
+    id: 'ponte_rio_negro', name: 'Ponte do Rio Negro', country: 'Brasil', scenery: 'city_night', timeOfDay: 'night', laps: 3, difficulty: 4,
     ops: [pit(40), st(80), ss(150, 5.6), st(80), st(130), ss(150, 5.2), st(90), ss(150, 5.5), st(100), cv(70, 5.5), st(80), ss(160, 5.8), st(100), cv(60, 5.9), st(110), cv(60, 5.2), st(100), cv(70, 6), st(110), st(100)],
   },
   // A ilha do boi-bumbá: ruas em volta do Bumbódromo, esses fortes e esquinas.

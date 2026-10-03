@@ -79,6 +79,40 @@ aparece.
 - A marcação de pendência também mora no `localStorage`: se ela não couber e o disco recusar a gravação, a abertura
   seguinte fica com o arquivo (anterior). É preciso as duas falhas juntas.
 
+## Save de antes da onda G (as 8 copas antigas)
+
+A onda G trocou as 8 copas (brasil → eua → japao → … → mediterraneo, cada uma exigindo a anterior) por 34: os 27
+estados da Expedição e o Mundial, que agora exige a última da Expedição (`br_to`). Não há versão de formato: a
+migração acontece na leitura (`sanitizeSave` em `src/game/save.ts`, `sanitizeCareer` em `career-save.ts`), e a
+gravação seguinte já sai no formato novo. Conferido em 03/10 com saves montados como eram gravados até 954bb92^
+(`tests/migration-brasil.test.ts`, "save de antes da onda G"):
+
+| No save antigo | Depois da onda G |
+|---|---|
+| Nenhuma copa concluída | A Copa Rio de Janeiro aberta (a Copa Brasil virou ela, `LEGACY_CUP_IDS`). |
+| Copa Brasil vencida (com os EUA abertos) | RJ concluída e carimbada, SP aberta, e **os EUA continuam abertos**: `save.cupsUnlocked` herda a abertura (`legacyCupOpens` em `cups.ts`). O Japão continua fechado. |
+| Brasil e k copas do Mundial vencidas | As do Mundial concluídas continuam abertas (copa concluída fica aberta), e a seguinte também; a Expedição segue de SP. Testado de 0 a 8 copas, também depois de gravar e reabrir. |
+| Campeonato normal no meio da Copa Brasil | Some do save, sem erro (as corridas da RJ são outras). |
+| Campeonato normal no meio de uma copa do Mundial | Continua da mesma corrida, com a mesma classificação, semente e pilotos; eliminado, a copa continua aberta para recomeçar. |
+| Carreira na Copa Brasil | Segue na RJ com dinheiro, garagem e estatísticas; a copa em andamento e as tentativas recomeçam. |
+| Carreira numa copa do Mundial | Continua na mesma copa e corrida, segue pelo Mundial e termina no Mediterrâneo. Nível da IA e prêmio passam a ser os da posição nova (abaixo). Carreira concluída continua concluída. |
+| Relatório da garagem de uma corrida da Copa Brasil | Sai: a garagem escreveria a chave do texto (`core.cup.brasil`) no lugar do nome. Relatório de copa que não existe é descartado. |
+| Conquista `COPA_BRASIL` | `COPA_BR_RJ`. |
+| Recordes, fantasmas, estatísticas | Ficam: são por id de pista, e nenhum id mudou. Nas 26 pistas antigas fora da cidade a impressão da volta é a mesma de antes. Nas 6 de cidade (Sampa, Las Vegas, Osaka, Paris, Sydney, Roma) as praças (`core/track/plazas.ts`) tiraram prédios da beira e a colisão mudou: o recorde fica com a marca "versão anterior" e o fantasma fica na loja, mas não corre como rival (`docs/FANTASMA.md`). |
+
+**Defeitos achados nesta conferência (03/10), com teste escrito antes e visto falhar:** (1) quem só tinha vencido a
+Copa Brasil perdia os EUA — passavam a exigir os 27 estados; quem estava no meio dos EUA continuava a copa, mas se
+fosse eliminado não podia recomeçá-la; (2) a carreira guardava o relatório de uma corrida da Copa Brasil, e a
+garagem mostrava `core.cup.brasil` na faixa de "copa concluída"/"eliminado".
+
+**Limite que ficou: carreira antiga parada no Mundial.** O nível da IA da carreira segue a posição da copa na lista
+(`careerAiLevel`): nos EUA ele era 0,18 (2ª de 8 copas) e passa a 2,89 (28ª de 34). Medido com o piloto médio
+(0,97) e o Falcão 111111 — o que a economia antiga lhe dava ao fim da Copa Brasil —, 2 sementes × 4 pistas dos EUA:
+antes 1,75 de média e 8/8 no top 5; agora **9,38 e 2/8** — quase toda tentativa termina eliminada (solo exige
+top 5). O prêmio sobe na mesma proporção (×1,61 em vez de ×1,11) e cada tentativa paga a ajuda de custo, então a
+carreira anda, devagar. Não mexi: o jogo não foi publicado (os saves antigos são do dono e de quem testou), e a
+curva da IA é decisão aberta (`docs/CARREIRA.md`). Para quem cair nisso: "Nova carreira".
+
 ## Onde está cada coisa
 
 | Arquivo | O quê |
@@ -89,5 +123,7 @@ aparece.
 | `src/game/save-notice.ts` | Quando mostrar o aviso (puro) |
 | `src/errors/toast.ts` (+ `errors.css`, `strings.ts`) | O aviso no canto (`createSaveToast`), textos `errors.save.*` |
 | `src/main.ts` | Liga os liberadores e o aviso |
+| `src/game/save.ts` · `career-save.ts` · `src/core/data/cups.ts` | Migração do save de antes da onda G: `currentCupId`/`LEGACY_CUP_IDS` (brasil → br_rj), `legacyCupOpens` → `save.cupsUnlocked`, relatório de copa que não existe sai |
+| `tests/migration-brasil.test.ts` | Saves no formato de antes da onda G: 0 a 8 copas concluídas, campeonato e carreira no meio do Mundial, ids de copa que sumiram, recordes e fantasmas das 32 pistas antigas |
 | `tests/storage-full.test.ts` | `localStorage` com cota fixa: corrida e copa concluída chegam ao arquivo e a próxima abertura as lê; abertura com o local cheio; sessão relê o que gravou; pendência; disco recusando; descarte e o que nunca se descarta; aviso |
 | `scripts/playtest-save.mjs` | O mesmo no Chromium, com a cota real (`npm run preview` no ar): aviso no resultado e no menu, em PT e EN; espaço liberado grava tudo; "Electron" com `window.desktop` falso e o arquivo no Node |

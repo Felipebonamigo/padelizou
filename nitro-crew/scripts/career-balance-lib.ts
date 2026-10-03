@@ -31,9 +31,9 @@ export function proxyRace(trackId: string, aiLevel: number, upgrades: UpgradeLev
 }
 
 /** Posições do piloto-proxy em cada pista, para cada semente. */
-export function proxyPositions(trackIds: readonly string[], aiLevel: number, upgrades: UpgradeLevels, seeds: readonly number[], skill = PROXY_SKILL): number[] {
+export function proxyPositions(trackIds: readonly string[], aiLevel: number, upgrades: UpgradeLevels, seeds: readonly number[], skill = PROXY_SKILL, difficulty: Difficulty = 'profissional'): number[] {
   const out: number[] = [];
-  for (const seed of seeds) for (const t of trackIds) out.push(proxyRace(t, aiLevel, upgrades, seed, skill));
+  for (const seed of seeds) for (const t of trackIds) out.push(proxyRace(t, aiLevel, upgrades, seed, skill, difficulty));
   return out;
 }
 

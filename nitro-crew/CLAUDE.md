@@ -10,7 +10,7 @@ não use nada de fora desta pasta.
 ## Comandos
 - `npm run dev` (porta 5174) · `npm run build` (typecheck + `dist/`) · `npm run preview` (porta 4174)
 - `npm test` (vitest) · `npm run typecheck`
-- `npm run smoke -- <pista> <humanos>` — corrida sem interface · `npm run balance -- <segundos> <dificuldade> <semente>` — IA×IA em todas as pistas
+- `npm run smoke -- <pista> <humanos>` — corrida sem interface · `npm run balance -- <segundos|corrida> <dificuldade> <semente> [pista]` — IA×IA em todas as pistas (`corrida`: a corrida inteira, com duração e o piloto médio; `docs/PISTAS.md`, "Balanceamento")
 - `npm run relay` — servidor do online (porta 8787). Para a suíte completa: `(cd server && npm ci)` e `NC_REQUIRE_RELAY=1 npm test`
   (sem o `ws` instalado em `server/`, os testes de integração com o relay são pulados — o CI exige).
 - Playtests no Chromium headless (Playwright), com `npm run preview` (porta 4174) no ar e capturas em `scratch/`:

@@ -227,6 +227,94 @@ isso, a alavanca não é mais `aiLevel` (está no teto): seria habilidade da IA 
 nível 3 — decisão de design em aberto. Anotar também: a âncora (RJ, de fábrica, IA 0) deu 3,5, dentro da faixa do
 teste (2,5–5,5); o `PROXY_SKILL` 0,97 continua valendo.
 
+### Dinheiro e rivais nas 34 copas, medidos (03/10/2026)
+
+`npx tsx scripts/career-balance.ts` agora imprime primeiro a economia (instantânea, sem corrida) e depois a sonda;
+`sementes=0` só a economia, e dá para sondar outra dificuldade a partir de uma copa
+(`npx tsx scripts/career-balance.ts 0.97 2 - campeao br_ba`). A sonda no profissional repetiu a tabela de 02/10
+número por número. A de baixo junta tudo — prêmio da copa para quem chega sempre em 4º, o acumulado guardando tudo,
+as melhorias do Falcão do piloto médio (a peça mais barata depois de cada corrida) no início da copa, o nível da
+IA, e a posição média do piloto médio (0,97, 2 sementes × as pistas da copa) no profissional e no campeão. PE, MA e
+AM já com as 3 voltas novas de Recife, São Luís e Ponte do Rio Negro (`docs/PISTAS.md`).
+
+| # | Copa | × prêmio | 4º na copa | Acumulado (4º, guardando) | Melhorias do piloto médio | IA | Profissional: média · top 5 | Campeão: média · top 5 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | br_rj | 1,00 | $ 8.400 | $ 10.900 | 0/18 | 0,00 | 3,50 · 5/6 | 9,67 · 1/6 |
+| 2 | br_sp | 1,02 | $ 8.580 | $ 19.480 | 5/18 | 0,68 | 3,83 · 5/6 | 12,00 · 0/6 |
+| 3 | br_mg | 1,05 | $ 8.790 | $ 28.270 | 8/18 | 1,10 | 3,17 · 6/6 | 7,00 · 2/6 |
+| 4 | br_es | 1,07 | $ 8.970 | $ 37.240 | 11/18 | 1,52 | 3,00 · 6/6 | 8,83 · 0/6 |
+| 5 | br_pr | 1,09 | $ 9.150 | $ 46.390 | 13/18 | 1,81 | 2,67 · 6/6 | 5,83 · 4/6 |
+| 6 | br_sc | 1,11 | $ 9.360 | $ 55.750 | 15/18 | 2,09 | 2,67 · 6/6 | 6,17 · 2/6 |
+| 7 | br_rs | 1,14 | $ 9.540 | $ 65.290 | 16/18 | 2,24 | 2,67 · 6/6 | 6,00 · 3/6 |
+| 8 | br_df | 1,16 | $ 9.750 | $ 75.040 | 18/18 | 2,53 | 1,67 · 6/6 | 2,83 · 6/6 |
+| 9 | br_go | 1,18 | $ 9.930 | $ 84.970 | 18/18 | 2,55 | 1,83 · 6/6 | 3,50 · 6/6 |
+| 10 | br_ms | 1,20 | $ 10.110 | $ 95.080 | 18/18 | 2,56 | 1,67 · 6/6 | 3,67 · 6/6 |
+| 11 | br_mt | 1,23 | $ 10.320 | $ 105.400 | 18/18 | 2,58 | 1,83 · 6/6 | 4,00 · 5/6 |
+| 12 | br_ba | 1,25 | $ 10.500 | $ 115.900 | 18/18 | 2,60 | 1,67 · 6/6 | 3,33 · 6/6 |
+| 13 | br_se | 1,27 | $ 10.680 | $ 126.580 | 18/18 | 2,62 | 1,83 · 6/6 | 3,17 · 5/6 |
+| 14 | br_al | 1,30 | $ 10.890 | $ 137.470 | 18/18 | 2,64 | 1,67 · 6/6 | 3,67 · 4/6 |
+| 15 | br_pe | 1,32 | $ 11.070 | $ 148.540 | 18/18 | 2,65 | 1,50 · 6/6 | 3,33 · 6/6 |
+| 16 | br_pb | 1,34 | $ 11.250 | $ 159.790 | 18/18 | 2,67 | 1,17 · 6/6 | 3,17 · 6/6 |
+| 17 | br_rn | 1,36 | $ 11.460 | $ 171.250 | 18/18 | 2,69 | 1,67 · 6/6 | 3,33 · 6/6 |
+| 18 | br_ce | 1,39 | $ 11.640 | $ 182.890 | 18/18 | 2,71 | 1,50 · 6/6 | 3,67 · 5/6 |
+| 19 | br_pi | 1,41 | $ 11.850 | $ 194.740 | 18/18 | 2,73 | 2,00 · 6/6 | 5,00 · 3/6 |
+| 20 | br_ma | 1,43 | $ 12.030 | $ 206.770 | 18/18 | 2,75 | 1,83 · 6/6 | 4,67 · 4/6 |
+| 21 | br_pa | 1,45 | $ 12.210 | $ 218.980 | 18/18 | 2,76 | 1,50 · 6/6 | 6,33 · 3/6 |
+| 22 | br_am | 1,48 | $ 12.420 | $ 231.400 | 18/18 | 2,78 | 1,50 · 6/6 | 5,67 · 3/6 |
+| 23 | br_ap | 1,50 | $ 12.600 | $ 244.000 | 18/18 | 2,80 | 2,17 · 6/6 | 5,33 · 3/6 |
+| 24 | br_rr | 1,52 | $ 12.780 | $ 256.780 | 18/18 | 2,82 | 1,83 · 6/6 | 5,33 · 3/6 |
+| 25 | br_ro | 1,55 | $ 12.990 | $ 269.770 | 18/18 | 2,84 | 1,83 · 6/6 | 6,17 · 3/6 |
+| 26 | br_ac | 1,57 | $ 13.170 | $ 282.940 | 18/18 | 2,85 | 1,83 · 6/6 | 4,67 · 5/6 |
+| 27 | br_to | 1,59 | $ 13.350 | $ 296.290 | 18/18 | 2,87 | 2,33 · 6/6 | 5,67 · 4/6 |
+| 28 | eua | 1,61 | $ 18.080 | $ 314.370 | 18/18 | 2,89 | 2,88 · 8/8 | 6,13 · 3/8 |
+| 29 | japao | 1,64 | $ 18.320 | $ 332.690 | 18/18 | 2,91 | 2,13 · 8/8 | 5,38 · 5/8 |
+| 30 | europa | 1,66 | $ 18.600 | $ 351.290 | 18/18 | 2,93 | 2,50 · 8/8 | 6,38 · 3/8 |
+| 31 | africa_do_sul | 1,68 | $ 18.840 | $ 370.130 | 18/18 | 2,95 | 2,13 · 8/8 | 4,88 · 7/8 |
+| 32 | australia | 1,70 | $ 19.080 | $ 389.210 | 18/18 | 2,96 | 2,25 · 8/8 | 6,50 · 4/8 |
+| 33 | escandinavia | 1,73 | $ 19.360 | $ 408.570 | 18/18 | 2,98 | 2,00 · 8/8 | 5,25 · 5/8 |
+| 34 | mediterraneo | 1,75 | $ 19.600 | $ 428.170 | 18/18 | 3,00 | 2,38 · 7/8 | 8,00 · 1/8 |
+
+Quem chega sempre em 1º junta $ 914.630 na carreira; em 8º, $ 154.520. Carros à venda — em que copa o preço cabe:
+
+| Carro | Preço | 1º, guardando | 4º, guardando | 4º, depois de completar o Falcão | Melhorias todas | Carro + melhorias, 4º guardando |
+|---|---|---|---|---|---|---|
+| Curupira S | $ 12.000 | RJ (corrida 2) | SP (4) | GO (25) | $ 63.900 | GO (25) |
+| Sucuri E | $ 16.000 | RJ (3) | SP (5) | GO (26) | $ 63.900 | GO (26) |
+| Carcará RS | $ 20.000 | RJ (3) | MG (7) | GO (27) | $ 54.900 | DF (24) |
+| Pororoca V10 | $ 22.000 | SP (4) | MG (7) | MS (28) | $ 63.900 | MS (28) |
+| Iara Turbo | $ 24.000 | SP (4) | MG (8) | MS (28) | $ 63.900 | MS (28) |
+| Boitatá GT | $ 30.000 | SP (5) | ES (10) | MS (30) | $ 63.900 | MS (30) |
+| Beija-Flor | $ 40.000 | MG (7) | PR (13) | MT (33) | $ 52.900 | MS (30) |
+
+Nada está fora de alcance: o piloto médio completa o Falcão ao fim do RS (copa 7, corrida 21) e, depois disso, compra
+qualquer carro à venda até o MT (copa 11, corrida 33 de 109). Da 12ª copa em diante o dinheiro não tem mais o que
+mudar no carro dele: ele junta mais $ 323.000 até o fim, o bastante para colecionar a vitrine inteira com melhorias.
+Nenhuma constante de economia mudou (nada quebrado; é a carreira longa).
+
+**A segunda metade, em números (decisão do dono, `CAREER_AI_LEVEL_MAX` não mudou):**
+
+- No profissional, o piloto médio fica em 2,7–3,8 nas 7 primeiras copas (o que a economia supõe, ~4º) e em
+  **1,2–2,9 do DF ao Mediterrâneo**, no top 5 em 175 das 176 corridas da sonda. Do DF em diante a IA sobe só de 2,53
+  para 3,00 em 27 copas, e o Falcão dele está completo desde o DF: nada mais muda dos dois lados, e as pistas mais
+  difíceis sozinhas não seguram (em Palmas, a mais dura do Brasil, ele chega em 1º e 2º).
+- **Subir `CAREER_AI_LEVEL_MAX` não muda nada**: o nível já está em 2,5–3,0 desde o DF, e `clampLevel` corta em 3
+  (`UPGRADE_MAX_LEVEL`). Medido com o máximo em 4 (nível 3,85 → cortado em 3): EUA 2,88 e Japão 2,13 — os mesmos
+  números do máximo 3.
+- O que mexe é o ritmo da IA. No **campeão**, a mesma sonda dá 5,8–12,0 nas 7 primeiras copas (duro demais para ele),
+  2,8–4,0 do DF ao Ceará, 4,7–6,3 do Piauí ao Tocantins e 4,9–6,5 no Mundial, com o Mediterrâneo em 8,0 (1 corrida
+  em 8 no top 5).
+
+Recomendação: deixar `CAREER_AI_LEVEL_MAX` em 3 (é o teto efetivo) e, se a segunda metade tiver de pesar, dar à
+carreira um ritmo de IA que sai do profissional no DF e chega perto do campeão no Mundial. O que está medido é o
+campeão inteiro na segunda metade: o piloto médio volta a ~3º–6,5º do DF à Escandinávia, perto do 4º da economia. A
+rampa em si não foi medida, e o Mediterrâneo no campeão inteiro (8,0) passa do ponto: o topo dela fica um pouco abaixo
+do campeão, ou o fim é conferido de novo com a sonda. Sem mudança, a segunda metade é uma
+volta da vitória (1º–2º); quem quiser mais já pode escolher o campeão no lobby, mas aí paga com uma primeira metade
+dura (5,8–12,0). Melhorias da IA acima do nível 3 seriam a outra alavanca: não medida, e pede constantes novas.
+
+**Carreira de antes da onda G parada no Mundial**: o nível da IA salta (EUA: 0,18 → 2,89) e o piloto médio com o
+Falcão 111111 de então vai de 1,75 para 9,38 de média (`docs/SAVE.md`, "Save de antes da onda G").
+
 ## Rivais que evoluem
 
 (Até a onda G; a regra de agora está em "Onda G" acima.) O nível da IA ia de 0 na primeira copa a `CAREER_AI_LEVEL_MAX` = **1,25** na última, linear entre
@@ -300,7 +388,8 @@ com a regra de sempre: lixo vira ausente, campo ruim é consertado, nunca lança
   naquele carro, só de carros seus), carteiras coerentes com o modo (1 no co-op, 1 por piloto no
   versus), copa atual (copa desconhecida volta à primeira), copa em andamento (descartada se não bater
   com a atual, se já tiver acabado ou se não tiver corrida por correr — nesse caso a copa recomeça),
-  tentativas, contagem de corridas e o relatório da última corrida. Sem piloto aproveitável → `null`.
+  tentativas, contagem de corridas e o relatório da última corrida (o de uma copa que não existe mais sai: save de
+  antes da onda G, `docs/SAVE.md`). Sem piloto aproveitável → `null`.
 - `cupInProgress` (`SavedCup`): descartado inteiro se a copa, a semente ou os humanos (assentos
   0..n-1) não fecharem.
 - Copa (`ChampionshipState`) em andamento — nem concluída nem eliminada — com o índice da corrida no

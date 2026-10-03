@@ -146,8 +146,13 @@ function sanitizePrizeRow(v: unknown): CareerPrizeRow | null {
   return { driver, position: int(v.position, 0, 999, 0), prize: int(v.prize, 0, MONEY_MAX, 0) };
 }
 
+/**
+ * Relatório da última corrida (a garagem mostra). O de uma copa que não existe mais (save de antes da onda G: a
+ * Copa Brasil) sai — a garagem escreveria o nome da copa como a chave do texto, e ela não é mais a copa de ninguém.
+ */
 function sanitizeReport(v: unknown): CareerReport | null {
   if (!isRecord(v) || typeof v.cupId !== 'string' || typeof v.trackId !== 'string') return null;
+  if (!CUPS.some((c) => c.id === v.cupId)) return null;
   if (v.verdict !== 'qualified' && v.verdict !== 'eliminated') return null;
   return {
     cupId: v.cupId, trackId: v.trackId, raceIndex: int(v.raceIndex, 0, 99, 0), rows: list(v.rows, sanitizePrizeRow),
