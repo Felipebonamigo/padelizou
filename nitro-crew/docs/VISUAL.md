@@ -119,7 +119,7 @@ saturada, na linha de Horizon Chase Turbo. Código em `src/render/scenery/` (a p
 1. **Sprites do núcleo** (`track.segments[i].sprites`, do `builder.ts`): árvore, pinheiro, palmeira, cacto, moita,
    pedra, prédio, torre, poste, outdoor, placa, arquibancada, pórtico, muro do box, placa do box, cone. A posição
    e a largura são as da colisão (física); o renderizador só escolhe o modelo. O `builder` só mudou nas **praças da
-   cidade** (ver "Marcos turísticos").
+   cidade e mirantes do litoral** (ver "Marcos turísticos").
 2. **Decoração só visual** (`layout.ts`), que a física não vê:
    - **forração** na faixa em que o carro anda (9,6 a 23 m do centro): capim, flores, pedrinhas, moitas baixas —
      no máximo 1,05 m de altura, então passar por cima não parece atravessar nada;
@@ -255,28 +255,70 @@ torre redonda), `facadeBox`, `hill` (morro facetado com saia).
 | far (ponte, convento no penhasco, viaduto) | 120–330 m | 0,45 rad | +30 |
 | skyline (Cristo, Pão de Açúcar, montanha) | 220–300 m (o pico fica a ~400 m+) | 0,35 rad | +150 (só entra na tela a ~30° uns 150 segmentos antes do ponto em que fica ao lado) |
 
+O primeiro de cada marco fica numa **janela perto da largada** (`FIRST_WINDOW`, `core/track/startzone.ts`): o mais
+importante da pista a ≤ 150 segmentos, os outros a ≤ 300 (o do horizonte, +150), contados do **fim da largada** —
+arquibancadas (até o segmento 24), o trecho sem cenário (30) e o box que começa na linha (0–39 em todas as pistas de
+hoje: `startZoneEnd` = 40). Contava da linha, e logo depois dela a vista dos lados é das arquibancadas e das garagens.
+
 - **A faixa mede a borda de dentro** (o ponto do modelo mais perto da pista), não o centro: uma ponte de 1 km ou um
   tepui de 1 × 2 km continuam do lado de fora. Modelo comprido gira menos (a ponta avança no máximo 60 m).
 - **Nunca no alcance do carro**: a pegada inteira (caixa do modelo girada) fica a ≥ 26 m (`LANDMARK_CLEAR_M`) do centro
   de todo trecho de pista à vista — o próprio e os vizinhos de grampo e curva em S (a linha central desenrolada,
   ±300 segmentos).
-- **Praças da cidade** (`core/track/plazas.ts`, `cityPlazas`): no `city_night` a receita enche os dois lados de prédio
-  e torre na beira da pista — um paredão contínuo, e todo marco de perto e de longe ficava atrás dele (o MASP a 75 m,
-  a Ópera de Arame, a Torre de TV… invisíveis da pista). O núcleo abre uma **praça** por instância de cada marco de
-  perto/longe: 61 segmentos (≈ 244 m) de um lado, de 48 antes a 12 depois do segmento do marco, onde o `builder` não
-  põe prédio, torre nem outdoor (poste, moita e placa de curva continuam). Os sorteios do `builder` são os mesmos (o
-  número é tirado, só o sprite não entra): fora das praças a pista é idêntica. A primeira praça de cada marco fica em
-  76 + 64·j segmentos depois da largada (depois das arquibancadas e do trecho sem prédio da largada), as outras a cada
-  1/praças da volta; o lado sai de um hash do id, fugindo do lado de dentro de curva e do lado do box (em curva em S
-  a praça anda de 8 em 8 segmentos). Quantas praças cada marco pede fica numa tabela do núcleo (`LANDMARK_PLAZAS`, o
-  núcleo não importa o renderizador) que `tests/landmarks-pracas.test.ts` confere contra o `perLap` do registro — marco
-  novo numa pista de cidade entra lá; o do horizonte não pede praça. O `placeLandmarks` põe o marco na praça dele
-  (±4 segmentos, só o lado dela) e só sem lugar ali cai na busca de sempre — o teste acusa: nos ~120 m antes de todo
-  marco de perto/longe da cidade, do lado dele, nenhum prédio, torre ou outdoor. A praça é arrumada como praça
-  (`dressPlaza`): cerca-viva de 0,9 m logo além do gradil com uma passagem a cada 10 segmentos, canteiros de flores
-  até ~30 m e, no marco de perto com espaço, uma cerca-viva emoldurando a frente — nada alto. Muda a colisão das 20
-  pistas de cidade com marcos (≈ 4,5% dos prédios e torres delas; impressões das voltas, fantasmas e recordes dessas
-  pistas ficam "de outra versão").
+- **Praças da cidade e mirantes do litoral** (`core/track/plazas.ts`, `landmarkPlazas`): no `city_night` a receita
+  enche os dois lados de prédio e torre na beira da pista — um paredão contínuo, e todo marco de perto e de longe ficava
+  atrás dele (o MASP a 75 m, a Ópera de Arame, a Torre de TV… invisíveis da pista). No `coast` a receita também põe
+  prédio e torre dos dois lados (um a cada ~17 segmentos por lado, mais o prédio/torre a cada 90 e os outdoors), e o
+  marco de perto só aparecia nas brechas (a jangada de Maceió 0,3 s na tela, o cassino de Mônaco 0,8). São os dois
+  biomas cuja receita usa prédio e torre de enchimento (`fillers`); nos outros eles são raros (um a cada 90
+  segmentos). O núcleo abre, por instância de cada marco de perto/longe, um trecho sem prédio, torre nem outdoor (poste,
+  moita, palmeira e placa de curva continuam) **do tamanho da linha de visada**:
+  - **a conta** (`core/track/sightline.ts`, sem trigonometria — o builder roda no lockstep: soma, produto, raiz e o giro
+    por segmento em série de Taylor): a câmera vem pela linha central desenrolada até um ponto do marco numa lateral de
+    referência (perto 50 m, longe 150 m) e conta os passos em que ele está no quadro (os 80% do meio, como o `sight.ts`)
+    e na névoa do período (490/545/380 m de dia/entardecer/noite) até somar o mínimo da tela com 10% de folga
+    (2,5 s × 96 m/s × 1,1 = 264 m) — no primeiro de cada marco, só com a câmera depois da largada. Cada visada marca os
+    segmentos em que cruza a faixa dos prédios da beira (9–45 m de lado), **dos dois lados**: o trecho aberto do lado
+    do marco vai da primeira visada (ou da frente: 48 segmentos antes do de perto — os ~120 m em que ele cresce no
+    quadro —, 24 antes do de longe) até 12 depois dele; quando a aproximação faz curva, a visada atravessa a parte de
+    dentro dela e o outro lado também abre (`across`). As constantes vêm do renderizador, e o teste confere cada uma
+    (unidades, quadro, névoa e a linha central contra a do `sight.ts`: < 1 cm em duas voltas);
+  - **o lugar**: o primeiro de cada marco na janela do primeiro (o ideal: perto a 64 e longe a 100 segmentos do fim da
+    largada, e 64 depois do primeiro do marco anterior), as outras instâncias a cada 1/praças da volta; anda de 8 em 8
+    (as repetições até ±128 e no máximo 1/(4·praças) da volta, o primeiro só dentro da janela) e, na cidade, pelos dois lados — fora do box, do lado de
+    dentro de curva (marco alto esconderia a pista) e da frente de outra praça do mesmo lado. Dos lugares que sobram
+    fica o que mostra o marco o mínimo abrindo menos prédio (os dois lados somados, mais meio segmento por segmento
+    longe do ideal); se nenhum chega lá, o que mostra mais. Sem lugar, sem praça (o layout acha outro). No litoral o
+    lado é o do registro: o mar (direita) para o marco `sea`, a terra para o resto;
+  - **por que a visada e não um comprimento fixo**: com 48 segmentos antes do marco o de longe ficava 0,4–1,5 s na tela
+    — a visada até ele, a 150–250 m de lado, cruza a beira perto do CARRO, a (1 − 9/lateral) do caminho: com a câmera a
+    380 m, a 350 m do marco. Com 100 fixos ele passava numa reta, mas numa aproximação em curva a visada cruza a beira
+    antes do começo da praça (o domo de São Pedro e a Tsutenkaku depois das curvas fortes de Roma e Osaka: 0 s), ou
+    cruza a beira do outro lado (a Catedral de Brasília, o Centro Geodésico de Cuiabá: 2,2–2,4 s). Medindo a visada, a
+    escolha do lugar prefere a aproximação reta, e o trecho aberto sai do tamanho dela: 61–99 segmentos no de perto
+    (mediana 76) e 52–162 no de longe (mediana 95), nas 132 praças; só 3 abrem também o outro lado;
+  - os sorteios do `builder` são os mesmos (o número é tirado, só o sprite não entra): fora das praças a pista é
+    idêntica. Quantas praças cada marco pede, de perto ou de longe e de que lado fica numa tabela do núcleo
+    (`LANDMARK_PLAZAS`, o núcleo não importa o renderizador) que `tests/landmarks-pracas.test.ts` confere contra o
+    registro — marco novo numa pista de cidade ou de litoral entra lá; o do horizonte não pede praça. O `placeLandmarks`
+    põe o marco na praça dele (±4 segmentos, só o lado dela) e só sem lugar ali cai na busca de sempre; o teste acusa:
+    todo marco de perto/longe da cidade e do litoral fica na praça dele, e na frente dele, do lado dele, nenhum prédio,
+    torre ou outdoor;
+  - **a arrumação**: a praça da cidade e o mirante do lado de terra do litoral viram praça (`dressPlaza`): cerca-viva de
+    0,9 m logo além do gradil com uma passagem a cada 10 segmentos, canteiros de flores até ~30 m e, no marco de perto
+    com espaço, uma cerca-viva emoldurando a frente — nada alto. O mirante do lado do mar é a praia aberta com um píer
+    de madeira (40 m, guarda-corpo de 1,1 m, deque 1 m acima d'água) saindo da areia no caminho de quem chega
+    (`dressBeachMirante`; a cerca-viva e os canteiros ficariam dentro d'água); os guarda-sóis já vêm da decoração;
+  - **a colisão** muda em 48 pistas: as 20 de cidade com marcos e 28 de litoral (Copacabana não: só tem marcos do
+    horizonte). No litoral só sai prédio, torre e outdoor — 1,4% a 22,5% dos prédios e torres (Maceió e Maragogi, com 10
+    marcos de perto por volta — jangada ×4 e coqueiral ×6 —, os 22%); na cidade as praças mudaram de lugar e de tamanho
+    (de −3,6% a +1,7%). Impressões das voltas, fantasmas e recordes dessas pistas ficam "de outra versão" (das 32 de
+    antes da onda G: Sampa, Las Vegas, Baía de Tóquio, Osaka, Paris, Mônaco, Boa Esperança, Great Ocean, Sydney,
+    Atlântico, Tromsø, Amalfi, Santorini e Roma); a impressão do online também muda. As 8 corridas de
+    `tests/sim-golden.test.ts` não mudaram (as de Sampa e Las Vegas não encostam no que mudou). Voltas da IA
+    (profissional, semente 1, 420 s, builder de antes × agora): iguais em 46 das 48 pistas, Fortaleza +0,27% e Osaka
+    +0,02%; média 90,21 → 90,22 s. Montar as 109 pistas: 38 → 174 ms (a mais lenta, Maragogi, 11 ms; cada pista é
+    montada uma vez e guardada).
 - **Não esconde a pista**: nada com mais de 8 m do lado de dentro de curva próxima (a mesma regra da mata), e o
   marco perto pede o corredor entre a cerca e ele livre de prédio e arquibancada (senão some atrás deles, como o
   MASP atrás da fileira de prédios de Sampa); a ocupação dele e do corredor fica marcada, e a mata não nasce na frente.
@@ -325,30 +367,39 @@ pegava o **primeiro** lugar válido; agora mede todos e fica com o que a câmera
   carro a ~125 segmentos, a névoa, até onde o marco sai do quadro) livre de mata, pedras e mesas (a ocupação da
   decoração; só até 180 m, o fim da grade) — a duna de Itaúnas, baixa, sumia atrás dos coqueiros. Marcada depois de
   todos os marcos: tira a decoração, não o lugar de outro marco. O de perto já tinha o mirante dos ~160 m antes.
-- **Antes × depois** (as 109 pistas, 292 marcos): abaixo da meta, perto 82 → 49 de 191, longe 50 → 23 de 76, horizonte
+- **Antes × depois** (o enquadramento; as 109 pistas, 292 marcos): abaixo da meta, perto 82 → 49 de 191, longe 50 → 23 de 76, horizonte
   10 → 5 de 25 (medianas 2,7 → 4,1 s, 1,45 → 3,55 s, 4,4 → 8,0 s); só um marco perde (araucária na Cuia, 5,6 → 5,5 s). Fora do litoral e da cidade, 43 → 1. Itaúnas 0,6 →
   3,8 s, Parintins 0,5 → 3,9, Xingó 1,3 → 4,0, Piaçabuçu 1,1 → 4,0, Storseisundet 0,5 → 2,5, placa de Trollstigen
   0,1 → 4,9, Uluru 5,7 → 8,0, Pão de Açúcar 3,1 → 5,5; o Cristo (3,3 s) e o MASP (2,5 s) não mudam. Montar o layout:
   3,97 → 5,16 s nas 109 pistas (média 36 → 47 ms por pista, a mais lenta 93 → 122 ms; acima de 2× só em Camboriú,
   17 → 52 ms, Copacabana, Piaçabuçu e Jericoacoara, onde a busca mede todos os lugares porque nenhum chega ao dobro
   da meta).
-- **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta):
-  - **Litoral e cidade**: a receita do núcleo (`track/builder.ts`) põe prédio dos dois lados da beira da pista, e o
-    marco só aparece nas brechas — o teto medido (busca na volta inteira, sem a janela) dos de perto do litoral fica
-    em 1,3–2,5 s. Ali o teste exige 1 s (≈ 100 m) e 2 s no horizonte. Proposta (núcleo): abrir mirantes nos prédios
-    do litoral como as praças da cidade.
-  - **Praças da cidade**: o lugar é do núcleo (±4 segmentos). O de perto fica com 1,7–2,6 s; o de longe só aparece
-    dentro da praça (os 48 segmentos antes dele) — Coliseu 0,8 s, castelo de Osaka 0,9, Stratosphere 0,5, ponte do Rio
-    Negro 0,4, Ópera de Sydney 1,1, Torre Eiffel 1,5. Proposta (núcleo): praça mais comprida para o de longe (~100
-    segmentos antes, a distância em que ele entra no quadro), ou o marco de longe no fim da praça.
-  - **A janela perto da largada** (≤ 150/300 segmentos): o primeiro de 8 marcos fica abaixo da meta só por ela e pelos
-    prédios — Maceió (jangada 0,3 s, coqueiral 0,8), Maragogi (coqueiral 0,6), Porto Seguro (coqueiral 0,7), Belém
-    (Ver-o-Peso 0,8), Mônaco (cassino 0,8), Santorini (cúpula 0,9), Alter do Chão (praia 2,3). Com a janela 150
-    segmentos maior: Alter do Chão, Positano e o arco da Great Ocean passam da meta, Cape Point 1,1 → 1,7, Natal
-    1,3 → 2,3 — os do litoral seguem presos aos prédios. Proposta: contar a janela a partir do fim da largada e do box
-    (o box ocupa os segmentos 0–39 à direita em várias pistas).
+- **Antes × depois** (praças do tamanho da visada, mirantes do litoral e a janela do fim da largada): abaixo da meta,
+  77 → 11 de 292 — perto 49 → 1 de 191, longe 23 → 5 de 76, horizonte 5 → 5 de 25 (medianas 4,1 → 4,9 s, 3,6 → 4,1 s,
+  8,0 → 8,0 s); litoral 46 → 6, cidade 30 → 4. Litoral: jangada de Maceió 0,3 → 3,3 s, coqueiral de Maragogi 0,6 →
+  3,2, de Porto Seguro 0,7 → 5,1, Ver-o-Peso 0,8 → 2,8, cassino de Mônaco 0,8 → 4,0, cúpula de Santorini 0,9 → 4,4,
+  farol de Ilhabela 1,3 → 3,4, forte de Natal 1,3 → 3,0. Cidade, de longe: Coliseu 0,8 → 2,6, castelo de Osaka 0,9 →
+  2,6, Stratosphere 0,5 → 2,6, ponte do Rio Negro 0,4 → 2,4, Ópera de Sydney 1,1 → 2,5, Torre Eiffel 1,5 → 3,3, Torre
+  de TV 1,0–1,3 → 2,7–2,8. Quinze instâncias perdem tempo (outro lugar da praça), nenhuma abaixo da meta: a menor fica
+  com 2,5 s (Convento da Penha, 2,7 → 2,5). Os de longe da cidade à noite ficam perto da meta (2,5–2,8 s): a névoa
+  a 390 m e o marco a 150–230 m de lado deixam ~240 m de aproximação numa reta.
+- **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
+  - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
+    do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
+    da curva, com a aproximação ainda no box: farol de João Pessoa 1,9 s, Cape Point 1,6 (à noite), arco da Great Ocean
+    2,3; e a praia de Alter do Chão 2,3 (tropical, sem prédio: só a janela) e a ponte do Rio Negro 2,4 (à noite). Com a
+    janela 150 segmentos maior: 3,3, 2,2, 3,3, 5,4 e 2,6 s.
+  - **A pirâmide do Luxor** (1,5 s, à noite, em qualquer lugar da volta): o facho de luz no céu leva a caixa do modelo a
+    807 m de altura e os pontos de amostra a 160–690 m; com a névoa a 390 m só o mais baixo cabe no quadro. Seria preciso
+    amostrar o modelo sem o facho.
+  - **O horizonte no litoral e na cidade** não ganha mirante: a 400 m+ de lado, a visada cruza a beira junto do carro
+    durante os ~400 m em que ele está no quadro — o mirante seria uma avenida de ~100 segmentos sem prédio de um lado
+    por instância. O Cristo fica com 3,2–3,3 s, o morro do Pico 3,4, os prédios de Camboriú 2,7–3,2 (o teste exige
+    2,5 s ali). Proposta: mirante do horizonte com a mesma conta (`sightline.ts`, lateral ~400 m, a névoa do lote
+    `haze`) — muda a colisão de Copacabana, a pista da primeira corrida de referência.
   - A mata e as mesas não entram na conta (são postas depois): o de perto tem o mirante, o de longe a cunha — que só
-    vai até 180 m; uma mesa além disso ainda pode ficar na frente de um marco do horizonte.
+    vai até 180 m; uma mesa além disso ainda pode ficar na frente de um marco do horizonte. As quadras de fundo da
+    cidade (terreno) também não: a clareira delas vai até ~50 segmentos antes do marco.
 
 Ver: `node tools/scenery-showroom.mjs <porta> saida.png lm:cristo_redentor,lm:masp "&gap=100&yaw=-1.1&fog=0.001"`
 (ids com o prefixo `lm:`; `fog` e `ground` novos no showroom, para modelos grandes) e

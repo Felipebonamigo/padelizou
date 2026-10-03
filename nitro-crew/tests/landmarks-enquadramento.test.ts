@@ -65,29 +65,39 @@ describe('enquadramento: a conta', () => {
 });
 
 /**
- * Litoral e cidade: a receita do núcleo (track/builder.ts) põe prédio dos dois lados da beira da pista, e o marco de perto
- * e de longe só aparece nas brechas — o teto medido (a busca andando a volta inteira, sem a janela da largada) fica em
- * 1,3–2,5 s para os de perto do litoral. Ali o mínimo é 1 s (≈ 100 m de pista) e 2 s no horizonte; abrir mirantes nos
- * prédios (como as praças da cidade) é mudança do núcleo (docs/VISUAL.md, "Na tela").
+ * Litoral e cidade: a receita do núcleo (track/builder.ts) põe prédio dos dois lados da beira da pista, e o núcleo abre
+ * praças e mirantes onde a visada de quem chega a cada marco de perto e de longe cruza essa beira
+ * (core/track/plazas.ts) — ali vale o mínimo de sempre. O do horizonte não ganha mirante: a 400 m+ de lado, a visada
+ * até ele cruza a beira junto do carro durante os ~400 m em que ele está no quadro, e o mirante teria de ser uma
+ * avenida inteira sem prédio de um lado (proposta em docs/VISUAL.md). Medido: o Cristo 3,2–3,3 s, o morro do Pico 3,4,
+ * os prédios de Camboriú 2,7–3,2 (2,4 antes); o mínimo ali é o de perto e longe, 2,5 s.
  */
 const ROADSIDE_BUILDINGS: ReadonlySet<string> = new Set(['coast', 'city_night']);
-const ROADSIDE_MIN = { near: 1, far: 1, skyline: 2 } as const;
+const ROADSIDE_MIN = { near: 2.5, far: 2.5, skyline: 2.5 } as const;
 
 /**
- * O primeiro de cada marco que a janela perto da largada (≤ 150 segmentos o mais importante, ≤ 300 os outros:
- * tests/landmarks.test.ts) deixa abaixo do mínimo: o melhor lugar da janela, medido da largada (s). Regra de desenho,
- * não da busca — com a janela 150 segmentos maior, a praia de Alter do Chão passa (docs/VISUAL.md, "Na tela"). Quem
- * passar do mínimo sai da lista (o teste acusa).
+ * O primeiro de cada marco que a janela perto da largada (≤ 150 segmentos do fim da largada o mais importante, ≤ 300 os
+ * outros: tests/landmarks.test.ts) deixa abaixo do mínimo: o melhor lugar da janela, medido da largada (s). Os do mar
+ * no litoral (João Pessoa, Cape Point, Great Ocean) têm curva para o lado do mar logo depois da largada — o marco alto
+ * não fica do lado de dentro dela (esconderia a pista) —, e o único lugar na janela é antes da curva, com a aproximação
+ * ainda no box. Com a janela 150 segmentos maior: João Pessoa 3,3 s, Great Ocean 3,3, Alter do Chão 5,4, ponte do Rio
+ * Negro 2,6, Cape Point 2,2 (à noite: a névoa a 390 m). Quem passar do mínimo sai da lista (o teste acusa).
  */
 const WINDOW_LIMITED: Readonly<Record<string, number>> = {
+  'joao_pessoa farol_cabo_branco': 1.9,
+  'boa_esperanca farol_cape_point': 1.6,
+  'great_ocean arco_great_ocean': 2.3,
   'alter_do_chao praia_de_rio': 2.3,
-  'maceio jangada': 0.3,
-  'maceio coqueiral': 0.8,
-  'maragogi coqueiral': 0.6,
-  'porto_seguro coqueiral': 0.7,
-  'belem ver_o_peso': 0.8,
-  'monaco_noite cassino_monte_carlo': 0.8,
-  'santorini cupula_azul': 0.9,
+  'ponte_rio_negro ponte_rio_negro': 2.4,
+};
+
+/**
+ * Marcos que nem a volta inteira põe no mínimo, e por quê (s). A pirâmide do Luxor tem o facho de luz no céu: a caixa
+ * dela vai a 807 m de altura e os pontos de amostra ficam a 160–690 m — à noite (a névoa a 390 m) só o mais baixo cabe
+ * no quadro, e só com a câmera a 250 m ou mais dela: 1,5 s em qualquer lugar da volta (era 1,4).
+ */
+const SHAPE_LIMITED: Readonly<Record<string, number>> = {
+  'las_vegas piramide_luxor': 1.5,
 };
 
 describe('enquadramento: os marcos das pistas', () => {
@@ -98,17 +108,15 @@ describe('enquadramento: os marcos das pistas', () => {
       if (!(placeOf(def.id)?.landmarks.length)) continue;
       const track = getTrack(def.id);
       for (const r of landmarkSight(track, sceneryLayout(track))) {
-        // Na praça da cidade quem decide o lugar é o núcleo (plazas.ts, tests/landmarks-pracas.test.ts).
-        if (r.plaza) continue;
         const key = `${def.id} ${r.id}`;
         const base = ROADSIDE_BUILDINGS.has(def.scenery) ? ROADSIDE_MIN[r.place] : LANDMARK_SIGHT_MIN[r.place];
-        const listed = r.first ? WINDOW_LIMITED[key] : undefined;
+        const listed = SHAPE_LIMITED[key] ?? (r.first ? WINDOW_LIMITED[key] : undefined);
         if (listed !== undefined && r.seen >= base) stale.push(`${key}: ${r.seen.toFixed(1)} s, já passa de ${base} s`);
         const min = listed ?? base;
         if (r.seen < min) bad.push(`${key}#${r.seg} (${r.place}${r.first ? ', 1º' : ''}, x ${r.x.toFixed(0)} m): ${r.seen.toFixed(1)} s < ${min} s`);
       }
     }
     expect(bad, `${bad.length} marcos pouco vistos`).toEqual([]);
-    expect(stale, 'saiam de WINDOW_LIMITED').toEqual([]);
+    expect(stale, 'saiam de WINDOW_LIMITED / SHAPE_LIMITED').toEqual([]);
   }, 180000);
 });
