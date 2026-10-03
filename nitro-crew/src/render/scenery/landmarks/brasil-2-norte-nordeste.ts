@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { hash2, hash3 } from '../../noise';
 import { box, cone, cyl, dodeca, frond, gable, hip, ico, jitter, merge, paint, shadeY, speckle, sphere, tf, tintUp, tris, type Geo, type MatKey, type Model, type ModelPart } from '../geom';
 import { FACADE_TILE } from '../structures';
+import { cliff, dune as duneShape } from './kit';
 import type { LandmarkDef, LandmarkRegistry } from './types';
 
 // ───────────────────────────── Kit ─────────────────────────────
@@ -167,10 +168,10 @@ function crown(k: Kit, x: number, y: number, z: number, rx: number, ry: number, 
   k.raw(speckle(paint(jitter(ico(1, detail), 0.16, seed), color, tf(x, y, z, rx, ry, rz)), 0.09, seed));
 }
 
-/** Árvore genérica de mata (tronco + 1–2 copas). */
-function tree(k: Kit, x: number, z: number, h: number, seed: number, greens = ['#3f7f34', '#4a8f3a', '#356f2e']): void {
-  k.rod([x, -0.5, z], [x, h * 0.6, z], Math.max(0.2, h * 0.03), '#6a5038', 5);
-  crown(k, x, h * 0.72, z, h * 0.32, h * 0.26, h * 0.32, greens[Math.floor(hash2(seed, 1) * greens.length)], seed);
+/** Árvore genérica de mata (tronco + 1–2 copas); `y0` = chão dela (no alto de um paredão). */
+function tree(k: Kit, x: number, z: number, h: number, seed: number, greens = ['#3f7f34', '#4a8f3a', '#356f2e'], y0 = 0): void {
+  k.rod([x, y0 - 0.5, z], [x, y0 + h * 0.6, z], Math.max(0.2, h * 0.03), '#6a5038', 5);
+  crown(k, x, y0 + h * 0.72, z, h * 0.32, h * 0.26, h * 0.32, greens[Math.floor(hash2(seed, 1) * greens.length)], seed);
 }
 
 // ───────────────────────────── Peças reaproveitadas ─────────────────────────────
@@ -297,37 +298,6 @@ function dune(k: Kit, x: number, z: number, rx: number, h: number, rz: number, c
   k.raw(speckle(tintUp(pg, crest, 0.9, 0.6), 0.05, seed));
 }
 
-/**
- * Paredão de arenito ao longo de Z (face em +X, topo em y = n · step): estratos horizontais e, em cada estrato,
- * blocos de `chunk` m em Z com profundidade e recuo por hash (sulcos de erosão). `half(y)` = meia largura em Z;
- * `hole(y)` abre um vão no meio (cachoeira, cânion).
- */
-function cliffWall(k: Kit, o: { x: number; depth: number; step: number; n: number; half: (y: number) => number; chunk: number; colors: string[]; seed: number; hole?: (y: number) => number; recess?: number; cap?: string }): void {
-  for (let i = 0; i < o.n; i++) {
-    const ym = (i + 0.5) * o.step;
-    const hw = o.half(ym);
-    if (hw <= 1) continue;
-    const hz = o.hole ? o.hole(ym) : 0;
-    const cnt = Math.max(1, Math.round((2 * hw) / o.chunk));
-    const len = (2 * hw) / cnt;
-    const base = o.colors[i % o.colors.length];
-    for (let j = 0; j < cnt; j++) {
-      const zc = -hw + (j + 0.5) * len;
-      if (hz > 0 && Math.abs(zc) < hz) continue;
-      // Recuo por coluna (sulco vertical de erosão, igual em todos os estratos) + um pouco por bloco.
-      const col0 = Math.round(zc / o.chunk);
-      const groove = hash2(o.seed, col0) * (o.recess ?? 3);
-      const d = o.depth * (0.85 + hash2(o.seed + 7, i * 31 + j) * 0.3);
-      const dx = -groove - hash2(o.seed + i, j) * (o.recess ?? 3) * 0.3 - i * 0.25;
-      const col = new THREE.Color(base).multiplyScalar(0.9 + hash2(o.seed + 3, i * 17 + j) * 0.2);
-      const top = i === o.n - 1 || o.half(ym + o.step) < Math.abs(zc);
-      const g = paint(jitter(box(d, o.step + 0.1, len + 0.6), 0.025, o.seed + i * 13 + j), col, tf(o.x - d / 2 + dx, ym, zc));
-      if (top && o.cap) tintUp(g, o.cap, 0.6);
-      k.raw(g);
-    }
-  }
-}
-
 /** Vara de bandeirinhas de São João: cordão entre `a` e `b`, triângulos coloridos pendurados. */
 function bunting(k: Kit, a: V3, b: V3, n: number, sag: number, seed: number, bulbs = 0): void {
   const cols = ['#e83a3a', '#ffd23f', '#2a8ae0', '#3ab84a', '#f07a2a', '#e04ab0', '#f4f2ea'];
@@ -383,34 +353,75 @@ function igrejaQuadrado(): Model {
 
 // ───────────────────────────── Sergipe ─────────────────────────────
 
-const XINGO_ROCK = ['#b0603a', '#9a5034', '#c2784a', '#8a4a30', '#d08a58'];
+// Arenito do Xingó: ferrugem, ocre e vermelho-escuro em camadas; caatinga cinza-esverdeada no alto.
+const XINGO_ROCK = ['#a8583a', '#c27a4c', '#8e4a32', '#b86a42', '#d4925e', '#9a5638'];
+const CAATINGA = ['#7a8a52', '#8a9058', '#6a7a48', '#9a9460'];
 
-/** Cânion do Xingó: paredões de arenito vermelho em degraus sobre a água verde do São Francisco. */
-function canionXingo(): Model {
-  const k = new Kit();
-  k.add(box(70, 0.3, 380), '#2f8f7c', tf(-6, 0.15, 0));
-  // Paredão do fundo (face para a pista, do outro lado do rio) e a ponta que avança na curva do cânion.
-  cliffWall(k, { x: -40, depth: 40, step: 5, n: 11, half: (y) => 190 - y * 0.6, chunk: 22, colors: XINGO_ROCK, seed: 331, recess: 5, cap: '#8a8a4a' });
-  cliffWall(k, { x: 34, depth: 30, step: 5, n: 8, half: (y) => 36 - y * 0.4, chunk: 12, colors: XINGO_ROCK, seed: 332, recess: 3, cap: '#8a8a4a' });
-  // Margem da frente: lajes baixas de pedra, sem esconder a água.
-  for (let i = 0; i < 7; i++) {
-    const z = -170 + i * 50 + hash2(333, i) * 10;
-    if (Math.abs(z - 0) < 40) continue;
-    k.raw(paint(jitter(box(14, 2.4, 30), 0.12, 334 + i), XINGO_ROCK[i % 5], tf(30, 0.7, z)));
+/**
+ * Água em faixas ao longo de Z, de −X para +X (`xs` = bordas, uma cor por faixa): o reflexo escuro junto da pedra,
+ * o fundo, o raso, a espuma, a areia molhada. As bordas de dentro ondulam por hash (a mesma borda nas duas faixas).
+ */
+function waterBands(k: Kit, xs: number[], colors: string[], len: number, seed: number, wob = 0.3, n = 9): void {
+  const edge = (e: number, q: number): number => (e === 0 || e === xs.length - 1 ? xs[e] : xs[e] + (hash2(seed + e, q) - 0.5) * wob * Math.min(xs[e] - xs[e - 1], xs[e + 1] - xs[e]));
+  for (let i = 0; i < colors.length; i++) {
+    const pts: Array<[number, number]> = [];
+    for (let q = 0; q <= n; q++) pts.push([edge(i, q), -len / 2 + (len * q) / n]);
+    for (let q = n; q >= 0; q--) pts.push([edge(i + 1, q), -len / 2 + (len * q) / n]);
+    k.add(plan(pts, 0.1 + i * 0.03), colors[i], tf(0, 0.02, 0));
   }
-  // Ilhotas de pedra na água e caatinga no alto dos paredões.
-  for (let i = 0; i < 4; i++) k.raw(paint(jitter(dodeca(1), 0.15, 335 + i), XINGO_ROCK[(i + 2) % 5], tf(-10 + hash2(336, i) * 20, 1, -120 + i * 70, 6, 5 + i, 7)));
-  for (let i = 0; i < 12; i++) crown(k, -60 + hash2(337, i) * 25, 55 + hash2(338, i) * 2, -150 + i * 26, 4, 2.5, 4, i % 2 ? '#7a8a4a' : '#6a7a40', 3370 + i);
-  // Catamarã pequenino no rio (escala do cânion).
-  k.add(box(5, 1.6, 14), '#f4f2ea', tf(-5, 1, 40)).add(box(4.6, 0.3, 12), '#d8402a', tf(-5, 3.6, 40));
-  return k.model(56, [0.78, 1.08]);
 }
 
-/** Catamarã do Xingó: dois cascos, dois conveses e o toldo, na água verde junto do paredão vermelho. */
+/** Lâmina d'água em anéis (o raso claro por fora, o fundo escuro no meio): blobs concêntricos levemente mais altos. */
+function pond(k: Kit, x: number, z: number, rx: number, rz: number, colors: string[], seed: number, shift = 0): void {
+  colors.forEach((c, i) => {
+    const f = 1 - i / (colors.length + 0.6);
+    k.add(plan(blobPoly(14, rx * f, rz * f, 0.1, seed + i), 0.12 + i * 0.03), c, tf(x + shift * i, 0.02, z));
+  });
+}
+
+/**
+ * Cânion do Xingó: o paredão de arenito vermelho do outro lado do rio, em estratos com cornijas e sulcos, a borda
+ * quebrada com a caatinga, o talude de pedra caindo na água verde (escura no reflexo da pedra, esmeralda no meio,
+ * clara no raso de cá), ilhotas de pedra e o catamarã de passeio dando a escala.
+ */
+function canionXingo(): Model {
+  const k = new Kit();
+  const len = 330; const H = 60; const wx = -40;
+  waterBands(k, [-50, -30, -8, 14, 28], ['#43473a', '#16705f', '#1f8a76', '#3aa892'], len, 330);
+  const wall = cliff({ len, H, strata: XINGO_ROCK, layers: 7, seed: 331, cols: 34, depth: 46, batter: 0.12, gully: 7, gullyLen: 22, bay: 14, ragged: 0.12, ledge: 1.8, talus: 7, talusColor: '#6e4632', top: '#8a8a58', ledgeTop: '#9a8e5c', ends: 0.16 }, tf(wx, 0, 0));
+  k.raw(wall.geo);
+  // Caatinga na borda de cima.
+  for (let i = 0; i < 22; i++) {
+    const z = -len / 2 + 22 + i * ((len - 44) / 21) + (hash2(337, i) - 0.5) * 8;
+    crown(k, wx + wall.lipAt(z) - 4 - hash2(338, i) * 18, wall.topAt(z) + 1, z, 3.2 + hash2(339, i) * 2, 2, 3.2 + hash2(340, i) * 2, CAATINGA[i % 4], 3370 + i);
+  }
+  // Margem de cá: lajes baixas de pedra vermelha e moitas, sem esconder a água.
+  for (let i = 0; i < 6; i++) {
+    const z = -140 + i * 56 + hash2(333, i) * 12;
+    k.raw(paint(jitter(dodeca(1), 0.2, 334 + i), XINGO_ROCK[i % 6], tf(31 + hash2(341, i) * 4, 0.3, z, 6, 2, 11)));
+    crown(k, 34 + hash2(342, i) * 3, 1.2, z + 14, 2.4, 1.6, 2.4, CAATINGA[(i + 1) % 4], 3420 + i);
+  }
+  // Ilhotas de pedra no rio.
+  for (let i = 0; i < 3; i++) k.raw(paint(jitter(dodeca(1), 0.22, 335 + i), XINGO_ROCK[(i + 2) % 6], tf(-6 + hash2(336, i) * 14, 1.2, -110 + i * 95, 7, 4.5 + i * 2, 8)));
+  // Catamarã de passeio (escala do cânion): casco branco, cabine, toldo vermelho, a esteira.
+  k.add(box(5.4, 1.6, 17), '#f4f2ea', tf(0, 0.9, 36)).add(box(4.6, 2, 11), '#f4f4ef', tf(0, 2.6, 35)).add(box(5, 0.4, 13), '#d8402a', tf(0, 3.8, 35));
+  k.add(box(5, 0.2, 14), '#e8f4f0', tf(0, 0.22, 19));
+  return k.model(H + 8, [0.78, 1.08]);
+}
+
+/** Catamarã do Xingó: dois cascos, dois conveses e o toldo, no remanso verde junto do paredão vermelho. */
 function catamara(): Model {
   const k = new Kit();
-  water(k, 0, 0, 26, 40, '#2f8f7c', 341, 14);
-  cliffWall(k, { x: -24, depth: 16, step: 4.6, n: 4, half: (y) => 44 - y * 0.9, chunk: 13, colors: XINGO_ROCK, seed: 342, recess: 2.5, cap: '#8a8a4a' });
+  const wx = -22;
+  pond(k, 0, 0, 30, 44, ['#3aa892', '#1f8a76', '#16705f'], 341, -2);
+  // O reflexo escuro da pedra no pé do paredão.
+  k.add(plan(blobPoly(12, 5, 38, 0.15, 343), 0.22), '#43473a', tf(wx + 7, 0.02, 0));
+  const wall = cliff({ len: 96, H: 24, strata: XINGO_ROCK, layers: 5, seed: 342, cols: 16, depth: 18, batter: 0.1, gully: 3, gullyLen: 10, bay: 4, ragged: 0.14, ledge: 0.9, talus: 3, talusColor: '#6e4632', top: '#8a8a58', ledgeTop: '#9a8e5c', ends: 0.2 }, tf(wx, 0, 0));
+  k.raw(wall.geo);
+  for (let i = 0; i < 9; i++) {
+    const z = -38 + i * 9.5 + (hash2(344, i) - 0.5) * 3;
+    crown(k, wx + wall.lipAt(z) - 2.5 - hash2(345, i) * 6, wall.topAt(z) + 0.8, z, 2.2 + hash2(346, i), 1.4, 2.2 + hash2(347, i), CAATINGA[i % 4], 3440 + i);
+  }
   const bx = 4;
   // Cascos (com a proa afilada) e o convés.
   for (const sx of [-1, 1]) {
@@ -477,18 +488,27 @@ function farolPiacabucu(): Model {
   return k.model(top);
 }
 
-/** Dunas de Piaçabuçu: dunas altas e claras na foz do São Francisco, lagoa entre elas e coqueiral no pé. */
+/**
+ * Dunas de Piaçabuçu (foz do São Francisco): o cordão alto e claro ao fundo com o barlavento de frente para a pista
+ * (as ondulações do vento em faixas paralelas à crista viva), duas barcanas de través na frente — o lado do vento
+ * claro, a face de avalanche lisa e mais escura —, a lagoa entre elas, a restinga, o coqueiral e o bugue.
+ */
 function dunasPiacabucu(): Model {
   const k = new Kit();
-  dune(k, -10, 0, 80, 32, 100, '#ecd8aa', '#f8ead0', 371);
-  dune(k, -50, -120, 60, 24, 70, '#e6d0a0', '#f4e4c4', 372, 0.4);
-  dune(k, -40, 120, 56, 22, 64, '#efdcb0', '#faeed6', 373, -0.3);
-  water(k, 50, -70, 18, 28, '#4aa0b0', 374);
-  for (let i = 0; i < 7; i++) palm(k, 70 + hash2(375, i) * 16, -130 + i * 42, 12 + hash2(376, i) * 6, 3760 + i);
-  for (let i = 0; i < 10; i++) k.raw(paint(jitter(ico(1, 0), 0.25, 377 + i), i % 2 ? '#9aa850' : '#7a9044', tf(58 + hash2(378, i) * 20, 0.4, -140 + i * 30, 3.2, 1.2, 3.2)));
-  // Bugue subindo a duna (escala).
-  k.add(box(2.4, 1, 3.6), '#ffcf3a', tf(30, 6.4, 20, 1, 1, 1, 0, 0, 0.35));
-  return k.model(34, [0.82, 1.06]);
+  const sand = '#f0dcaa'; const slip = '#cfa874';
+  // Cordão do fundo: o vento sopra da pista para trás (barlavento para +X, crista a −60 m).
+  k.raw(duneShape({ len: 360, H: 34, back: 112, seed: 371, sand, slip, cols: 28, rows: 10, sinuous: 16, ripple: 0.07 }, tf(-62, 0, 0, 1, 1, 1, 0, PI, 0)).geo);
+  // Barcanas de través: a crista desce para a pista, um lado claro e o outro na sombra.
+  k.raw(duneShape({ len: 130, H: 19, back: 62, seed: 372, sand: '#ecd6a2', slip, cols: 12, rows: 8, horns: 22, sinuous: 6 }, tf(14, 0, -100, 1, 1, 1, 0, 1.15, 0)).geo);
+  k.raw(duneShape({ len: 110, H: 15, back: 52, seed: 373, sand: '#f2e0b0', slip: '#d4ae7c', cols: 12, rows: 8, horns: 18, sinuous: 5 }, tf(8, 0, 104, 1, 1, 1, 0, -1.05, 0)).geo);
+  // Lagoa entre as dunas (rasa e clara na borda) com a orla de capim.
+  k.add(plan(blobPoly(14, 26, 36, 0.12, 374), 0.1), '#9ab060', tf(58, 0.02, -8));
+  pond(k, 58, -8, 22, 31, ['#8fd0d0', '#4aa8b8', '#2f8aa4'], 374);
+  for (let i = 0; i < 7; i++) palm(k, 78 + hash2(375, i) * 10, -140 + i * 46, 12 + hash2(376, i) * 6, 3760 + i);
+  for (let i = 0; i < 12; i++) k.raw(paint(jitter(ico(1, 0), 0.25, 377 + i), i % 2 ? '#9aa850' : '#7a9044', tf(64 + hash2(378, i) * 26, 0.4, -150 + i * 27, 3.2, 1.3, 3.2)));
+  // Bugue subindo o barlavento (escala).
+  k.add(box(2.4, 1.2, 3.6), '#ffcf3a', tf(26, 6.6, 34, 1, 1, 1, 0, PI / 2, -0.25));
+  return k.model(36, [0.86, 1.06]);
 }
 
 // ───────────────────────────── Pernambuco ─────────────────────────────
@@ -709,52 +729,88 @@ function cajueiroGigante(): Model {
 
 // ───────────────────────────── Ceará ─────────────────────────────
 
-/** Ponte dos Ingleses (Fortaleza): o píer comprido sobre estacas mar adentro, postes acesos e o mirante na ponta. */
+/**
+ * Ponte dos Ingleses (Fortaleza): o píer comprido sobre estacas mar adentro, postes acesos e o mirante de telhado
+ * verde na ponta. A pista de Fortaleza é de cidade (sem mar): o modelo traz o pedaço de litoral dele — o calçadão com
+ * coqueiros, a areia seca, a molhada, a espuma da beira, o raso verde-água, o mar mais fundo e escuro, as linhas de
+ * espuma das ondas quebradas, o espigão de pedras e o reflexo das luzes do píer na água.
+ */
 function ponteDosIngleses(): Model {
   const k = new Kit();
-  const x0 = 14; const x1 = -84; const deckY = 6; const W = 7;
-  // Mar e faixa de areia (o calçadão fica do lado da pista).
-  k.add(plan([[x0 + 8, -60], [x0 + 8, 60], [x1 - 30, 70], [x1 - 30, -70]], 0.2), '#2f7a9a', tf(0, 0.02, 0));
-  k.add(box(14, 0.5, 120), '#e2d0a4', tf(x0 + 8, 0.25, 0));
-  for (let i = 0; i < 3; i++) k.add(box(1.6, 0.25, 116 - i * 20), '#e8f2f2', tf(x0 + 0.5 - i * 5, 0.24, (hash2(461, i) - 0.5) * 10));
+  const x0 = 14; const x1 = -84; const deckY = 6; const W = 7; const len = 150;
+  // Litoral em faixas, de dentro (o calçadão, do lado da pista) para o mar.
+  waterBands(k, [-124, -48, -17, 0, 1.4, 6, 22, 30], ['#1d5578', '#26809c', '#3aa8aa', '#f2f8f8', '#b49e74', '#e6d4a8', '#b8ae9c'], len, 460, 0.5);
+  // Espuma da beira e das ondas quebradas (em três fileiras): a pista é de noite e a espuma clareia ao luar (luz
+  // fraca, como a água das cachoeiras), senão o mar some no escuro.
+  k.light(box(1.1, 0.06, len), '#5c727c', tf(0.7, 0.36, 0));
+  for (let r = 0; r < 3; r++) for (let i = 0; i < 4; i++) {
+    const L = 14 + hash2(463 + r, i) * 18;
+    k.light(box(0.9, 0.1, L), '#4c626c', tf(-7 - r * 12 + (hash2(464 + r, i) - 0.5) * 3, 0.34, -60 + i * 36 + (hash2(465 + r, i) - 0.5) * 14));
+  }
+  // Espigão de pedras escuras saindo da areia mar adentro, a espuma na ponta.
+  for (let i = 0; i < 12; i++) {
+    const x = 8 - i * 3.6; const z = 46 + (hash2(466, i) - 0.5) * 2;
+    k.raw(paint(jitter(dodeca(1), 0.25, 467 + i), i % 3 ? '#4a4842' : '#5c5850', tf(x, 0.5, z, 2.2 + hash2(468, i), 1.4 + hash2(469, i) * 0.8, 2.4)));
+  }
+  k.add(box(5, 0.12, 7), '#eef6f6', tf(-38, 0.32, 46));
   // Tabuleiro sobre estacas, guarda-corpo, postes.
   const L = x0 - x1;
   k.add(box(L, 0.8, W), '#c8bca4', tf((x0 + x1) / 2, deckY, 0));
   k.add(box(L, 0.5, W + 0.4), '#8a7a62', tf((x0 + x1) / 2, deckY - 0.6, 0));
   for (let x = x0 - 3; x > x1; x -= 7) for (const sz of [-1, 1]) k.add(box(0.7, deckY, 0.7), '#6a645a', tf(x, deckY / 2 - 0.6, sz * (W / 2 - 0.6)));
   for (const sz of [-1, 1]) k.add(box(L, 1.0, 0.25), '#e8e2d0', tf((x0 + x1) / 2, deckY + 0.9, sz * W / 2));
-  for (let x = x0 - 6; x > x1 + 4; x -= 12) for (const sz of [-1, 1]) lamp(k, x, sz * (W / 2 - 0.3), 4.5, '#ffe2a6', deckY + 0.4);
+  for (let x = x0 - 6; x > x1 + 4; x -= 12) for (const sz of [-1, 1]) {
+    lamp(k, x, sz * (W / 2 - 0.3), 4.5, '#ffe2a6', deckY + 0.4);
+    // O reflexo do poste na água: um risco de luz para o lado de quem olha da pista.
+    if (x < -2) k.light(box(10, 0.06, 0.8), '#a8803e', tf(x + 5.5, 0.34, sz * (W / 2 + 1.6)));
+  }
   // A ponta: plataforma mais larga com o quiosque de telhado verde.
   k.add(box(16, 0.8, 18), '#c8bca4', tf(x1 - 4, deckY, 0));
   for (let x = x1 - 10; x < x1 + 4; x += 6) for (const sz of [-1, 0, 1]) k.add(box(0.7, deckY, 0.7), '#6a645a', tf(x, deckY / 2 - 0.6, sz * 7.5));
   for (const dx of [-3, 3]) for (const dz of [-3, 3]) k.add(box(0.3, 3.2, 0.3), '#e8e2d0', tf(x1 - 4 + dx, deckY + 2, dz));
   k.add(hip(8, 2.4, 8), '#3a7a5a', tf(x1 - 4, deckY + 3.6, 0));
   k.light(box(1, 0.6, 1), '#ffe2a6', tf(x1 - 4, deckY + 3.3, 0));
-  // Coqueiros do calçadão.
-  for (let i = 0; i < 4; i++) palm(k, x0 + 10, -48 + i * 32, 11 + hash2(462, i) * 3, 4620 + i);
+  k.light(box(12, 0.06, 1.4), '#a8803e', tf(x1 + 8, 0.34, 10));
+  // Espuma em volta das estacas da ponta.
+  k.add(plan(blobPoly(10, 12, 14, 0.2, 470), 0.1), '#d8ecee', tf(x1 - 4, 0.26, 0));
+  // Calçadão: coqueiros e postes acesos.
+  for (let i = 0; i < 5; i++) palm(k, x0 + 12, -60 + i * 30, 11 + hash2(462, i) * 3, 4620 + i);
+  for (let i = 0; i < 4; i++) lamp(k, x0 + 15, -45 + i * 30, 5, '#ffe2a6');
   return k.model(18);
 }
 
-/** Falésias de Canoa Quebrada: paredão de arenito colorido ao longo da praia, a lua e a estrela entalhadas e jangadas. */
+/**
+ * Falésias de Canoa Quebrada: o paredão de areia colorida (vermelho, ocre, creme, laranja) em camadas, com os sulcos
+ * verticais da chuva, a borda quebrada com mato ralo, a rampa de areia no pé, a praia, a areia molhada, a espuma e
+ * o mar raso; a lua e a estrela entalhadas na face, jangadas e barracas.
+ */
 function falesiasCanoa(): Model {
   const k = new Kit();
-  const colors = ['#c8603a', '#e8a868', '#f4e4c8', '#d87a48', '#b84a30', '#eac08a'];
-  cliffWall(k, { x: -10, depth: 30, step: 4, n: 8, half: (y) => 200 - y * 0.8, chunk: 18, colors, seed: 471, recess: 5, cap: '#9a9a52' });
-  // Mato no alto da falésia.
-  for (let i = 0; i < 16; i++) k.raw(paint(jitter(ico(1, 0), 0.2, 472 + i), i % 2 ? '#8a9a4a' : '#9aa856', tf(-25 + hash2(473, i) * 14, 32.5, -180 + i * 24, 5, 1.4, 5)));
-  // Lua crescente e estrela entalhadas na face (sulco escuro).
+  const colors = ['#c8603a', '#e8a868', '#f4e4c8', '#d87a48', '#b84a30', '#eac08a', '#e0905a'];
+  const len = 380; const H = 32; const wx = -10; const talus = 6;
+  // Praia, areia molhada, espuma, mar raso e o mais fundo (de −X para +X: o mar fica do lado da pista).
+  waterBands(k, [-6, 26, 33, 35.5, 46, 60], ['#efdcb0', '#cdb084', '#f4fbff', '#4fc0b8', '#2a9ab0'], len, 470);
+  for (let i = 0; i < 5; i++) k.add(box(0.8, 0.12, 30 + hash2(478, i) * 40), '#eaf6fa', tf(41 + hash2(479, i) * 3, 0.26, -150 + i * 72));
+  const wall = cliff({ len, H, strata: colors, layers: 8, seed: 471, cols: 38, depth: 34, batter: 0.16, gully: 4.5, gullyLen: 12, bay: 10, ragged: 0.1, ledge: 0.7, talus, talusColor: '#e8cfa0', top: '#cdb98a', ends: 0.12 }, tf(wx, 0, 0));
+  k.raw(wall.geo);
+  // Mato ralo no alto.
+  for (let i = 0; i < 16; i++) {
+    const z = -170 + i * 22.5 + (hash2(473, i) - 0.5) * 8;
+    crown(k, wx + wall.lipAt(z) - 3 - hash2(472, i) * 14, wall.topAt(z) + 0.6, z, 4, 1.3, 4, i % 2 ? '#8a9a4a' : '#9aa856', 4720 + i);
+  }
+  // Lua crescente e estrela entalhadas na face (sulco escuro), inclinadas como a falésia.
+  const faceX = (y: number): number => wx + wall.footAt(0) + (wall.lipAt(0) - wall.footAt(0)) * ((y - talus) / (wall.topAt(0) - talus)) + 0.9;
+  const lean = Math.atan(0.16 + 4.5 * 0.65 / H);
   const moon: Array<[number, number]> = [];
-  for (let q = 0; q <= 8; q++) { const a = -PI * 0.7 + (q / 8) * PI * 1.4; moon.push([Math.cos(a + PI) * 9, Math.sin(a + PI) * 9]); }
-  for (let q = 8; q >= 0; q--) { const a = -PI * 0.55 + (q / 8) * PI * 1.1; moon.push([Math.cos(a + PI) * 7.2 - 3.3, Math.sin(a + PI) * 7.2]); }
-  k.add(extrude(moon.map(([u, v]): [number, number] => [-v, u]), 0.6).rotateY(PI / 2), '#6a2e1e', tf(-9.3, 16, 0));
-  k.raw(paint(jitter(box(2, 24, 40), 0.02, 479), '#e8b880', tf(-10, 18, -6)));
+  for (let q = 0; q <= 8; q++) { const a = -PI * 0.7 + (q / 8) * PI * 1.4; moon.push([Math.cos(a + PI) * 8.5, Math.sin(a + PI) * 8.5]); }
+  for (let q = 8; q >= 0; q--) { const a = -PI * 0.55 + (q / 8) * PI * 1.1; moon.push([Math.cos(a + PI) * 6.8 - 3.1, Math.sin(a + PI) * 6.8]); }
+  k.add(extrude(moon.map(([u, v]): [number, number] => [-v, u]), 3).rotateY(PI / 2), '#6a2e1e', tf(faceX(14) - 1.2, 14, 4, 1, 1, 1, 0, 0, lean));
   const star: Array<[number, number]> = [];
-  for (let q = 0; q < 10; q++) { const a = PI / 2 + (q / 10) * PI * 2; const r = q % 2 ? 1.8 : 4.5; star.push([Math.cos(a) * r, Math.sin(a) * r]); }
-  k.add(extrude(star.map(([u, v]): [number, number] => [u, v]), 0.6).rotateY(PI / 2), '#6a2e1e', tf(-9.3, 22, -14));
-  // Praia na frente, jangadas e barracas.
-  k.add(box(40, 0.4, 400), '#efdcb0', tf(16, 0.2, 0));
+  for (let q = 0; q < 10; q++) { const a = PI / 2 + (q / 10) * PI * 2; const r = q % 2 ? 1.8 : 4.4; star.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  k.add(extrude(star, 3).rotateY(PI / 2), '#6a2e1e', tf(faceX(22) - 1.2, 22, -11, 1, 1, 1, 0, 0, lean));
+  // Jangadas e barracas na praia.
   for (let i = 0; i < 3; i++) {
-    const z = -90 + i * 80; const x = 24;
+    const z = -90 + i * 80; const x = 22;
     k.add(box(2.4, 0.5, 7), '#b08a5a', tf(x, 0.6, z));
     k.add(sheet([x, 1, z + 1], [x, 9, z + 1.5], [x, 1.2, z - 4]), ['#f6f2e8', '#ffd23f', '#e85a5a'][i]);
     k.rod([x, 0.6, z + 1.2], [x, 9.2, z + 1.5], 0.08, '#6a4a2a', 4);
@@ -864,26 +920,39 @@ function morroDasMesas(): Model {
   return k.model(200, [0.8, 1.06]);
 }
 
-/** Cachoeira de São Romão: cortina larga de água (acesa no escuro) caindo do paredão, poço, névoa e mata ciliar. */
+/**
+ * Cachoeira de São Romão (Rio Farinha): o paredão de arenito marrom-avermelhado em camadas, com a ferradura recuada
+ * onde o rio chega por cima e cai numa cortina larga (acesa no escuro), o poço com espuma e névoa, pedras e a mata
+ * ciliar no alto e nas margens.
+ */
 function cachoeiraSaoRomao(): Model {
   const k = new Kit();
-  const rock = ['#8a6a52', '#7a5a44', '#9a7a5a', '#6a5040'];
-  const H = 30;
-  cliffWall(k, { x: -18, depth: 30, step: 3, n: 10, half: (y) => 110 - y * 0.6, hole: () => 34, chunk: 14, colors: rock, seed: 521, recess: 3, cap: '#4a7a3a' });
-  // Recuo atrás da queda e o rio de cima.
-  k.add(box(20, H, 70), '#5a4636', tf(-42, H / 2, 0));
-  k.add(box(60, 0.4, 66), '#6a9aa0', tf(-60, H + 0.2, 0));
-  // Cortina d'água em três faixas e a crista branca.
-  for (let i = 0; i < 3; i++) k.light(box(1.6, H + 0.4, 21.4), i === 1 ? '#e4f4ff' : '#cfe8f6', tf(-31 + (i % 2) * 0.6, H / 2, -22 + i * 22));
-  k.light(box(3, 1.2, 66), '#ffffff', tf(-31, H - 0.4, 0));
-  // Poço, espuma e névoa.
-  water(k, 0, 0, 34, 50, '#3f8a8a', 522, 14);
-  k.light(box(8, 1, 64), '#e8f6ff', tf(-25, 0.5, 0));
-  for (let i = 0; i < 6; i++) k.raw(paint(jitter(ico(1, 0), 0.2, 523 + i), '#f4f8fa', tf(-22 + hash2(524, i) * 6, 2 + hash2(525, i) * 3, -28 + i * 11, 6, 3, 6)));
-  // Mata ciliar no alto e nas margens.
-  for (let i = 0; i < 16; i++) { const sz = i % 2 ? 1 : -1; tree(k, -30 - hash2(526, i) * 30, sz * (40 + hash2(527, i) * 50), 9 + hash2(528, i) * 5, 5280 + i); }
-  for (let i = 0; i < 8; i++) k.add(jitter(dodeca(1), 0.2, 529 + i), '#6a5a4a', tf(10 + hash2(530, i) * 20, 0.6, -40 + i * 11, 3, 1.6, 3));
-  return k.model(H + 8, [0.78, 1.06]);
+  const rock = ['#8a5a3e', '#a06a48', '#7a4e38', '#b07a52', '#946044'];
+  const H = 30; const wx = -18; const half = 28;
+  const wall = cliff({ len: 230, H, strata: rock, layers: 6, seed: 521, cols: 30, depth: 50, batter: 0.06, gully: 3, gullyLen: 14, bay: 8, ragged: 0.08, ledge: 1.2, talus: 4, talusColor: '#5e5a3c', top: '#5a8a3a', ledgeTop: '#4f7a36', ends: 0.15, notch: { z: 0, half, h: H - 5, recess: 12 } }, tf(wx, 0, 0));
+  k.raw(wall.geo);
+  // O rio de cima chega pelo vão e a cortina cai da quina da ferradura, um pouco para fora no pé.
+  const lip0 = wx + wall.lipAt(0);
+  k.add(box(34, 0.4, 2 * half - 2), '#4f8f8a', tf(lip0 - 16, H - 4.8, 0));
+  const n = 9;
+  for (let i = 0; i < n; i++) {
+    const z0 = -half + (i * 2 * half) / n; const zc = z0 + half / n;
+    const xl = wx + wall.lipAt(zc) + 0.6; const top = wall.topAt(zc) + 0.3;
+    k.light(box(1.1, 1, (2 * half) / n + 0.4), ['#e4f4ff', '#cfe8f6', '#f4fbff'][i % 3], segMatrix([xl, top, zc], [xl + 3.2 + hash2(531, i), -0.2, zc]));
+  }
+  k.light(box(2.6, 1.0, 2 * half), '#ffffff', tf(lip0 + 0.8, H - 4.6, 0));
+  // Poço (claro na borda, escuro no meio), espuma no pé da queda e a névoa.
+  pond(k, lip0 + 26, 0, 30, 48, ['#5aa0a0', '#3f8a8a', '#2f7676'], 522, -3);
+  k.light(box(7, 0.8, 2 * half + 6), '#e8f6ff', tf(lip0 + 5.5, 0.4, 0));
+  for (let i = 0; i < 6; i++) k.raw(paint(jitter(ico(1, 0), 0.2, 523 + i), '#f4f8fa', tf(lip0 + 6 + hash2(524, i) * 6, 2 + hash2(525, i) * 3, -24 + i * 9.5, 5.5, 3, 5.5)));
+  // Mata ciliar no alto (dos dois lados do vão) e nas margens do poço.
+  for (let i = 0; i < 18; i++) {
+    const sz = i % 2 ? 1 : -1; const z = sz * (half + 8 + hash2(527, i) * 70);
+    tree(k, wx + wall.lipAt(z) - 5 - hash2(526, i) * 28, z, 9 + hash2(528, i) * 5, 5280 + i, undefined, wall.topAt(z) - 0.3);
+  }
+  for (let i = 0; i < 8; i++) { const sz = i % 2 ? 1 : -1; tree(k, lip0 + 12 + hash2(532, i) * 26, sz * (36 + hash2(533, i) * 14), 8 + hash2(534, i) * 4, 5340 + i); }
+  for (let i = 0; i < 8; i++) k.add(jitter(dodeca(1), 0.2, 529 + i), '#6a5a4a', tf(lip0 + 14 + hash2(530, i) * 22, 0.6, -36 + i * 10, 3, 1.6, 3));
+  return k.model(H + 10, [0.78, 1.06]);
 }
 
 // ───────────────────────────── Pará ─────────────────────────────
@@ -911,49 +980,71 @@ function praiaDeRio(): Model {
   return k.model(24, [0.8, 1.06]);
 }
 
-/** Búfalos do Marajó: a manada no campo alagado, o vaqueiro montado, o curral, a porteira e a mangueira. */
+/**
+ * Búfalos do Marajó: a manada (×1,7, para ler a 60 m) dentro do campo alagado claro — o céu refletido faz o escuro do
+ * búfalo saltar —, quase todos de lado para a pista (o comprido do bicho é o que lê), os da água afundados até o
+ * joelho, garças-vaqueiras brancas no lombo, o vaqueiro montado num búfalo na frente com a vara, o curral de três
+ * réguas, a porteira alta, o barracão de palha e a mangueira.
+ */
 function bufalo(): Model {
   const k = new Kit();
-  water(k, -6, 6, 22, 30, '#6a8a70', 551, 12);
-  const one = (x: number, z: number, yaw: number, s: number, rider: boolean, seed: number): void => {
-    const c = Math.cos(yaw); const sn = Math.sin(yaw);
-    const P = (lx: number, y: number, lz: number): THREE.Matrix4 => tf(x + lx * c + lz * sn, y, z - lx * sn + lz * c, 1, 1, 1, 0, yaw, 0);
-    const hide = hash2(seed, 1) > 0.3 ? '#3a3634' : '#5a4a40';
+  const S = 1.7;
+  // Campo: capim claro em volta, a lâmina d'água (clara, do céu) e touceiras de capim aquático.
+  k.add(plan(blobPoly(14, 30, 40, 0.12, 550), 0.08), '#9ab45a', tf(-2, 0.02, 0));
+  pond(k, -3, 2, 25, 34, ['#a4c4bc', '#8cb4ae'], 551);
+  for (let i = 0; i < 8; i++) k.raw(paint(jitter(ico(1, 0), 0.25, 556 + i), i % 2 ? '#7fa050' : '#94b45a', tf(-18 + hash2(557, i) * 32, 0.2, -27 + i * 7.5, 1.8 + hash2(558, i), 0.5, 1.8 + hash2(559, i))));
+  const one = (x: number, z: number, yaw: number, rider: boolean, seed: number, wade = 0): void => {
+    const s = S; const c = Math.cos(yaw); const sn = Math.sin(yaw);
+    const P = (lx: number, y: number, lz: number): THREE.Matrix4 => tf(x + lx * c + lz * sn, y - wade, z - lx * sn + lz * c, 1, 1, 1, 0, yaw, 0);
+    const at = (lx: number, y: number, lz: number): V3 => { const v = new THREE.Vector3().setFromMatrixPosition(P(lx, y, lz)); return [v.x, v.y, v.z]; };
+    const hide = hash2(seed, 1) > 0.3 ? '#2e2a28' : '#4a3c34';
     k.add(box(1.25 * s, 1.15 * s, 2.5 * s), hide, P(0, 1.35 * s, 0));
     k.add(box(1.35 * s, 0.6 * s, 1.0 * s), hide, P(0, 1.85 * s, 0.75 * s));
     for (const lx of [-0.4, 0.4]) for (const lz of [-0.95, 0.95]) k.add(box(0.28 * s, 0.9 * s, 0.28 * s), hide, P(lx * s, 0.45 * s, lz * s));
-    k.add(box(0.6 * s, 0.6 * s, 0.9 * s), hide, P(0, 1.4 * s, 1.55 * s, ));
+    k.add(box(0.6 * s, 0.6 * s, 0.9 * s), hide, P(0, 1.4 * s, 1.55 * s));
     // Chifres largos e curvados para trás.
     for (const side of [-1, 1]) {
-      const a = P(side * 0.25 * s, 1.75 * s, 1.5 * s); const b = P(side * 0.85 * s, 1.95 * s, 1.15 * s); const d = P(side * 0.75 * s, 2.15 * s, 0.75 * s);
-      const pa = new THREE.Vector3().setFromMatrixPosition(a); const pb = new THREE.Vector3().setFromMatrixPosition(b); const pd = new THREE.Vector3().setFromMatrixPosition(d);
-      k.beam([pa.x, pa.y, pa.z], [pb.x, pb.y, pb.z], 0.14 * s, '#c8bca8').beam([pb.x, pb.y, pb.z], [pd.x, pd.y, pd.z], 0.11 * s, '#c8bca8');
+      const a = at(side * 0.25 * s, 1.75 * s, 1.5 * s); const b = at(side * 0.85 * s, 1.95 * s, 1.15 * s); const d = at(side * 0.75 * s, 2.15 * s, 0.75 * s);
+      k.beam(a, b, 0.14 * s, '#d8ccb8').beam(b, d, 0.11 * s, '#d8ccb8');
     }
     if (rider) {
-      k.add(box(0.5, 0.8, 0.4), '#d8c8a0', P(0, 2.4 * s, 0.1));
-      k.add(box(0.36, 0.36, 0.36), '#8a5a3a', P(0, 3.0 * s, 0.15));
-      k.add(cyl(0.45, 0.45, 0.08, 8), '#c8a860', P(0, 3.22 * s, 0.15)).add(cyl(0.2, 0.22, 0.25, 6), '#c8a860', P(0, 3.35 * s, 0.15));
+      k.add(box(0.5 * s, 0.8 * s, 0.4 * s), '#e8dcc0', P(0, 2.45 * s, 0.1 * s));
+      k.add(box(0.36 * s, 0.36 * s, 0.36 * s), '#8a5a3a', P(0, 3.05 * s, 0.15 * s));
+      k.add(cyl(0.45 * s, 0.45 * s, 0.08 * s, 8), '#c8a860', P(0, 3.27 * s, 0.15 * s)).add(cyl(0.2 * s, 0.22 * s, 0.25 * s, 6), '#c8a860', P(0, 3.4 * s, 0.15 * s));
+      k.beam(at(0.35 * s, 1.2 * s, 0.6 * s), at(0.45 * s, 3.8 * s, 1.4 * s), 0.07 * s, '#7a5a3a');
+    } else if (hash2(seed, 5) > 0.5) {
+      // Garça-vaqueira no lombo.
+      k.add(new THREE.OctahedronGeometry(0.3 * s, 0), '#f6f6f2', P(0.1 * s, 2.1 * s, -0.4 * s).multiply(tf(0, 0, 0, 0.8, 0.9, 1.4)));
     }
   };
-  for (let i = 0; i < 16; i++) one(-14 + hash2(553, i) * 28, -30 + i * 3.8 + (hash2(554, i) - 0.5) * 3, hash2(555, i) * PI * 2, 1, false, 552 + i);
+  // Manada no alagado: de lado para a pista (yaw 0 ou π), alguns virados; os de dentro d'água afundados.
+  for (let i = 0; i < 11; i++) {
+    const side = hash2(555, i) < 0.75;
+    const yaw = (side ? (i % 2 ? 0 : PI) : hash2(565, i) * PI * 2) + (hash2(566, i) - 0.5) * 0.5;
+    one(-12 + hash2(553, i) * 22, -27 + i * 5 + (hash2(554, i) - 0.5) * 2.5, yaw, false, 552 + i, 0.3 * S);
+  }
+  // O vaqueiro montado, na frente, de lado para quem chega.
+  one(19, 8, PI + 0.25, true, 560);
   // Barracão de palha do retiro (onde o vaqueiro guarda a sela).
-  for (const dx of [-3, 3]) for (const dz of [-4, 0, 4]) k.add(box(0.35, 3.4, 0.35), '#6a4a2a', tf(-24 + dx, 1.7, 4 + dz));
-  k.add(gable(8, 3.4, 10.4, 0.6), '#c8a860', tf(-24, 3.4, 4));
-  one(18, 12, -PI / 2 + 0.3, 1, true, 560);
-  // Curral de madeira e porteira alta.
-  const cx = -22; const cz = -26;
-  for (let i = 0; i < 6; i++) for (const sz of [-1, 1]) k.add(box(0.25, 1.8, 0.25), '#7a5a3a', tf(cx - 6 + i * 2.4, 0.9, cz + sz * 6));
-  for (const sz of [-1, 1]) for (const y of [0.7, 1.4]) k.add(box(13, 0.15, 0.12), '#8a6a42', tf(cx, y, cz + sz * 6));
-  for (const sz of [-1, 1]) k.add(box(0.5, 6.6, 0.5), '#6a4a2a', tf(14, 3.3, -40 + sz * 4));
-  k.add(box(0.5, 0.6, 9.2), '#6a4a2a', tf(14, 6.5, -40)).add(box(0.2, 0.9, 5), '#e8e0c8', tf(14.3, 5.6, -40));
-  for (let i = 0; i < 4; i++) k.add(box(0.12, 0.12, 4), '#8a6a42', tf(14, 0.8 + i * 0.4, -38 + (i % 2 ? 0 : 0)));
+  for (const dx of [-3, 3]) for (const dz of [-4, 0, 4]) k.add(box(0.35, 3.4, 0.35), '#6a4a2a', tf(-27 + dx, 1.7, 8 + dz));
+  k.add(gable(8, 3.4, 10.4, 0.6), '#c8a860', tf(-27, 3.4, 8));
+  // Curral de três réguas e a porteira alta na frente.
+  const cx = -24; const cz = -30;
+  for (let i = 0; i < 6; i++) for (const sz of [-1, 1]) k.add(box(0.3, 2.4, 0.3), '#6a4a2a', tf(cx - 6 + i * 2.4, 1.2, cz + sz * 6));
+  for (const sz of [-1, 1]) for (const y of [0.7, 1.4, 2.1]) k.add(box(13, 0.18, 0.14), '#9a7a52', tf(cx, y, cz + sz * 6));
+  for (const sz of [-1, 1]) k.add(box(0.6, 7.2, 0.6), '#5a3e26', tf(16, 3.6, -40 + sz * 4.5));
+  k.add(box(0.6, 0.7, 10.4), '#5a3e26', tf(16, 7.1, -40)).add(box(0.25, 1.1, 5.6), '#e8e0c8', tf(16.4, 6.0, -40));
+  for (let i = 0; i < 4; i++) k.add(box(0.14, 0.16, 8.4), '#9a7a52', tf(16, 0.7 + i * 0.5, -40));
   // Mangueira grande na beira do campo.
-  k.rod([-20, -0.5, 26], [-20, 5, 26], 0.8, '#5a4636', 6);
-  crown(k, -20, 9, 26, 8, 5, 8, '#2f6a2a', 561, 1);
-  crown(k, -16, 7, 31, 5, 3.4, 5, '#3a7a32', 562);
+  k.rod([-20, -0.5, 28], [-20, 5, 28], 0.8, '#5a4636', 6);
+  crown(k, -20, 9, 28, 8, 5, 8, '#2f6a2a', 561, 1);
+  crown(k, -16, 7, 33, 5, 3.4, 5, '#3a7a32', 562);
   // Garças brancas no alagado.
-  for (let i = 0; i < 4; i++) { const x = -10 + i * 3; const z = 10 + (i % 2) * 4; k.add(box(0.05, 0.6, 0.05), '#2a2a2a', tf(x, 0.3, z)).add(new THREE.OctahedronGeometry(0.35, 0), '#f4f4f0', tf(x, 0.8, z, 0.8, 0.8, 1.4)); }
-  return k.model(13);
+  for (let i = 0; i < 5; i++) {
+    const x = 6 + i * 2.6; const z = -6 + (i % 2) * 5;
+    k.add(box(0.08, 1.0, 0.08), '#2a2a2a', tf(x, 0.5, z)).add(new THREE.OctahedronGeometry(0.55, 0), '#f6f6f2', tf(x, 1.25, z, 0.8, 0.85, 1.4));
+  }
+  return k.model(14);
 }
 
 /** Palafitas: casinhas de madeira coloridas sobre estacas no rio, passarelas, canoas e açaizeiros. */

@@ -251,48 +251,67 @@ function terceiraPonte(): ReturnType<Kit['model']> {
 
 // ───────────────────────────── Sul ─────────────────────────────
 
-/** Serra Verde Express: o trem sobre o viaduto de pedra em arcos (Serra do Mar, PR). */
+/**
+ * Arcada de pedra (parede extrudada em X, largura `w`): retângulo de `z0` a `z1` e de `y0` a `y1` com `n` vãos de
+ * arco pleno entre pilares de `pier` m; o vão vai de `y0` até o arranque `spring` e fecha num semicírculo.
+ */
+function arcade(z0: number, z1: number, y0: number, y1: number, n: number, pier: number, spring: number, w: number, color: string): Geo {
+  const shape = new THREE.Shape([new THREE.Vector2(z0, y0), new THREE.Vector2(z1, y0), new THREE.Vector2(z1, y1), new THREE.Vector2(z0, y1)]);
+  const bay = (z1 - z0) / n; const r = (bay - pier) / 2;
+  for (let i = 0; i < n; i++) {
+    const zc = z0 + (i + 0.5) * bay;
+    const hole = new THREE.Path();
+    hole.moveTo(zc - r, y0 + 0.02);
+    hole.lineTo(zc + r, y0 + 0.02);
+    hole.lineTo(zc + r, spring);
+    for (let q = 1; q < 6; q++) { const a = (q / 6) * Math.PI; hole.lineTo(zc + Math.cos(a) * r, spring + Math.sin(a) * r); }
+    hole.lineTo(zc - r, spring);
+    shape.holes.push(hole);
+  }
+  const g = new THREE.ExtrudeGeometry(shape, { depth: w, bevelEnabled: false, curveSegments: 1 });
+  // Giro de 90° em Y (sem espelhar: a normal continua para fora): o perfil fica no plano ZY (simétrico em z) e a
+  // extrusão vai para +X, centrada.
+  return paint(g, color, new THREE.Matrix4().makeRotationY(Math.PI / 2).setPosition(-w / 2, 0, 0));
+}
+
+/**
+ * Serra Verde Express (Serra do Mar, PR): o trem sobre o viaduto de pedra de dois andares de arcos atravessando a
+ * grota — o tabuleiro a 58 m, acima da mata da beira da pista —, as encostas íngremes de mata nas cabeceiras, o rio
+ * e a cascata lá embaixo, a locomotiva amarela e os carros verdes de janela creme.
+ */
 function tremSerraVerde(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const L = 160; const H = 34; const spans = 6; const pierW = 5;
-  const stone = '#8c7d6a';
-  const span = L / spans;
-  // Encostas verdes nas duas cabeceiras (o viaduto atravessa uma grota).
-  k.add(hill(30, 40, 40, 41, '#3a7a36', '#4a8a3c', 1, 0.12, 0.6, tf(0, 0, -L / 2 - 20)));
-  k.add(hill(30, 40, 40, 42, '#3a7a36', '#4a8a3c', 1, 0.12, 0.6, tf(0, 0, L / 2 + 20)));
-  for (let i = 0; i <= spans; i++) {
-    const z = -L / 2 + i * span;
-    k.add(paint(box(8, H + 24, pierW), stone, tf(0, (H - 24) / 2, z)));
+  const L = 210; const H = 58; const spans = 7; const W = 8; const tier = 31;
+  const stone = '#8c7d6a'; const dark = '#6e6152';
+  // Encostas da grota nas duas cabeceiras, mais altas que o tabuleiro, com a mata e a pedra aparecendo.
+  for (const s of [-1, 1]) {
+    k.add(hill(44, H + 24, 58, 41 + s, '#3f7a38', '#4a8a3c', 1, 0.14, 0.6, tf(-4, 0, s * (L / 2 + 36))));
+    for (let i = 0; i < 5; i++) k.add(paint(jitter(ico(1, 0), 0.2, 45 + i + s * 10), i % 2 ? '#2f6a30' : '#3a7a36', tf(14 + hash2(46, i + s) * 10, 8 + i * 9, s * (L / 2 + 6 + i * 6), 7, 6, 7)));
   }
-  // Arcos: o intradorso em semicírculo (vigas) e o tímpano cheio por cima.
-  for (let i = 0; i < spans; i++) {
-    const zc = -L / 2 + (i + 0.5) * span;
-    const r = (span - pierW) / 2;
-    const yc = H - 9;
-    let prev: V3 | null = null;
-    for (let a = 0; a <= 6; a++) {
-      const ang = Math.PI - (a / 6) * Math.PI;
-      const p: V3 = [0, yc + Math.sin(ang) * r * 0.9, zc + Math.cos(ang) * r];
-      if (prev) k.add(beam(prev, p, 1.6, '#6e6152', 8.2));
-      prev = p;
-    }
-  }
-  k.add(paint(box(8, 8, L + pierW), stone, tf(0, H - 4, 0)));
-  k.add(paint(box(9, 1, L + 4), '#6e6152', tf(0, H + 0.5, 0)));
-  k.add(paint(box(0.4, 1, L), '#5a5a5a', tf(4.2, H + 1.5, 0)), paint(box(0.4, 1, L), '#5a5a5a', tf(-4.2, H + 1.5, 0)));
-  // Trem: locomotiva amarela com faixa verde e quatro carros verdes de janela creme.
-  const yt = H + 1;
-  let z = -52;
+  // O rio no fundo da grota (atravessa por baixo do viaduto) e a cascata descendo a encosta.
+  k.add(paint(box(90, 0.3, 16), '#4f8a86', tf(-6, 0.15, 12)));
+  k.light(beam([-18, 46, L / 2 + 6], [-8, 1, L / 2 - 6], 3.2, '#eef7ff', 0.6));
+  // Viaduto: arcada de baixo (arcos grandes, base enterrada), cornija, arcada de cima (dois arcos por vão).
+  k.add(arcade(-L / 2, L / 2, -12, tier, spans, 7, 14, W + 2, stone));
+  k.add(paint(box(W + 3, 1.4, L + 2), dark, tf(0, tier + 0.4, 0)));
+  k.add(arcade(-L / 2, L / 2, tier + 1, H - 1.2, spans * 2, 4, H - 13, W, stone));
+  // Tabuleiro, parapeito e trilhos.
+  k.add(paint(box(W + 1.2, 1.6, L + 4), dark, tf(0, H, 0)));
+  for (const x of [-1, 1]) k.add(paint(box(0.5, 1.1, L + 4), stone, tf(x * (W / 2 + 0.35), H + 1.3, 0)));
+  k.add(paint(box(0.3, 0.3, L), '#4a4a4a', tf(0.9, H + 1, 0)), paint(box(0.3, 0.3, L), '#4a4a4a', tf(-0.9, H + 1, 0)));
+  // Trem: locomotiva amarela com faixa verde e cinco carros verdes de janela creme.
+  const yt = H + 1.1;
+  let z = -66;
   k.add(paint(box(3.2, 4.2, 16), '#e0a820', tf(0, yt + 2.5, z)), paint(box(3.3, 0.8, 16.1), '#2f6b46', tf(0, yt + 1.8, z)));
   k.add(paint(box(3, 1.4, 4), '#1e2a30', tf(0, yt + 4.2, z - 5.5)));
   z += 17.5;
-  for (let c = 0; c < 4; c++) {
+  for (let c = 0; c < 5; c++) {
     k.add(paint(box(3.1, 3.6, 17), '#2f6b46', tf(0, yt + 2.4, z + c * 18)));
     k.add(paint(box(3.2, 1.1, 16), '#efe4c4', tf(0, yt + 3, z + c * 18)));
     for (let w = 0; w < 5; w++) k.add(paint(box(3.25, 0.8, 1.6), '#2a3238', tf(0, yt + 3, z + c * 18 - 6 + w * 3)));
     k.add(paint(box(3.2, 0.5, 17.2), '#3a3a3a', tf(0, yt + 4.4, z + c * 18)));
   }
-  return k.model([-24, H + 6], 0.04, 41);
+  return k.model([-12, H + 8], 0.04, 41);
 }
 
 /** Estufa do Jardim Botânico de Curitiba: vidro e ferro branco, cúpula central e alas em abóbada, jardim francês. */
@@ -597,62 +616,109 @@ function grutaLagoAzul(): ReturnType<Kit['model']> {
   return k.model([0, H], 0.07, 91);
 }
 
-/** Ninho de tuiuiú: árvore alta e rala com o ninho de gravetos no topo e um casal de tuiuiús (×1,6). */
-function tuiuiuNinho(): ReturnType<Kit['model']> {
-  const k = new Kit();
-  const bark = '#6a5a48'; const H = 13;
-  k.add(paint(cyl(0.55, 0.8, H, 7), bark, tf(0, H / 2, 0)));
-  const forks: V3[] = [[2.6, H + 3.4, 0.8], [-2.2, H + 3.2, -1.4], [0.4, H + 3.8, 2.4]];
-  for (const f of forks) k.add(beam([0, H - 0.2, 0], f, 0.4, bark));
-  for (let b = 0; b < 5; b++) {
-    const a = hash2(111, b) * 6.28; const y = 6 + b * 1.4;
-    const tip: V3 = [Math.cos(a) * 4, y + 1.8, Math.sin(a) * 4];
-    k.add(beam([0, y, 0], tip, 0.2, bark), paint(jitter(ico(1, 0), 0.2, 112 + b), '#5a8a3a', tf(tip[0], tip[1] + 0.4, tip[2], 2.2, 1.3, 2.2)));
+/**
+ * Tuiuiú (jaburu) com proporção de verdade — 1,4 m de pé, 2,6 m de asa aberta — vezes `S`, de frente para `face`
+ * (rad, 0 = +X): corpo branco, pescoço preto com o papo vermelho, bico longo preto. `pose`: de pé, de asas abertas
+ * no ninho ou voando (corpo deitado, pescoço e pernas esticados, asas abertas).
+ */
+function jabiru(k: Kit, x: number, y: number, z: number, face: number, S: number, pose: 'stand' | 'wings' | 'fly'): void {
+  const c = Math.cos(face); const s = Math.sin(face);
+  const P = (a: number, h: number, b = 0): V3 => [x + (a * c - b * s) * S, y + h * S, z + (a * s + b * c) * S];
+  const M = (a: number, h: number, b: number, sx: number, sy: number, sz: number, tilt = 0): THREE.Matrix4 => tf(...P(a, h, b), sx * S, sy * S, sz * S, 0, -face, tilt);
+  const BLACK = '#16161a'; const WHITE = '#f8f8f4';
+  const fly = pose === 'fly';
+  // Corpo (comprido em +X) e as asas.
+  k.add(paint(ico(1, 0), WHITE, M(0, fly ? 0 : 0.95, 0, 0.42, 0.24, 0.22)));
+  if (pose !== 'stand') {
+    const up = fly ? 0.12 : 0.45;
+    for (const b of [-1, 1]) k.add(paint(box(0.5, 0.05, 1.25), WHITE, tf(...P(-0.05, (fly ? 0 : 1.05) + 0.3 * up, b * 0.68), S, S, S, -b * up, -face, 0)));
   }
-  // Ninho: prato largo de gravetos sobre a forquilha.
-  const ny = H + 3.4;
-  k.add(paint(jitter(cyl(2.9, 1.8, 1.4, 10), 0.12, 113), '#7a5a36', tf(0, ny, 0)));
-  k.add(paint(cyl(2.3, 2.3, 0.3, 10), '#5a4428', tf(0, ny + 0.62, 0)));
-  // Tuiuiús: corpo branco, pescoço preto com o colar vermelho, bico longo preto (olhando a pista, +X).
-  const bird = (x: number, z: number, face: number, S: number): void => {
-    const c = Math.cos(face); const s = Math.sin(face);
-    const P = (a: number, y: number, b = 0): V3 => [x + a * c - b * s, ny + 0.7 + y, z + a * s + b * c];
-    const body = P(0, 1.0 * S);
-    k.add(paint(ico(1, 0), '#f6f6f2', tf(body[0], body[1], body[2], 0.55 * S, 0.42 * S, 0.36 * S, 0, -face, 0)));
-    k.add(paint(cone(0.34 * S, 0.5 * S, 5), '#1e1e22', tf(...P(-0.55 * S, 0.95 * S), 1, 1, 1, 0, -face, Math.PI / 2)));
-    const neck0 = P(0.35 * S, 1.25 * S); const neck1 = P(0.42 * S, 2.1 * S);
-    k.add(beam(neck0, neck1, 0.2 * S, '#1e1e22'));
-    k.add(paint(cyl(0.16 * S, 0.2 * S, 0.22 * S, 6), '#d42828', tf(neck0[0], neck0[1] + 0.12 * S, neck0[2])));
-    k.add(paint(ico(0.18 * S, 0), '#1e1e22', tf(...neck1)));
-    k.add(beam(neck1, P(1.25 * S, 2.25 * S), 0.11 * S, '#16161a'));
-    for (const b of [-0.12, 0.12]) k.add(beam(P(0, 0.62 * S, b * S), P(0.02 * S, -0.1, b * S), 0.07 * S, '#16161a'));
-  };
-  bird(0.6, -0.8, 0, 1.6); bird(-0.7, 0.9, 0.9, 1.6);
-  return k.model([0, 20], 0.05, 111);
+  if (fly) {
+    // Pescoço e cabeça esticados para a frente, pernas para trás.
+    k.add(beam(P(0.35, 0.02), P(0.85, 0.06), 0.11 * S, BLACK));
+    k.add(paint(cyl(0.1, 0.12, 0.16, 6), '#d42828', M(0.38, 0.02, 0, 1, 1, 1, Math.PI / 2)));
+    k.add(paint(ico(0.11, 0), BLACK, M(0.9, 0.07, 0, 1, 1, 1)));
+    k.add(beam(P(0.95, 0.07), P(1.32, 0.02), 0.06 * S, BLACK));
+    for (const b of [-0.05, 0.05]) k.add(beam(P(-0.35, -0.02, b), P(-1.0, -0.06, b), 0.04 * S, BLACK));
+    return;
+  }
+  k.add(beam(P(0.28, 1.05), P(0.34, 1.5), 0.11 * S, BLACK));
+  k.add(paint(cyl(0.1, 0.13, 0.16, 6), '#d42828', M(0.29, 1.13, 0, 1, 1, 1)));
+  k.add(paint(ico(0.11, 0), BLACK, M(0.36, 1.56, 0, 1, 1, 1)));
+  k.add(beam(P(0.42, 1.56), P(0.8, 1.6), 0.06 * S, BLACK));
+  for (const b of [-0.07, 0.07]) k.add(beam(P(0, 0.78, b), P(0.02, 0, b), 0.04 * S, BLACK));
 }
 
-/** Portal da Transpantaneira: pórtico de troncos com a tábua, cerca de curral e a estradinha de terra que passa por ele. */
+/**
+ * Ninho de tuiuiú: a árvore alta e rala da beira da baía com o ninho largo de gravetos no topo — um tuiuiú de pé e
+ * outro de asas abertas nele, um terceiro chegando em voo —, a baía rasa embaixo com dois pescando. Os tuiuiús têm a
+ * proporção de verdade ×2,2 (para ler a 40–80 m), brancos contra a copa escura e o céu.
+ */
+function tuiuiuNinho(): ReturnType<Kit['model']> {
+  const k = new Kit();
+  const bark = '#5e5040'; const H = 16; const S = 2.2;
+  // Baía rasa ao lado da árvore (clara na borda, escura no meio) com a orla de capim, comprida ao longo da pista.
+  k.add(paint(cyl(1, 1, 0.16, 14), '#8aa850', tf(-1, 0.08, 7, 9.5, 1, 16)));
+  k.add(paint(cyl(1, 1, 0.2, 14), '#7aa6a0', tf(-1.3, 0.1, 7.5, 7.6, 1, 13.4)), paint(cyl(1, 1, 0.24, 14), '#4f7f80', tf(-2, 0.12, 8, 4.8, 1, 9)));
+  // Tronco grosso, forquilha no alto e galhos com copas ralas abaixo do ninho (o ninho fica no céu).
+  k.add(paint(cyl(0.7, 1.05, H, 7), bark, tf(0, H / 2, 0)));
+  const forks: V3[] = [[2.4, H + 2.6, 1.0], [-2.4, H + 2.4, -1.2], [0.4, H + 3.0, 2.4], [-0.4, H + 2.6, -2.6]];
+  for (const f of forks) k.add(beam([0, H - 0.4, 0], f, 0.5, bark));
+  for (let b = 0; b < 5; b++) {
+    const a = hash2(111, b) * 6.28; const y = 6 + b * 1.7;
+    const tip: V3 = [Math.cos(a) * 4.4, y + 2, Math.sin(a) * 5];
+    k.add(beam([0, y, 0], tip, 0.26, bark), paint(jitter(ico(1, 0), 0.2, 112 + b), b % 2 ? '#4a7a34' : '#5a8a3a', tf(tip[0], tip[1] + 0.5, tip[2], 2.6, 1.5, 2.6)));
+  }
+  // Ninho: prato largo de gravetos sobre a forquilha, a borda desfiada.
+  const ny = H + 2.8;
+  k.add(paint(jitter(cyl(3.6, 2.2, 1.6, 10), 0.12, 113), '#6e5232', tf(0, ny, 0)));
+  k.add(paint(cyl(2.9, 2.9, 0.3, 10), '#4e3a24', tf(0, ny + 0.72, 0)));
+  for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3; k.add(beam([Math.cos(a) * 2.6, ny + 0.2, Math.sin(a) * 2.6], [Math.cos(a) * 4.4, ny - 0.5, Math.sin(a) * 4.4], 0.18, '#7a5c38')); }
+  // Casal no ninho (olhando a pista) e o terceiro chegando.
+  jabiru(k, 0.6, ny + 0.8, -1.2, 0.2, S, 'stand');
+  jabiru(k, -0.6, ny + 0.8, 1.4, -0.4, S, 'wings');
+  jabiru(k, 3, H + 7.5, -8, 0.4, S, 'fly');
+  // Dois pescando na baía.
+  jabiru(k, 1.5, 0, 4, 0.9, S, 'stand');
+  jabiru(k, 0, 0, 13, -1.2, S, 'stand');
+  return k.model([0, H + 6], 0.05, 111);
+}
+
+/**
+ * Portal da Transpantaneira: o pórtico de troncos grossos (11 m) com a travessa dupla, a tábua clara do nome (faixa
+ * entalhada, sem letras) e o telhadinho, as lanternas, a cerca de curral de três réguas dos dois lados e a estrada de
+ * terra que passa por ele e segue pela primeira das pontes de madeira, sobre o corixo com aguapés.
+ */
 function portalTranspantaneira(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const log = '#7a5230'; const span = 13; const H = 8.5;
-  k.add(paint(box(40, 0.25, 7), '#a8865a', tf(-14, 0.12, 0))); // estradinha de terra
+  const log = '#7a5230'; const span = 16; const H = 11;
+  // Estrada de terra (clara) passando pelo portal até a ponte.
+  k.add(paint(box(66, 0.25, 7.5), '#c8a070', tf(-24, 0.12, 0)));
+  // Corixo com aguapés atravessando a estrada e a ponte de madeira sobre ele.
+  k.add(paint(cyl(1, 1, 0.22, 12), '#6a9a88', tf(-40, 0.1, 0, 8, 1, 24)), paint(cyl(1, 1, 0.26, 12), '#4f7f74', tf(-40, 0.12, 0, 5, 1, 18)));
+  for (let i = 0; i < 5; i++) k.add(paint(jitter(ico(1, 0), 0.2, 122 + i), '#5aa040', tf(-40 + (hash2(123, i) - 0.5) * 6, 0.35, (i < 3 ? -1 : 1) * (8 + hash2(124, i) * 10), 2.2, 0.3, 1.8)));
+  k.add(paint(box(18, 0.5, 6.4), '#9a7a52', tf(-40, 1.5, 0)));
+  for (const x of [-48, -43, -38, -33]) for (const s of [-1, 1]) k.add(paint(box(0.4, 3, 0.4), '#5a3e26', tf(x, 0.6, s * 3)));
+  for (const s of [-1, 1]) k.add(paint(box(18, 0.2, 0.2), '#6a4a2a', tf(-40, 2.6, s * 3.1)));
   for (const s of [-1, 1]) {
-    k.add(paint(cyl(0.65, 0.75, H + 0.8, 8), log, tf(0, (H + 0.8) / 2, s * span / 2)));
-    k.add(beam([0, 0.2, s * (span / 2 + 2.6)], [0, H * 0.62, s * span / 2], 0.32, log));
+    // Pilar de tronco com a mão-francesa.
+    k.add(paint(cyl(0.85, 0.95, H + 1, 8), log, tf(0, (H + 1) / 2, s * span / 2)));
+    k.add(beam([0, 0.2, s * (span / 2 + 3.2)], [0, H * 0.6, s * span / 2], 0.42, log));
+    k.add(beam([-3, 0.2, s * span / 2], [0, H * 0.55, s * span / 2], 0.42, log));
   }
-  k.add(paint(cyl(0.55, 0.55, span + 3.4, 8), log, tf(0, H + 0.2, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
-  k.add(paint(cyl(0.4, 0.4, span, 8), log, tf(0, H - 2.4, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
-  // Tábua do nome (escura, com a faixa entalhada clara) presa entre as duas travessas.
-  k.add(paint(box(0.35, 1.7, 9.6), '#4e3420', tf(0.3, H - 1.1, 0)), paint(box(0.4, 0.9, 8.4), '#c9a466', tf(0.35, H - 1.1, 0)));
-  for (const dz of [-3.3, -1.2, 1.2, 3.3]) k.add(paint(box(0.45, 0.5, 1.1), '#4e3420', tf(0.4, H - 1.1, dz)));
-  // Telhadinho de duas águas por cima.
-  k.add(paint(gable(2.6, 1.2, span + 4, 0.2), '#7a4a2a', tf(0, H + 0.6, 0)));
-  // Cerca de curral dos dois lados.
+  k.add(paint(cyl(0.7, 0.7, span + 4.4, 8), log, tf(0, H + 0.3, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
+  k.add(paint(cyl(0.5, 0.5, span, 8), log, tf(0, H - 3.2, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
+  // Tábua do nome: clara, com a faixa entalhada escura e os cravos.
+  k.add(paint(box(0.4, 2.3, 12), '#dcbc80', tf(0.35, H - 1.45, 0)), paint(box(0.45, 1.0, 10.4), '#5a3a22', tf(0.4, H - 1.45, 0)));
+  for (const dz of [-5.4, 5.4]) k.add(paint(box(0.5, 0.5, 0.5), '#3a2a1a', tf(0.45, H - 1.45, dz)));
+  k.add(paint(gable(3, 1.5, span + 5, 0.2), '#6a4428', tf(0, H + 0.9, 0)));
+  // Lanternas acesas nos pilares.
+  for (const s of [-1, 1]) k.light(paint(box(0.5, 0.7, 0.5), LAMP, tf(1.0, H - 4.6, s * (span / 2 - 0.2))));
+  // Cerca de curral de três réguas dos dois lados.
   for (const s of [-1, 1]) {
-    for (let i = 0; i < 5; i++) k.add(paint(box(0.25, 1.6, 0.25), log, tf(0, 0.8, s * (span / 2 + 2.5 + i * 3))));
-    for (const y of [0.6, 1.3]) k.add(paint(box(0.12, 0.2, 12.4), '#8a6240', tf(0.1, y, s * (span / 2 + 8.5))));
+    for (let i = 0; i < 6; i++) k.add(paint(box(0.3, 2, 0.3), log, tf(0, 1, s * (span / 2 + 3.2 + i * 3))));
+    for (const y of [0.55, 1.15, 1.75]) k.add(paint(box(0.14, 0.22, 15.4), '#9a7048', tf(0.12, y, s * (span / 2 + 10.7))));
   }
-  for (const s of [-1, 1]) k.light(paint(box(0.35, 0.5, 0.35), LAMP, tf(0.8, H - 3.2, s * (span / 2 - 0.2))));
   return k.model([0, H + 2], 0.06, 121);
 }
 

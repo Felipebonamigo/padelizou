@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { hash2 } from '../../noise';
 import { box, cone, cyl, gable, hip, ico, jitter, paint, sphere, tf, tintUp, tris, type Geo, type Model } from '../geom';
-import { beam, cable, facadeBox, hill, Kit, lathe } from './kit';
+import { beam, cable, cliff, dune, facadeBox, hill, Kit, lathe } from './kit';
 import type { LandmarkRegistry } from './types';
 
 type V3 = [number, number, number];
@@ -407,40 +407,44 @@ function pedraAzul(): Model {
  */
 function dunasItaunas(): Model {
   const k = new Kit();
-  const NX = 9; const NZ = 18; const X0 = -70; const X1 = 40; const Z = 130;
-  const crest = (z: number): number => 4 + 10 * Math.sin(z / 37 + 0.6);
-  const height = (z: number): number => 22 + 9 * Math.cos(z / 29) + 5 * Math.sin(z / 13 + 1);
-  const hAt = (x: number, z: number): number => {
-    const xc = crest(z); const H = height(z);
-    if (x <= xc) return H * Math.max(0, (x - X0) / (xc - X0)) ** 1.3;
-    return H * Math.max(0, 1 - (x - xc) / 26) ** 0.8;
-  };
-  const pts: V3[][] = [];
-  for (let i = 0; i <= NX; i++) {
-    pts.push([]);
-    for (let j = 0; j <= NZ; j++) {
-      const x = X0 + ((X1 - X0) * i) / NX; const z = -Z + (2 * Z * j) / NZ;
-      const edge = i === 0 || i === NX || j === 0 || j === NZ;
-      pts[i].push([x, edge ? -2 : hAt(x, z) + (hash2(i, j + 240) - 0.5) * 1.2, z]);
-    }
-  }
-  const sand: number[] = [];
-  for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) quad(sand, pts[i][j], pts[i][j + 1], pts[i + 1][j + 1], pts[i + 1][j]);
-  k.add(paint(tris(sand), '#ecdba8'));
-  // Restinga (moitas) no pé, do lado da pista.
-  for (let i = 0; i < 14; i++) k.add(blob(241 + i, i % 3 ? '#5a8a3a' : '#7a9a44', X1 - 4 - hash2(i, 242) * 8, 0.8, -Z + 8 + i * 18.5, 3 + hash2(i, 243) * 2, 1.6, 3.5));
-  // Torre da igreja velha saindo da areia (branca, com a cruz).
-  const tz = -40; const tx = -8; const ty = hAt(tx, tz) - 4;
-  k.add(paint(box(3.4, 7, 3.4), '#f2efe6', tf(tx, ty + 3.5, tz)), paint(hip(3.8, 3, 3.8), '#b5583a', tf(tx, ty + 7, tz)));
-  k.add(win(tx + 1.75, ty + 5, tz, 1, 1.8, '#2a2a2a'), paint(box(0.25, 2, 0.25), '#5a4a3a', tf(tx, ty + 11, tz)), paint(box(0.25, 0.25, 1.1), '#5a4a3a', tf(tx, ty + 11.5, tz)));
-  // Passarela de madeira subindo a duna, sobre estacas.
-  const p0: V3 = [X1 + 2, 1.2, 40]; const p1: V3 = [crest(70) + 6, hAt(crest(70) + 6, 70) + 1, 70];
+  const slip = '#d6b484';
+  // A duna grande avançando para a pista (face de avalanche lisa e mais escura, crista viva) e duas de través nos
+  // lados, que mostram o barlavento claro com as ondulações e a sombra da face de avalanche.
+  const big = dune({ len: 260, H: 30, back: 100, seed: 241, sand: '#f2e2b4', slip, cols: 26, rows: 8, sinuous: 12, horns: 12 }, tf(-34, 0, 0));
+  k.add(big.geo);
+  k.add(dune({ len: 150, H: 22, back: 70, seed: 242, sand: '#efdcac', slip: '#d0ac7a', cols: 14, rows: 8, horns: 20, sinuous: 6 }, tf(-26, 0, -108, 1, 1, 1, 0, 0.95, 0)).geo);
+  k.add(dune({ len: 120, H: 17, back: 56, seed: 243, sand: '#f4e6bc', slip, cols: 12, rows: 8, horns: 16, sinuous: 5 }, tf(-4, 0, 104, 1, 1, 1, 0, -1.0, 0)).geo);
+  // A igreja velha que a areia engoliu, no pé da face de avalanche: a torre (sineira aberta, cornijas, coruchéu e
+  // cruz) e o frontão da fachada saindo da areia, de frente para a pista.
+  const cz = -22; const toe = -34 + big.toeAt(cz);
+  const sandAt = (x: number): number => Math.max(0, (toe - x) / 1.6);
+  const WALL = '#f4f1e8'; const TRIM = '#c9a46a';
+  const tx = toe - 15; const tw = 5.6; const tTop = sandAt(tx - tw / 2) + 11;
+  k.add(paint(box(tw, tTop + 1, tw), WALL, tf(tx, (tTop - 1) / 2, cz)));
+  for (const y of [tTop - 5.2, tTop]) k.add(paint(box(tw + 0.7, 0.6, tw + 0.7), TRIM, tf(tx, y, cz)));
+  // Sineira: vãos escuros em arco nas três faces que a pista vê.
+  k.add(win(tx + tw / 2 + 0.05, tTop - 2.6, cz, 2.2, 3.4, '#1e2228'));
+  for (const s of [-1, 1]) k.add(paint(box(2.2, 3.4, 0.25), '#1e2228', tf(tx, tTop - 2.6, cz + s * (tw / 2 + 0.05))));
+  k.add(paint(hip(tw + 0.4, 4.6, tw + 0.4), TILE, tf(tx, tTop + 0.3, cz)));
+  k.add(paint(box(0.35, 2.6, 0.35), '#4a3e32', tf(tx, tTop + 6, cz)), paint(box(0.35, 0.35, 1.6), '#4a3e32', tf(tx, tTop + 6.6, cz)));
+  // Frontão da fachada ao lado da torre: o oitão com a janela do coro e as pilastras, enterrado até o meio.
+  const fx = toe - 11; const fz = cz + tw / 2 + 5.4; const fw = 10; const fy = sandAt(fx) + 4.5;
+  k.add(paint(box(1.4, fy + 1, fw), WALL, tf(fx, (fy - 1) / 2, fz)));
+  k.add(paint(gable(fw + 0.6, 3.6, 1.4), WALL, tf(fx, fy, fz, 1, 1, 1, 0, Math.PI / 2, 0)));
+  k.add(paint(box(1.6, 0.5, fw + 1), TRIM, tf(fx, fy, fz)));
+  for (const s of [-1, 1]) k.add(paint(box(1.6, fy, 0.8), TRIM, tf(fx + 0.1, fy / 2, fz + s * (fw / 2 - 0.3))));
+  k.add(win(fx + 0.75, fy - 1.6, fz, 1.6, 2.2, '#1e2228'));
+  // Restinga (moitas e capim) no pé, do lado da pista.
+  for (let i = 0; i < 16; i++) k.add(blob(244 + i, i % 3 ? '#5a8a3a' : '#7a9a44', toe + 8 + hash2(i, 245) * 22, 0.7, -124 + i * 16.5, 3 + hash2(i, 246) * 2.4, 1.5, 3.4));
+  // Passarela de madeira do pé até o alto, sobre estacas.
+  const pz = 58; const [cxp, cyp] = big.crestAt(pz);
+  const p0: V3 = [toe + 14, 1.2, pz - 6]; const p1: V3 = [-34 + cxp + 4, cyp - 1.5, pz];
   k.add(beam(p0, p1, 2.2, WOOD, 0.3));
-  for (let i = 0; i <= 5; i++) {
-    const t = i / 5; const x = p0[0] + (p1[0] - p0[0]) * t; const y = p0[1] + (p1[1] - p0[1]) * t; const z = p0[2] + (p1[2] - p0[2]) * t;
-    k.add(paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x + 1, y + 0.5, z)), paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x - 1, y + 0.5, z)));
+  for (let i = 0; i <= 6; i++) {
+    const t = i / 6; const x = p0[0] + (p1[0] - p0[0]) * t; const y = p0[1] + (p1[1] - p0[1]) * t; const z = p0[2] + (p1[2] - p0[2]) * t;
+    k.add(paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x, y + 0.5, z + 1)), paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x, y + 0.5, z - 1)));
   }
-  return k.model([-2, 32], 0.04, 241);
+  return k.model([-2, 32], 0.03, 241);
 }
 
 // ───────────────────────────── Sul ─────────────────────────────
@@ -723,29 +727,51 @@ function usinaGasometro(): Model {
 }
 
 /**
- * Cânion do Itaimbezinho (Aparados da Serra, skyline): dois paredões de basalto a pique com o campo de cima, a fenda
- * entre eles com a mata no fundo e as duas quedas finas despencando da borda.
+ * Cânion do Itaimbezinho (Aparados da Serra, skyline): a escarpa de basalto a pique dos dois lados da boca do
+ * cânion — derrames empilhados com a mata nas prateleiras, sulcos, a borda quebrada e o campo de cima com os capões
+ * de araucária —, a garganta estreita entrando no planalto (paredões de dentro, a cabeceira ao fundo, a mata
+ * escura no fundo), o Véu de Noiva e a cascata das Andorinhas despencando da borda e a mata atlântica no pé.
  */
 function canionItaimbezinho(): Model {
   const k = new Kit();
-  const H = 220;
+  // A boca abre em V para quem chega (240 m entre as escarpas) e a garganta afunila até ~60 m na cabeceira.
+  const H = 230; const gap = 240; const back = 520; const len = 470; const zf = 70; const zb = 30;
+  const basalt = ['#5c5650', '#6e6153', '#4e4a46', '#7a6656', '#625a52'];
+  const base = { strata: basalt, layers: 5, H, batter: 0.06, gully: 34, gullyLen: 70, ragged: 0.08, ledge: 8, talus: 46, talusColor: '#35583a', top: '#a4b46a', ledgeTop: '#4f7040' } as const;
+  // Escarpa da frente (os Aparados): um bloco de cada lado da boca, corte reto do lado da boca.
   for (const s of [-1, 1]) {
-    const g = rock(401 + s, '#5f5a52', tf(-130, (H - 40) / 2, s * 180, 260, H + 40, 270, 0, -s * 0.14, 0), [3, 6, 5], 0.06);
-    tintUp(g, '#8aa05a', 0.75, 1);
-    k.add(g);
-    // Estratos (derrames de basalto) na face.
-    for (let b = 0; b < 4; b++) k.add(paint(box(2, 6 + (b % 2) * 4, 250), b % 2 ? '#4a4640' : '#7a6a58', tf(-130, 40 + b * 44, s * 180, 1, 1, 1, 0, -s * 0.14, 0).multiply(tf(132, 0, 0))));
-    // Capões de araucária no campo.
-    for (let i = 0; i < 4; i++) k.add(blob(410 + i + s * 10, '#2f5a34', -40 - i * 40, H + 4, s * (120 + hash2(i, 411 + s) * 80), 16, 8, 16));
-    // Queda fina da borda, perto da fenda.
-    k.light(paint(box(0.8, H - 10, 7), WATER_FALL, tf(-130, H / 2, s * 180, 1, 1, 1, 0, -s * 0.14, 0).multiply(tf(134, 0, -s * 95))));
-    k.add(paint(jitter(ico(1, 1), 0.15, 415 + s), '#eef4f6', tf(24, 6, s * 105, 12, 8, 12)));
+    const c = cliff({ ...base, len, seed: 402 + s, cols: 15, depth: back, bay: 60, ends: s < 0 ? [0.3, 0] : [0, 0.3] }, tf(0, 0, s * (gap / 2 + len / 2)));
+    k.add(c.geo);
+    // Capões de araucária no campo de cima, perto da borda.
+    for (let i = 0; i < 5; i++) {
+      const z = s * (gap / 2 + 50 + i * 85 + hash2(411, i + s) * 30);
+      k.add(blob(410 + i + s * 10, i % 2 ? '#2f5a34' : '#3a6638', c.lipAt(z - s * (gap / 2 + len / 2)) - 30 - hash2(412, i) * 140, H + 5, z, 14 + hash2(413, i) * 8, 8, 14 + hash2(414, i) * 8));
+    }
   }
-  // O fundo da fenda: a garganta recuada, a mata e o rio.
-  k.add(rock(420, '#4a5a40', tf(-200, (H - 60) / 2, 0, 120, H - 20, 60), [1, 3, 1], 0.06));
-  k.add(hill(80, 50, 46, 421, '#2f5a30', '#3a6a38', 1, 0.15, 0.4, tf(-40, 0, 0)));
-  k.add(hill(300, 46, 600, 422, '#3a6a38', '#4a7a40', 1, 0.12, 0.4, tf(20, 0, 0)));
-  return k.model([0, H], 0.05, 401);
+  // Paredões de dentro da garganta (a face olha para o meio dela), da boca até a cabeceira.
+  const inner: Array<{ m: THREE.Matrix4; c: ReturnType<typeof cliff> }> = [];
+  for (const s of [-1, 1]) {
+    const flare = Math.atan((zf - zb) / back);
+    const m = tf(-back / 2, 0, s * (zf + zb) / 2, 1, 1, 1, 0, s * (Math.PI / 2 - flare), 0);
+    const c = cliff({ ...base, len: back / Math.cos(flare), seed: 405 + s, cols: 10, depth: 90, bay: 14, talus: 30, ends: s < 0 ? [0, 0.12] : [0.12, 0] }, m);
+    k.add(c.geo);
+    inner.push({ m, c });
+  }
+  // A cabeceira ao fundo da garganta e a mata escura lá embaixo.
+  k.add(cliff({ ...base, len: zb * 4, seed: 408, cols: 6, depth: 80, bay: 6, ends: 0 }, tf(-back * 0.92, 0, 0)).geo);
+  k.add(hill(back * 0.5, 34, zf + 10, 421, '#203f26', '#264a2c', 1, 0.15, 0.4, tf(-back * 0.45, 0, 0)));
+  // Véu de Noiva (paredão de dentro, à esquerda) e Andorinhas (à direita): fios brancos da borda ao fundo.
+  const fall = (j: number, zl: number, w: number): void => {
+    const { m, c } = inner[j];
+    const top = new THREE.Vector3(c.lipAt(zl) + 1.5, c.topAt(zl) - 1, zl).applyMatrix4(m);
+    const foot = new THREE.Vector3(c.footAt(zl) + 14, 40, zl).applyMatrix4(m);
+    k.light(beam([top.x, top.y, top.z], [foot.x, foot.y, foot.z], w, WATER_FALL, 2));
+    k.add(paint(jitter(ico(1, 0), 0.2, 415 + j), '#eef4f6', tf(foot.x, foot.y - 4, foot.z, 14, 9, 14)));
+  };
+  fall(0, -back * 0.22, 9); fall(1, back * 0.1, 6);
+  // Mata atlântica no pé da escarpa.
+  k.add(hill(300, 40, 640, 422, '#2f5a32', '#3a6a38', 1, 0.12, 0.4, tf(60, 0, 0)));
+  return k.model([0, H], 0.04, 401);
 }
 
 // ───────────────────────────── Centro-Oeste ─────────────────────────────
@@ -878,7 +904,7 @@ function igrejaPirenopolis(): Model {
 function cavalhada(): Model {
   const k = new Kit();
   const BLUE = '#2a56c8'; const RED = '#d02a2a'; const GOLD = '#e8c040';
-  k.add(paint(box(38, 0.2, 74), '#c8a874', tf(2, 0.1, 0)));
+  k.add(paint(box(40, 0.2, 80), '#dcbc8a', tf(2, 0.1, 0)));
   // Camarotes no fundo (−X): caixas de madeira sobre estacas, panos coloridos e telhado.
   const cloths = ['#d02a2a', '#2a56c8', '#f2c230', '#2a9a4a', '#f2f0e8', '#e86aa0'];
   for (let i = 0; i < 9; i++) {
@@ -890,12 +916,15 @@ function cavalhada(): Model {
   }
   // Castelos nas cabeceiras do campo (torre com ameias e bandeira).
   for (const [s, color] of [[-1, BLUE], [1, RED]] as Array<[number, string]>) {
-    const z = s * 33;
-    k.add(paint(box(6, 7, 6), color === BLUE ? '#e8eef8' : '#f4e8e0', tf(2, 3.5, z)));
-    for (const dx of [-2.4, 0, 2.4]) for (const dz of [-2.4, 2.4]) k.add(paint(box(1, 1.2, 1), color, tf(2 + dx, 7.6, z + dz)));
-    k.add(paint(box(0.3, 2.4, 3), color, tf(5.1, 4.5, z)), win(5.15, 1.6, z, 2, 3.2, '#3a2a1a'));
-    k.add(paint(cyl(0.12, 0.12, 6, 5), '#3a3a3a', tf(2, 10, z)), paint(box(0.1, 1.8, 2.8), color, tf(2, 12, z - s * 1.4)));
+    const z = s * 35;
+    k.add(paint(box(8, 9, 8), color === BLUE ? '#e8eef8' : '#f4e8e0', tf(2, 4.5, z)));
+    for (const dx of [-3.2, 0, 3.2]) for (const dz of [-3.2, 3.2]) k.add(paint(box(1.3, 1.5, 1.3), color, tf(2 + dx, 9.7, z + dz)));
+    k.add(paint(box(0.3, 3, 4), color, tf(6.1, 5.8, z)), win(6.15, 1.9, z, 2.4, 3.8, '#3a2a1a'));
+    k.add(paint(cyl(0.14, 0.14, 7, 5), '#3a3a3a', tf(2, 12.5, z)), paint(box(0.1, 2.4, 3.8), color, tf(2, 14.6, z - s * 1.9)));
   }
+  // Mastro do Divino no meio do campo: a bandeira vermelha com a pomba branca.
+  k.add(paint(cyl(0.16, 0.2, 15, 6), '#e8e4da', tf(-6, 7.5, 0)));
+  k.add(paint(box(0.12, 3.2, 4.8), '#c82828', tf(-6, 13.2, 2.5)), paint(new THREE.OctahedronGeometry(0.7, 0), '#f8f8f4', tf(-5.9, 13.2, 2.5, 0.4, 0.8, 1.4)));
   // Cavaleiros: cavalo com manta da cor do time, cavaleiro de capa e chapéu de pluma, lança para a frente.
   const knight = (x: number, z: number, dir: number, color: string, horse: string, S: number): void => {
     const P = (a: number, y: number, b = 0): V3 => [x + a * S, y * S, z + dir * b * S];
@@ -915,8 +944,9 @@ function cavalhada(): Model {
     L(P(0.35, 2.6, -1.2), P(0.35, 3.6, 3.2), 0.08, '#d8d0c0');
     k.add(paint(box(0.04, 0.4, 0.6), color, tf(...P(0.35, 3.5, 2.8), S, S, S)));
   };
-  knight(4, -12, 1, BLUE, '#f2f0ea', 1.6); knight(8, -20, 1, BLUE, '#7a5a3a', 1.6); knight(0, -24, 1, BLUE, '#f2f0ea', 1.6);
-  knight(4, 12, -1, RED, '#3a2a22', 1.6); knight(8, 20, -1, RED, '#f2f0ea', 1.6); knight(0, 24, -1, RED, '#7a5a3a', 1.6);
+  // Dois esquadrões de quatro em carga um contra o outro (×2,0: o cavaleiro com o cavalo passa de 7 m).
+  knight(4, -9, 1, BLUE, '#f2f0ea', 2); knight(11, -15, 1, BLUE, '#7a5a3a', 2); knight(-3, -17, 1, BLUE, '#f2f0ea', 2); knight(5, -25, 1, BLUE, '#3a2a22', 2);
+  knight(4, 9, -1, RED, '#3a2a22', 2); knight(11, 15, -1, RED, '#f2f0ea', 2); knight(-3, 17, -1, RED, '#7a5a3a', 2); knight(5, 25, -1, RED, '#f2f0ea', 2);
   // Mascarados: roupa colorida e a máscara de boi branca com chifres e flores.
   for (const [x, z, c] of [[16, -4, '#e86aa0'], [15, 5, '#2a9a4a']] as Array<[number, number, string]>) {
     k.add(paint(cone(0.8, 1.9, 6), c, tf(x, 0.95, z)), paint(box(0.5, 0.8, 0.5), c, tf(x, 2.2, z)));
@@ -987,65 +1017,89 @@ function parqueAquatico(): Model {
 }
 
 /**
- * Jacarés da Estrada Parque (Pantanal): a lagoa com aguapés, os jacarés tomando sol na margem (×1,8 para ler a
- * 50 m), uma capivara, e a árvore seca com as garças brancas e o biguá.
+ * Jacarés da Estrada Parque (Pantanal): a baía com os tapetes de aguapé, a prainha de lama clara na margem de cá onde
+ * o bando toma sol — os jacarés com a proporção de verdade (2,7 m) ×2,1, escuros contra a lama clara, de lado para a
+ * pista e quase todos de cabeça erguida e boca aberta (o amarelo da boca lê de longe) —, dois nadando com só o dorso
+ * de fora, a ponte de madeira da estrada atravessando o corixo, as capivaras e a árvore seca com as garças e o biguá.
  */
 function jacare(): Model {
   const k = new Kit();
-  k.add(paint(cyl(26, 27, 0.2, 14), '#b8a06a', tf(0, 0.1, 0, 1, 1, 1.5)));
-  k.add(paint(cyl(22, 22, 0.3, 14), '#4a6a58', tf(-3, 0.18, 0, 1, 1, 1.5)));
-  for (let i = 0; i < 7; i++) {
-    const x = -12 + hash2(i, 481) * 14; const z = -24 + i * 8;
-    k.add(paint(jitter(ico(1, 0), 0.2, 482 + i), '#4f8a3a', tf(x, 0.35, z, 2.4, 0.3, 2)));
-    if (i % 2) k.add(paint(box(0.4, 0.4, 0.4), '#c890d8', tf(x, 0.75, z)));
+  // Margem de lama clara, a baía (rasa e esverdeada na borda, funda no meio) e a prainha elevada de cá.
+  k.add(paint(cyl(26, 27, 0.2, 14), '#d2bc90', tf(0, 0.1, 0, 1, 1, 1.5)));
+  k.add(paint(cyl(21, 21, 0.3, 14), '#5f8a6a', tf(-5, 0.18, 0, 1, 1, 1.5)), paint(cyl(15, 15, 0.36, 14), '#47705a', tf(-7, 0.2, 0, 1, 1, 1.5)));
+  k.add(hill(9, 1.6, 32, 480, '#dcc69c', null, 1, 0.08, 0.4, tf(16, 0, 0)));
+  // Placa de "cuidado, jacarés" da Estrada Parque na frente: losango amarelo com o bicho em preto (sem letras).
+  k.add(paint(box(0.22, 3.4, 0.22), '#8a8a86', tf(25, 1.7, 30)));
+  k.add(paint(box(0.12, 2.6, 2.6), '#2a2a2a', tf(25.1, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0)), paint(box(0.14, 2.3, 2.3), '#f2c42a', tf(25.15, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0)));
+  k.add(paint(box(0.16, 0.3, 1.5), '#1a1a1a', tf(25.25, 3.85, 30)), paint(box(0.16, 0.16, 0.55), '#1a1a1a', tf(25.25, 3.82, 30.95)), paint(box(0.16, 0.2, 0.6), '#1a1a1a', tf(25.25, 3.78, 29.0, 1, 1, 1, 0.3, 0, 0)));
+  for (const dz of [-0.45, 0.45]) k.add(paint(box(0.16, 0.36, 0.12), '#1a1a1a', tf(25.25, 3.6, 30 + dz)));
+  for (let i = 0; i < 8; i++) {
+    const x = -16 + hash2(i, 481) * 16; const z = -26 + i * 7.5;
+    k.add(paint(jitter(ico(1, 0), 0.2, 482 + i), i % 2 ? '#5aa040' : '#4f9238', tf(x, 0.4, z, 3.2, 0.32, 2.6)));
+    if (i % 4 === 1) k.add(paint(box(0.6, 0.5, 0.6), '#c890d8', tf(x + 0.6, 0.8, z)));
   }
-  // Jacaré: corpo achatado, cauda em três gomos, cabeça com o focinho comprido, patas abertas, escamas no dorso.
-  const caiman = (x: number, z: number, yaw: number, S: number, open: boolean): void => {
-    const M = tf(x, 0, z, S, S, S, 0, yaw, 0);
+  // Jacaré de 2,7 m na escala `S`: corpo, ventre claro, cauda em três gomos com a crista, patas abertas, cabeça
+  // (erguida `lift` rad) com o focinho comprido e, aberta, a boca amarela por dentro; `y0` = chão dele (na água, só o
+  // dorso fica de fora).
+  const caiman = (x: number, z: number, yaw: number, S: number, open: boolean, lift = 0.25, y0 = 0.95): void => {
+    const M = tf(x, y0, z, S, S, S, 0, yaw, 0);
     const at = (m: THREE.Matrix4): THREE.Matrix4 => M.clone().multiply(m);
-    const back = '#3d4530'; const belly = '#8a8a5a';
-    k.add(paint(ico(1, 0), back, at(tf(0, 0.3, 0, 0.55, 0.26, 1.15))));
-    k.add(paint(box(0.9, 0.12, 1.8), belly, at(tf(0, 0.12, 0))));
-    const tail: V3[] = [[0, 0.3, -1.0], [0.15, 0.25, -1.9], [0.4, 0.2, -2.7], [0.75, 0.12, -3.4]];
-    for (let i = 0; i < 3; i++) k.add(beam(tail[i], tail[i + 1], 0.55 - i * 0.14, back, 0.35 - i * 0.08).applyMatrix4(M));
-    k.add(paint(box(0.62, 0.3, 0.6), back, at(tf(0, 0.32, 1.25))));
-    k.add(paint(box(0.4, 0.16, 1.0), back, at(tf(0, open ? 0.5 : 0.36, 1.95, 1, 1, 1, open ? -0.35 : 0, 0, 0))));
-    k.add(paint(box(0.38, 0.12, 0.95), belly, at(tf(0, 0.22, 1.9))));
-    if (open) k.add(paint(box(0.3, 0.05, 0.7), '#e8b8a0', at(tf(0, 0.3, 1.9))));
-    for (const s of [-1, 1]) k.add(paint(box(0.14, 0.14, 0.14), '#c8b040', at(tf(s * 0.2, 0.5, 1.15))));
-    for (const s of [-1, 1]) for (const dz of [0.55, -0.6]) k.add(beam([s * 0.4, 0.2, dz], [s * 0.85, 0.04, dz + 0.15], 0.18, back).applyMatrix4(M));
-    for (let i = 0; i < 5; i++) k.add(paint(box(0.08, 0.1, 0.25), '#2a3020', at(tf(0, 0.55, 0.8 - i * 0.45))));
+    const back = '#3a4430'; const flank = '#5a5e3e'; const belly = '#a89c6c';
+    k.add(paint(ico(1, 0), back, at(tf(0, 0.2, 0, 0.3, 0.19, 0.58))));
+    k.add(paint(box(0.5, 0.08, 0.95), belly, at(tf(0, 0.05, 0))));
+    const tail: V3[] = [[0, 0.2, -0.48], [0.06, 0.16, -0.95], [0.18, 0.11, -1.35], [0.34, 0.06, -1.7]];
+    for (let i = 0; i < 3; i++) k.add(beam(tail[i], tail[i + 1], 0.34 - i * 0.09, i ? flank : back, 0.24 - i * 0.055).applyMatrix4(M));
+    k.add(beam([0, 0.4, 0.3], [0, 0.3, -1.3], 0.07, '#2a3020', 0.07).applyMatrix4(M));
+    for (const dz of [0.3, -0.35]) k.add(beam([-0.42, 0.04, dz + 0.1], [0.42, 0.04, dz + 0.1], 0.12, flank).applyMatrix4(M));
+    // Cabeça: pescoço e crânio, mandíbula de baixo, focinho de cima (abre para cima).
+    const head = at(tf(0, 0.2, 0.55, 1, 1, 1, -lift, 0, 0));
+    k.add(paint(box(0.3, 0.16, 0.32), back, head.clone().multiply(tf(0, 0.02, 0.12))));
+    k.add(paint(box(0.2, 0.06, 0.48), belly, head.clone().multiply(tf(0, -0.04, 0.5))));
+    k.add(paint(box(0.2, 0.08, 0.48), back, head.clone().multiply(tf(0, open ? 0.12 : 0.04, 0.5, 1, 1, 1, open ? -0.45 : 0, 0, 0))));
+    if (open) k.add(paint(box(0.17, 0.03, 0.4), '#f0d48a', head.clone().multiply(tf(0, 0.0, 0.48))));
   };
-  caiman(19, 4, Math.PI / 2 + 0.3, 2.3, true);
-  caiman(21, -11, Math.PI / 2 - 0.5, 2.2, false);
-  caiman(14, -24, 2.4, 2.0, false);
-  caiman(9, 22, -2.6, 2.1, true);
-  caiman(-4, 2, 0.4, 2.0, false);
-  // Ponte de madeira da Estrada Parque atravessando o corixo (tabuleiro de pranchas, estacas e guarda-corpo).
-  const bx = -16;
-  k.add(paint(box(5.2, 0.4, 56), '#8a6a48', tf(bx, 1.6, 0)));
-  for (let i = 0; i < 15; i++) k.add(paint(box(5.4, 0.12, 0.3), '#6a4e34', tf(bx, 1.86, -27 + i * 3.9)));
-  for (let i = 0; i <= 7; i++) for (const s of [-1, 1]) {
-    k.add(paint(box(0.35, 2.6, 0.35), '#5a3e26', tf(bx + s * 2.4, 0.6, -28 + i * 8)));
-    k.add(paint(box(0.2, 1.2, 0.2), '#6a4e34', tf(bx + s * 2.5, 2.4, -28 + i * 8)));
+  const S = 2.1;
+  // O bando na prainha: de lado para a pista (yaw ±π/2 ± um pouco), cabeças para a água ou para os lados.
+  const bask: Array<[number, number, number, boolean]> = [
+    [17, -26, Math.PI / 2 + 2.6, true], [15, -18, -Math.PI / 2 - 0.5, false], [18, -9, Math.PI + 0.4, true], [14, -1, 0.3, true],
+    [18, 7, -0.25, false], [15, 15, Math.PI - 0.3, true], [18, 23, 0.4, true], [13, 29, Math.PI + 0.2, false],
+    [12, -22, 0.2, true], [20, -2, Math.PI - 0.6, true], [11, 10, Math.PI / 2 + 0.3, true],
+  ];
+  for (const [x, z, yaw, open] of bask) caiman(x, z, yaw, S, open);
+  // Dois nadando (só o dorso e os olhos de fora) e um na margem do fundo.
+  caiman(-2, -6, 2.2, S, false, 0, 0.05);
+  caiman(2, 12, -0.6, S, false, 0, 0.05);
+  caiman(-17, 20, 1.2, S, true, 0.25, 0.15);
+  // Ponte de madeira da Estrada Parque atravessando o corixo: tabuleiro, estacas e guarda-corpo.
+  const bx = -17;
+  k.add(paint(box(5.2, 0.45, 56), '#8a6a48', tf(bx, 2.2, 0)));
+  for (let i = 0; i <= 7; i++) for (const s of [-1, 1]) k.add(paint(box(0.4, 4, 0.4), '#5a3e26', tf(bx + s * 2.4, 1.3, -28 + i * 8)));
+  for (const s of [-1, 1]) k.add(paint(box(0.2, 0.22, 56), '#6a4e34', tf(bx + s * 2.5, 3.5, 0)), paint(box(0.18, 0.18, 56), '#6a4e34', tf(bx + s * 2.5, 2.9, 0)));
+  // Capivaras na margem.
+  for (const [x, z, a] of [[22, 33, 0.3], [24, 36, -0.4], [20, 37, 1.2]] as Array<[number, number, number]>) {
+    const m = tf(x, 0, z, 1.6, 1.6, 1.6, 0, a, 0);
+    k.add(paint(box(0.7, 0.6, 1.2), '#8a6a42', m.clone().multiply(tf(0, 0.6, 0))), paint(box(0.45, 0.45, 0.6), '#7a5a36', m.clone().multiply(tf(0, 0.75, 0.85))));
+    k.add(paint(box(0.6, 0.35, 1.0), '#6a4a2a', m.clone().multiply(tf(0, 0.18, 0))));
   }
-  for (const s of [-1, 1]) k.add(paint(box(0.18, 0.2, 56), '#6a4e34', tf(bx + s * 2.5, 2.95, 0)));
-  // Capivara na margem.
-  k.add(paint(box(0.7, 0.6, 1.2), '#8a6a42', tf(22, 0.6, 22)), paint(box(0.45, 0.45, 0.6), '#7a5a36', tf(22, 0.75, 22.85)));
-  for (const dx of [-0.25, 0.25]) for (const dz of [-0.4, 0.4]) k.add(paint(box(0.15, 0.35, 0.15), '#6a4a2a', tf(22 + dx, 0.18, 22 + dz)));
   // Árvore seca com garças e o biguá.
-  const bark = '#7a6a5a'; const tx = -2; const tz = -22; const H = 10;
+  const bark = '#7a6a5a'; const tx = 6; const tz = -34; const H = 11;
   k.add(paint(cyl(0.45, 0.7, H, 6), bark, tf(tx, H / 2, tz)));
   const branches: Array<[V3, V3]> = [[[tx, H - 0.5, tz], [tx + 3.2, H + 2.2, tz + 0.8]], [[tx, H - 0.3, tz], [tx - 2.6, H + 2.6, tz - 1.4]], [[tx, H, tz], [tx + 0.5, H + 3.4, tz + 2.2]], [[tx, H * 0.6, tz], [tx + 3.4, H * 0.6 + 1.6, tz - 1.8]]];
   for (const [a, b] of branches) k.add(beam(a, b, 0.25, bark));
   const egret = (p: V3, c: string): void => {
-    k.add(paint(ico(1, 0), c, tf(p[0], p[1] + 0.45, p[2], 0.32, 0.3, 0.55)));
-    k.add(beam([p[0], p[1] + 0.6, p[2] + 0.35], [p[0], p[1] + 1.25, p[2] + 0.45], 0.1, c));
-    k.add(beam([p[0], p[1] + 1.25, p[2] + 0.45], [p[0], p[1] + 1.2, p[2] + 0.95], 0.06, c === '#1e1e22' ? '#3a3a3a' : '#e0b030'));
+    k.add(paint(ico(1, 0), c, tf(p[0], p[1] + 0.55, p[2], 0.4, 0.38, 0.7)));
+    k.add(beam([p[0], p[1] + 0.75, p[2] + 0.45], [p[0], p[1] + 1.55, p[2] + 0.55], 0.13, c));
+    k.add(beam([p[0], p[1] + 1.55, p[2] + 0.55], [p[0], p[1] + 1.5, p[2] + 1.15], 0.08, c === '#1e1e22' ? '#3a3a3a' : '#e0b030'));
   };
   for (const [, b] of branches) egret(b, '#f6f6f2');
   egret([tx, H + 0.1, tz], '#1e1e22');
-  k.add(blob(489, '#5a8a3a', tx - 3, 0.6, tz + 3, 3, 1.2, 3), blob(490, '#6a9a44', 24, 0.5, -16, 2.6, 1, 2.6));
+  // Garças na lama da prainha.
+  for (const [x, z] of [[21, -13], [22, 3], [20, 19]] as Array<[number, number]>) {
+    k.add(paint(ico(1, 0), '#f6f6f2', tf(x, 2.2, z, 0.6, 0.55, 1.0)));
+    k.add(beam([x, 2.5, z + 0.6], [x, 3.7, z + 0.75], 0.18, '#f6f6f2'), beam([x, 3.7, z + 0.75], [x, 3.6, z + 1.6], 0.11, '#e0b030'));
+    for (const b of [-0.15, 0.15]) k.add(beam([x + b, 1.9, z], [x + b, 1.1, z], 0.08, '#2a2a2a'));
+  }
+  k.add(blob(489, '#5a8a3a', tx - 3, 0.6, tz + 3, 3, 1.2, 3), blob(490, '#6a9a44', 24, 0.5, -34, 2.6, 1, 2.6));
   return k.model([0, 10], 0.04, 481);
 }
 
