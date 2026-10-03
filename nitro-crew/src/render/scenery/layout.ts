@@ -14,6 +14,7 @@ import { dressingRecipe, farModelFor, LANDMARK_PREFIX, landmarkOf, modelBandRadi
 import { setClearings, type Clearing } from './clearings';
 import { groundOffset, isSeaSide, seaLevelOffset } from './ground';
 import type { LandmarkDef } from './landmarks/types';
+import { LANDMARK_SIGHT_MIN, SIGHT_TAN_H, sightRoad, sightSeconds, type SightRoad } from './sight';
 
 /** |x| máximo do carro na física (sim/physics.ts) em metros, mais a meia largura visual dele. */
 export const CAR_REACH_M = 3.2 * ROAD_HALF_WIDTH_M + 0.95;
@@ -83,15 +84,29 @@ const BINS = 90; // 180 m de cada lado
 
 class Occupancy {
   private readonly grid: Uint8Array;
+  /** Maior lateral (m) marcada. */
+  maxLat = 0;
   constructor(private readonly n: number) { this.grid = new Uint8Array(n * 2 * BINS); }
   private idx(seg: number, side: number, bin: number): number { return ((seg * 2) + (side > 0 ? 1 : 0)) * BINS + bin; }
-  /** Marca [lat0, lat1] (m, positivos) de `seg - span` a `seg + span`. */
-  mark(seg: number, side: number, lat0: number, lat1: number, span: number): void {
+  /** Marca [lat0, lat1] (m, positivos) de `seg - span` a `seg + span`, com o valor `v` (1..255; fica o maior). */
+  mark(seg: number, side: number, lat0: number, lat1: number, span: number, v = 1): void {
     const b0 = Math.max(0, Math.floor(lat0 / BIN_M)); const b1 = Math.min(BINS - 1, Math.floor(lat1 / BIN_M));
+    this.maxLat = Math.max(this.maxLat, Math.min(lat1, BINS * BIN_M));
     for (let d = -span; d <= span; d++) {
       const s = ((seg + d) % this.n + this.n) % this.n;
-      for (let b = b0; b <= b1; b++) this.grid[this.idx(s, side, b)] = 1;
+      for (let b = b0; b <= b1; b++) { const k = this.idx(s, side, b); if (this.grid[k] < v) this.grid[k] = v; }
     }
+  }
+  /** Valor da célula (0 = livre). */
+  at(seg: number, side: number, lat: number): number {
+    const b = Math.floor(lat / BIN_M);
+    return b < BINS ? this.grid[this.idx(seg, side, b)] : 0;
+  }
+  /** Algo marcado no segmento (qualquer lado)? */
+  any(seg: number): boolean {
+    const o = seg * 2 * BINS;
+    for (let b = 0; b < 2 * BINS; b++) if (this.grid[o + b]) return true;
+    return false;
   }
   free(seg: number, side: number, lat0: number, lat1: number, span: number): boolean {
     const b0 = Math.max(0, Math.floor(lat0 / BIN_M)); const b1 = Math.min(BINS - 1, Math.floor(lat1 / BIN_M));
@@ -111,7 +126,12 @@ function tintFor(seed: number, amount: number): [number, number, number] {
   return [k * (1 + warm * 0.5), k, k * (1 - warm * 0.6)];
 }
 
-function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
+/**
+ * `tall` marca, da pista até a borda de fora, o que esconderia um marco de perto (o corredor dele tem de ficar livre);
+ * `block` marca só a pegada dos sólidos largos entre eles (prédio, arquibancada, box, outdoor), com a altura (m): é o que
+ * tapa a linha de visada (sight.ts).
+ */
+function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy, block: Occupancy): void {
   const segs = track.segments;
   const def = track.def;
   for (let i = 0; i < segs.length; i++) {
@@ -163,6 +183,17 @@ function placeSprites(track: Track, table: ModelTable, out: Placement[][], occ: 
       occ.mark(i, side, Math.max(0, lat0), lat1, Math.ceil(alongHalf / SEGMENT_M));
       // O que tapa a vista de um marco (prédio, torre, arquibancada, box, outdoor): grade à parte, da pista para fora.
       if (sp.kind === 'building' || sp.kind === 'tower' || sp.kind === 'grandstand' || sp.kind === 'pit_wall' || sp.kind === 'billboard') tall.mark(i, side, 0, lat1, Math.ceil(alongHalf / SEGMENT_M));
+      // O que tapa a linha de visada (sight.ts): a pegada de verdade do modelo — fachada virada para a pista (+X do
+      // modelo), painel de frente para quem vem (X na lateral) — com a altura. Torre (mastro e caixa-d'água de treliça,
+      // farol de 6 m) é fina: tapa o marco só um instante, fica de fora.
+      if (sp.kind === 'building' || sp.kind === 'grandstand' || sp.kind === 'pit_wall' || sp.kind === 'billboard') {
+        const mb = modelBounds(vis.models[0].id);
+        const in0 = vis.mode === 'panel' ? lat + mb.minX * s : lat - mb.maxX * s;
+        const in1 = vis.mode === 'panel' ? lat + mb.maxX * s : lat - mb.minX * s;
+        const halfZ = Math.max(-mb.minZ, mb.maxZ) * s;
+        const top = mb.maxY * sy;
+        block.mark(i, side, Math.max(0, in0), in1, Math.ceil(halfZ / SEGMENT_M), Math.max(1, Math.min(255, Math.ceil(top))));
+      }
     }
   }
 }
@@ -203,6 +234,23 @@ const PLAZA_SLACK = 4;
 /** Trechos da linha central conferidos (o que está à vista enquanto o marco está na janela do RoadFrame). */
 const LANDMARK_VIEW = 300;
 
+/**
+ * Dois lugares válidos que ficam na tela quase o mesmo tempo (s): fica o primeiro da busca (o mais perto do alvo, que é
+ * o mais perto da largada no primeiro de cada marco).
+ */
+const SIGHT_TIE = 0.25;
+/**
+ * Lugar que fica na tela o dobro da meta já basta: a busca para ali (procurar mais só afasta o marco do alvo — e da
+ * largada — e custa tempo de montagem).
+ */
+const SIGHT_PLENTY = 2;
+
+/** Lugar candidato de um marco (o melhor da busca até aqui) e quanto tempo ele fica na tela (`seen`, sight.ts). */
+interface LandmarkSpot {
+  i: number; k: number; side: number; L: number; latA: number; latB: number; span: number; yaw: number; y: number;
+  cx: number; cz: number; ct: number; st: number; corridor: boolean; plaza: boolean; seen: number;
+}
+
 /** Pegada de um marco já posto: centro, raio do círculo que o contém e a caixa no referencial dele (ct/st do giro). */
 interface LandmarkFoot { k: number; cx: number; cz: number; r: number; ct: number; st: number; b: { minX: number; maxX: number; minZ: number; maxZ: number } }
 
@@ -213,7 +261,7 @@ function distToFoot(f: Pick<LandmarkFoot, 'cx' | 'cz' | 'ct' | 'st' | 'b'>, x: n
   return Math.hypot(Math.max(f.b.minX - lx, 0, lx - f.b.maxX), Math.max(f.b.minZ - lz, 0, lz - f.b.maxZ));
 }
 
-function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy): void {
+function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy, block: Occupancy): void {
   const segs = track.segments; const n = segs.length;
   const entries: Array<{ id: string; def: LandmarkDef }> = [];
   for (const id of ids) {
@@ -223,15 +271,13 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
   if (entries.length === 0) { setClearings(track, []); return; }
   const biome = track.def.scenery;
   const seed = hashString(track.def.id) & 0xffff;
-  // Linha central desenrolada em três voltas: o marco do segmento i é medido na volta do meio (k = i + n).
-  const px = new Float64Array(3 * n + 1); const pz = new Float64Array(3 * n + 1); const hd = new Float64Array(3 * n + 1);
-  for (let k = 0; k < 3 * n; k++) {
-    const d = segs[k % n].curve * HEADING_PER_CURVE;
-    const a = hd[k] + d / 2;
-    px[k + 1] = px[k] + SEGMENT_M * Math.sin(a); pz[k + 1] = pz[k] - SEGMENT_M * Math.cos(a); hd[k + 1] = hd[k] + d;
-  }
+  // Linha central desenrolada em três voltas (o marco do segmento i é medido na volta do meio, k = i + n) e a conta de
+  // enquadramento (sight.ts): quanto tempo cada lugar candidato fica na tela de quem chega.
+  const road = sightRoadOf(track, block);
+  const { px, pz, hd } = road;
   const placed: LandmarkFoot[] = [];
   const clearings: Clearing[] = [];
+  const views: Array<{ i: number; side: number; latA: number; haze: boolean }> = [];
   const plazas = cityPlazas(track);
   // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
   const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean; window: number }> = [];
@@ -266,18 +312,25 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const corners: Array<[number, number]> = [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]];
     const samples: Array<[number, number]> = [[0, 0], ...corners, [b.minX, 0], [b.maxX, 0]];
     const radius = Math.hypot(Math.max(-b.minX, b.maxX), Math.max(-b.minZ, b.maxZ));
-    let done = false;
+    const goal = LANDMARK_SIGHT_MIN[place];
+    let best: LandmarkSpot | null = null;
+    const measured = new Map<number, number>();
     // Três passadas: a primeira exige chão quase plano (longe: só na metade de dentro da faixa) e (perto) a vista livre
     // de quem chega; a segunda aceita declive e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
-    for (let mode = plaza ? 0 : 1; mode < 2 && !done; mode++)
-    for (let attempt = 0; attempt < (job.first && mode === 1 ? 2 : 1) && !done; attempt++)
-    for (let pass = 0; pass < 3 && !done; pass++) {
+    // Cada passada mede TODOS os lugares válidos dela (o primeiro lateral válido de cada segmento × lado, como antes) e
+    // fica com o que passa mais tempo na tela (sight.ts); quase empate (SIGHT_TIE) fica com o mais perto do alvo. Se o
+    // melhor da passada não chega à meta (LANDMARK_SIGHT_MIN), a seguinte também é medida — só a segunda, e na faixa da
+    // primeira: o enquadramento troca chão plano e corredor por vista, nunca distância. A terceira só sem lugar nenhum.
+    for (let mode = plaza ? 0 : 1; mode < 2 && !best; mode++)
+    for (let attempt = 0; attempt < (job.first && mode === 1 ? 2 : 1) && !best; attempt++)
+    for (let pass = 0; pass < 3; pass++) {
+      if (best && (pass === 2 || best.seen >= goal)) break;
       // Longe: a passada de chão plano fica na metade de dentro da faixa — senão a pegada grande (duna, cânion de
       // 300 m) só achava chão plano a 285–330 m e sumia na névoa; perto com declive (o lado de cima enterra) lê melhor.
-      const top = pass === 2 ? lat1 * 2 : pass === 0 && place === 'far' ? (lat0 + lat1) / 2 : lat1;
+      const top = pass === 2 ? lat1 * 2 : place === 'far' && (pass === 0 || best) ? (lat0 + lat1) / 2 : lat1;
       const sides = mode === 0 && plaza ? [plaza.side] : anySides;
       const target = mode === 0 && plaza ? plaza.at : job.target;
-      for (let o = 0; o <= (mode === 0 ? 2 * PLAZA_SLACK : 2 * reach) && !done; o += 4) {
+      for (let o = 0; o <= (mode === 0 ? 2 * PLAZA_SLACK : 2 * reach) && !(best && best.seen >= SIGHT_PLENTY * goal); o += 4) {
         // 0, +4, −4, +8, −8…; o primeiro de cada marco não volta para antes da largada.
         const off = o === 0 ? 0 : (o % 8 === 4 ? 1 : -1) * Math.ceil(o / 8) * 4;
         if (mode === 1 && job.first && off < -20) continue;
@@ -285,7 +338,6 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
         const i = (((target + off) % n) + n) % n;
         if (segs[i].pit) continue;
         for (const side of sides) {
-          if (done) break;
           if (height > 8 && place !== 'skyline' && innerCurve(track, i, side)) continue;
           const sea = def.side === 'sea' && isSeaSide(biome, side);
           // Giro relativo ao rumo da pista: +X do modelo para a pista, e `turn` para quem vem chegando (+Z).
@@ -297,7 +349,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             inMin = Math.min(inMin, lo); inMax = Math.max(inMax, lo); alMax = Math.max(alMax, Math.abs(s * lx - c * lz));
           }
           const span = Math.ceil(alMax / SEGMENT_M);
-          for (let v = lat0; v <= top && !done; v += latStep * (pass === 2 ? 2 : 1)) {
+          for (let v = lat0; v <= top; v += latStep * (pass === 2 ? 2 : 1)) {
             const L = v - inMin;
             const latA = L + inMin; const latB = L + inMax;
             if (latA < LANDMARK_CLEAR_M) continue;
@@ -343,22 +395,47 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
               if (pass === 0 && hi - lo > Math.max(3, height * 0.12)) continue;
               y = lo;
             }
-            const p = base(table.of(modelId));
-            p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
-            out[i].push(p);
-            // Praça: arrumada antes de marcar a ocupação do marco (a arrumação fica do lado de cá da borda de dentro).
-            if (mode === 0) dressPlaza(track, table, out, occ, i, side, latA, span, seed);
-            occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
-            // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
-            // bosque de 26–142 m o esconde até o carro estar do lado dele.
-            if (place === 'near') for (let d = span + 1; d <= span + 40; d += 2) occ.mark(((i - d) % n + n) % n, side, FENCE_M + 2.5, latA, 1);
-            placed.push({ k, cx, cz, r: radius, ct, st, b });
-            // Quadras de fundo da cidade (terreno) fora da pegada e do caminho de quem chega (~200 m antes).
-            clearings.push({ seg: i, side, lat: latB + 15, back: span + 50, ahead: span + 4 });
-            done = true;
+            // Lugar válido: quanto tempo fica na tela de quem chega.
+            // O primeiro de cada marco conta a partir da largada (a volta 1); os outros, a aproximação inteira. O mesmo lugar
+            // achado de novo na passada seguinte não é medido de novo.
+            const key = (i * 2 + (side > 0 ? 1 : 0)) * 4096 + Math.round(L * 4);
+            let seen = measured.get(key);
+            if (seen === undefined) {
+              seen = sightSeconds(road, k, 0.5, side * L, y, yaw, b, place === 'skyline', job.first ? k - ((i - track.startIndex + n) % n) : -Infinity);
+              measured.set(key, seen);
+            }
+            if (!best || seen > best.seen + SIGHT_TIE) best = { i, k, side, L, latA, latB, span, yaw, y, cx, cz, ct, st, corridor, plaza: mode === 0, seen };
+            break;
           }
         }
       }
+    }
+    if (!best) continue;
+    const { i, k, side, L, latA, latB, span, yaw, y, cx, cz, ct, st, corridor } = best;
+    const p = base(table.of(modelId));
+    p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
+    out[i].push(p);
+    // Praça: arrumada antes de marcar a ocupação do marco (a arrumação fica do lado de cá da borda de dentro).
+    if (best.plaza) dressPlaza(track, table, out, occ, i, side, latA, span, seed);
+    occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
+    // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
+    // bosque de 26–142 m o esconde até o carro estar do lado dele.
+    if (place === 'near') for (let d = span + 1; d <= span + 40; d += 2) occ.mark(((i - d) % n + n) % n, side, FENCE_M + 2.5, latA, 1);
+    if (place !== 'near') views.push({ i, side, latA, haze: place === 'skyline' });
+    placed.push({ k, cx, cz, r: radius, ct, st, b });
+    // Quadras de fundo da cidade (terreno) fora da pegada e do caminho de quem chega (~200 m antes).
+    clearings.push({ seg: i, side, lat: latB + 15, back: span + 50, ahead: span + 4 });
+  }
+  // Longe e horizonte: a vista de quem chega também sem mata (bosque de 26–142 m, pedras e mesas de longe: a duna de
+  // Itaúnas, baixa, sumia atrás dos coqueiros) — só a cunha que as linhas de visada até a borda de dentro varrem, com o
+  // carro de `dFar` segmentos antes (névoa, janela do runtime) até `dNear`, onde o marco sai do quadro. Marcada depois
+  // de todos os marcos: tira a decoração, não o lugar de outro marco (a cunha do Camboriú empurrava a roda-gigante).
+  for (const { i, side, latA, haze } of views) {
+    const dNear = latA / (SEGMENT_M * SIGHT_TAN_H);
+    const dFar = Math.min(road.ahead, (haze ? road.hazeM : road.fogM) / SEGMENT_M);
+    for (let u = 1; u <= dFar; u++) {
+      const lo = Math.max(FENCE_M + 2.5, latA * (1 - u / dNear)); const hi = Math.min(latA, latA * (1 - u / dFar));
+      if (hi > lo) occ.mark(((i - u) % n + n) % n, side, lo, hi, 0);
     }
   }
   setClearings(track, clearings);
@@ -595,9 +672,62 @@ export function sceneryLayout(track: Track, landmarks: readonly string[] = place
   const bySeg: Placement[][] = track.segments.map(() => []);
   const occ = new Occupancy(track.segments.length);
   const tall = new Occupancy(track.segments.length);
-  placeSprites(track, table, bySeg, occ, tall);
-  placeLandmarks(track, landmarks, table, bySeg, occ, tall);
+  const block = new Occupancy(track.segments.length);
+  placeSprites(track, table, bySeg, occ, tall, block);
+  placeLandmarks(track, landmarks, table, bySeg, occ, tall, block);
   dress(track, dressingRecipe(track.def), table, bySeg, occ);
   for (const list of bySeg) for (const p of list) { p.yawC = Math.cos(p.yaw); p.yawS = Math.sin(p.yaw); }
   return { models: table.ids, bySeg };
+}
+
+/** A pista pronta para a conta de enquadramento (sight.ts), com a grade do que tapa a vista (prédios, arquibancadas, box, outdoors). */
+function sightRoadOf(track: Track, block: Occupancy): SightRoad {
+  return sightRoad(track, (seg, side, lat) => block.at(seg, side, lat), block.maxLat, (seg) => block.any(seg));
+}
+
+/** Um marco do layout e quanto tempo ele fica na tela (`landmarkSight`). */
+export interface LandmarkSight {
+  id: string; seg: number; x: number; place: LandmarkPlace;
+  /** O primeiro depois da largada (medido da largada: a volta 1) e se está na praça da cidade dele (plazas.ts). */
+  first: boolean; plaza: boolean;
+  seen: number;
+}
+
+/**
+ * Quanto tempo (s) cada marco turístico do layout fica à vista da câmera de perseguição (sight.ts) — o número que
+ * `placeLandmarks` maximiza, medido de novo a partir das posições prontas (os testes conferem com ele): na aproximação
+ * inteira, e o primeiro de cada marco a partir da largada (ele existe para ser visto logo, já na primeira volta).
+ */
+export function landmarkSight(track: Track, layout: Layout): LandmarkSight[] {
+  const n = track.segments.length;
+  const block = new Occupancy(n);
+  placeSprites(track, new ModelTable(), track.segments.map(() => []), new Occupancy(n), new Occupancy(n), block);
+  const road = sightRoadOf(track, block);
+  const plazas = cityPlazas(track);
+  const out: LandmarkSight[] = [];
+  const firstSeg = new Map<string, number>();
+  layout.bySeg.forEach((list, seg) => {
+    for (const p of list) {
+      const modelId = layout.models[p.model];
+      if (!landmarkOf(modelId)) continue;
+      const id = modelId.slice(LANDMARK_PREFIX.length);
+      const ahead = (seg - track.startIndex + n) % n;
+      if (ahead < (firstSeg.get(id) ?? Infinity)) firstSeg.set(id, ahead);
+    }
+  });
+  layout.bySeg.forEach((list, seg) => {
+    for (const p of list) {
+      const modelId = layout.models[p.model];
+      const def = landmarkOf(modelId);
+      if (!def) continue;
+      const id = modelId.slice(LANDMARK_PREFIX.length);
+      const ahead = (seg - track.startIndex + n) % n;
+      const first = ahead === firstSeg.get(id);
+      const side = p.x < 0 ? -1 : 1;
+      const plaza = def.place !== 'skyline' && plazas.some((q) => q.landmark === id && q.side === side && Math.abs(((seg - q.at + n + n / 2) % n) - n / 2) <= PLAZA_SLACK);
+      const seen = sightSeconds(road, seg + n, p.f, p.x, p.y, p.yaw, modelBounds(modelId), def.place === 'skyline', first ? seg + n - ahead : -Infinity);
+      out.push({ id, seg, x: p.x, place: def.place, first, plaza, seen });
+    }
+  });
+  return out;
 }

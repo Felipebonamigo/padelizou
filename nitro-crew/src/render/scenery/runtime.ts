@@ -12,6 +12,7 @@ import type { RoadFrame } from '../roadframe';
 import { getModel, landmarkOf } from './catalog';
 import type { MatKey, Model } from './geom';
 import { sceneryLayout, type Layout, type Placement } from './layout';
+import { HAZE_FOG_SCALE, SCENERY_BEHIND_DRAW, SCENERY_FOG_REACH } from './sight';
 import { facadeTextures, panelAtlas } from './textures';
 
 type BatchKey = 'flat' | 'dress' | 'haze' | 'office' | 'apartment' | 'classic' | 'house' | 'glow' | 'beacon' | 'cone' | 'panel' | 'blob';
@@ -19,7 +20,7 @@ type BatchKey = 'flat' | 'dress' | 'haze' | 'office' | 'apartment' | 'classic' |
 /** Janela máxima do RoadFrame em segmentos (BEHIND + AHEAD alto + 1 = 291) com folga. */
 const WINDOW = 300;
 /** Segmentos atrás do carro que ainda desenham (sombra e canto da tela). */
-const BEHIND_DRAW = 4;
+const BEHIND_DRAW = SCENERY_BEHIND_DRAW;
 /** Pontos da janela na qualidade alta (renderer.ts: BEHIND 30 + AHEAD.high 260). */
 const FULL_WINDOW = 290;
 /** Mancha de sombra só até aqui (≈ 240 m): mais longe ela tem poucos pixels e custa uma instância. */
@@ -91,12 +92,8 @@ function blobTexture(): THREE.CanvasTexture {
  * branco com névoa, e abaixo das luminárias, que devem brilhar (tests/render-ground.test.ts).
  */
 export const FACADE_LIT_EMISSIVE = 1.25;
-/**
- * Marcos no horizonte (skyline: Cristo, Pão de Açúcar, vulcão): a névoa deles conta a distância × HAZE_FOG_SCALE. Ficam a
- * 400 m+ da pista e são vistos a 600–1.000 m; com a névoa do resto do cenário (0,0019/m) chegariam 70–95% apagados.
- * Com 0,55 entram na névoa (40–65%) como os planos do horizonte do terreno, que já trazem a névoa pintada.
- */
-export const HAZE_FOG_SCALE = 0.55;
+// HAZE_FOG_SCALE (a névoa mais fina do lote do horizonte, para os marcos do skyline), SCENERY_FOG_REACH e
+// SCENERY_BEHIND_DRAW moram em sight.ts: a conta de enquadramento dos marcos usa os mesmos números que o desenho.
 export const GLOW_NIGHT = 2.0;
 
 export class Scenery {
@@ -307,7 +304,7 @@ export class Scenery {
     for (let j = 0; j < count; j++) { this.cosH[j] = Math.cos(frame.heading[j]); this.sinH[j] = Math.sin(frame.heading[j]); }
     // Até onde a névoa ainda deixa ver (o resto nem entra no lote).
     const fog = (this.group.parent as THREE.Scene | null)?.fog;
-    const fogSegs = fog instanceof THREE.FogExp2 && fog.density > 0 ? 2.2 / fog.density / 4 : 1e9;
+    const fogSegs = fog instanceof THREE.FogExp2 && fog.density > 0 ? SCENERY_FOG_REACH / fog.density / 4 : 1e9;
     // Qualidade: o renderizador pede uma janela menor na baixa (140 à frente) e na média (200) do que na alta (260).
     // O cenário acompanha: com menos vista, desenha só a fração correspondente dos enfeites dispensáveis
     // (forração, mata, soltos — `rank`), nunca os sprites da física, cercas, postes ou pontos de referência.

@@ -286,13 +286,69 @@ torre redonda), `facadeBox`, `hill` (morro facetado com saia).
 - **Espalhado**: o primeiro de cada marco logo depois da largada (o jogador vê logo), os outros a cada `1/perLap` da
   volta. A busca anda ±4 segmentos de cada vez a partir do alvo (até ¼ do espaço entre instâncias), nos dois lados
   (`any`, sorteio por hash), e numa última passada estende a faixa até o dobro; sem lugar, o marco não entra (não
-  acontece nas pistas de hoje: `tests/landmarks.test.ts`). Determinístico (hash do id da pista), sem `Math.random`.
+  acontece nas pistas de hoje: `tests/landmarks.test.ts`). Entre os lugares válidos fica o que passa mais tempo na
+  tela (ver "Na tela", abaixo). Determinístico (hash do id da pista), sem `Math.random`.
 - **Id sem modelo** no registro: ignorado sem erro (as três tarefas de modelos rodam em paralelo).
 
 **Névoa do horizonte**: o skyline fica a 400 m+ e é visto a 600–1.000 m — com a névoa do resto do cenário (0,0019/m)
 chegaria 70–95% apagado. Ele vai para um lote próprio (`haze`, `runtime.ts`) cujo material conta a distância × 0,55
 na névoa (`HAZE_FOG_SCALE`): entra na névoa (40–65%) como os planos do horizonte do terreno. Custa uma chamada de
 desenho a mais por viewport, só nas pistas com skyline.
+
+**Na tela** (onda H, `scenery/sight.ts`): nas capturas, boa parte dos marcos quase nunca entrava no quadro — o
+primeiro de Itaúnas (dunas) e de Parintins (Bumbódromo) ficava logo depois da largada, à esquerda, atrás das
+arquibancadas, e a 200 m+ de lado só entrava na beirada do quadro já perto; Storseisundet, Stigfossen, Cape Point e o
+arco da Great Ocean (170–265 m de lado) na beirada do quadro ou atrás do box; o Uluru em parte atrás das mesas. A busca
+pegava o **primeiro** lugar válido; agora mede todos e fica com o que a câmera mostra por mais tempo.
+
+- **A conta** (`sightSeconds`, pura e determinística): a câmera de perseguição de verdade (`CHASE_CAMERA` de
+  `camera.ts`: 2,05 m acima da pista, 7,8 m atrás do carro, olhando 18 m à frente; FOV vertical de 62° + 13° × a fração
+  da velocidade) anda pela linha central a **96 m/s** (0,8 da máxima de referência: a IA profissional corre a 0,55–0,88
+  em média; FOV ≈ 72°), em passos de **0,1 s**, por toda a janela em que o runtime desenha o marco (os 260 segmentos
+  à frente da qualidade alta, cortados pela névoa, até 4 segmentos depois dele). Conta o instante em que **um** de 7
+  pontos de amostra (o centro a 20/50/85% da altura; a meio caminho das faces que quem chega vê — a da pista, três ao
+  longo dela, e a de quem vem — a 40%) está ao mesmo tempo: nos **80% do meio da largura** do quadro (16:9, o mais
+  estreito do jogo — 2 jogadores são 32:9); antes de a névoa passar de **60%** (`FogExp2` 1 − e^−(ρd)², ρ = 0,0019 ×
+  o do período: ~500 m de dia, ~390 m à noite; o skyline com a névoa × 0,55 do lote `haze`, ~920 m); e sem nada alto
+  na linha de visada perto da pista — uma grade de alturas (`block`) com a pegada de verdade de prédio, arquibancada,
+  garagem do box e outdoor (torres, finas, ficam de fora). Relevo do terreno e mata não entram (a mata é posta depois;
+  ver a cunha abaixo). **O primeiro de cada marco conta a partir da largada**: ele existe para ser visto já na volta 1.
+- **A meta** (`LANDMARK_SIGHT_MIN`): 2,5 s para perto e longe (≈ 240 m de pista: dá para notar e reconhecer sem tirar o
+  olho da pista), 4 s para o horizonte (o cartão-postal, grande e visto de longe na névoa fina). Cada passada da busca
+  mede todos os lugares válidos dela (o primeiro lateral de cada segmento × lado, como antes) e fica com o melhor; quase
+  empate (0,25 s) fica com o mais perto do alvo, e um lugar com o dobro da meta encerra a busca (procurar mais só
+  afastaria o marco do alvo). Abaixo da meta, a passada seguinte (com declive, sem o corredor de
+  quem chega) também é medida, na faixa da primeira: o enquadramento troca chão plano por vista, nunca distância. As
+  regras de antes valem todas (26 m da pista, nada alto do lado de dentro de curva, faixas, chão, praças, janela perto
+  da largada).
+- **A vista sem mata**: longe e horizonte ganham a cunha que as linhas de visada até a borda de dentro varrem (do
+  carro a ~125 segmentos, a névoa, até onde o marco sai do quadro) livre de mata, pedras e mesas (a ocupação da
+  decoração; só até 180 m, o fim da grade) — a duna de Itaúnas, baixa, sumia atrás dos coqueiros. Marcada depois de
+  todos os marcos: tira a decoração, não o lugar de outro marco. O de perto já tinha o mirante dos ~160 m antes.
+- **Antes × depois** (as 109 pistas, 292 marcos): abaixo da meta, perto 82 → 49 de 191, longe 50 → 23 de 76, horizonte
+  10 → 5 de 25 (medianas 2,7 → 4,1 s, 1,45 → 3,55 s, 4,4 → 8,0 s); só um marco perde (araucária na Cuia, 5,6 → 5,5 s). Fora do litoral e da cidade, 43 → 1. Itaúnas 0,6 →
+  3,8 s, Parintins 0,5 → 3,9, Xingó 1,3 → 4,0, Piaçabuçu 1,1 → 4,0, Storseisundet 0,5 → 2,5, placa de Trollstigen
+  0,1 → 4,9, Uluru 5,7 → 8,0, Pão de Açúcar 3,1 → 5,5; o Cristo (3,3 s) e o MASP (2,5 s) não mudam. Montar o layout:
+  3,97 → 5,16 s nas 109 pistas (média 36 → 47 ms por pista, a mais lenta 93 → 122 ms; acima de 2× só em Camboriú,
+  17 → 52 ms, Copacabana, Piaçabuçu e Jericoacoara, onde a busca mede todos os lugares porque nenhum chega ao dobro
+  da meta).
+- **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta):
+  - **Litoral e cidade**: a receita do núcleo (`track/builder.ts`) põe prédio dos dois lados da beira da pista, e o
+    marco só aparece nas brechas — o teto medido (busca na volta inteira, sem a janela) dos de perto do litoral fica
+    em 1,3–2,5 s. Ali o teste exige 1 s (≈ 100 m) e 2 s no horizonte. Proposta (núcleo): abrir mirantes nos prédios
+    do litoral como as praças da cidade.
+  - **Praças da cidade**: o lugar é do núcleo (±4 segmentos). O de perto fica com 1,7–2,6 s; o de longe só aparece
+    dentro da praça (os 48 segmentos antes dele) — Coliseu 0,8 s, castelo de Osaka 0,9, Stratosphere 0,5, ponte do Rio
+    Negro 0,4, Ópera de Sydney 1,1, Torre Eiffel 1,5. Proposta (núcleo): praça mais comprida para o de longe (~100
+    segmentos antes, a distância em que ele entra no quadro), ou o marco de longe no fim da praça.
+  - **A janela perto da largada** (≤ 150/300 segmentos): o primeiro de 8 marcos fica abaixo da meta só por ela e pelos
+    prédios — Maceió (jangada 0,3 s, coqueiral 0,8), Maragogi (coqueiral 0,6), Porto Seguro (coqueiral 0,7), Belém
+    (Ver-o-Peso 0,8), Mônaco (cassino 0,8), Santorini (cúpula 0,9), Alter do Chão (praia 2,3). Com a janela 150
+    segmentos maior: Alter do Chão, Positano e o arco da Great Ocean passam da meta, Cape Point 1,1 → 1,7, Natal
+    1,3 → 2,3 — os do litoral seguem presos aos prédios. Proposta: contar a janela a partir do fim da largada e do box
+    (o box ocupa os segmentos 0–39 à direita em várias pistas).
+  - A mata e as mesas não entram na conta (são postas depois): o de perto tem o mirante, o de longe a cunha — que só
+    vai até 180 m; uma mesa além disso ainda pode ficar na frente de um marco do horizonte.
 
 Ver: `node tools/scenery-showroom.mjs <porta> saida.png lm:cristo_redentor,lm:masp "&gap=100&yaw=-1.1&fog=0.001"`
 (ids com o prefixo `lm:`; `fog` e `ground` novos no showroom, para modelos grandes) e

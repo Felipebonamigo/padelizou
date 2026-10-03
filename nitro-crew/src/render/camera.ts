@@ -6,9 +6,15 @@ import { frameYAt, type RoadFrame } from './roadframe';
 import type { Shake } from './effects';
 import { ROAD_HALF_WIDTH_M } from './units';
 
-const BASE_FOV = 62;
-const SPEED_FOV = 13;
-const NITRO_FOV = 8;
+/**
+ * Pose da câmera de perseguição, exportada para a conta de enquadramento dos marcos turísticos (scenery/sight.ts):
+ * FOV vertical (°) parado, + por fração da velocidade máxima (até 1,2) e + no nitro; altura sobre a pista e distância
+ * atrás do carro (m); ponto olhado à frente (m) e a altura dele.
+ */
+export const CHASE_CAMERA = { baseFov: 62, speedFov: 13, nitroFov: 8, height: 2.05, back: 7.8, lookAhead: 18, lookY: 0.85 } as const;
+const BASE_FOV = CHASE_CAMERA.baseFov;
+const SPEED_FOV = CHASE_CAMERA.speedFov;
+const NITRO_FOV = CHASE_CAMERA.nitroFov;
 
 export class ChaseCamera {
   readonly camera = new THREE.PerspectiveCamera(BASE_FOV, 16 / 9, 0.3, 3000);
@@ -34,12 +40,12 @@ export class ChaseCamera {
     this.fov += (targetFov - this.fov) * (1 - Math.exp(-dt * 3));
     const rollTarget = -curve * 0.012 * Math.min(1, speedFrac);
     this.roll += (rollTarget - this.roll) * (1 - Math.exp(-dt * 3));
-    const camY = 2.05 + frameYAt(rf, -7.8); // sempre 2,05 m acima da pista sob a câmera
+    const camY = CHASE_CAMERA.height + frameYAt(rf, -CHASE_CAMERA.back); // sempre 2,05 m acima da pista sob a câmera
     // Pitch limitado: em rampa forte o alvo sobe/desce no máximo 4 m (o carro fica no quadro).
-    const aheadY = 0.85 + Math.max(-4, Math.min(4, frameYAt(rf, 18) * 0.6));
+    const aheadY = CHASE_CAMERA.lookY + Math.max(-4, Math.min(4, frameYAt(rf, CHASE_CAMERA.lookAhead) * 0.6));
     const c = this.camera;
-    c.position.set(this.lagX + shake.x, camY + shake.y, 7.8);
-    this.target.set(this.lagX * 0.7 + xm * 0.3, aheadY, -18);
+    c.position.set(this.lagX + shake.x, camY + shake.y, CHASE_CAMERA.back);
+    this.target.set(this.lagX * 0.7 + xm * 0.3, aheadY, -CHASE_CAMERA.lookAhead);
     const r = this.roll + shake.roll;
     this.up.set(Math.sin(r), Math.cos(r), 0);
     c.up.copy(this.up);
