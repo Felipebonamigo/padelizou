@@ -5,7 +5,8 @@
 // a mesma pista tem sempre o mesmo visual. Puro: sem Three nem DOM.
 import { placeOf } from '../../core/data/places';
 import { hashString } from '../../core/rng';
-import { cityPlazas } from '../../core/track/plazas';
+import { landmarkPlazas, PLAZA_SLACK } from '../../core/track/plazas';
+import { FIRST_WINDOW, startZoneEnd } from '../../core/track/startzone';
 import { SPRITE_HALF_WIDTH } from '../../core/track/sprites';
 import type { SpriteRef, Track } from '../../core/types';
 import { hash2, hash3, valueNoise } from '../noise';
@@ -227,10 +228,13 @@ const LANDMARK_FIRST_STEP = 64;
  * visto de frente uns 100–250 segmentos antes — o do horizonte, a 400 m+, entra na tela a ~30° só bem antes disso.
  */
 const LANDMARK_FIRST_AHEAD: Record<LandmarkPlace, number> = { near: 0, far: 30, skyline: 150 };
-/** Até onde (segmentos depois da largada) o primeiro de cada marco pode ir: o mais importante, os outros; o do horizonte, + o AHEAD dele. */
-export const LANDMARK_FIRST_MAX = { primary: 150, other: 300 } as const;
-/** Quanto (segmentos) o marco pode andar do centro da praça dele (a praça tem folga para ±4: plazas.ts). */
-const PLAZA_SLACK = 4;
+/**
+ * Até onde o primeiro de cada marco pode ir: o mais importante, os outros; o do horizonte, + o AHEAD dele. Contado do
+ * FIM DA LARGADA (core/track/startzone.ts: arquibancadas, trecho sem cenário e box — segmento 40 nas pistas de hoje):
+ * logo depois da linha a vista dos lados é das arquibancadas e das garagens, e a janela existe para o marco ser visto
+ * cedo na volta 1, não para ele ficar atrás delas. As praças do núcleo respeitam a mesma janela.
+ */
+export const LANDMARK_FIRST_MAX = FIRST_WINDOW;
 /** Trechos da linha central conferidos (o que está à vista enquanto o marco está na janela do RoadFrame). */
 const LANDMARK_VIEW = 300;
 
@@ -278,14 +282,15 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
   const placed: LandmarkFoot[] = [];
   const clearings: Clearing[] = [];
   const views: Array<{ i: number; side: number; latA: number; haze: boolean }> = [];
-  const plazas = cityPlazas(track);
+  const plazas = landmarkPlazas(track);
+  const zoneEnd = startZoneEnd(track);
   // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
   const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean; window: number }> = [];
   const firstAt = (e: (typeof entries)[number], j: number): number => track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + LANDMARK_FIRST_AHEAD[e.def.place];
   // O primeiro procura antes dentro da janela perto da largada (todas as passadas) e só depois fora dela.
   entries.forEach((e, j) => {
     const max = (j === 0 ? LANDMARK_FIRST_MAX.primary : LANDMARK_FIRST_MAX.other) + (e.def.place === 'skyline' ? LANDMARK_FIRST_AHEAD.skyline : 0);
-    jobs.push({ ...e, m: 0, target: firstAt(e, j), first: true, window: track.startIndex + max - firstAt(e, j) });
+    jobs.push({ ...e, m: 0, target: firstAt(e, j), first: true, window: track.startIndex + zoneEnd + max - firstAt(e, j) });
   });
   entries.forEach((e, j) => {
     const per = Math.max(1, Math.round(e.def.perLap));
@@ -304,8 +309,9 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const coast = biome === 'coast';
     // 'sea' fica no mar do litoral (direita); fora do litoral, qualquer lado. No litoral, o resto fica em terra.
     const anySides: number[] = def.side === 'sea' ? (coast ? [1] : [-1, 1]) : coast ? [-1] : hash3(seed, job.m, id.length) < 0.5 ? [-1, 1] : [1, -1];
-    // Cidade: o marco de perto/longe vai para a praça dele (core/track/plazas.ts — o lado sem prédio na beira da
-    // pista); só sem lugar nela cai na busca de sempre (atrás do paredão de prédios, o que o teste das praças acusa).
+    // Cidade e litoral: o marco de perto/longe vai para a praça (ou o mirante) dele (core/track/plazas.ts — o lado sem
+    // prédio na beira da pista); só sem lugar nela cai na busca de sempre (atrás dos prédios, o que o teste das praças
+    // acusa).
     const plaza = place === 'skyline' ? undefined : plazas.find((q) => q.landmark === id && q.rep === job.m);
     const per = Math.max(1, Math.round(def.perLap));
     const reach = Math.max(8, Math.min(200, Math.floor(n / (4 * per))));
@@ -415,8 +421,10 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const p = base(table.of(modelId));
     p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
     out[i].push(p);
-    // Praça: arrumada antes de marcar a ocupação do marco (a arrumação fica do lado de cá da borda de dentro).
-    if (best.plaza) dressPlaza(track, table, out, occ, i, side, latA, span, seed);
+    // Praça: arrumada antes de marcar a ocupação do marco (a arrumação fica do lado de cá da borda de dentro). No mar do
+    // litoral, o mirante é a praia com um píer (a cerca-viva e os canteiros da praça ficariam dentro d'água).
+    if (best.plaza && isSeaSide(biome, side)) dressBeachMirante(track, table, out, occ, i, side, span);
+    else if (best.plaza) dressPlaza(track, table, out, occ, i, side, latA, span, seed);
     occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
     // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
     // bosque de 26–142 m o esconde até o carro estar do lado dele.
@@ -439,6 +447,24 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     }
   }
   setClearings(track, clearings);
+}
+
+/**
+ * Mirante do litoral do lado do mar (core/track/plazas.ts): a praia aberta, com um píer de madeira (40 m, 1,1 m de
+ * guarda-corpo) saindo da areia para o mar no caminho de quem chega — de onde se olharia o marco. Nada alto: o píer fica
+ * além do alcance do carro e o deque, 1 m acima d'água. Os guarda-sóis da areia já vêm da decoração (`dress`).
+ */
+function dressBeachMirante(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, i: number, side: number, span: number): void {
+  const n = track.segments.length;
+  const j = ((i - span - 18) % n + n) % n;
+  const lat0 = FENCE_M + 0.4;
+  if (!occ.free(j, side, lat0, lat0 + 41, 1)) return;
+  const p = base(table.of('pier'));
+  // +X do modelo é a ponta da areia (o deque vai de 0 a −40 em X): girado de 180° à direita, ele avança para o mar.
+  p.x = side * lat0; p.f = 0.5; p.yaw = side > 0 ? Math.PI : 0; p.maxAhead = 160;
+  p.y = seaLevelOffset(track, track.segments[j]) + 1;
+  out[j].push(p);
+  occ.mark(j, side, lat0, lat0 + 41, 1);
 }
 
 /**
@@ -688,7 +714,7 @@ function sightRoadOf(track: Track, block: Occupancy): SightRoad {
 /** Um marco do layout e quanto tempo ele fica na tela (`landmarkSight`). */
 export interface LandmarkSight {
   id: string; seg: number; x: number; place: LandmarkPlace;
-  /** O primeiro depois da largada (medido da largada: a volta 1) e se está na praça da cidade dele (plazas.ts). */
+  /** O primeiro depois da largada (medido da largada: a volta 1) e se está na praça ou no mirante dele (plazas.ts). */
   first: boolean; plaza: boolean;
   seen: number;
 }
@@ -703,7 +729,7 @@ export function landmarkSight(track: Track, layout: Layout): LandmarkSight[] {
   const block = new Occupancy(n);
   placeSprites(track, new ModelTable(), track.segments.map(() => []), new Occupancy(n), new Occupancy(n), block);
   const road = sightRoadOf(track, block);
-  const plazas = cityPlazas(track);
+  const plazas = landmarkPlazas(track);
   const out: LandmarkSight[] = [];
   const firstSeg = new Map<string, number>();
   layout.bySeg.forEach((list, seg) => {

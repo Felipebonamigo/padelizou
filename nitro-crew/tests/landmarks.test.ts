@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_PLACES as TRACK_PLACES, EXTRA_BRAZIL_PLACES, TRACK_PLACES as FIRST_PLACES } from '../src/core/data/places';
 import { getTrack, TRACKS } from '../src/core/track';
+import { startZoneEnd } from '../src/core/track/startzone';
 import type { Track } from '../src/core/types';
 import { getModel, LANDMARK_PREFIX, modelBounds } from '../src/render/scenery/catalog';
 import { groundOffset, isSeaSide, seaLevelOffset } from '../src/render/scenery/ground';
@@ -164,16 +165,19 @@ describe('marcos turísticos: posição', () => {
     expect(got.filter((g) => g.id === 'cristo_redentor').length).toBe(LANDMARKS.cristo_redentor.perLap);
   });
 
-  it('o primeiro de cada marco fica perto da largada (o mais importante em ≤ 150 segmentos, os outros em ≤ 300; o do horizonte, +150)', () => {
+  // A janela conta do fim da largada (arquibancadas, trecho sem cenário e box: core/track/startzone.ts), não da linha:
+  // logo depois dela a vista dos lados é das arquibancadas e das garagens (docs/VISUAL.md, "Na tela").
+  it('o primeiro de cada marco fica perto do fim da largada (o mais importante em ≤ 150 segmentos, os outros em ≤ 300; o do horizonte, +150)', () => {
     const bad: string[] = [];
     for (const c of allCases()) {
       const n = c.track.segments.length;
+      const zone = startZoneEnd(c.track);
       const got = landmarkPlacements(c.layout);
       c.ids.forEach((id, k) => {
-        const ahead = Math.min(...got.filter((g) => g.id === id).map((g) => (g.seg - c.track.startIndex + n) % n));
+        const ahead = Math.min(...got.filter((g) => g.id === id).map((g) => (g.seg - c.track.startIndex + n) % n)) - zone;
         // O do horizonte fica mais adiante: só entra na tela (a ~30°) uns 150 segmentos antes do ponto em que está ao lado.
         const cap = (k === 0 ? 150 : 300) + (LANDMARKS[id].place === 'skyline' ? 150 : 0);
-        if (!(ahead <= cap)) bad.push(`${c.placeId} ${id}: primeiro a ${ahead} segmentos da largada (máx. ${cap})`);
+        if (!(ahead <= cap)) bad.push(`${c.placeId} ${id}: primeiro a ${ahead} segmentos do fim da largada (máx. ${cap})`);
       });
     }
     expect(bad).toEqual([]);

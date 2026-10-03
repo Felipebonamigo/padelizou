@@ -6,6 +6,7 @@ import { createRng, hashString, nextFloat, nextInt, pick, type RngState } from '
 import type { SceneryId, Segment, SpriteKind, SpriteRef, Track, TrackDef, TrackOp } from '../types';
 import { plazaMask } from './plazas';
 import { SPRITE_MIN_EDGE, spriteX } from './sprites';
+import { START_CLEAR, START_STANDS } from './startzone';
 
 function easeIn(a: number, b: number, p: number): number { return a + (b - a) * p * p; }
 function easeOut(a: number, b: number, p: number): number { const q = 1 - p; return a + (b - a) * (1 - q * q); }
@@ -117,8 +118,8 @@ function decorate(track: Track, seed: number): void {
   const recipe = RECIPES[track.def.scenery];
   const segs = track.segments;
   const n = segs.length;
-  // Praças da cidade (plazas.ts): ali o lado da praça não ganha prédio, torre nem outdoor. Os sorteios continuam
-  // os mesmos (só o sprite não entra), então fora das praças a pista sai idêntica à de antes delas.
+  // Praças da cidade e mirantes do litoral (plazas.ts): ali o lado da praça não ganha prédio, torre nem outdoor. Os
+  // sorteios continuam os mesmos (só o sprite não entra), então fora das praças a pista sai idêntica à de antes delas.
   const plaza = plazaMask(track);
   const tallKind = (k: SpriteKind): boolean => k === 'building' || k === 'tower';
   const inPlaza = (i: number, side: number): boolean => (plaza[i] & (side < 0 ? 1 : 2)) !== 0;
@@ -127,7 +128,7 @@ function decorate(track: Track, seed: number): void {
   // interna (spriteX): o centro fica a meia largura × escala além da margem, nunca sobre o asfalto.
   segs[track.startIndex].sprites.push(sprite('banner_start', 0, 1, false));
   const standX = spriteX('grandstand', 1, SPRITE_MIN_EDGE + 0.15);
-  for (let i = 1; i <= 24; i += 4) {
+  for (let i = 1; i <= START_STANDS; i += 4) {
     const s = segs[(track.startIndex + i) % n];
     s.sprites.push(sprite('grandstand', -standX, 1, true, i % 8 === 1 ? 0 : 1));
     if (!s.pit) s.sprites.push(sprite('grandstand', standX, 1, true, 1));
@@ -161,7 +162,7 @@ function decorate(track: Track, seed: number): void {
   // Preenchimento por lado.
   for (let i = 0; i < n; i++) {
     const s = segs[i];
-    const nearStart = ((i - track.startIndex + n) % n) < 30;
+    const nearStart = ((i - track.startIndex + n) % n) < START_CLEAR;
     for (const side of [-1, 1] as const) {
       if (side === 1 && s.pit) continue;
       if (nearStart) continue;

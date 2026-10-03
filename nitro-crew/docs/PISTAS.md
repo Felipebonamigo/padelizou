@@ -114,7 +114,7 @@ retas e como subida das curvas: altura não muda o contorno. `npx tsx scripts/tr
 | relatório da garagem de uma corrida da `brasil` | sai (a garagem mostraria a chave `core.cup.brasil`) |
 | campeonato normal em andamento na `brasil` | some do save (sem erro; o menu deixa de oferecer "Continuar") |
 | campeonato normal ou carreira no meio de uma copa do Mundial | continua da mesma corrida |
-| recordes, fantasmas, estatísticas | ficam (são por id de pista, e nenhum id mudou); nas 6 pistas de cidade de antes as praças mudaram a colisão: recorde com a marca "versão anterior", fantasma fora como rival |
+| recordes, fantasmas, estatísticas | ficam (são por id de pista, e nenhum id mudou); nas 14 pistas de antes com praça ou mirante a colisão mudou — as 6 de cidade (praças) e, desde a onda H, 8 de litoral (mirantes: Baía de Tóquio, Mônaco, Boa Esperança, Great Ocean, Atlântico, Tromsø, Amalfi, Santorini): recorde com a marca "versão anterior", fantasma fora como rival |
 | quem já tinha vencido copas do Mundial | elas continuam abertas (`isCupUnlocked`: copa concluída fica aberta), e a seguinte também; a Expedição começa em SP |
 
 Carreira antiga numa copa do Mundial (eua, japao…) continua nela: o nível da IA e o prêmio passam a ser os da posição
@@ -127,10 +127,15 @@ em 03/10). Teste: `tests/migration-brasil.test.ts` (saves gravados como eram ant
 Só cenários que já existem (`tropical, desert, city_night, alpine, coast, savanna`) × `day/dusk/night`. Os nomes usam
 lugares reais só como referência geográfica, sem marca nenhuma; o nome em EN traduz a descrição, não o lugar.
 
-Na cidade (`city_night`) os dois lados da pista são um paredão de prédios e torres na beira (a receita do `builder`);
-nas pistas de cidade com marcos turísticos o núcleo abre **praças** — trechos de ~244 m de um lado sem prédio, torre
-nem outdoor — onde o renderizador põe cada marco de perto/longe, para ele ser visto de quem chega
-(`core/track/plazas.ts`; `docs/VISUAL.md`, "Marcos turísticos").
+Na cidade (`city_night`) os dois lados da pista são um paredão de prédios e torres na beira (a receita do `builder`), e
+no litoral (`coast`) a receita também põe prédio e torre dos dois lados, mais espaçados. Nas pistas desses dois biomas
+com marcos turísticos de perto ou de longe o núcleo abre **praças** (cidade) e **mirantes** (litoral) — trechos sem
+prédio, torre nem outdoor onde a linha de visada de quem chega cruza a beira da pista, do lado do marco e, numa
+aproximação em curva, também do outro lado (de ~50 a ~160 segmentos) — e o renderizador põe cada marco de perto/longe
+no seu, para ele ficar à vista o mínimo de 2,5 s (`core/track/plazas.ts` e `sightline.ts`; `docs/VISUAL.md`, "Marcos
+turísticos"). No litoral o lado é o do marco: o mar (à direita) ou a terra. O primeiro de cada marco fica a ≤ 150
+segmentos (o mais importante) ou ≤ 300 do **fim da largada** — arquibancadas, trecho sem cenário e box, segmento 40 em
+todas as pistas de hoje (`core/track/startzone.ts`).
 
 | Copa | Pista (id) | Nome | Nome (EN) | Cenário | Período | Voltas | Dif. | Segm. | Índice |
 |---|---|---|---|---|---|---|---|---|---|
