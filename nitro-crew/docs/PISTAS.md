@@ -124,6 +124,11 @@ nova da copa (mais altos), e a carreira termina no Mediterrâneo sem passar pelo
 Só cenários que já existem (`tropical, desert, city_night, alpine, coast, savanna`) × `day/dusk/night`. Os nomes usam
 lugares reais só como referência geográfica, sem marca nenhuma; o nome em EN traduz a descrição, não o lugar.
 
+Na cidade (`city_night`) os dois lados da pista são um paredão de prédios e torres na beira (a receita do `builder`);
+nas pistas de cidade com marcos turísticos o núcleo abre **praças** — trechos de ~244 m de um lado sem prédio, torre
+nem outdoor — onde o renderizador põe cada marco de perto/longe, para ele ser visto de quem chega
+(`core/track/plazas.ts`; `docs/VISUAL.md`, "Marcos turísticos").
+
 | Copa | Pista (id) | Nome | Nome (EN) | Cenário | Período | Voltas | Dif. | Segm. | Índice |
 |---|---|---|---|---|---|---|---|---|---|
 | RJ | `copacabana` | Orla de Copacabana | Copacabana Beachfront | coast | dia | 3 | 1 | 1800 | 0,6 |
