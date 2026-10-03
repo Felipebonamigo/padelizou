@@ -19,13 +19,13 @@ import { Hud } from './hud';
 import { viewportRects, type Rect } from './layout';
 import { palette } from './palette';
 import { Road } from './road';
-import { absoluteHeading, buildRoadFrame, type RoadFrame } from './roadframe';
+import { absoluteHeading, buildRoadFrame, FRAME_AHEAD, FRAME_BEHIND, type RoadFrame } from './roadframe';
 import { Scenery } from './scenery';
 import { Sky } from './sky';
 import { Terrain } from './terrain';
 
-const BEHIND = 30;
-const AHEAD: Record<Quality, number> = { low: 140, medium: 200, high: 260 };
+const BEHIND = FRAME_BEHIND;
+const AHEAD = FRAME_AHEAD;
 const MAX_POINTS = BEHIND + AHEAD.high + 1;
 /** Velocidade da câmera automática dos menus (unidades de pista por segundo). */
 const IDLE_SPEED = 2600;

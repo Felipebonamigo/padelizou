@@ -12,6 +12,11 @@ import { hash2 } from './noise';
 import type { Palette } from './palette';
 
 const SKY_RADIUS = 1400;
+/**
+ * Densidade da névoa (FogExp2, por metro) por qualidade, antes do multiplicador do período (palette.ts, `fogDensity`):
+ * a baixa desenha menos pista. Exportada para a conta de enquadramento dos marcos (scenery/sight.ts).
+ */
+export const FOG_DENSITY: Readonly<Record<Quality, number>> = { low: 0.003, medium: 0.0023, high: 0.0019 };
 
 const SKY_VERT = /* glsl */ `
 varying vec3 vDir;
@@ -194,7 +199,7 @@ export class Sky {
   private readonly pmrem: THREE.PMREMGenerator;
   private envTarget: THREE.WebGLRenderTarget | null = null;
   private paletteKey = '';
-  private fogBase = 0.0019;
+  private fogBase = FOG_DENSITY.high;
   private fogMul = 1;
   private night = false;
   private readonly target = new THREE.Object3D();
@@ -255,7 +260,7 @@ export class Sky {
       this.sun.shadow.mapSize.set(size, size);
       if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
     }
-    this.fogBase = q === 'low' ? 0.003 : q === 'medium' ? 0.0023 : 0.0019;
+    this.fogBase = FOG_DENSITY[q];
     this.fog.density = this.fogBase * this.fogMul;
   }
 
