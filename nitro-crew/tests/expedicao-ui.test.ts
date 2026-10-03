@@ -8,7 +8,7 @@ import { isCupUnlocked } from '../src/game/save';
 import { setLanguage, t } from '../src/i18n';
 import '../src/i18n/core';
 import { raggedGridMove, trackName } from '../src/ui/screens/common';
-import { landmarkName, passportRows, stateLandmarks } from '../src/ui/screens/passport';
+import { landmarkName, passportRows, postcardFrom, stateLandmarks } from '../src/ui/screens/passport';
 import { cupTabs, startTab, trackGridRows } from '../src/ui/screens/select';
 
 afterEach(() => setLanguage('pt'));
@@ -108,5 +108,23 @@ describe('nomes de pista e de copa pelas strings do núcleo', () => {
       for (const d of TRACKS) expect(trackName(d.id), d.id).not.toContain('core.track');
       for (const c of CUPS) expect(t(`core.cup.${c.id}`), c.id).not.toContain('core.cup');
     }
+  });
+});
+
+describe('título do cartão-postal', () => {
+  // Defeito visto na captura: "Lembranças de CEARÁ". Em português o estado pede a contração dele (do Ceará, da
+  // Bahia, de São Paulo); em inglês, "Greetings from".
+  it('usa a contração de cada estado em português', () => {
+    expect(postcardFrom('CE')).toBe('Lembranças do');
+    expect(postcardFrom('BA')).toBe('Lembranças da');
+    expect(postcardFrom('PB')).toBe('Lembranças da');
+    expect(postcardFrom('SP')).toBe('Lembranças de');
+    expect(postcardFrom('MG')).toBe('Lembranças de');
+    expect(postcardFrom('RJ')).toBe('Lembranças do');
+    expect(postcardFrom('DF')).toBe('Lembranças do');
+  });
+  it('em inglês não muda', () => {
+    setLanguage('en');
+    expect(postcardFrom('CE')).toBe('Greetings from');
   });
 });

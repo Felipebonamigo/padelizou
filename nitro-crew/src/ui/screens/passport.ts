@@ -51,6 +51,17 @@ function stampEl(s: PassportStamp, on: boolean): HTMLElement {
   );
 }
 
+/** Contração do nome de cada estado em português (do Ceará, da Bahia, de São Paulo); o resto é "de". */
+const STATE_PREP: Readonly<Record<string, string>> = {
+  AC: 'do', AP: 'do', AM: 'do', CE: 'do', ES: 'do', MA: 'do', PA: 'do', PR: 'do', PI: 'do', RJ: 'do', RN: 'do', RS: 'do',
+  TO: 'do', DF: 'do', BA: 'da', PB: 'da',
+};
+
+/** "Lembranças do Ceará" (em inglês, "Greetings from"): o título do cartão-postal antes do nome do estado. */
+export function postcardFrom(uf: string): string {
+  return t('passport.postcard.from', { prep: STATE_PREP[uf] ?? 'de' });
+}
+
 /** Cartão-postal do estado: carimbado mostra tudo; sem carimbo, esmaecido, com a copa a vencer. */
 export function postcard(ctx: Pick<MenuContext, 'save'>, s: PassportStamp): HTMLElement {
   const on = ctx.save.stamps.includes(s.state);
@@ -60,7 +71,7 @@ export function postcard(ctx: Pick<MenuContext, 'save'>, s: PassportStamp): HTML
     // O cenário e o título sobre ele: o título e o carimbo postal ficam por cima (absolutos), o resto em fluxo.
     h('div', { class: 'pc-scene' }, h('i', { class: 'pc-sun' }), h('i', { class: 'pc-hill a' }), h('i', { class: 'pc-hill b' })),
     h('div', { class: 'pc-title' },
-      h('span', { class: 'pc-from', text: t('passport.postcard.from') }),
+      h('span', { class: 'pc-from', text: postcardFrom(s.state) }),
       h('strong', { class: 'pc-state', text: t(`core.state.${s.state}`) }),
     ),
     // Carimbo postal: sigla e situação desenhadas por ::before/::after (o carimbo gira inteiro, sem filhos soltos).

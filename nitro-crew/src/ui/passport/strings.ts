@@ -136,7 +136,7 @@ const pt: Record<string, string> = {
   'region': '{region} · {n}/{total}',
   'stamped': 'Carimbado',
   'notStamped': 'Sem carimbo',
-  'postcard.from': 'Lembranças de',
+  'postcard.from': 'Lembranças {prep}',
   'postcard.tracks': 'Pistas',
   'postcard.landmarks': 'Marcos',
   'postcard.locked': 'Vença a {cup} para carimbar o passaporte e receber este cartão-postal.',
