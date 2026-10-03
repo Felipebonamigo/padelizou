@@ -118,7 +118,8 @@ saturada, na linha de Horizon Chase Turbo. Código em `src/render/scenery/` (a p
 
 1. **Sprites do núcleo** (`track.segments[i].sprites`, do `builder.ts`): árvore, pinheiro, palmeira, cacto, moita,
    pedra, prédio, torre, poste, outdoor, placa, arquibancada, pórtico, muro do box, placa do box, cone. A posição
-   e a largura são as da colisão (física); o renderizador só escolhe o modelo. O `builder` não mudou.
+   e a largura são as da colisão (física); o renderizador só escolhe o modelo. O `builder` só mudou nas **praças da
+   cidade** (ver "Marcos turísticos").
 2. **Decoração só visual** (`layout.ts`), que a física não vê:
    - **forração** na faixa em que o carro anda (9,6 a 23 m do centro): capim, flores, pedrinhas, moitas baixas —
      no máximo 1,05 m de altura, então passar por cima não parece atravessar nada;
@@ -259,6 +260,23 @@ torre redonda), `facadeBox`, `hill` (morro facetado com saia).
 - **Nunca no alcance do carro**: a pegada inteira (caixa do modelo girada) fica a ≥ 26 m (`LANDMARK_CLEAR_M`) do centro
   de todo trecho de pista à vista — o próprio e os vizinhos de grampo e curva em S (a linha central desenrolada,
   ±300 segmentos).
+- **Praças da cidade** (`core/track/plazas.ts`, `cityPlazas`): no `city_night` a receita enche os dois lados de prédio
+  e torre na beira da pista — um paredão contínuo, e todo marco de perto e de longe ficava atrás dele (o MASP a 75 m,
+  a Ópera de Arame, a Torre de TV… invisíveis da pista). O núcleo abre uma **praça** por instância de cada marco de
+  perto/longe: 61 segmentos (≈ 244 m) de um lado, de 48 antes a 12 depois do segmento do marco, onde o `builder` não
+  põe prédio, torre nem outdoor (poste, moita e placa de curva continuam). Os sorteios do `builder` são os mesmos (o
+  número é tirado, só o sprite não entra): fora das praças a pista é idêntica. A primeira praça de cada marco fica em
+  76 + 64·j segmentos depois da largada (depois das arquibancadas e do trecho sem prédio da largada), as outras a cada
+  1/praças da volta; o lado sai de um hash do id, fugindo do lado de dentro de curva e do lado do box (em curva em S
+  a praça anda de 8 em 8 segmentos). Quantas praças cada marco pede fica numa tabela do núcleo (`LANDMARK_PLAZAS`, o
+  núcleo não importa o renderizador) que `tests/landmarks-pracas.test.ts` confere contra o `perLap` do registro — marco
+  novo numa pista de cidade entra lá; o do horizonte não pede praça. O `placeLandmarks` põe o marco na praça dele
+  (±4 segmentos, só o lado dela) e só sem lugar ali cai na busca de sempre — o teste acusa: nos ~120 m antes de todo
+  marco de perto/longe da cidade, do lado dele, nenhum prédio, torre ou outdoor. A praça é arrumada como praça
+  (`dressPlaza`): cerca-viva de 0,9 m logo além do gradil com uma passagem a cada 10 segmentos, canteiros de flores
+  até ~30 m e, no marco de perto com espaço, uma cerca-viva emoldurando a frente — nada alto. Muda a colisão das 20
+  pistas de cidade com marcos (≈ 4,5% dos prédios e torres delas; impressões das voltas, fantasmas e recordes dessas
+  pistas ficam "de outra versão").
 - **Não esconde a pista**: nada com mais de 8 m do lado de dentro de curva próxima (a mesma regra da mata), e o
   marco perto pede o corredor entre a cerca e ele livre de prédio e arquibancada (senão some atrás deles, como o
   MASP atrás da fileira de prédios de Sampa); a ocupação dele e do corredor fica marcada, e a mata não nasce na frente.

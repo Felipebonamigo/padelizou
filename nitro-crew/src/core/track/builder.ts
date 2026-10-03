@@ -4,6 +4,7 @@
 import { SEGMENT_LENGTH } from '../constants';
 import { createRng, hashString, nextFloat, nextInt, pick, type RngState } from '../rng';
 import type { SceneryId, Segment, SpriteKind, SpriteRef, Track, TrackDef, TrackOp } from '../types';
+import { plazaMask } from './plazas';
 import { SPRITE_MIN_EDGE, spriteX } from './sprites';
 
 function easeIn(a: number, b: number, p: number): number { return a + (b - a) * p * p; }
@@ -116,6 +117,11 @@ function decorate(track: Track, seed: number): void {
   const recipe = RECIPES[track.def.scenery];
   const segs = track.segments;
   const n = segs.length;
+  // Praças da cidade (plazas.ts): ali o lado da praça não ganha prédio, torre nem outdoor. Os sorteios continuam
+  // os mesmos (só o sprite não entra), então fora das praças a pista sai idêntica à de antes delas.
+  const plaza = plazaMask(track);
+  const tallKind = (k: SpriteKind): boolean => k === 'building' || k === 'tower';
+  const inPlaza = (i: number, side: number): boolean => (plaza[i] & (side < 0 ? 1 : 2)) !== 0;
 
   // Largada: faixa, arquibancadas e muros do box. Todo sprite sólido é posicionado pela borda
   // interna (spriteX): o centro fica a meia largura × escala além da margem, nunca sobre o asfalto.
@@ -164,7 +170,8 @@ function decorate(track: Track, seed: number): void {
         const far = kind === 'building' || kind === 'tower';
         const scale = far ? 1.2 + nextFloat(r) * 1.4 : 0.8 + nextFloat(r) * 0.6;
         const margin = SPRITE_MIN_EDGE + nextFloat(r) * (far ? 1.4 : 1.6);
-        s.sprites.push(sprite(kind, side * spriteX(kind, scale, margin), scale, kind !== 'bush', nextInt(r, 0, 3)));
+        const variant = nextInt(r, 0, 3);
+        if (!(tallKind(kind) && inPlaza(i, side))) s.sprites.push(sprite(kind, side * spriteX(kind, scale, margin), scale, kind !== 'bush', variant));
       }
       if (recipe.lampEvery > 0 && i % recipe.lampEvery === 0 && side === -1) {
         s.sprites.push(sprite('lamp', -spriteX('lamp', 1, SPRITE_MIN_EDGE), 1, true, 0));
@@ -172,13 +179,18 @@ function decorate(track: Track, seed: number): void {
     }
     if (i % 40 === 20 && nextFloat(r) < recipe.billboardChance) {
       const side = nextFloat(r) < 0.5 ? -1 : 1;
-      if (!(side === 1 && s.pit)) s.sprites.push(sprite('billboard', side * spriteX('billboard', 1, SPRITE_MIN_EDGE + 0.1), 1, true, nextInt(r, 0, 7)));
+      if (!(side === 1 && s.pit)) {
+        const variant = nextInt(r, 0, 7);
+        if (!inPlaza(i, side)) s.sprites.push(sprite('billboard', side * spriteX('billboard', 1, SPRITE_MIN_EDGE + 0.1), 1, true, variant));
+      }
     }
     if (i % 90 === 45 && recipe.landmarks.length > 0) {
       const side = nextFloat(r) < 0.5 ? -1 : 1;
       const kind = pick(r, recipe.landmarks);
       const scale = 2.2 + nextFloat(r);
-      s.sprites.push(sprite(kind, side * spriteX(kind, scale, SPRITE_MIN_EDGE + 0.6 + nextFloat(r) * 0.6), scale, true, nextInt(r, 0, 3)));
+      const x = side * spriteX(kind, scale, SPRITE_MIN_EDGE + 0.6 + nextFloat(r) * 0.6);
+      const variant = nextInt(r, 0, 3);
+      if (!(tallKind(kind) && inPlaza(i, side))) s.sprites.push(sprite(kind, x, scale, true, variant));
     }
   }
 }

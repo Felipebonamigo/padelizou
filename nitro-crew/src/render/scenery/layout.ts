@@ -5,6 +5,7 @@
 // a mesma pista tem sempre o mesmo visual. Puro: sem Three nem DOM.
 import { placeOf } from '../../core/data/places';
 import { hashString } from '../../core/rng';
+import { cityPlazas } from '../../core/track/plazas';
 import { SPRITE_HALF_WIDTH } from '../../core/track/sprites';
 import type { SpriteRef, Track } from '../../core/types';
 import { hash2, hash3, valueNoise } from '../noise';
@@ -197,6 +198,8 @@ const LANDMARK_FIRST_STEP = 64;
 const LANDMARK_FIRST_AHEAD: Record<LandmarkPlace, number> = { near: 0, far: 30, skyline: 150 };
 /** Até onde (segmentos depois da largada) o primeiro de cada marco pode ir: o mais importante, os outros; o do horizonte, + o AHEAD dele. */
 export const LANDMARK_FIRST_MAX = { primary: 150, other: 300 } as const;
+/** Quanto (segmentos) o marco pode andar do centro da praça dele (a praça tem folga para ±4: plazas.ts). */
+const PLAZA_SLACK = 4;
 /** Trechos da linha central conferidos (o que está à vista enquanto o marco está na janela do RoadFrame). */
 const LANDMARK_VIEW = 300;
 
@@ -229,6 +232,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
   }
   const placed: LandmarkFoot[] = [];
   const clearings: Clearing[] = [];
+  const plazas = cityPlazas(track);
   // Fila: primeiro o primeiro de cada marco (na ordem de importância), depois as repetições.
   const jobs: Array<{ id: string; def: LandmarkDef; m: number; target: number; first: boolean; window: number }> = [];
   const firstAt = (e: (typeof entries)[number], j: number): number => track.startIndex + LANDMARK_FIRST + j * LANDMARK_FIRST_STEP + LANDMARK_FIRST_AHEAD[e.def.place];
@@ -253,7 +257,10 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     const [lat0, lat1, latStep] = LANDMARK_LAT[place];
     const coast = biome === 'coast';
     // 'sea' fica no mar do litoral (direita); fora do litoral, qualquer lado. No litoral, o resto fica em terra.
-    const sides: number[] = def.side === 'sea' ? (coast ? [1] : [-1, 1]) : coast ? [-1] : hash3(seed, job.m, id.length) < 0.5 ? [-1, 1] : [1, -1];
+    const anySides: number[] = def.side === 'sea' ? (coast ? [1] : [-1, 1]) : coast ? [-1] : hash3(seed, job.m, id.length) < 0.5 ? [-1, 1] : [1, -1];
+    // Cidade: o marco de perto/longe vai para a praça dele (core/track/plazas.ts — o lado sem prédio na beira da
+    // pista); só sem lugar nela cai na busca de sempre (atrás do paredão de prédios, o que o teste das praças acusa).
+    const plaza = place === 'skyline' ? undefined : plazas.find((q) => q.landmark === id && q.rep === job.m);
     const per = Math.max(1, Math.round(def.perLap));
     const reach = Math.max(8, Math.min(200, Math.floor(n / (4 * per))));
     const corners: Array<[number, number]> = [[b.minX, b.minZ], [b.minX, b.maxZ], [b.maxX, b.minZ], [b.maxX, b.maxZ]];
@@ -262,15 +269,18 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     let done = false;
     // Três passadas: a primeira exige chão quase plano e (perto) a vista livre de quem chega; a segunda aceita declive
     // e só pede o corredor livre na frente; a terceira estende a faixa até o dobro.
-    for (let attempt = 0; attempt < (job.first ? 2 : 1) && !done; attempt++)
+    for (let mode = plaza ? 0 : 1; mode < 2 && !done; mode++)
+    for (let attempt = 0; attempt < (job.first && mode === 1 ? 2 : 1) && !done; attempt++)
     for (let pass = 0; pass < 3 && !done; pass++) {
       const top = pass === 2 ? lat1 * 2 : lat1;
-      for (let o = 0; o <= 2 * reach && !done; o += 4) {
+      const sides = mode === 0 && plaza ? [plaza.side] : anySides;
+      const target = mode === 0 && plaza ? plaza.at : job.target;
+      for (let o = 0; o <= (mode === 0 ? 2 * PLAZA_SLACK : 2 * reach) && !done; o += 4) {
         // 0, +4, −4, +8, −8…; o primeiro de cada marco não volta para antes da largada.
         const off = o === 0 ? 0 : (o % 8 === 4 ? 1 : -1) * Math.ceil(o / 8) * 4;
-        if (job.first && off < -20) continue;
-        if (attempt === 0 && off > job.window) continue;
-        const i = (((job.target + off) % n) + n) % n;
+        if (mode === 1 && job.first && off < -20) continue;
+        if (mode === 1 && attempt === 0 && off > job.window) continue;
+        const i = (((target + off) % n) + n) % n;
         if (segs[i].pit) continue;
         for (const side of sides) {
           if (done) break;
@@ -334,6 +344,8 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
             const p = base(table.of(modelId));
             p.x = side * L; p.f = 0.5; p.y = y; p.yaw = yaw;
             out[i].push(p);
+            // Praça: arrumada antes de marcar a ocupação do marco (a arrumação fica do lado de cá da borda de dentro).
+            if (mode === 0) dressPlaza(track, table, out, occ, i, side, latA, span, seed);
             occ.mark(i, side, corridor ? FENCE_M + 2.5 : Math.max(0, latA - 2), latB + 2, span + 1);
             // Perto: o caminho de quem chega (~160 m antes) fica sem mata entre a cerca e o marco — um mirante, senão o
             // bosque de 26–142 m o esconde até o carro estar do lado dele.
@@ -348,6 +360,48 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     }
   }
   setClearings(track, clearings);
+}
+
+/**
+ * Praça da cidade (core/track/plazas.ts) arrumada como praça, não como buraco no paredão de prédios: cerca-viva baixa
+ * logo além do gradil, com uma passagem a cada 10 segmentos, canteiros de flores no gramado (até ~30 m da cerca-viva)
+ * e, no marco de perto, uma cerca-viva emoldurando a frente dele. Tudo ≤ 0,9 m (nada tapa o marco). Do caminho de
+ * quem chega (~36 segmentos antes da pegada) até logo depois dela. Respeita a ocupação (a pegada do marco, a cerca
+ * da divisa e a praça vizinha, que pode se encostar nesta) e a marca, para a decoração de depois não nascer em cima.
+ */
+function dressPlaza(track: Track, table: ModelTable, out: Placement[][], occ: Occupancy, i: number, side: number, latA: number, span: number, seed: number): void {
+  const n = track.segments.length;
+  const hedge = 'bush:hedge'; const flowers = 'flowers:meadow';
+  const hedgeSy = 0.9 / Math.max(0.1, modelHeight(hedge));
+  const put = (seg: number, id: string, lat: number, half: number, opts: Partial<Placement>): void => {
+    const j = ((seg % n) + n) % n;
+    if (!occ.free(j, side, lat - half, lat + half, 0)) return;
+    const p = base(table.of(id));
+    Object.assign(p, opts);
+    p.x = side * lat; p.y = groundOffset(track, j, p.f, side, lat);
+    out[j].push(p);
+    occ.mark(j, side, lat - half, lat + half, 0);
+  };
+  // Cerca-viva corrida ao longo da pista, um passo além do gradil (o comprimento do modelo vai em X: girada de 90° fica
+  // paralela à pista).
+  const row = FENCE_M + 3.6;
+  for (let d = -(span + 36); d <= span + 2; d++) {
+    if (((d % 10) + 10) % 10 === 0) continue; // passagem
+    put(i + d, hedge, row, 0.9, { f: 0.5, yaw: Math.PI / 2, sx: 1.55, sy: hedgeSy, sz: 1, maxAhead: 120 });
+  }
+  // Moldura na frente do marco de perto, quando há espaço entre ela e a cerca-viva da beira.
+  const front = latA - 3;
+  const framed = front > row + 6 && front < 80;
+  if (framed) for (let d = -span; d <= span; d++) put(i + d, hedge, front, 0.9, { f: 0.5, yaw: Math.PI / 2, sx: 1.55, sy: hedgeSy * 0.85, sz: 1, maxAhead: 120 });
+  // Canteiros de flores no gramado entre as duas (sorteio por hash: determinístico).
+  const inner = Math.min(framed ? front - 2 : latA - 2, row + 30);
+  if (inner - row < 5) return;
+  for (let d = -(span + 36); d <= span + 2; d++) {
+    const h = (k: number) => hash3(seed + 9001, i + d, k);
+    if (h(1) > 0.55) continue;
+    const sc = 1.6 + h(2) * 1.2;
+    put(i + d, flowers, row + 2.5 + h(3) * (inner - row - 3), 1, { f: h(4), yaw: h(5) * 6.28, sx: sc, sy: Math.min(sc, 0.5 / Math.max(0.1, modelHeight(flowers))), sz: sc, maxAhead: 80, rank: 0.02 + h(6) * 0.98 });
+  }
 }
 
 // ───────────────────────────── Decoração ─────────────────────────────
