@@ -6,7 +6,7 @@
 // π do outro lado — girar, nunca espelhar, senão as letras das placas saem invertidas). O que é comprido
 // (pontes, represa, paredões, serras) corre em Z, ao longo da pista, para ser visto de lado.
 // Escala real em metros nos marcos `near` e `far`; as montanhas do horizonte (`skyline`) são reduzidas
-// (Fuji com 190 m, Matterhorn com 280 m) para caberem antes da névoa — a silhueta é a de verdade.
+// (Fuji com 215 m, Matterhorn com 300 m) para caberem antes da névoa — a silhueta é a de verdade.
 // Faces planas e cor chapada (geom.ts); luz que acende à noite vai no material `glow` (e `beacon`, que
 // pisca; `cone`, o facho, só na noite fechada). Sem Math.random: variação por hash. Sem marca real: a
 // placa de Las Vegas diz só "WELCOME".
@@ -122,6 +122,28 @@ function roughen(g: Geo, amp: number, seed: number, keepBottom = true): Geo {
   return g;
 }
 
+/** Ruído de valor 2D suave em [-1, 1] (grade inteira, interpolação suavizada): neve em estrias, relevo, manchas. */
+function noise2(seed: number, x: number, z: number): number {
+  const i = Math.floor(x); const j = Math.floor(z);
+  const fx = x - i; const fz = z - j;
+  const sx = fx * fx * (3 - 2 * fx); const sz = fz * fz * (3 - 2 * fz);
+  const h = (a: number, b: number): number => hash3(a, b, seed) * 2 - 1;
+  const a = h(i, j) + (h(i + 1, j) - h(i, j)) * sx;
+  const b = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * sx;
+  return a + (b - a) * sz;
+}
+
+/** Interpolação linear numa tabela [x, y] crescente em x (fora dela, o valor da ponta). */
+function table(pts: ReadonlyArray<readonly [number, number]>, x: number): number {
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    if (x <= pts[i][0]) { const [x0, y0] = pts[i - 1]; const [x1, y1] = pts[i]; return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0); }
+  }
+  return pts[pts.length - 1][1];
+}
+
+const smooth = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
 /** Superfície paramétrica (u, v em [0, 1]) em triângulos soltos. */
 function grid(nu: number, nv: number, fn: (u: number, v: number) => P3): Geo {
   const pts: P3[] = [];
@@ -142,6 +164,26 @@ function tris2(p: number[]): Geo {
   const out = [...p];
   for (let i = 0; i + 8 < p.length; i += 9) out.push(p[i], p[i + 1], p[i + 2], p[i + 6], p[i + 7], p[i + 8], p[i + 3], p[i + 4], p[i + 5]);
   return tris(out);
+}
+
+/**
+ * Espelha as peças em Z e desvira o sentido dos triângulos (o `glow` só desenha a frente). Para os marcos de
+ * `side: 'sea'`: o mar fica sempre à direita, e quem chega vê o modelo pela ponta −Z.
+ */
+function mirrorZ(geos: readonly Geo[]): void {
+  const m = new THREE.Matrix4().makeScale(1, 1, -1);
+  for (const g of geos) {
+    g.applyMatrix4(m);
+    for (const name of ['position', 'color', 'normal']) {
+      const a = g.getAttribute(name) as THREE.BufferAttribute | undefined;
+      if (!a) continue;
+      for (let i = 0; i + 2 < a.count; i += 3) {
+        const x = a.getX(i + 1); const y = a.getY(i + 1); const z = a.getZ(i + 1);
+        a.setXYZ(i + 1, a.getX(i + 2), a.getY(i + 2), a.getZ(i + 2));
+        a.setXYZ(i + 2, x, y, z);
+      }
+    }
+  }
 }
 
 /** Tabuleiro (pista, deque) que segue um caminho: largura w para os lados, espessura t para baixo. */
@@ -435,11 +477,20 @@ function ponteTrelica(): Model {
     k.f(hip(6, D - 1, 11, 4, 9), '#9a8f80', tf(0, 0, z));
     k.f(box(5, 1.2, 10), '#8a8070', tf(0, D - 1.6, z));
   }
-  // Encontros: paredões de rocha nas pontas (o desfiladeiro).
+  // Encontros: as paredes do desfiladeiro nas pontas, em bancadas de rocha com o pinheiral no alto.
   for (const sz of [-1, 1]) {
-    for (let j = 0; j < 2; j++) {
-      const g = paint(ico(1, 1), j ? '#7d6e5e' : '#8a7a68', tf(j * 6 - 3, 8 + j * 3, sz * (84 + j * 14), 16 + j * 4, 16 + j * 4, 18));
-      k.raw(speckle(tintUp(roughen(g, 2.2, 5 + j + (sz > 0 ? 2 : 0)), '#5f7a42', 0.72, 0.85), 0.08, 9 + j));
+    for (let l = 0; l < 7; l++) {
+      const y0 = l * 3.6; const y1 = y0 + 3.6;
+      const color = ['#8a7a68', '#7d6e5e', '#94846f', '#76685a'][(l + (sz > 0 ? 1 : 0)) % 4];
+      const zIn = 72 + l * 0.8 + 3 * hash2(l, 391 + sz); const zOut = 122;
+      const g = paint(tris(strata(zIn, zOut, y0, y1, (z) => 17 + 4 * noise2(392 + sz, z / 12, l * 0.7) + (z - zIn < 6 ? -2 : 0), (z) => 2 * noise2(393, z / 20, sz))), color);
+      if (sz < 0) mirrorZ([g]);
+      faceColor(g, (_x, y, _z, up) => (up > 0.8 && y > 24 ? '#5f7a42' : color));
+      k.raw(speckle(g, 0.07, 394 + l));
+    }
+    for (let i = 0; i < 6; i++) {
+      const x = -14 + (28 * i) / 5 + (hash2(i, 395) - 0.5) * 4; const z = sz * (88 + hash2(i, 396 + sz) * 26); const h = 9 + hash2(i, 397) * 5;
+      k.f(cone(2.6, h, 6), i % 2 ? '#2a5434' : '#23482c', tf(x, 25.2 + h / 2, z));
     }
   }
   return k.model(D + T + 2, { shade: [0.75, 1.05] });
@@ -477,16 +528,32 @@ function represaHoover(): Model {
   k.f(box(22, 20, 60), '#d8d0c0', tf(base + 11, 10, -44)).f(box(22, 20, 60), '#d8d0c0', tf(base + 11, 10, 44));
   k.f(box(18, 14, 30), '#cfc6b4', tf(base + 9, 7, 0));
   for (const z of [-44, 44]) k.l(box(0.2, 2, 50), '#ffe2a8', tf(base + 22.1, 14, z));
-  // Paredes do cânion (rocha vulcânica marrom-escura).
+  // Paredes do cânion: rocha vulcânica marrom-escura em bancadas (camadas de 13 m com o contorno irregular), coladas
+  // nas ombreiras da represa e abrindo rio abaixo; do lado do lago, a margem recua.
+  const xEnd = (y: number): number => R - (R - thick(Math.min(y, H))) * Math.cos(A);
+  const zEnd = (y: number): number => (R - thick(Math.min(y, H))) * Math.sin(A);
+  const rocks = ['#6e5040', '#7c5a46', '#5e4436', '#76523f', '#664a3a'];
+  const turn = new THREE.Matrix4().makeRotationY(Math.PI / 2);
   for (const sz of [-1, 1]) {
-    const chunks: Array<[number, number, number, number, number, number]> = [
-      [-30, 70, 150, 75, 95, 55], [40, 58, 140, 55, 80, 45], [95, 34, 124, 38, 52, 34],
-    ];
-    chunks.forEach(([x, y, z, sx, sy, szz], j) => {
-      const g = paint(ico(1, 1), j % 2 ? '#7a5844' : '#8a6650', tf(x, y, sz * z, sx, sy, szz));
-      k.raw(speckle(tintUp(roughen(g, 6, 11 + j + (sz > 0 ? 7 : 0)), '#b89a72', 0.65, 0.6), 0.1, 3 + j));
-    });
+    for (let l = 0; l < 10; l++) {
+      const y0 = l * 13; const y1 = y0 + 13;
+      const zin = (x: number, y: number): number => {
+        const down = zEnd(y) - 6 + 0.25 * Math.max(0, x - xEnd(y)) + 6 * noise2(271 + (sz > 0 ? 9 : 0), x / 28, l * 0.6);
+        return x < xEnd(y) - 30 ? 132 + 6 * noise2(272, x / 30, l) : x < xEnd(y) - 6 ? down + (132 - down) * smooth(-6, -30, x - xEnd(y)) : down;
+      };
+      const ym = (y0 + y1) / 2;
+      const color = rocks[(l * 3 + (sz > 0 ? 1 : 0)) % rocks.length];
+      // No referencial da camada, o eixo dela (z) é o X do mundo e o lado dela (x) é o −Z do mundo (gira 90°).
+      // Rio abaixo, cada bancada acaba antes da de baixo: a borda do cânion desce em degraus e não tapa a represa.
+      const xMax = xEnd(ym) + 34 - l * 2.5 + 8 * noise2(274, l, sz);
+      const g = paint(tris(strata(-75, xMax, y0, y1, (x, y) => (200 - zin(x, y)) / 2, (x) => (-sz * (zin(x, ym) + 200)) / 2, 16)), color);
+      g.applyMatrix4(turn);
+      faceColor(g, (_x, y, _z, up) => (up > 0.8 && y > y1 - 0.5 ? '#a8865e' : color));
+      k.raw(speckle(g, 0.07, 273 + l));
+    }
   }
+  // O rio Colorado saindo da usina, verde-azulado.
+  k.f(box(70, 0.6, 70), '#3f7f86', tf(base + 50, 0.3, 0));
   return k.model(H + 10, { shade: [0.7, 1.05] });
 }
 
@@ -998,29 +1065,56 @@ function arcoTriunfo(): Model {
   return k.model(51, { shade: [0.82, 1.05] });
 }
 
-/** Matterhorn: pirâmide de pedra torta de cume curvado, neve nas faces mais deitadas (escala do horizonte). */
+/**
+ * Matterhorn: a trompa de pedra de quatro arestas (a do Hörnli aponta para a pista), faces côncavas e íngremes que
+ * se fecham num cume torto (o "gancho" cai para +Z), ombro no Hörnli e o do Pic Tyndall na aresta de trás; neve em
+ * estrias nas faces (mais na face "norte", a de +X+Z), geleira e morena no sopé largo (escala do horizonte).
+ */
 function matterhorn(): Model {
   const k = new Kit();
-  const H = 280; const R = 200;
-  const mk = (h: number, r: number, hook: number, seed: number, x: number, z: number, segs: number): void => {
-    const g = new THREE.ConeGeometry(1, 1, segs, 12, true);
-    const p = g.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < p.count; i++) {
-      const t = p.getY(i) + 0.5; const ro = 1 - t;
-      const dx = ro > 1e-4 ? p.getX(i) / ro : 0; const dz = ro > 1e-4 ? p.getZ(i) / ro : 0;
-      // Base larga, flancos que se fecham depressa e o cume torto (o "gancho" do Matterhorn).
-      const rn = r * (0.9 * Math.pow(ro, 1.6) + 0.1 * Math.pow(ro, 5));
-      p.setXYZ(i, x + dx * rn + hook * r * t * t * t, t * h, z + dz * rn * 0.85 - 0.05 * r * t * t);
-    }
-    const gg = paint(g, '#5a5450');
-    roughen(gg, 5, seed);
-    faceColor(gg, (_x, y, _z, up, f) => (y < h * 0.06 ? '#6a7660' : up > 0.62 && hash2(f, seed + 7) > 0.25 ? '#f2f5fa' : up > 0.45 && y > h * 0.5 ? '#e8eef4' : hash2(f, seed) > 0.5 ? '#5a5450' : '#4b4643'));
-    k.raw(speckle(gg, 0.05, seed + 1));
+  const H = 300; const Rb = 205; const K = 32;
+  // Raio relativo por altura (t = y/H): sopé largo de geleira, a trompa íngreme (≈ 60°) do meio para cima.
+  const prof: Array<[number, number]> = [[-0.03, 1.05], [0, 1.0], [0.06, 0.79], [0.13, 0.65], [0.22, 0.54], [0.34, 0.43], [0.47, 0.33], [0.6, 0.235], [0.72, 0.158], [0.82, 0.097], [0.9, 0.055], [0.96, 0.024]];
+  const ts = [-0.03, 0, 0.04, 0.08, 0.13, 0.19, 0.26, 0.34, 0.42, 0.5, 0.58, 0.65, 0.72, 0.78, 0.84, 0.89, 0.93, 0.965];
+  // Alcance de cada aresta (0 = +X Hörnli, 1 = +Z, 2 = −X, 3 = −Z Lion) com os ombros.
+  const bump = (t: number, c: number, w: number, a: number): number => a * Math.exp(-(((t - c) / w) ** 2));
+  const reach = (q: number, t: number): number => [1.14 + bump(t, 0.7, 0.07, 0.42), 0.94 + bump(t, 0.4, 0.1, 0.1), 1.0, 1.08 + bump(t, 0.52, 0.07, 0.3)][q & 3];
+  // O gancho: o terço de cima tomba para +Z e um pouco para trás.
+  const cx = (t: number): number => -10 * t - 8 * smooth(0.7, 1, t);
+  const cz = (t: number): number => 24 * smooth(0.6, 1, t) ** 1.5;
+  const vert = (j: number, i: number): P3 => {
+    const t = ts[j]; const th = (i / K) * Math.PI * 2;
+    const c = Math.abs(Math.cos(th)); const s = Math.abs(Math.sin(th));
+    const star = 1 / Math.pow(Math.pow(c, 0.88) + Math.pow(s, 0.88), 1 / 0.88); // 1 na aresta, 0,65 no meio da face
+    const q = Math.floor(th / (Math.PI / 2)); const f = smooth(0, 1, th / (Math.PI / 2) - q);
+    const r = Rb * table(prof, t) * star * (reach(q, t) * (1 - f) + reach(q + 1, t) * f) * (1 + 0.08 * noise2(301, i * 0.9, j * 0.8));
+    const y = t <= 0 ? t * H : t * H + 5 * noise2(302, i * 1.3, j);
+    return [cx(t) + Math.cos(th) * r, y, cz(t) + Math.sin(th) * r];
   };
-  mk(H, R, 0.14, 91, 0, 0, 4);
-  mk(H * 0.42, R * 0.75, 0.04, 93, -70, 110, 5);
-  mk(H * 0.34, R * 0.6, -0.04, 95, -50, -130, 5);
-  return k.model(H, { shade: [0.92, 1.03] });
+  const out: number[] = [];
+  for (let j = 0; j + 1 < ts.length; j++) {
+    for (let i = 0; i < K; i++) {
+      const a = vert(j, i); const b = vert(j, (i + 1) % K); const c = vert(j + 1, (i + 1) % K); const d = vert(j + 1, i);
+      out.push(...a, ...d, ...c, ...a, ...c, ...b);
+    }
+  }
+  const apex: P3 = [cx(1) + 4, H, cz(1)];
+  for (let i = 0; i < K; i++) out.push(...vert(ts.length - 1, i), ...apex, ...vert(ts.length - 1, (i + 1) % K));
+  const g = paint(tris(out), '#5f5852');
+  faceColor(g, (x, y, z, up, fi) => {
+    const t = y / H;
+    const th = Math.atan2(z - cz(t), x - cx(t));
+    const ridge = Math.abs(((th + Math.PI * 2) % (Math.PI / 2)) - Math.PI / 4); // π/4 na aresta, 0 no meio da face
+    if (t < 0.07) return noise2(303, x / 40, z / 40) > -0.35 ? (up > 0.75 ? '#eef3f8' : '#dfe8f0') : '#8a847c';
+    if (t < 0.17) return up > 0.55 || noise2(304, x / 30, z / 30) > 0.25 ? '#e8eef4' : '#7a736b';
+    const north = th > 0 && th < Math.PI / 2 ? 0.2 : 0; // a face de +X+Z (a "norte") guarda mais neve
+    const streak = noise2(305, (th / (Math.PI * 2)) * 40, t * 3.2) + north + (up - 0.4) * 1.1 - (ridge > 0.66 ? 0.2 : 0) - (t > 0.92 ? 0.15 : 0);
+    if (streak > 0.2) return up > 0.5 ? '#f4f7fb' : '#e2e9f0';
+    if (ridge > 0.7) return '#4a4440';
+    return hash2(fi, 306) > 0.5 ? '#625a53' : (t > 0.55 ? '#6e6359' : '#57514c');
+  });
+  k.raw(speckle(g, 0.04, 307));
+  return k.model(H, { shade: [0.9, 1.04] });
 }
 
 /** Capela de pedra dos Alpes: torre com cúpula de cebola verde, telhado íngreme, cruz de caminho. */
@@ -1216,27 +1310,50 @@ function anfiteatroDrakensberg(): Model {
   return k.model(252, { shade: [0.9, 1.03] });
 }
 
-/** Farol do Cabo da Boa Esperança: promontório de rocha e fynbos, farol branco no alto, facho para o mar. */
+/**
+ * Farol do Cabo da Boa Esperança (Cape Point): a crista estreita do promontório saindo do mar ao longo da pista,
+ * falésias de arenito dos dois lados, fynbos (mato oliva) no alto, o farol velho branco no pico com o facho para o
+ * mar e o farol novo, menor, na ponta; espuma no pé.
+ */
 function farolCapePoint(): Model {
   const k = new Kit();
-  const rock = paint(ico(1, 2), '#6f655a', tf(-12, 4, 0, 58, 36, 42));
-  k.raw(speckle(tintUp(roughen(rock, 3, 151), '#7a7a4a', 0.55, 0.9), 0.08, 152));
-  const lobe = paint(ico(1, 1), '#6a6056', tf(-62, 2, 18, 40, 22, 30));
-  k.raw(speckle(tintUp(roughen(lobe, 3, 153), '#7a7a4a', 0.55, 0.9), 0.08, 154));
-  const ring = new THREE.RingGeometry(55, 66, 20, 1).rotateX(-Math.PI / 2);
-  k.f(ring, '#e8f2f6', tf(-20, 0.4, 0, 1, 1, 0.85));
-  // O farol (1,6× o farol de sempre do cenário, para ler no alto do penhasco), montado no próprio referencial.
-  const top = 37.5; const lx = -12; const sc = 1.6;
+  const crest = (z: number): number => table([[-112, 0], [-100, 14], [-86, 25], [-62, 40], [-42, 33], [-18, 54], [-4, 72], [4, 76], [12, 73], [26, 56], [48, 32], [72, 12], [86, 0]], z);
+  const half = (z: number): number => 26 + 12 * (crest(z) / 76);
+  const xc = (z: number): number => -10 + 5 * Math.sin(z / 40);
+  const hY = (x: number, z: number): number => {
+    const u = Math.abs((x - xc(z)) / half(z));
+    if (u >= 1) return -1;
+    const f = Math.pow(1 - u ** 3, 0.5);
+    return crest(z) * f + 3.5 * noise2(451, x / 14, z / 14) * f - 1;
+  };
+  const g = paint(grid(26, 14, (u, v) => { const z = -112 + 198 * u; const x = 46 - 112 * v; return [x, hY(x, z), z]; }), '#7a7046');
+  faceColor(g, (_x, y, _z, up, f) => {
+    if (y < 3) return '#5e564e';
+    if (up < 0.5) return hash2(f, 452) > 0.5 ? '#80705f' : '#8f7f6b';
+    return ['#6f7442', '#7c7a48', '#8a7e52', '#737a46'][Math.floor(hash2(f, 453) * 4)];
+  });
+  k.raw(speckle(g, 0.06, 454));
+  // O farol velho no pico (1,6× o farol do cenário, para ler no alto do penhasco), montado no próprio referencial.
+  const lz = 4; const lx = xc(lz); const top = crest(lz) - 1.2; const sc = 1.6;
+  const lighthouse = (s: Kit, h: number): void => {
+    s.f(box(8, 4, 8), '#d8d4ca', tf(0, -1, 0));
+    s.f(cyl(2.0, 2.5, h, 10), '#f6f4ee', tf(0, h / 2 + 1, 0));
+    s.f(cyl(2.8, 2.8, 0.4, 10), '#2a2e34', tf(0, h + 1.2, 0));
+    s.l(cyl(1.5, 1.5, 2.0, 10), '#fff2c0', tf(0, h + 2.4, 0));
+    s.f(cone(1.9, 1.8, 10), '#2a2e34', tf(0, h + 4.3, 0));
+  };
   const f = new Kit();
-  f.f(box(8, 4, 8), '#d8d4ca', tf(0, -1, 0));
-  f.f(cyl(2.0, 2.5, 11, 10), '#f6f4ee', tf(0, 6.5, 0));
-  f.f(cyl(2.8, 2.8, 0.4, 10), '#2a2e34', tf(0, 12.2, 0));
-  f.l(cyl(1.5, 1.5, 2.0, 10), '#fff2c0', tf(0, 13.4, 0));
-  f.f(cone(1.9, 1.8, 10), '#2a2e34', tf(0, 15.3, 0));
-  f.f(box(6, 3.4, 4.5), '#f6f4ee', tf(6, 1.7, 3));
-  f.f(gable(6.4, 1.6, 4.9, 0.2), '#b84a3a', tf(6, 3.4, 3, 1, 1, 1, 0, Math.PI / 2, 0));
-  k.add(f, tf(lx, top, 0, sc, sc, sc));
-  k.beam(new THREE.ConeGeometry(9, 110, 12, 1, true).rotateZ(-Math.PI / 2).translate(-55, 0, 0), tf(lx, top + 13.4 * sc, 0, 1, 1, 1, 0, -0.5, 0));
+  lighthouse(f, 11);
+  f.f(box(4.2, 5, 6), '#f6f4ee', tf(0, 0.2, -6.5));
+  f.f(gable(4.6, 1.4, 6.4, 0.2), '#b84a3a', tf(0, 2.7, -6.5));
+  k.add(f, tf(lx, top, lz, sc, sc, sc));
+  k.beam(new THREE.ConeGeometry(9, 110, 12, 1, true).rotateZ(-Math.PI / 2).translate(-55, 0, 0), tf(lx, top + 13.4 * sc, lz, 1, 1, 1, 0, -0.5, 0));
+  // O farol novo, mais baixo, na ponta.
+  const n = new Kit();
+  lighthouse(n, 8);
+  k.add(n, tf(xc(-98), crest(-98) - 1, -98, 1.3, 1.3, 1.3));
+  // Espuma no pé do promontório.
+  k.f(new THREE.RingGeometry(1, 1.1, 22, 1).rotateX(-Math.PI / 2), '#eef6f8', tf(xc(-12), 0.35, -13, 44, 1, 104));
   return k.model(top + 16 * sc, { shade: [0.85, 1.05] });
 }
 
@@ -1280,49 +1397,121 @@ function tableMountain(): Model {
 
 // ───────────────────────────── Austrália ─────────────────────────────
 
-/** Uluru: monólito vermelho de lados íngremes e topo arredondado, com sulcos verticais (horizonte). */
+/**
+ * Uluru: o monólito vermelho-alaranjado comprido (ao longo da pista), de flancos quase a prumo e topo arredondado, com
+ * ravinas irregulares nos flancos, as manchas escuras de escorrimento descendo deles e o pé sombreado das cavernas
+ * (horizonte; 110 m de altura para não sumir na névoa).
+ */
 function uluru(): Model {
   const k = new Kit();
-  const H = 110; const L = 360; const W = 175; // ≥ 90 m: o horizonte some na névoa abaixo disso
-  const g = new THREE.SphereGeometry(1, 56, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const H = 110; const L = 360; const W = 175;
+  const gully = (az: number): number => Math.max(0, valueNoise(173, az * 10) + 0.5 * valueNoise(176, az * 23)) ** 1.5;
+  const g = new THREE.SphereGeometry(1, 64, 12, 0, Math.PI * 2, 0, Math.PI / 2);
   const p = g.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i); const y = p.getY(i); const z = p.getZ(i);
     const hr = Math.hypot(x, z); const az = Math.atan2(z, x);
-    const fh = Math.pow(hr, 0.35); const fy = Math.pow(Math.max(0, y), 0.45);
-    const groove = 1 - 0.035 * Math.max(0, Math.sin(az * 23 + 1.3 * Math.sin(az * 5)));
+    const fh = Math.pow(hr, 0.33); const fy = Math.pow(Math.max(0, y), 0.42);
+    const groove = 1 - 0.045 * gully(az) * (0.4 + 0.6 * hr);
     const sx = Math.sign(Math.cos(az)) * Math.pow(Math.abs(Math.cos(az)), 0.6); const sz = Math.sign(Math.sin(az)) * Math.pow(Math.abs(Math.sin(az)), 0.6);
-    const lump = 1 + 0.06 * valueNoise(171, az * 3);
-    p.setXYZ(i, sx * fh * L * groove, fy * H * lump * (1 - 0.08 * Math.abs(Math.cos(az))), sz * fh * W * groove);
+    const lump = 1 + 0.07 * valueNoise(171, az * 3) + 0.04 * valueNoise(174, az * 7);
+    // Comprido ao longo da pista (Z), como os marcos compridos: o flanco longo olha a estrada.
+    p.setXYZ(i, sz * fh * W * groove, fy * H * lump * (1 - 0.1 * Math.abs(Math.cos(az))), sx * fh * L * groove);
   }
-  const gg = paint(g, '#c4552a');
-  faceColor(gg, (x, y, z) => {
-    const az = Math.atan2(z / W, x / L);
-    const s = Math.sin(az * 23 + 1.3 * Math.sin(az * 5));
-    return s > 0.7 ? '#9a3e20' : y > H * 0.85 ? '#c86a3a' : '#c4552a';
+  const gg = paint(g, '#b33f17');
+  faceColor(gg, (x, y, z, up, f) => {
+    const az = Math.atan2(x / W, z / L);
+    // Vermelho mais fundo que as mesas e o arenito do terreno do deserto em volta (laranja-claro): destaca na névoa.
+    if (y < 7 && hash2(f, 177) > 0.4) return '#7e2c14';
+    if (up < 0.6 && (gully(az) > 0.5 || valueNoise(175, az * 31) > 0.72)) return '#8e3416';
+    if (y > H * 0.82) return hash2(f, 178) > 0.7 ? '#a8461f' : '#bd5326';
+    return hash2(f, 179) > 0.5 ? '#b33f17' : '#a93a17';
   });
-  k.raw(speckle(gg, 0.05, 172));
+  k.raw(speckle(gg, 0.04, 172));
   return k.model(H, { shade: [0.85, 1.05] });
 }
 
-/** London Arch (Great Ocean Road): pilha de calcário em camadas com o arco, topo de mato e espuma. */
+/**
+ * Uma camada de rocha sedimentar entre z0 e z1, de y0 a y1: em cada z, a meia largura `hw(z, y)` para os dois lados de
+ * `cx(z)` (planta irregular), paredes, topo e fundo. Pilha delas = falésia em estratos (London Arch, apóstolos).
+ */
+function strata(z0: number, z1: number, y0: number, y1: number, hw: (z: number, y: number) => number, cx: (z: number) => number = () => 0, step = 6.5): number[] {
+  const n = Math.max(2, Math.ceil((z1 - z0) / step));
+  const L0: P3[] = []; const R0: P3[] = []; const L1: P3[] = []; const R1: P3[] = [];
+  for (let i = 0; i <= n; i++) {
+    const z = z0 + ((z1 - z0) * i) / n; const c = cx(z);
+    const b = Math.max(0.3, hw(z, y0)); const t = Math.max(0.3, hw(z, y1));
+    L0.push([c - b, y0, z]); R0.push([c + b, y0, z]); L1.push([c - t, y1, z]); R1.push([c + t, y1, z]);
+  }
+  const o: number[] = [];
+  const q = (a: P3, b: P3, c: P3, d: P3): void => { o.push(...a, ...b, ...c, ...a, ...c, ...d); };
+  for (let i = 0; i < n; i++) {
+    q(L1[i], R1[i], R1[i + 1], L1[i + 1]);
+    q(L0[i], L0[i + 1], R0[i + 1], R0[i]);
+    q(R0[i], R0[i + 1], R1[i + 1], R1[i]);
+    q(L0[i], L1[i], L1[i + 1], L0[i + 1]);
+  }
+  q(L0[0], R0[0], R1[0], L1[0]);
+  q(L0[n], L1[n], R1[n], R0[n]);
+  return o;
+}
+
+/**
+ * London Arch (Great Ocean Road): o rochedo de calcário em estratos horizontais (creme, ocre e ferrugem, cada camada
+ * com o contorno um pouco diferente e a de baixo cavada pelo mar), o arco na ponta de fora, mato rasteiro em cima,
+ * um "apóstolo" (coluna solta) ao lado e a espuma das ondas em volta.
+ */
 function arcoGreatOcean(): Model {
   const k = new Kit();
-  const s = new THREE.Shape();
-  s.moveTo(-46, 0); s.lineTo(-32, 0); s.lineTo(-32, 14); s.absarc(-19, 14, 13, Math.PI, 0, true); s.lineTo(-6, 0);
-  s.lineTo(40, 0); s.lineTo(44, 18); s.lineTo(41, 36); s.lineTo(26, 43); s.lineTo(4, 45); s.lineTo(-18, 43); s.lineTo(-37, 39);
-  s.lineTo(-46, 28); s.lineTo(-48, 12); s.lineTo(-46, 0);
-  const band = (_x: number, y: number, _z: number, up: number): C => (up > 0.7 && y > 30 ? '#7a8a4a' : ['#d9a46a', '#c98f58', '#e2b27a', '#cf9a60'][Math.floor(y / 4.5) % 4]);
-  const g = paint(extrude(s, 18, 8), '#d9a46a', tf(0, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
-  k.raw(speckle(faceColor(roughen(g, 1.4, 181), band), 0.05, 182));
-  const col = paint(cyl(6.5, 8.5, 34, 7), '#d9a46a', tf(-6, 17, 66));
-  k.raw(speckle(faceColor(roughen(col, 1.2, 183), band), 0.05, 184));
-  for (const [x, z, r] of [[14, -30, 5], [-12, 40, 4], [16, 50, 3]] as const) k.raw(speckle(roughen(paint(ico(r, 0), '#b88a5a', tf(x, r * 0.3, z)), 0.6, 185), 0.06, 186));
-  for (const [x, z, r] of [[0, 0, 30], [-6, 66, 11]] as const) {
-    const ring = new THREE.RingGeometry(r, r + 6, 18, 1).rotateX(-Math.PI / 2);
-    k.f(ring, '#eef6f8', tf(x, 0.3, z, 1, 1, z === 0 ? 1.9 : 1));
+  const bands = ['#e3b47c', '#d29a5e', '#e9c48e', '#c7894f', '#dcaa70', '#b97c48', '#e6bc84'];
+  const nL = 13; const hL = 3.5;
+  const zA = 24; const ra = 11; const ya = 12; // o arco: centro em z, raio, altura das paredes retas
+  const z0 = -58; const z1 = 52;
+  // Topo: mais alto do lado de terra (−Z), baixando para o arco; ondula.
+  const top = (z: number): number => 46 - 11 * smooth(-20, 48, z) + 2.5 * valueNoise(422, z / 14);
+  // Planta: ponta de terra arredondada, ponta de fora mais reta; a camada de baixo cavada pelo mar.
+  const plan = (z: number, l: number): number => {
+    const zn = Math.min(1, Math.abs((z - (z0 + z1) / 2) / ((z1 - z0) / 2)));
+    const ex = z < 0 ? 2 : 3.5;
+    const under = l === 0 ? 2.8 : l === 1 ? 1.3 : 0;
+    return 16 * Math.pow(1 - zn ** ex, 1 / ex) * (1 + 0.1 * noise2(421, z / 13, l * 0.45)) - under + 0.5 * noise2(429, l * 0.8, 3.1);
+  };
+  const opening = (y: number): number => (y <= ya ? ra : y < ya + ra ? Math.sqrt(ra * ra - (y - ya) ** 2) : 0);
+  const cx = (z: number): number => 1.5 * noise2(425, z / 18, 0.5);
+  const yAt = (l: number): number => l * hL + 0.8 * (hash2(l, 432) - 0.5) * (l > 0 && l < nL ? 1 : 0);
+  for (let l = 0; l < nL; l++) {
+    const y0 = yAt(l); const y1 = yAt(l + 1); const ym = (y0 + y1) / 2;
+    // A camada vai até onde o topo ainda passa da metade dela (o topo desce em degraus para o arco).
+    let zEnd = z1;
+    while (zEnd > z0 + 4 && top(zEnd) < ym) zEnd -= 2;
+    if (zEnd <= z0 + 4) break;
+    const hw = opening(ym);
+    const pieces: Array<[number, number]> = hw > 0.5 ? [[z0, Math.min(zEnd, zA - hw)], [zA + hw, zEnd]] : [[z0, zEnd]];
+    const color = bands[(l * 5 + 2) % bands.length];
+    const above = (z: number): boolean => l + 1 < nL && top(z) >= y1 + hL / 2 && !(opening(y1 + hL / 2) > Math.abs(z - zA));
+    for (const [a, b] of pieces) {
+      if (b - a < 1.5) continue;
+      const g = paint(tris(strata(a, b, y0, y1, (z, y) => plan(z, l) - (y > y0 + 0.01 ? 0.6 : 0), cx)), color);
+      faceColor(g, (_x, y, z, up) => (up > 0.8 && y > y1 - 0.2 && !above(z) ? '#7d8a4c' : color));
+      k.raw(speckle(g, 0.05, 426 + l));
+    }
   }
-  return k.model(46, { shade: [0.85, 1.05] });
+  // O apóstolo: coluna solta de calcário na água, além do arco.
+  for (let l = 0; l < 8; l++) {
+    const y0 = l * 3.6; const y1 = y0 + 3.6;
+    const r = (l === 0 ? 5.4 : 6.6) - l * 0.3 + 0.4 * noise2(431, l, 0.5);
+    const c = bands[(l * 3 + 1) % bands.length];
+    const g = paint(tris(strata(70 - r, 70 + r, y0, y1, (z) => r * Math.sqrt(Math.max(0, 1 - ((z - 70) / r) ** 2)) + 0.4, () => -4)), c);
+    if (l === 7) faceColor(g, (_x, _y, _z, up) => (up > 0.8 ? '#7d8a4c' : c));
+    k.raw(speckle(g, 0.05, 430 + l));
+  }
+  // Pedras caídas e a espuma das ondas em volta.
+  for (const [x, z, r] of [[16, -34, 4.5], [-14, 44, 3.5], [18, 46, 3]] as const) k.raw(speckle(roughen(paint(ico(r, 0), '#b88a5a', tf(x, r * 0.3, z)), 0.6, 427), 0.06, 428));
+  k.f(new THREE.RingGeometry(1, 1.22, 20, 1).rotateX(-Math.PI / 2), '#eef6f8', tf(0, 0.3, -3, 18, 1, 58));
+  k.f(new THREE.RingGeometry(1, 1.5, 12, 1).rotateX(-Math.PI / 2), '#eef6f8', tf(-4, 0.3, 70, 8, 1, 8));
+  // O arco fica na ponta −Z, a que quem chega vê (mirrorZ).
+  mirrorZ(k.flat);
+  return k.model(nL * hL, { shade: [0.82, 1.05] });
 }
 
 /** Passarela suspensa de Daintree: torre de observação de 24 m e o deque na copa das árvores gigantes. */
@@ -1443,85 +1632,173 @@ function harbourBridge(): Model {
 
 // ───────────────────────────── Escandinávia ─────────────────────────────
 
-/** Storseisundet: a ponte curva que sobe íngreme e parece acabar no ar, sobre pilares no mar. */
+/**
+ * Varre um contorno (pontos [lateral, dy] em volta do eixo) ao longo de um caminho: viga-caixão, parapeito.
+ * `scale(i)` estica o contorno em dy (viga mais alta no vão principal). Fecha as duas pontas.
+ */
+function sweep(path: readonly P3[], section: ReadonlyArray<readonly [number, number]>, scale: (i: number) => number = () => 1): number[] {
+  const rings: P3[][] = path.map((p, i) => {
+    const a = path[Math.max(0, i - 1)]; const b = path[Math.min(path.length - 1, i + 1)];
+    const tx = b[0] - a[0]; const tz = b[2] - a[2]; const n = Math.hypot(tx, tz) || 1;
+    const lx = -tz / n; const lz = tx / n; const sc = scale(i);
+    return section.map(([l, dy]) => [p[0] + lx * l, p[1] + dy * sc, p[2] + lz * l] as P3);
+  });
+  const out: number[] = [];
+  const m = section.length;
+  for (let i = 0; i + 1 < rings.length; i++) {
+    for (let j = 0; j < m; j++) {
+      const a = rings[i][j]; const b = rings[i][(j + 1) % m]; const c = rings[i + 1][(j + 1) % m]; const d = rings[i + 1][j];
+      out.push(...a, ...b, ...c, ...a, ...c, ...d);
+    }
+  }
+  for (const r of [rings[0], rings[rings.length - 1]]) for (let j = 1; j + 1 < m; j++) out.push(...r[0], ...r[j], ...r[j + 1]);
+  return out;
+}
+
+/**
+ * Storseisundet (Estrada do Atlântico): a ponte de concreto que sobe íngreme pelo lado de quem chega (−Z), faz a
+ * curva no alto e parece acabar no ar — viga-caixão alta (mais funda no vão principal de 125 m), parapeito branco,
+ * postes de luz, pilares-parede no mar e as ilhotas de pedra onde a estrada pousa nas duas pontas.
+ */
 function ponteStorseisundet(): Model {
   const k = new Kit();
   const path: P3[] = [];
-  for (let i = 0; i <= 26; i++) {
-    const z = -130 + i * 10;
-    const y = z < 40 ? 2 + 22 * (1 - ((z - 40) / 170) ** 2) : 2 + 22 * (1 - ((z - 40) / 90) ** 2);
-    const x = 26 * Math.sin((z + 130) / 260 * Math.PI) - 13;
+  const top = 27; const zTop = 40;
+  for (let i = 0; i <= 30; i++) {
+    const z = -140 + i * (280 / 30);
+    const y = z < zTop ? 3 + (top - 3) * (1 - ((z - zTop) / 180) ** 2) : 3 + (top - 3) * (1 - ((z - zTop) / 100) ** 2);
+    const x = 24 * Math.sin(((z + 140) / 280) * Math.PI) - 12;
     path.push([x, y, z]);
   }
-  k.f(ribbon(path, 8, 1.6), '#bdbdb6');
-  k.f(ribbon(path.map(([x, y, z]) => [x, y + 0.05, z] as P3), 7, 0.06), '#4a4a4c');
-  for (const off of [3.9, -3.9]) {
-    const rail: P3[] = path.map((p, i) => {
-      const a = path[Math.max(0, i - 1)]; const b = path[Math.min(path.length - 1, i + 1)];
-      const tx = b[0] - a[0]; const tz = b[2] - a[2]; const n = Math.hypot(tx, tz) || 1;
-      return [p[0] + (-tz / n) * off, p[1] + 1.0, p[2] + (tx / n) * off];
-    });
-    k.f(ribbon(rail, 0.3, 1.0), '#d8d8d2');
+  // Viga-caixão: laje com balanços e a caixa embaixo, mais funda no vão principal.
+  const deck: Array<[number, number]> = [[-5, 0], [5, 0], [5, -0.75], [3, -1.1], [2.5, -4.4], [-2.5, -4.4], [-3, -1.1], [-5, -0.75]];
+  const depth = (i: number): number => { const z = path[i][2]; return 0.62 + 0.38 * Math.exp(-(((z - 30) / 80) ** 2)); };
+  k.raw(paint(tris(sweep(path, deck, depth)), '#c9cac4'));
+  k.f(ribbon(path.map(([x, y, z]) => [x, y + 0.06, z] as P3), 8, 0.06), '#4b4b4e');
+  for (const off of [4.75, -4.75]) k.raw(paint(tris(sweep(path, [[off - 0.18, 0], [off + 0.18, 0], [off + 0.18, 1.2], [off - 0.18, 1.2]])), '#ebebe6'));
+  // Pilares-parede no mar (os do vão principal mais grossos) com a espuma em volta.
+  const at = (z: number): P3 => {
+    const f = (z + 140) / (280 / 30); const i = Math.min(29, Math.floor(f)); const t = f - i;
+    const a = path[i]; const b = path[i + 1];
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  };
+  for (const [z, w, d] of [[-115, 4.2, 1.8], [-82, 4.6, 2.0], [-48, 5, 2.2], [-22, 6.4, 3.2], [103, 6.4, 3.2], [122, 4.2, 1.8]] as const) {
+    const [x, y] = at(z); const h = y - 3.6 * (Math.abs(z - 30) < 80 ? 1.1 : 0.8) + 2;
+    k.f(box(w, h, d), '#b9bab4', tf(x, h / 2 - 2, z));
+    k.f(box(w + 1.2, 1.4, d + 1.2), '#a6a7a1', tf(x, 0.4, z));
+    k.f(new THREE.RingGeometry(w * 0.7, w * 0.7 + 2.2, 10, 1).rotateX(-Math.PI / 2), '#eef6f8', tf(x, 0.15, z, 1, 1, 0.6));
   }
-  for (let i = 2; i < path.length - 1; i += 3) {
+  // Postes de luz de um lado (acesos à noite).
+  for (let i = 2; i < path.length - 1; i += 4) {
     const [x, y, z] = path[i];
-    for (const off of [-2.2, 2.2]) k.f(box(1.4, y - 1.6, 1.4), '#b0b0aa', tf(x + off, (y - 1.6) / 2, z));
-    k.f(box(6, 1.2, 2), '#a8a8a2', tf(x, y - 2.0, z));
+    k.bar('#9a9c9e', [x + 4.6, y + 1.2, z], [x + 4.6, y + 7.5, z], 0.22);
+    k.bar('#9a9c9e', [x + 4.6, y + 7.5, z], [x + 3.2, y + 7.9, z], 0.18);
+    k.l(box(0.9, 0.35, 0.6), '#fff0c8', tf(x + 3.1, y + 7.7, z));
   }
-  for (let i = 0; i < path.length; i += 4) k.l(box(0.3, 0.3, 0.3), '#fff0c8', tf(path[i][0] + 3.9, path[i][1] + 1.6, path[i][2]));
-  return k.model(26, { shade: [0.82, 1.05] });
+  // Ilhotas de pedra com capim nas pontas, e a estrada que segue rente à água.
+  for (const sz of [-1, 1]) {
+    const [x0, , z0] = path[sz < 0 ? 0 : path.length - 1];
+    const g = paint(ico(1, 1), '#7c7a72', tf(x0 - 2, 0, z0 + sz * 18, 34, 9, 26));
+    k.raw(speckle(tintUp(roughen(g, 1.6, 361 + sz), '#6f8a4a', 0.55, 0.9), 0.08, 363 + sz));
+    k.f(box(8.4, 1.2, 30), '#55555a', tf(x0, 3.1, z0 + sz * 15));
+  }
+  // A subida íngreme fica na ponta −Z, a que quem chega vê (mirrorZ).
+  mirrorZ([...k.flat, ...k.glow]);
+  return k.model(top + 8, { shade: [0.78, 1.05] });
 }
 
-/** Vila da Lapônia: cabanas de toras com neve no telhado e janelas acesas, lavvu, kota e renas. */
+/**
+ * Vila da Lapônia: o casarão de toras com o telhadão nevado e as janelas acesas, cabanas, duas lavvu (tendas sami)
+ * com as varas para fora, a kota sextavada, abetos nevados (um com luzinhas), renas com o trenó e lampiões, num
+ * chão de neve de borda irregular.
+ */
 function vilaLapponia(): Model {
   const k = new Kit();
-  k.f(cyl(22, 22, 0.3, 14), '#eef3f8', tf(0, 0.15, 0, 1, 1, 0.8));
+  const snow: number[] = [];
+  const N = 18;
+  const rr = (i: number): number => 24 + 5 * valueNoise(461, i * 0.9);
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * Math.PI * 2; const a1 = ((i + 1) / N) * Math.PI * 2;
+    snow.push(0, 0.08, 0, Math.cos(a1) * rr(i + 1) * 0.75, 0.08, Math.sin(a1) * rr(i + 1), Math.cos(a0) * rr(i) * 0.75, 0.08, Math.sin(a0) * rr(i));
+  }
+  k.raw(paint(tris(snow), '#eaf0f7'));
+  const logs = (s: Kit, w: number, h: number, d: number): void => {
+    s.f(box(w, h, d), '#5a3a26', tf(0, h / 2, 0));
+    for (let i = 0; i < Math.floor(h / 0.75); i++) s.f(box(w + 0.12, 0.12, d + 0.12), '#3e2818', tf(0, 0.6 + i * 0.75, 0));
+  };
+  // O casarão de toras (dois andares no oitão), frente com janelas acesas e alpendre.
+  const L = new Kit();
+  logs(L, 10, 4.6, 18);
+  L.f(gable(10, 6.2, 18), '#5a3a26', tf(0, 4.6, 0));
+  L.f(gable(11.2, 6.6, 19.2, 0.3), '#f4f7fb', tf(0, 4.7, 0));
+  for (const z of [-6, -2, 2, 6]) L.l(box(0.12, 1.3, 1.4), '#ffc870', tf(5.04, 2.4, z));
+  L.l(box(0.12, 1.2, 1.2), '#ffc870', tf(0, 7.2, 9.04, 1, 1, 1, 0, Math.PI / 2, 0));
+  L.f(box(0.12, 2.4, 1.6), '#2a1a10', tf(5.04, 1.2, 0));
+  L.f(box(2.6, 0.25, 7), '#f4f7fb', tf(6.2, 3.1, 0, 1, 1, 1, 0, 0, -0.3));
+  for (const z of [-3.2, 3.2]) L.f(cyl(0.16, 0.16, 2.8, 6), '#4a3020', tf(7.2, 1.4, z));
+  L.f(box(1.1, 3.2, 1.1), '#6f6a66', tf(-2, 9.5, -5));
+  k.add(L, tf(-5, 0, -2, 1, 1, 1, 0, 0.12, 0));
+  // Cabanas menores.
   const cabin = (x: number, z: number, ry: number): void => {
-    const s = new Kit();
-    s.f(box(6, 3.2, 8.4), '#5a3a26', tf(0, 1.6, 0));
-    for (let i = 0; i < 4; i++) s.f(box(6.12, 0.12, 8.52), '#3e2818', tf(0, 0.6 + i * 0.75, 0));
-    s.f(gable(6.0, 2.5, 8.4), '#5a3a26', tf(0, 3.2, 0));
-    s.f(gable(6.8, 2.7, 9.2, 0.3), '#f4f7fb', tf(0, 3.25, 0));
-    s.f(box(0.9, 2.2, 0.9), '#6f6a66', tf(-1.2, 5.6, 2));
-    s.l(box(0.12, 1.0, 1.1), '#ffc870', tf(3.03, 1.8, -2)).l(box(0.12, 1.0, 1.1), '#ffc870', tf(3.03, 1.8, 2));
-    s.l(box(1.0, 1.0, 0.12), '#ffc870', tf(0, 1.8, 4.23));
-    s.f(box(0.12, 2.1, 1.0), '#2a1a10', tf(3.03, 1.05, 0));
-    k.add(s, tf(x, 0, z, 1, 1, 1, 0, ry, 0));
+    const c = new Kit();
+    logs(c, 6, 3.2, 8.4);
+    c.f(gable(6.0, 3.0, 8.4), '#5a3a26', tf(0, 3.2, 0));
+    c.f(gable(6.8, 3.2, 9.2, 0.3), '#f4f7fb', tf(0, 3.25, 0));
+    c.f(box(0.9, 2.2, 0.9), '#6f6a66', tf(-1.2, 6.0, 2));
+    c.l(box(0.12, 1.0, 1.1), '#ffc870', tf(3.03, 1.8, -2)).l(box(0.12, 1.0, 1.1), '#ffc870', tf(3.03, 1.8, 2));
+    c.f(box(0.12, 2.1, 1.0), '#2a1a10', tf(3.03, 1.05, 0));
+    k.add(c, tf(x, 0, z, 1, 1, 1, 0, ry, 0));
   };
-  cabin(-6, -9, 0.2);
-  cabin(-9, 7, -0.3);
-  // Lavvu (tenda sami) com as varas saindo pela ponta.
-  k.f(cone(3.2, 5.6, 9), '#d6c6a4', tf(6, 2.8, -2));
-  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; k.bar('#5a4030', [6 + Math.cos(a) * 0.25, 5.2, -2 + Math.sin(a) * 0.25], [6 + Math.cos(a) * 0.7, 6.8, -2 + Math.sin(a) * 0.7], 0.08); }
-  k.f(box(0.12, 1.8, 1.0), '#7a3a2a', tf(8.6, 0.9, -2, 1, 1, 1, 0, 0, 0.5));
-  k.l(box(0.6, 0.4, 0.6), '#ffb860', tf(6, 0.4, -2));
-  // Kota de madeira (hexagonal) com cobertura de neve.
-  k.f(cyl(3, 3.4, 2.2, 6), '#6a4a30', tf(4, 1.1, 9));
-  k.f(cone(3.8, 3.2, 6), '#f0f4f8', tf(4, 3.8, 9));
-  k.f(cyl(0.3, 0.3, 1.4, 5), '#3a3a3a', tf(4, 5.4, 9));
-  // Renas.
-  const reindeer = (x: number, z: number, ry: number, seed: number): void => {
-    const s = new Kit();
-    s.f(box(0.55, 0.65, 1.5), '#6a5444', tf(0, 1.15, 0));
-    for (const [lx, lz] of [[0.18, 0.55], [-0.18, 0.55], [0.18, -0.55], [-0.18, -0.55]] as const) s.f(box(0.12, 0.85, 0.12), '#4a3a30', tf(lx, 0.42, lz));
-    s.f(box(0.42, 0.45, 0.4), '#e8e2d6', tf(0, 1.3, 0.8));
-    s.bar('#6a5444', [0, 1.4, 0.75], [0, 1.85, 1.05], 0.28);
-    s.f(box(0.3, 0.3, 0.55), '#6a5444', tf(0, 1.9, 1.25));
-    for (const sx of [-1, 1]) {
-      s.bar('#cdbb9a', [sx * 0.1, 2.05, 1.1], [sx * 0.45, 2.7, 0.95], 0.06);
-      s.bar('#cdbb9a', [sx * 0.3, 2.4, 1.02], [sx * 0.3, 2.7, 1.3], 0.05);
-      s.bar('#cdbb9a', [sx * 0.45, 2.7, 0.95], [sx * 0.6, 2.9, 0.7], 0.05);
+  cabin(-9, 16, -0.25);
+  cabin(4, -19, 0.3);
+  // Lavvu (tendas sami) com as varas saindo pela ponta e a fogueira na porta.
+  const lavvu = (x: number, z: number, r: number, h: number): void => {
+    k.f(cone(r, h, 9), '#d6c6a4', tf(x, h / 2, z));
+    k.f(cone(r * 1.01, h * 0.25, 9), '#7a4a32', tf(x, h * 0.125, z));
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; k.bar('#5a4030', [x + Math.cos(a) * 0.25, h - 0.6, z + Math.sin(a) * 0.25], [x + Math.cos(a) * 0.8, h + 1.6, z + Math.sin(a) * 0.8], 0.09); }
+    k.l(box(0.7, 0.45, 0.7), '#ffb860', tf(x + r + 0.8, 0.25, z));
+  };
+  lavvu(9, 6, 3.6, 7.5);
+  lavvu(12, -6, 2.8, 6);
+  // Kota de madeira (sextavada) com cobertura de neve.
+  k.f(cyl(3, 3.4, 2.2, 6), '#6a4a30', tf(2, 1.1, 14));
+  k.f(cone(3.8, 3.4, 6), '#f0f4f8', tf(2, 3.9, 14));
+  k.f(cyl(0.3, 0.3, 1.4, 5), '#3a3a3a', tf(2, 5.6, 14));
+  // Abetos nevados; o da frente com luzinhas.
+  const spruce = (x: number, z: number, h: number, lights: boolean): void => {
+    k.f(cyl(0.25, 0.35, h * 0.2, 5), '#4a3424', tf(x, h * 0.1, z));
+    for (let i = 0; i < 4; i++) {
+      const y = h * (0.15 + i * 0.2); const r = h * (0.24 - i * 0.045);
+      k.f(cone(r, h * 0.32, 7), '#2a4a32', tf(x, y + h * 0.16, z));
+      k.f(cone(r * 0.7, h * 0.12, 7), '#eef3f8', tf(x, y + h * 0.27, z));
     }
-    void seed;
-    k.add(s, tf(x, 0, z, 1.2, 1.2, 1.2, 0, ry, 0));
+    if (lights) for (let i = 0; i < 9; i++) { const a = i * 2.4; const t = i / 9; k.l(new THREE.OctahedronGeometry(0.22, 0), ['#ff5040', '#ffd040', '#60c0ff'][i % 3], tf(x + Math.cos(a) * h * 0.2 * (1 - t), h * (0.22 + t * 0.6), z + Math.sin(a) * h * 0.2 * (1 - t))); }
   };
-  reindeer(10, 4, 0.8, 1);
-  reindeer(12, 7, 2.2, 2);
-  reindeer(9, 10, -0.6, 3);
-  // Lampiões e um trenó.
-  for (const [x, z] of [[2, -8], [0, 3]] as const) { k.f(cyl(0.08, 0.1, 2.4, 5), '#2a2a2a', tf(x, 1.2, z)); k.l(box(0.36, 0.44, 0.36), '#ffc870', tf(x, 2.5, z)); }
-  k.f(box(1.0, 0.3, 2.4), '#9a3a2a', tf(2, 0.5, 13)).f(box(1.1, 0.08, 2.8), '#3a3a3a', tf(2, 0.2, 13));
-  return k.model(8, { shadow: true, blob: 0 });
+  spruce(-14, -14, 13, false);
+  spruce(-16, 4, 11, false);
+  spruce(14, 16, 12, false);
+  spruce(8, -14, 8, true);
+  // Renas e o trenó.
+  const reindeer = (x: number, z: number, ry: number): void => {
+    const r = new Kit();
+    r.f(box(0.55, 0.65, 1.5), '#6a5444', tf(0, 1.15, 0));
+    for (const [lx, lz] of [[0.18, 0.55], [-0.18, 0.55], [0.18, -0.55], [-0.18, -0.55]] as const) r.f(box(0.12, 0.85, 0.12), '#4a3a30', tf(lx, 0.42, lz));
+    r.f(box(0.42, 0.45, 0.4), '#e8e2d6', tf(0, 1.3, 0.8));
+    r.bar('#6a5444', [0, 1.4, 0.75], [0, 1.85, 1.05], 0.28);
+    r.f(box(0.3, 0.3, 0.55), '#6a5444', tf(0, 1.9, 1.25));
+    for (const sx of [-1, 1]) {
+      r.bar('#cdbb9a', [sx * 0.1, 2.05, 1.1], [sx * 0.45, 2.7, 0.95], 0.06);
+      r.bar('#cdbb9a', [sx * 0.3, 2.4, 1.02], [sx * 0.3, 2.7, 1.3], 0.05);
+      r.bar('#cdbb9a', [sx * 0.45, 2.7, 0.95], [sx * 0.6, 2.9, 0.7], 0.05);
+    }
+    k.add(r, tf(x, 0, z, 1.3, 1.3, 1.3, 0, ry, 0));
+  };
+  reindeer(15, 3, 0.2);
+  reindeer(16.5, 0.5, 0.25);
+  reindeer(13, -12, 2.4);
+  k.f(box(1.2, 0.5, 2.8), '#9a3a2a', tf(15.6, 0.6, -1.4, 1, 1, 1, 0, 0.2, 0)).f(box(1.3, 0.1, 3.3), '#3a3a3a', tf(15.6, 0.25, -1.4, 1, 1, 1, 0, 0.2, 0));
+  for (const [x, z] of [[4, -6], [3, 6], [-12, -3]] as const) { k.f(cyl(0.08, 0.1, 2.4, 5), '#2a2a2a', tf(x, 1.2, z)); k.l(box(0.36, 0.44, 0.36), '#ffc870', tf(x, 2.5, z)); }
+  return k.model(13, { blob: 0 });
 }
 
 /** Placa "cuidado com os trolls": triângulo de borda vermelha com o troll, e um troll de pedra ao lado. */
@@ -1569,94 +1846,212 @@ function placaTrolls(): Model {
   return k.model(7, { shadow: true, blob: 2 });
 }
 
-/** Stigfossen (Trollstigen): paredão de rocha com a cachoeira em degraus e a ponte de pedra em arco no pé. */
-function cachoeiraStigfossen(): Model {
-  const k = new Kit();
-  const Hc = 150;
-  const cliffX = (z: number, y: number): number => 34 * (1 - y / Hc) ** 2 - 18 * Math.exp(-((z / 14) ** 2)) * (0.4 + 0.6 * (y / Hc)) + 7 * valueNoise(201, z / 9 + y / 23) - 20;
-  const g = paint(grid(28, 10, (u, v) => { const z = -100 + 200 * u; const y = v * Hc; return [cliffX(z, y), y + (v === 1 ? 8 * valueNoise(202, z / 30) : 0), z]; }), '#5c5f63');
-  faceColor(g, (_x, y, _z, up, f) => (y > Hc - 12 ? '#eef2f6' : up > 0.45 ? '#4f6e3a' : hash2(f, 203) > 0.5 ? '#5c5f63' : '#666a6e'));
-  k.raw(speckle(g, 0.06, 204));
-  // A queda em ziguezague, à frente do paredão.
-  const fall: Array<[number, number]> = [[0, Hc], [5, 112], [-4, 74], [3, 36], [0, 4]];
-  const out: number[] = [];
-  for (let i = 0; i + 1 < fall.length; i++) {
-    const [z0, y0] = fall[i]; const [z1, y1] = fall[i + 1];
-    const w0 = 3 + i * 1.6; const w1 = 3 + (i + 1) * 1.6;
-    const x0 = cliffX(z0, y0) + 2.5; const x1 = cliffX(z1, y1) + 2.5;
-    out.push(x0, y0, z0 - w0, x1, y1, z1 - w1, x1, y1, z1 + w1, x0, y0, z0 - w0, x1, y1, z1 + w1, x0, y0, z0 + w0);
-  }
-  k.raw(paint(tris(out), '#eef6fb'));
-  for (const [x, y, z, r] of [[16, 4, 0, 7], [22, 2, -6, 5], [20, 3, 7, 5]] as const) k.f(dodeca(r), '#f2f8fc', tf(x, y, z, 1, 0.6, 1));
-  k.f(box(60, 0.4, 12), '#8ac0d8', tf(44, 0.2, 0));
-  // Ponte de pedra em arco sobre o rio.
-  k.f(extrude(archOutline(30, 9.5, [[0, 12, 7.5]]), 7, 8), '#8a8580', tf(40, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
-  for (const sx of [3.2, -3.2]) k.f(box(0.6, 1.0, 30), '#7a7570', tf(40 + sx, 10, 0));
-  return k.model(Hc + 8, { shade: [0.85, 1.05] });
+/** Encosta do Trollstigen: x da face na altura y (pé de tálus a ~36°, paredão a ~70° acima, a garganta da cachoeira em z = 0). */
+function stigX(z: number, y: number): number {
+  const base = y < 52 ? 26 - y * 1.35 : 26 - 52 * 1.35 - (y - 52) * 0.36;
+  const gully = 10 * Math.exp(-((z / 20) ** 2)) * smooth(8, 60, y); // rasa: a queda aparece também de quem vem de lado
+  return base - gully + (7 * noise2(401, z / 26, y / 34) + 4 * noise2(402, z / 9, y / 12)) * smooth(0, 24, y);
 }
 
-/** Catedral Ártica (Tromsø): painéis triangulares brancos escalonados, frente de vidro aceso com cruz. */
+/** Crista do paredão do Trollstigen: picos dos lados, o entalhe da cachoeira no meio, as pontas descendo. */
+function stigTop(z: number): number {
+  const peaks = 168 + 40 * Math.exp(-(((z + 92) / 34) ** 2)) + 24 * Math.exp(-(((z - 88) / 30) ** 2)) - 12 * Math.exp(-((z / 20) ** 2)) + 8 * valueNoise(403, z / 20);
+  return peaks * (1 - 0.55 * smooth(98, 130, Math.abs(z)));
+}
+
+/**
+ * Stigfossen (Trollstigen): o paredão de rocha com a garganta onde a cachoeira desce em degraus brancos, neve na
+ * crista entre os picos, o tálus verde no pé — e a estrada dos grampos subindo em zigue-zague ao lado da queda, com
+ * muro de pedra, e a ponte de pedra em arco sobre o rio no fundo do vale.
+ */
+function cachoeiraStigfossen(): Model {
+  const k = new Kit();
+  const g = paint(grid(40, 16, (u, v) => { const z = -130 + 260 * u; const y = v * stigTop(z); return [stigX(z, y), y, z]; }), '#62666a');
+  faceColor(g, (_x, y, z, up, f) => {
+    const top = stigTop(z);
+    if (y > top - 22 && noise2(404, z / 14, y / 10) > -0.25) return '#eef2f6';
+    if (up > 0.5 && y < 60) return hash2(f, 405) > 0.5 ? '#5f7a3c' : '#6b8443';
+    if (up > 0.42) return '#577040';
+    return hash2(f, 406) > 0.5 ? '#62666a' : '#6e7276';
+  });
+  k.raw(speckle(g, 0.06, 407));
+  // A cachoeira: faixa branca na garganta, mais larga nos degraus, e o poço com o borrifo no pé.
+  const fall: number[] = [];
+  const yTop = stigTop(0) - 4; const N = 16;
+  const pt = (j: number): P3 => { const y = yTop * (1 - j / N); const z = 4 * Math.sin(y / 17); return [stigX(z, y) + 3, y, z]; };
+  for (let j = 0; j < N; j++) {
+    const a = pt(j); const b = pt(j + 1);
+    const wa = 6 + 8 * (j / N) + (j % 4 === 3 ? 3 : 0); const wb = 6 + 8 * ((j + 1) / N) + ((j + 1) % 4 === 3 ? 3 : 0);
+    fall.push(a[0], a[1], a[2] - wa, b[0], b[1], b[2] - wb, b[0], b[1], b[2] + wb, a[0], a[1], a[2] - wa, b[0], b[1], b[2] + wb, a[0], a[1], a[2] + wa);
+  }
+  k.raw(paint(tris(fall), '#f2f7fb'));
+  k.f(cyl(13, 13, 0.6, 10), '#7fb6cf', tf(stigX(0, 0) + 8, 0.3, 0, 1, 1, 1.2));
+  k.f(dodeca(9), '#f4f8fb', tf(stigX(0, 0) + 6, 2.5, 0, 1.2, 0.5, 1.4));
+  // O rio corre do poço para a pista, com corredeiras.
+  k.f(box(34, 0.4, 9), '#7fb6cf', tf(stigX(0, 0) + 25, 0.2, 0));
+  for (let i = 0; i < 3; i++) k.f(box(2.5, 0.5, 6), '#eef6fa', tf(stigX(0, 0) + 18 + i * 10, 0.3, (hash2(i, 408) - 0.5) * 3));
+  // A estrada do vale com a ponte de pedra em arco sobre o rio, ligando os grampos dos dois lados.
+  const bx = 40;
+  const valley: P3[] = [[stigX(-96, 4) + 3, 4.2, -96], [bx, 1.2, -80], [bx, 1.2, -26], [bx, 4.5, -15], [bx, 6.6, -5], [bx, 6.6, 5], [bx, 4.5, 15], [bx, 1.2, 26], [bx, 1.2, 80], [stigX(96, 4) + 3, 4.2, 96]];
+  k.f(ribbon(valley, 7, 7), '#9a968c');
+  k.f(ribbon(valley.map(([x, y, z]) => [x, y + 0.06, z] as P3), 5.6, 0.06), '#6c6a67');
+  k.f(extrude(archOutline(22, 6, [[0, 9, 5.2]]), 7.2, 8), '#8a8580', tf(bx, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
+  // Os grampos dos dois lados da queda: pernas que sobem em diagonal pela encosta de tálus, com o muro de pedra
+  // embaixo e a curva fechada (os de −Z, mais baixos, são os que quem chega pela direita vê primeiro).
+  for (const [side, legs] of [[1, 6], [-1, 4]] as const) for (let L = 0; L < legs; L++) {
+    const y0 = 4.2 + L * 8.5; const y1 = y0 + 8.5;
+    const zA = side * (L % 2 === 0 ? 96 : 22); const zB = side * (L % 2 === 0 ? 22 : 96);
+    const leg: P3[] = [];
+    for (let q = 0; q <= 5; q++) { const t = q / 5; const z = zA + (zB - zA) * t; const y = y0 + (y1 - y0) * t; leg.push([stigX(z, y) + 3, y, z]); }
+    k.f(ribbon(leg, 6.4, 4.5), '#9a968c');
+    k.f(ribbon(leg.map(([x, y, z]) => [x, y + 0.06, z] as P3), 5.2, 0.06), '#6c6a67');
+    const [ex, ey, ez] = leg[leg.length - 1];
+    k.f(cyl(5.2, 5.2, 4.5, 8), '#9a968c', tf(ex, ey - 2.25, ez + (zB > zA ? 2.5 : -2.5)));
+  }
+  return k.model(stigTop(-92), { shade: [0.84, 1.05] });
+}
+
+/**
+ * Catedral Ártica (Tromsø): onze painéis triangulares brancos escalonados (cada um mais baixo e mais estreito que o da
+ * frente, então o cume e as águas descem em degraus), as fendas de vidro azulado entre eles (acesas à noite), a
+ * grande frente de vidro com a cruz de montantes e o pórtico baixo da entrada.
+ */
 function catedralArtica(): Model {
   const k = new Kit();
-  const white = '#eef2f6';
-  for (let i = 0; i < 11; i++) {
-    const h = 35 - i * 2.3; const w = 30 - i * 0.9; const x = -i * 4.2 - 1.8;
-    k.f(gable(w, h, 3.6), white, tf(x, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
-    if (i < 10) k.l(gable(w - 0.8, h - 1.4, 0.7), '#cfe0ff', tf(x - 2.1, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
+  const white = '#eef2f6'; const edge = '#d4dbe2';
+  const n = 11; const step = 4.1;
+  for (let i = 0; i < n; i++) {
+    const h = 35 - i * 2.45; const b = 15.5 - i * 0.55; const x = -1.7 - i * step;
+    k.f(gable(b * 2, h, 2.8), white, tf(x, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
+    // Aresta de alumínio do painel (o friso cinza que separa cada um do vidro).
+    k.f(gable(b * 2 + 0.5, h + 0.45, 0.3), edge, tf(x - 1.5, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
+    // Fenda de vidro até quase a borda do painel da frente: a linha azulada (acesa à noite) entre um e outro.
+    if (i + 1 < n) k.l(gable((b - 0.15) * 2, h - 0.4, 1.3), '#8fb2da', tf(x - 2.05, 0, 0, 1, 1, 1, 0, Math.PI / 2, 0));
   }
   // Frente de vidro com montantes e a cruz.
-  k.raw(paint(tris2([0, 0, 15, 0, 0, -15, 0, 35, 0]), '#ffd08a'), true);
-  for (let i = -6; i <= 6; i++) { const z = i * 2.2; const h = 35 * (1 - Math.abs(z) / 15); if (h > 1) k.f(box(0.3, h, 0.3), '#f2f4f6', tf(0.2, h / 2, z)); }
-  k.f(box(0.5, 18, 1.6), '#f6f8fa', tf(0.35, 14, 0)).f(box(0.5, 1.6, 10), '#f6f8fa', tf(0.35, 17, 0));
-  k.f(box(7, 4.5, 14), white, tf(3.5, 2.25, 0));
-  k.l(box(0.12, 3, 4), '#ffd08a', tf(7.06, 1.5, 0));
-  k.f(box(7.4, 0.4, 14.4), '#d8dde2', tf(3.5, 4.6, 0));
-  k.f(box(60, 0.3, 40), '#e8eef4', tf(-16, 0.15, 0));
-  return k.model(36, { shade: [0.85, 1.05] });
+  k.raw(paint(tris2([0.05, 0, 15.2, 0.05, 0, -15.2, 0.05, 35.4, 0]), '#ffd08a'), true);
+  for (let i = -6; i <= 6; i++) { const z = i * 2.2; const h = 35.4 * (1 - Math.abs(z) / 15.2); if (h > 1) k.f(box(0.3, h, 0.3), '#f2f4f6', tf(0.25, h / 2, z)); }
+  for (const y of [9, 18, 26]) { const hw = 15.2 * (1 - y / 35.4); k.f(box(0.3, 0.3, hw * 2), '#f2f4f6', tf(0.25, y, 0)); }
+  k.f(box(0.5, 19, 1.8), '#f6f8fa', tf(0.4, 14.5, 0)).f(box(0.5, 1.8, 10), '#f6f8fa', tf(0.4, 17.5, 0));
+  // Pórtico da entrada e o adro.
+  k.f(box(7, 5, 15), white, tf(3.6, 2.5, 0));
+  k.l(box(0.12, 3.2, 5), '#ffd08a', tf(7.16, 1.6, 0));
+  k.f(box(7.6, 0.5, 15.6), edge, tf(3.6, 5.1, 0));
+  k.f(box(64, 0.3, 42), '#e4eaf0', tf(-18, 0.15, 0));
+  return k.model(36, { shade: [0.84, 1.05] });
 }
 
 // ───────────────────────────── Mediterrâneo ─────────────────────────────
 
-/** Altura do morro de Positano (frente em +X descendo para o mar). */
+/** Beira-mar de Positano (x): no meio a enseada com a praia; nas pontas (±Z) os esporões de pedra avançam até o mar. */
+const positanoShore = (z: number): number => 44 + 12 * smooth(46, 84, Math.abs(z)) - 10 * smooth(100, 115, Math.abs(z));
+
+/** Altura do morro de Positano: encosta de ~48° da praia para o fundo, esporões nas pontas e a crista de pedra no alto. */
 function positanoY(x: number, z: number): number {
-  // Encosta que sobe da praia (+X) para o fundo, em vale: as pontas (±Z) sobem mais, como um anfiteatro.
-  const t = Math.min(1, Math.max(0, (40 - x) / 140));
-  return 105 * Math.pow(t, 0.95) + 60 * (z / 100) ** 2 * Math.sqrt(t) + 4 * valueNoise(211, z / 25 + x / 31);
+  const d = positanoShore(z) - x;
+  if (d <= 0) return 0;
+  const az = Math.abs(z);
+  const crest = 9 * valueNoise(215, z / 16) * smooth(110, 150, d);
+  // As pontas (|z| > 60) descem até o chão em ±115: a silhueta é a de um morro, não a de uma laje cortada.
+  const ends = (1 - 0.8 * smooth(60, 115, az)) * (1 - smooth(103, 115, az));
+  return (148 * Math.pow(Math.min(d, 165) / 150, 0.92) + 30 * smooth(44, 92, az) * smooth(0, 22, d) * (1 - smooth(92, 112, az)) + crest) * ends + 2.5 * noise2(211, x / 22, z / 22) * smooth(0, 12, d);
 }
 
-/** Positano: casinhas pastel empilhadas no morro e a igreja com cúpula de majólica, no pé, junto à praia. */
+/** x da encosta de Positano na altura `y` (busca binária; a encosta sobe para −X). */
+function positanoX(y: number, z: number): number {
+  let lo = -120; let hi = positanoShore(z);
+  for (let i = 0; i < 26; i++) { const m = (lo + hi) / 2; if (positanoY(m, z) > y) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Positano: a vila vertical — casas pastel em degraus, empilhadas fileira sobre fileira na enseada da encosta (as
+ * frentes com janelas olham o mar e a pista), esporões de pedra nas pontas, a estrada da Costa Amalfitana cortando o
+ * alto da vila, e no pé, junto à praia de guarda-sóis, a igreja de Santa Maria Assunta com a cúpula de majólica.
+ */
 function positano(): Model {
   const k = new Kit();
-  const hill = paint(grid(18, 12, (u, v) => { const z = -100 + 200 * u; const x = 50 - 160 * v; return [x, positanoY(x, z), z]; }), '#6f7a4a');
-  faceColor(hill, (_x, y, _z, up, f) => (up < 0.55 ? '#8a7a68' : hash2(f, 212) > 0.6 ? '#5a6a3a' : '#6f7a4a'));
-  k.raw(speckle(hill, 0.07, 213));
-  k.f(box(16, 0.6, 120), '#d8c8a0', tf(48, 0.3, 0));
-  const walls = ['#f4c8a0', '#f2e2b0', '#f6b8a8', '#efe8dc', '#e8a878', '#f4d878', '#ffffff', '#f0d0c0'];
-  for (let r = 0; r < 12; r++) {
-    const x = 30 - r * 9.5; const n = 9 - Math.floor(r / 3);
-    for (let i = 0; i < n; i++) {
-      const z = (i - (n - 1) / 2) * (58 - r * 2.5) / Math.max(1, n - 1) * 2 + (hash2(r * 31 + i, 214) - 0.5) * 6;
-      const w = 6 + hash2(r, i) * 3; const h = 6 + hash2(i, r + 9) * 4; const d = 6 + hash2(i + 5, r) * 3;
-      const gy = Math.min(positanoY(x + d / 2, z), positanoY(x - d / 2, z));
-      const c = walls[(r * 3 + i * 5) % walls.length];
-      k.f(box(d, h + 4, w), c, tf(x, gy + (h - 4) / 2, z));
-      k.f(box(d + 0.4, 0.4, w + 0.4), '#f4f1ea', tf(x, gy + h, z));
-      if ((r + i) % 2 === 0) k.f(box(0.12, 1.4, 1.0), '#3a5a4a', tf(x + d / 2 + 0.05, gy + h - 2.4, z - w * 0.2));
-      if (hash2(r + 3, i * 7) > 0.6) k.f(box(d * 0.5, 0.6, w * 0.5), '#c8784a', tf(x - d * 0.2, gy + h + 0.5, z));
+  const hill = paint(grid(30, 20, (u, v) => { const z = -115 + 230 * u; const x = 56 - 166 * v; return [x, Math.max(0, positanoY(x, z)), z]; }), '#64773f');
+  faceColor(hill, (_x, y, z, up, f) => {
+    if (y < 0.6) return '#9d9584';
+    if (y > 148 + 8 * valueNoise(216, z / 20)) return hash2(f, 216) > 0.5 ? '#a39a8d' : '#b0a89a';
+    if (up < 0.5) return hash2(f, 217) > 0.5 ? '#8c8274' : '#9a9083';
+    if (Math.abs(z) < 66 && y < 108) return hash2(f, 218) > 0.45 ? '#7b8a4e' : '#a59b84';
+    return hash2(f, 219) > 0.55 ? '#55693a' : '#647a42';
+  });
+  k.raw(speckle(hill, 0.06, 213));
+  // A igreja e o campanário ficam no pé, à frente; a vila não nasce em cima deles.
+  const ch = { x: 31, z: -14 };
+  const clear = (z0: number, z1: number, y: number): boolean => y < 40 && z1 > ch.z - 13 && z0 < ch.z + 24;
+  const walls = ['#f6c6a2', '#f3e4b4', '#f4b4a4', '#f4eee4', '#eaa47a', '#f6da82', '#fbfaf6', '#f2cfc0', '#ebbccb', '#fbf6ea', '#f0d8a8'];
+  const quad = (o: number[], a: P3, b: P3, c: P3, d: P3): void => { o.push(...a, ...b, ...c, ...a, ...c, ...d); };
+  for (let r = 0; ; r++) {
+    const yb = 1.5 + r * 7.2;
+    if (yb > 100) break;
+    const W = 50 + 14 * Math.sin(Math.PI * Math.min(1, yb / 100)) - Math.max(0, yb - 78) * 1.3;
+    let z = -W + hash2(r, 221) * 5; let i = 0;
+    while (z < W - 5) {
+      const w = 8 + hash2(r * 37 + i, 222) * 6;
+      const garden = hash2(i, r * 13 + 223) < 0.1;
+      const edge = Math.max(0, (Math.abs(z + w / 2) - (W - 14)) / 14);
+      if (!garden && hash2(i + 91, r) > edge && !clear(z, z + w, yb)) {
+        const h = 7.5 + hash2(i * 7, r + 224) * 4.5;
+        const y0 = yb - 3; const y1 = yb + h + (hash2(r, i + 225) - 0.5) * 2;
+        const xf = Math.max(positanoX(yb, z), positanoX(yb, z + w / 2), positanoX(yb, z + w)) + 0.8 + (hash2(i, r + 226) - 0.5) * 2.4;
+        const d = 11; const z0 = z; const z1 = z + w;
+        const o: number[] = [];
+        quad(o, [xf, y0, z0], [xf, y0, z1], [xf, y1, z1], [xf, y1, z0]);
+        quad(o, [xf, y1, z0], [xf, y1, z1], [xf - d, y1, z1], [xf - d, y1, z0]);
+        quad(o, [xf, y0, z0], [xf, y1, z0], [xf - d, y1, z0], [xf - d, y0, z0]);
+        quad(o, [xf, y0, z1], [xf - d, y0, z1], [xf - d, y1, z1], [xf, y1, z1]);
+        k.raw(paint(tris(o), walls[Math.floor(hash2(r * 11 + i, 227) * walls.length)]));
+        // Janelas e portas de terraço (escuras, algumas com as venezianas verdes), uma ou duas por andar.
+        const win: number[] = [];
+        const floors = h > 9.5 ? 2 : 1; const cols = w > 11 ? 2 : 1;
+        for (let fl = 0; fl < floors; fl++) for (let cI = 0; cI < cols; cI++) {
+          const wz = z0 + (w * (cI + 1)) / (cols + 1); const wy = yb + 1.4 + fl * 3.6;
+          quad(win, [xf + 0.12, wy, wz - 0.75], [xf + 0.12, wy, wz + 0.75], [xf + 0.12, wy + 2.1, wz + 0.75], [xf + 0.12, wy + 2.1, wz - 0.75]);
+        }
+        k.raw(paint(tris(win), hash2(i, r + 228) > 0.6 ? '#3e6650' : '#4a3d34'));
+      }
+      z += w + (garden ? 6 + hash2(i, r) * 5 : 0.3 + hash2(r, i * 3) * 1.4); i++;
     }
   }
-  // Igreja de Santa Maria Assunta, com a cúpula de majólica amarela, verde e azul.
-  const cx = 36; const cz = 14;
-  k.f(box(12, 11, 20), '#f2e8d0', tf(cx, 5.5, cz));
-  k.f(gable(12.4, 3, 20.4, 0.2), '#c8784a', tf(cx, 11, cz));
-  k.f(cyl(5.4, 5.4, 3.2, 16), '#f2e8d0', tf(cx - 2, 13, cz));
-  const dome = paint(sphere(5.6, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#f2c230', tf(cx - 2, 14.5, cz, 1, 1.15, 1));
-  faceColor(dome, (x, y, z) => { const a = Math.atan2(z - cz, x - cx + 2); const b = Math.floor((a + Math.PI) / (Math.PI / 8)) % 3; return y > 20 ? '#2a5aa8' : ['#f2c230', '#2f8a5a', '#2a5aa8'][b]; });
+  // Ciprestes e pinheiros-mansos entre as casas e nas bordas da vila.
+  for (let i = 0; i < 18; i++) {
+    const z = -78 + (156 * i) / 17 + (hash2(i, 229) - 0.5) * 8; const y = 6 + hash2(i, 230) * 92;
+    const x = positanoX(y, z) + 1;
+    if (clear(z - 3, z + 3, y)) continue;
+    k.f(cone(2.2, 11, 6), i % 3 ? '#2f4a2c' : '#3a5530', tf(x, y + 4.5, z));
+  }
+  // A estrada da Costa Amalfitana, com o muro de arrimo, cortando o morro acima da vila.
+  const road: P3[] = [];
+  for (let z = -100; z <= 100; z += 8) if (positanoY(-100, z) > 132) road.push([positanoX(116, z) + 3, 118.5, z]); // entra no túnel onde o morro baixa
+  k.f(ribbon(road, 7, 7), '#d5ccba');
+  k.f(ribbon(road.map(([x, y, z]) => [x - 0.4, y + 0.05, z] as P3), 5.6, 0.1), '#5d5a56');
+  // Praia de areia escura com os guarda-sóis laranja e azuis.
+  k.f(box(12, 0.5, 92), '#8f877a', tf(50, 0.25, 0));
+  for (let i = 0; i < 22; i++) {
+    const z = -40 + (80 * (i % 11)) / 10 + (hash2(i, 231) - 0.5) * 3; const x = i < 11 ? 47.5 : 52;
+    k.f(cone(1.6, 0.8, 6), i % 2 ? '#e8642e' : '#2f6fc0', tf(x, 2.4, z));
+  }
+  // Santa Maria Assunta: nave caiada de frente para o mar, tambor e a cúpula de majólica (amarela, verde e azul).
+  k.f(box(20, 15, 15), '#f4ecd8', tf(ch.x, 6.5, ch.z));
+  k.f(gable(15.4, 3.2, 20.4, 0.2), '#c8784a', tf(ch.x, 14, ch.z, 1, 1, 1, 0, Math.PI / 2, 0));
+  k.f(box(0.3, 12, 9), '#efe4cc', tf(ch.x + 10.1, 7, ch.z));
+  k.f(box(0.2, 4.5, 3), '#5a4030', tf(ch.x + 10.3, 2.2, ch.z));
+  const dx = ch.x - 5;
+  k.f(cyl(7.2, 7.2, 5, 16), '#f4ecd8', tf(dx, 16.5, ch.z));
+  k.f(cyl(7.6, 7.6, 0.7, 16), '#e2d6bc', tf(dx, 19.2, ch.z));
+  const dome = paint(sphere(7.4, 16, 7, 0, Math.PI * 2, 0, Math.PI / 2), '#f2c230', tf(dx, 19.5, ch.z, 1, 1.18, 1));
+  faceColor(dome, (x, y, z) => { const a = Math.atan2(z - ch.z, x - dx); const b = Math.floor((a + Math.PI) / (Math.PI / 8)) % 3; return y > 27 ? '#2a5aa8' : ['#f2c230', '#2f8a5a', '#2a5aa8'][b]; });
   k.raw(dome);
-  k.f(cyl(1, 1, 1.6, 8), '#f2e8d0', tf(cx - 2, 21.8, cz)).f(cone(1.2, 1.6, 8), '#2f8a5a', tf(cx - 2, 23.4, cz));
-  k.f(box(4, 20, 4), '#f2e8d0', tf(cx + 2, 10, cz - 13));
-  k.f(sphere(2.2, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), '#2f8a5a', tf(cx + 2, 20, cz - 13));
-  return k.model(130, { shade: [0.85, 1.05] });
+  k.f(cyl(1.3, 1.3, 2.2, 8), '#f4ecd8', tf(dx, 29.6, ch.z)).f(cone(1.6, 2.2, 8), '#2f8a5a', tf(dx, 31.8, ch.z));
+  // Campanário ao lado, com a cupulinha.
+  k.f(box(5.5, 24, 5.5), '#f4ecd8', tf(ch.x + 4, 12, ch.z + 15));
+  k.f(box(0.2, 3, 2), '#4a3d34', tf(ch.x + 6.8, 19.5, ch.z + 15));
+  k.f(sphere(2.9, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), '#2f8a5a', tf(ch.x + 4, 24, ch.z + 15));
+  return k.model(150, { shade: [0.85, 1.05] });
 }
 
 /** Igreja de cúpula azul de Santorini: cubo caiado, cúpula azul, sineira com dois arcos e sinos, terraço. */
