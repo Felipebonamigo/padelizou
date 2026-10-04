@@ -12,13 +12,15 @@ import { ASSIST_LEVELS } from '../../core/sim/assist';
 import type { CarDef, HumanEntry } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav, SaveData } from '../../game/contracts';
 import { carAvailable } from '../../game/career-save';
-import { NAME_MAX_LENGTH } from '../../game/save';
+import { ORIGINAL_PAINT, seatPaint, stepSeatPaint, withPaint } from '../../game/paints';
+import { NAME_MAX_LENGTH, saveSave } from '../../game/save';
 import { t } from '../../i18n';
 import { isPartyMode, lobbyHidesCar, lobbyHidesDriver, lobbyTeamLabel, partySeatsProblem, versusAllowed } from '../../party/rules';
 import { isKeyboard } from '../input';
-import { arrowButton, button, carCard, createFocusList, h, listNav, screenFrame, selector, type FocusItem, type FocusList, type LobbySeat, type LobbyState, type ScreenApi, type ScreenInstance } from './common';
+import { arrowButton, button, carCard, createFocusList, h, listNav, screenFrame, selector, type FocusItem, type FocusList, type LobbySeat, type LobbyState, type ScreenApi, type ScreenInstance, type Selector } from './common';
 import { icon } from './icons';
 import { commitSettings, raceOptionSelectors } from './options';
+import { paintSelector } from './paint';
 
 export const LOBBY_SEATS = 4;
 
@@ -27,11 +29,11 @@ export function availableCars(ctx: Pick<MenuContext, 'cars' | 'save'>): CarDef[]
   return ctx.cars.filter((c) => carAvailable(ctx.save, c));
 }
 
-/** Pilotos do jogo salvo que o lobby de "Continuar" religa (nome e carro, na ordem dos assentos). */
-export function resumeRoster(lobby: LobbyState, save: SaveData): Array<{ name: string; carId: string | null }> {
+/** Pilotos do jogo salvo que o lobby de "Continuar" religa (nome, carro e pintura, na ordem dos assentos). */
+export function resumeRoster(lobby: LobbyState, save: SaveData): Array<{ name: string; carId: string | null; paint?: string }> {
   if (!lobby.resume) return [];
   if (lobby.mode === 'career') return save.career?.drivers.map((d) => ({ name: d.name, carId: null })) ?? [];
-  return save.cupInProgress?.humans.map((h) => ({ name: h.name, carId: h.carId })) ?? [];
+  return save.cupInProgress?.humans.map((h) => ({ name: h.name, carId: h.carId, paint: h.paint })) ?? [];
 }
 
 export function maxSeats(lobby: LobbyState, save?: SaveData): number {
@@ -56,20 +58,26 @@ export function canStart(lobby: LobbyState, save?: SaveData): boolean {
   return lobby.seats[0] !== null && seats.length > 0 && seats.every((s) => s.ready);
 }
 
-/** Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento; a direção assistida de cada assento. */
+/**
+ * Humanos da corrida a partir do lobby: co-op = todos no time 0; versus = time = assento; a direção assistida e a
+ * pintura que cada assento escolheu para o carro dele (a Original não entra no objeto).
+ */
 export function lobbyHumans(api: ScreenApi): HumanEntry[] {
   const cars = availableCars(api.ctx);
-  const { settings } = api.ctx;
+  const { settings, save } = api.ctx;
   const seats = occupiedSeats(api.lobby);
   // Modo que não admite versus (escolta; revezamento com uma dupla) corre em equipe mesmo com o seletor esquecido.
   const versus = api.lobby.versus && versusAllowed(api.lobby.mode, seats.length);
-  return assistedHumans(seats.map((s) => ({
-    seat: s.seat,
-    name: s.name.trim() || `P${s.seat + 1}`,
-    carId: (cars[s.carIndex] ?? cars[0]).id,
-    teamId: versus ? s.seat : 0,
-    color: seatColor(s.seat, settings.colorPalette),
-  })), settings.seatAssists);
+  return assistedHumans(seats.map((s) => {
+    const carId = (cars[s.carIndex] ?? cars[0]).id;
+    return withPaint({
+      seat: s.seat,
+      name: s.name.trim() || `P${s.seat + 1}`,
+      carId,
+      teamId: versus ? s.seat : 0,
+      color: seatColor(s.seat, settings.colorPalette),
+    }, seatPaint(save, s.seat, carId));
+  }), settings.seatAssists);
 }
 
 function newSeat(api: ScreenApi, seat: number, device: DeviceId): LobbySeat {
@@ -181,23 +189,30 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     const color = seatColor(s.seat, ctx.settings.colorPalette);
     const nameInput = h('input', {
       class: 'name-input',
-      attrs: { type: 'text', maxlength: String(NAME_MAX_LENGTH), value: s.name, spellcheck: 'false', autocomplete: 'off' },
+      attrs: { type: 'text', maxlength: String(NAME_MAX_LENGTH), value: s.name, spellcheck: 'false', autocomplete: 'off', 'aria-label': t('ui.lobby.name'), title: t('ui.lobby.name') },
       on: { input: () => { s.name = nameInput.value; } },
     });
     // Continuar: o nome é o do jogo salvo (está na classificação), sem edição. Torneio: vem da inscrição.
     const hidesDriver = lobbyHidesDriver(lobby.mode);
     const rank = occupiedSeats(lobby).indexOf(s);
     const partner = lobbyHidesCar(lobby.mode, rank) ? occupiedSeats(lobby)[rank - 1] : undefined;
+    // O nome mora no cabeçalho do cartão, ao lado do P1: a linha "Nome" saiu para caber a pintura embaixo do carro.
     const nameRow: FocusItem | null = resume || hidesDriver ? null : {
-      el: h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), nameInput),
+      el: h('span', { class: 'slot-name' }, nameInput),
       activate: () => { nameInput.focus(); nameInput.select(); },
     };
-    const nameEl = hidesDriver ? null : nameRow ? nameRow.el : h('div', { class: 'sel sel-name' }, h('span', { class: 'sel-label', text: t('ui.lobby.name') }), h('strong', { text: s.name }));
-    const heroBody = h('div', { class: 'car-hero-body' }, carCard(cars[s.carIndex] ?? cars[0], cars));
+    const nameEl = hidesDriver ? null : nameRow ? nameRow.el : h('strong', { class: 'slot-name static', text: s.name, title: t('ui.lobby.name') });
+    // Pintura: a que este assento guardou para o carro à mostra (save.seatPaints); no "Continuar", a da copa salva.
+    const carNow = () => cars[s.carIndex] ?? cars[0];
+    const paintNow = () => (resume ? resumeRoster(lobby, save)[s.seat]?.paint ?? ORIGINAL_PAINT : seatPaint(save, s.seat, carNow().id));
+    const heroBody = h('div', { class: 'car-hero-body' }, carCard(carNow(), cars, paintNow()));
+    const showCar = () => heroBody.replaceChildren(carCard(carNow(), cars, paintNow()));
+    let paintItem: Selector | null = null;
     const changeCar = (dir: -1 | 1) => {
       if (s.ready) return;
       s.carIndex = (s.carIndex + dir + cars.length) % cars.length;
-      heroBody.replaceChildren(carCard(cars[s.carIndex], cars));
+      showCar();
+      paintItem?.refresh();
     };
     // Carreira: carro e melhorias ficam na garagem. Copa retomada: o carro é o da copa salva.
     const carItem: FocusItem | null = career || resume || hidesDriver || partner ? null : {
@@ -209,6 +224,20 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       adjust: changeCar,
       activate: () => toggleReady(s),
     };
+    // A pintura só onde o carro se escolhe aqui (carreira: na garagem; copa retomada: a da copa salva).
+    paintItem = carItem ? paintSelector({
+      current: paintNow,
+      car: carNow,
+      onAdjust: (dir) => {
+        if (s.ready) return;
+        stepSeatPaint(save, s.seat, carNow().id, dir);
+        saveSave(save);
+        showCar();
+      },
+      sfx: api.sfx,
+      onActivate: () => toggleReady(s),
+      cls: s.ready ? 'locked' : '',
+    }) : null;
     const carEl = carItem ? carItem.el
       : career ? h('div', { class: 'car-hero locked lobby-note' }, icon('flag'), h('span', { text: t('career.lobby.carNote') }))
       : hidesDriver ? h('div', { class: 'car-hero locked lobby-note' }, icon('users'), h('span', { text: t('party.lobby.tournamentNote') }))
@@ -230,18 +259,19 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     const slot = h('div', { class: `slot occupied glass${s.ready ? ' ready' : ''}`, style: `--seat:${color}` },
       h('div', { class: 'slot-head' },
         h('span', { class: 'seat-badge', text: `P${s.seat + 1}` }),
-        h('span', { class: 'slot-device' }, icon(isKeyboard(s.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(s.device) })),
+        nameEl,
+        h('span', { class: 'slot-device', title: deviceLabel(s.device) }, icon(isKeyboard(s.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(s.device) })),
         s.ready ? h('span', { class: 'slot-state on' }, icon('check'), t('ui.lobby.ready')) : null,
       ),
-      nameEl,
       carEl,
+      paintItem?.el,
       assistItem.el,
       h('div', { class: 'slot-foot' },
         h('span', { class: 'slot-team' }, icon('users'), h('span', { text: team })),
         ready.el,
       ),
     );
-    return { el: slot, items: [nameRow, carItem, assistItem, ready].filter((x): x is FocusItem => x !== null) };
+    return { el: slot, items: [nameRow, carItem, paintItem, assistItem, ready].filter((x): x is FocusItem => x !== null) };
   }
 
   function emptySlot(seat: number): HTMLElement {

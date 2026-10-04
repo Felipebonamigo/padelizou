@@ -11,6 +11,7 @@ import { hashString } from '../core/rng';
 import { trackDef } from '../core/track';
 import type { AssistLevel, ChampionshipState, HumanEntry, RaceConfig, RaceResultRow } from '../core/types';
 import type { Menus, RaceMode, SaveData, Settings } from './contracts';
+import { paintFromSave } from './paints';
 import { gridRival } from './rivals';
 
 /** O pedaço do InputProvider que troca assentos (testável sem DOM). */
@@ -94,7 +95,8 @@ export function createCareerSession(host: CareerHost): CareerSession {
     const champ = beginCareerCup(career, hashString(`${career.cupId}:${host.randomSeed()}`));
     const trackId = nextTrackId(champ);
     if (!trackId) { showGarage(); return; }
-    const humans = careerHumans(career);
+    // A pintura que cada piloto escolheu na garagem para o carro dele (save.seatPaints, por assento e carro).
+    const humans = paintFromSave(careerHumans(career), host.save);
     const config = host.baseConfig(trackId, trackDef(trackId).laps, humans, host.randomSeed());
     config.rosterSeed = career.rosterSeed;
     config.aiLevel = careerAiLevel(career);

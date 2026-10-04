@@ -16,11 +16,13 @@ import { effectiveStats } from '../../core/sim/stats';
 import type { CarDef, CarStats, UpgradeLevels, UpgradePart } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav } from '../../game/contracts';
 import { unlockCar } from '../../game/career-save';
+import { paintedCar, seatPaint, stepSeatPaint } from '../../game/paints';
 import { saveSave } from '../../game/save';
 import { getLanguage, t } from '../../i18n';
 import { arrowButton, button, carCount, createFocusList, h, listNav, screenFrame, trackName, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { carSilhouette, icon } from './icons';
 import { startCursor } from './lobby';
+import { paintSelector } from './paint';
 import { garageRivalBlock } from './rival';
 
 // ───────────────────────────── Números para a tela ─────────────────────────────
@@ -249,6 +251,16 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
     render();
   }
 
+  /** Pintura do carro à mostra (o escolhido ou o da vitrine): gravada para o piloto (assento) e o carro. */
+  function changePaint(seat: number, dir: -1 | 1): void {
+    const ui = uis[seat];
+    if (career.completed) { api.sfx('back'); return; }
+    if (ui.ready) { say(seat, t('career.garage.msg.locked'), 'bad'); render(); return; }
+    stepSeatPaint(ctx.save, seat, cars[ui.view].id, dir);
+    persist();
+    render();
+  }
+
   function activatePart(seat: number, part: UpgradePart): void {
     const ui = uis[seat];
     if (career.completed) { api.sfx('back'); return; }
@@ -323,7 +335,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
             h('span', { class: 'gp-car-name-text', text: car.name }),
             h('span', { class: 'gp-car-count mono', text: carCount(car, cars) }),
           ),
-          h('div', { class: 'gp-car-visual' }, carSilhouette(car)),
+          h('div', { class: 'gp-car-visual' }, carSilhouette(paintedCar(car, seatPaint(ctx.save, seat, car.id)))),
           status,
         ),
         arrowButton(1, () => { changeView(seat, 1); api.sfx('move'); }),
@@ -331,6 +343,16 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
       adjust: (dir) => changeView(seat, dir),
       activate: () => activateCar(seat),
     };
+
+    // Pintura do carro à mostra, na linha do PRONTO (a coluna de 2–4 pilotos não tem altura para mais uma linha);
+    // o desenho do carro, em cima, é a prévia. Confirmar avança uma, como ←→.
+    const paintItem = paintSelector({
+      current: () => seatPaint(ctx.save, seat, car.id),
+      car: () => car,
+      onAdjust: (dir) => changePaint(seat, dir),
+      sfx: api.sfx,
+      cls: `gp-paint${locked ? ' locked' : ''}`,
+    });
 
     // Melhorias
     const partItems: FocusItem[] = UPGRADE_PARTS.map((part) => {
@@ -356,16 +378,17 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
 
     const statsHost = h('div', { class: 'gp-stats' });
     const msgEl = h('div', { class: `gp-msg ${ui.msgTtl > 0 ? ui.msgKind : ''}`, text: ui.msgTtl > 0 ? ui.msg : (ui.ready && !allReady() ? t('career.garage.waiting') : '') });
-    const items = [carItem, ...partItems, ready];
+    const items = [carItem, ...partItems, paintItem, ready];
 
     const preview = () => {
       const list = lists[seat];
       const focus = list ? list.index : -1;
+      const partIndex = focus >= 0 ? partItems.indexOf(items[focus]) : -1;
       let base = shown;
       let after: CarStats | null = null;
       if (focus === 0 && !owned) { base = mine; after = shown; }
-      else if (focus >= 1 && focus <= UPGRADE_PARTS.length && owned && !locked) {
-        const part = UPGRADE_PARTS[focus - 1];
+      else if (partIndex >= 0 && owned && !locked) {
+        const part = UPGRADE_PARTS[partIndex];
         if (levels[part] < partMaxLevel(car.id, part)) after = effectiveStats(car, levelsPlus(levels, part));
       }
       statsHost.replaceChildren(statsBlock(base, after));
@@ -382,7 +405,7 @@ export function garageScreen(api: ScreenApi): ScreenInstance {
       h('div', { class: 'gp-left' }, carItem.el, statsHost, h('p', { class: 'gp-car-blurb', text: t(`core.car.${car.id}.blurb`) })),
       h('div', { class: 'gp-right' },
         h('div', { class: 'gp-parts' }, h('h2', { class: 'sub-title', text: t('career.garage.upgrades') }), partItems.map((p) => p.el)),
-        ready.el,
+        h('div', { class: 'gp-go' }, paintItem.el, ready.el),
         msgEl,
       ),
     );

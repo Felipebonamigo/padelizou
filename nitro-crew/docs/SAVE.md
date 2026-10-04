@@ -113,6 +113,29 @@ top 5). O prêmio sobe na mesma proporção (×1,61 em vez de ×1,11) e cada ten
 carreira anda, devagar. Não mexi: o jogo não foi publicado (os saves antigos são do dono e de quem testou), e a
 curva da IA é decisão aberta (`docs/CARREIRA.md`). Para quem cair nisso: "Nova carreira".
 
+## Pintura do carro (`seatPaints`, 04/10/2026)
+
+O save ganhou um campo: a pintura que cada assento (P1..P4, como `seatNames`/`seatCars`) escolheu para cada carro
+(`docs/CARROS.md`, "Pintura"). Formato: uma lista de 4 mapas carro → id da paleta, só com quem pintou —
+
+```json
+"seatPaints": [{ "falcao": "rubi", "trovao": "onix" }, { "saci": "grafite" }, {}, {}]
+```
+
+- **Save antigo, sem o campo** (ou com lixo): carrega com 4 mapas vazios — todo carro na Original (a cor de
+  fábrica). Não há versão de formato: o saneamento (`sanitizeSeatPaints` em `src/game/paints.ts`, chamado por
+  `sanitizeSave`) descarta carro ou pintura que não existe, valor de outro tipo, o 5º assento em diante, e não
+  guarda a Original (voltar a ela tira o carro do mapa). A gravação seguinte já sai com o campo.
+- **Quando grava**: na hora da escolha — ←→ na linha "Pintura" do lobby, da garagem da carreira ou da sala online
+  grava o save (como a garagem faz com o carro). Não depende de correr.
+- **Copa em andamento** (`cupInProgress.humans`): cada humano leva a pintura dele (`paint`, opcional), para o
+  "Continuar" correr com ela; copa salva antes da pintura continua valendo, sem ela.
+- **Fora do estado da corrida**: a pintura nunca entra na `RaceConfig` nem no `RaceState` (nem nos fantasmas, nos
+  recordes ou no hash do online).
+
+Testes: `tests/paint.test.ts` ("save: pintura por assento e por carro" — save antigo sem o campo, ida e volta em
+JSON, lixo, copa salva com e sem a pintura) e `tests/paint-screens.test.ts` (as telas gravando a escolha).
+
 ## Onde está cada coisa
 
 | Arquivo | O quê |
@@ -125,5 +148,6 @@ curva da IA é decisão aberta (`docs/CARREIRA.md`). Para quem cair nisso: "Nova
 | `src/main.ts` | Liga os liberadores e o aviso |
 | `src/game/save.ts` · `career-save.ts` · `src/core/data/cups.ts` | Migração do save de antes da onda G: `currentCupId`/`LEGACY_CUP_IDS` (brasil → br_rj), `legacyCupOpens` → `save.cupsUnlocked`, relatório de copa que não existe sai |
 | `tests/migration-brasil.test.ts` | Saves no formato de antes da onda G: 0 a 8 copas concluídas, campeonato e carreira no meio do Mundial, ids de copa que sumiram, recordes e fantasmas das 32 pistas antigas |
+| `src/game/paints.ts` | Pintura: paleta, `seatPaints` (ler, gravar, sanear), os humanos com a pintura guardada |
 | `tests/storage-full.test.ts` | `localStorage` com cota fixa: corrida e copa concluída chegam ao arquivo e a próxima abertura as lê; abertura com o local cheio; sessão relê o que gravou; pendência; disco recusando; descarte e o que nunca se descarta; aviso |
 | `scripts/playtest-save.mjs` | O mesmo no Chromium, com a cota real (`npm run preview` no ar): aviso no resultado e no menu, em PT e EN; espaço liberado grava tudo; "Electron" com `window.desktop` falso e o arquivo no Node |

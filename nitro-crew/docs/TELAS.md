@@ -155,6 +155,22 @@ entrou depois: 364 hoje) e o HUD reprovado nos 4 casos medidos, número e rótul
 | Classificação | tela rolando com texto grande | tabelas (que rolam por dentro) cedem 4vh |
 | HUD | números com 8,9 px no Steam Deck | piso de 12 px (números) e 10 px (rótulos) |
 
+## Pintura do carro (04/10/2026)
+
+A escolha da pintura (`docs/CARROS.md`, "Pintura") ganhou uma linha no cartão do lobby e um seletor na garagem, e
+nenhuma das duas telas tinha altura sobrando (medido com o roteiro: o carro do cartão 2×2 ficava espremido, com
+33–44 px a menos que o conteúdo pedia; o painel da garagem com 2–4 pilotos rolava 11–26 px).
+
+- **Lobby**: o nome subiu para o cabeçalho do cartão, ao lado do P1 (a linha "Nome" saiu; o campo tem a dica
+  "Nome"), e a linha **Pintura**, compacta como a da direção assistida, entrou embaixo do carro. No cabeçalho quem
+  cede largura é o campo do nome — o rótulo do dispositivo ("Teclado (WASD)") nunca é cortado; pronto, ele fica
+  só no ícone. A ordem do foco segue a da tela: nome, carro, pintura, direção, PRONTO.
+- **Garagem**: o seletor fica na linha do PRONTO, à esquerda dele, sem rótulo (a amostra e o desenho do carro
+  dizem o que é; a dica do mouse diz "Pintura: Rubi"); com 3–4 pilotos, só a amostra. Foco: carro, melhorias,
+  pintura, PRONTO.
+- **Sala online**: a linha entre o carro e a direção de cada jogador deste computador; a lista da sala mostra a
+  amostra ao lado do carro.
+
 ## Limites conhecidos
 
 - O Chromium daqui não tem Inter, Segoe UI nem Roboto: a pilha de `--font` cai em Arial, servida pela

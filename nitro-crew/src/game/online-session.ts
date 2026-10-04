@@ -24,6 +24,7 @@ import {
 import { carAvailable } from './career-save';
 import { onlineFingerprint } from './content-version';
 import type { DeviceId, InputProvider, RaceDriver, ResultsScreenData, SaveData, Settings } from './contracts';
+import { seatPaint, stepSeatPaint, withoutPaint, withPaint } from './paints';
 
 // A impressão do conteúdo mora em content-version.ts (o fantasma e os recordes também a usam); daqui só reexportada.
 export { contentFingerprint, fingerprintContent, onlineFingerprint } from './content-version';
@@ -44,6 +45,8 @@ export interface LocalPlayer {
   device: DeviceId;
   name: string;
   car: string;
+  /** Pintura do carro (id da paleta): a que o assento local guardou para ele (save.seatPaints). */
+  paint: string;
 }
 
 export interface WaitingSeat { seat: number; name: string; color: string; lost: boolean }
@@ -68,8 +71,11 @@ export interface OnlineHost {
   readonly settings: Settings;
   readonly save: SaveData;
   readonly input: InputProvider;
-  /** Começa a corrida online (ou a retoma de um snapshot, com `state`). */
-  startRace(config: RaceConfig, localSeats: number[], driver: RaceDriver, state?: RaceState): void;
+  /**
+   * Começa a corrida online (ou a retoma de um snapshot, com `state`). `humans` são os da largada com a pintura de
+   * cada um (startHumans) — a `config` vem sem ela, como o núcleo precisa.
+   */
+  startRace(config: RaceConfig, localSeats: number[], driver: RaceDriver, state?: RaceState, humans?: HumanEntry[]): void;
   raceState(): RaceState | null;
   /** Tira a corrida da tela (volta para a sala) sem sair do online. */
   clearRace(): void;
@@ -80,6 +86,8 @@ export interface OnlineHost {
   /** Fim do online: menu principal. */
   exitToMain(): void;
   persistSettings(): void;
+  /** Grava o save (a pintura escolhida na sala fica guardada para o assento local e o carro). Opcional. */
+  persistSave?(): void;
   /**
    * A janela está escondida (aba em segundo plano, janela minimizada): o navegador para o
    * requestAnimationFrame e o quadro deixa de chamar o `advance`. Opcional (sem DOM, nunca).
@@ -130,17 +138,22 @@ export function assignSeats(room: RoomView): SeatAssignment[] {
   for (const c of [...room.clients].sort((a, b) => a.id - b.id)) {
     for (const p of c.info?.players ?? []) {
       if (out.length >= MAX_HUMANS) return out;
-      out.push(withAssist({ seat: out.length, client: c.id, name: seatName(p.name, out.length), car: p.car }, p.assist));
+      out.push(withPaint(withAssist({ seat: out.length, client: c.id, name: seatName(p.name, out.length), car: p.car }, p.assist), p.paint));
     }
   }
   return out;
 }
 
-/** A configuração da corrida que todas as máquinas montam a partir da largada. */
-export function raceConfigFrom(cfg: StartConfig): RaceConfig {
-  const humans: HumanEntry[] = cfg.seats.map((s) => withAssist({
+/** Os humanos da largada como a sessão os mostra: com a pintura de cada um (só aparência). */
+export function startHumans(cfg: StartConfig): HumanEntry[] {
+  return cfg.seats.map((s) => withPaint(withAssist({
     seat: s.seat, name: s.name, carId: s.car, teamId: cfg.versus ? s.seat : 0, color: seatColor(s.seat),
-  }, s.assist));
+  }, s.assist), s.paint));
+}
+
+/** A configuração da corrida que todas as máquinas montam a partir da largada (sem a pintura: o estado não a carrega). */
+export function raceConfigFrom(cfg: StartConfig): RaceConfig {
+  const humans = withoutPaint(startHumans(cfg));
   return {
     trackId: cfg.trackId, laps: cfg.laps, humans, totalCars: Math.max(cfg.totalCars, humans.length),
     difficulty: cfg.difficulty, manualGear: cfg.manualGear, assists: { ...cfg.assists }, seed: cfg.seed,
@@ -286,8 +299,9 @@ export class OnlineController implements RaceDriver {
   private defaultPlayer(index: number, device: DeviceId): LocalPlayer {
     const { save } = this.host;
     const choices = this.carChoices();
-    const car = save.seatCars[index] ?? choices[0];
-    return { device, name: (save.seatNames[index] ?? `P${index + 1}`).slice(0, 12), car: choices.includes(car) ? car : choices[0] };
+    const saved = save.seatCars[index] ?? choices[0];
+    const car = choices.includes(saved) ? saved : choices[0];
+    return { device, name: (save.seatNames[index] ?? `P${index + 1}`).slice(0, 12), car, paint: seatPaint(save, index, car) };
   }
 
   /** Garante o jogador 1 deste computador (com o dispositivo que abriu a tela). */
@@ -326,6 +340,25 @@ export class OnlineController implements RaceDriver {
     if (!p || this.ready) return;
     const ids = this.carChoices();
     p.car = ids[(ids.indexOf(p.car) + dir + ids.length) % ids.length];
+    // Cada carro volta com a pintura que este assento guardou para ele.
+    p.paint = seatPaint(this.host.save, index, p.car);
+    this.publishInfo();
+  }
+
+  /** Pintura do jogador local `index` (a Original se ele não existe). */
+  paintOf(index: number): string {
+    return this.locals[index]?.paint ?? seatPaint(this.host.save, index, this.locals[index]?.car ?? '');
+  }
+
+  /**
+   * Troca a pintura do jogador local (grava no save para o assento local e o carro, como o lobby local) e avisa a
+   * sala. Travada com o "pronto" dado e fora da sala, como o carro.
+   */
+  cyclePaint(index: number, dir: -1 | 1): void {
+    const p = this.locals[index];
+    if (!p || this.ready || this.phase !== 'lobby') return;
+    p.paint = stepSeatPaint(this.host.save, index, p.car, dir);
+    this.host.persistSave?.();
     this.publishInfo();
   }
 
@@ -355,7 +388,7 @@ export class OnlineController implements RaceDriver {
   private info(): ClientInfo {
     return {
       // A assistência de cada jogador local é a do assento local dele nas opções (P1, P2).
-      players: this.locals.map((p, i) => withAssist({ name: p.name.trim() || `P${i + 1}`, car: p.car }, this.assistOf(i))),
+      players: this.locals.map((p, i) => withPaint(withAssist({ name: p.name.trim() || `P${i + 1}`, car: p.car }, this.assistOf(i)), p.paint)),
       ready: this.ready,
     };
   }
@@ -652,7 +685,7 @@ export class OnlineController implements RaceDriver {
     this.backlog = 0;
     this.hud?.dispose();
     this.hud = this.opts.hud ? this.opts.hud() : null;
-    this.host.startRace(raceConfigFrom(cfg), [...this.localSeatList], this);
+    this.host.startRace(raceConfigFrom(cfg), [...this.localSeatList], this, undefined, startHumans(cfg));
     this.changed();
   }
 
@@ -769,7 +802,7 @@ export class OnlineController implements RaceDriver {
     this.queued = [];
     this.backlog = 0;
     if (!this.hud && this.opts.hud) this.hud = this.opts.hud();
-    this.host.startRace(raceConfigFrom(snap.start), [...this.localSeatList], this, state);
+    this.host.startRace(raceConfigFrom(snap.start), [...this.localSeatList], this, state, startHumans(snap.start));
     // A sessão esconde os menus ao (re)começar a corrida; o "Sair da partida?" que o jogador abriu
     // continua valendo (entrada neutra), então volta para a tela junto.
     if (this.quitOpen) this.host.showScreen();

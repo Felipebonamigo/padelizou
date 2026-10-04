@@ -16,6 +16,7 @@ import type { BindAction, ControlBindings } from '../ui/remap/bindings';
 import { actionLabel, buttonLabel, codesLabel, keyLabel, padStyleOf, type LayoutMap } from '../ui/remap/labels';
 import { compactHumans, type SeatBinder } from './career-session';
 import type { DeviceInfo, HudMessage, Menus, RaceDriver, SaveData, Settings } from './contracts';
+import { withoutPaint, withPaint } from './paints';
 import {
   newTutorial, skipTutorial, START_FUEL, TARGET_KMH, tutorialInput, tutorialView, updateTutorial,
   type TutorialEvent, type TutorialState, type TutorialView,
@@ -240,11 +241,12 @@ export function createTutorialSession(host: TutorialHost): TutorialSession {
 
   function start(humans: HumanEntry[]): void {
     // Co-op sempre (o empurrão é entre companheiros), carros de fábrica, assentos contíguos.
-    const hs = compactHumans(host.input, humans, host.settings.seatAssists).map((h): HumanEntry => ({ seat: h.seat, name: h.name, carId: h.carId, teamId: 0, color: seatColor(h.seat, host.settings.colorPalette) }));
+    // A pintura escolhida vai junto (só aparência, para a sessão desenhar); a config da corrida não a carrega.
+    const hs = compactHumans(host.input, humans, host.settings.seatAssists).map((h): HumanEntry => withPaint({ seat: h.seat, name: h.name, carId: h.carId, teamId: 0, color: seatColor(h.seat, host.settings.colorPalette) }, h.paint));
     if (hs.length === 0) return;
     lastHumans = hs;
     const config: RaceConfig = {
-      trackId: TUTORIAL_TRACK_ID, laps: TUTORIAL_LAPS, humans: hs, totalCars: hs.length,
+      trackId: TUTORIAL_TRACK_ID, laps: TUTORIAL_LAPS, humans: withoutPaint(hs), totalCars: hs.length,
       difficulty: host.settings.difficulty, manualGear: false,
       assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, seed: host.randomSeed(),
     };

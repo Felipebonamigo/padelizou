@@ -275,3 +275,16 @@
 .car-hero.lobby-note { justify-content: center; gap: calc(10 * var(--u)); color: var(--muted); font-weight: 700; font-size: var(--fs); text-align: center; }
 .car-hero.lobby-note .ico { color: var(--accent); }
 .lobby-fixed { text-align: left; margin: 0 0 calc(4 * var(--u)); color: var(--text); font-weight: 700; }
+
+/* Pintura (docs/CARROS.md, "Pintura"): na linha do PRONTO, à esquerda dele — a coluna de 2–4 pilotos não tinha
+   altura para mais uma linha (playtest-layout: o painel rolava 11–26 px com ela embaixo do carro). Sem o rótulo
+   (a amostra e o desenho do carro dizem o que é); com 3–4 pilotos, só a amostra (o nome não cabe ao lado do PRONTO). */
+.scr-garage .gp-go { display: flex; align-items: stretch; gap: calc(6 * var(--u)); margin-top: auto; min-width: 0; }
+.scr-garage .gp-go .gp-ready { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+/* À esquerda, espaço para a barrinha de foco (.focusable::before, a 6–10 u) não cair em cima da seta. */
+.scr-garage .gp .sel-paint { flex: none; gap: 0; padding: 0 calc(4 * var(--u)) 0 calc(12 * var(--u)); }
+.scr-garage .gp .sel-paint .sel-label { display: none; }
+.scr-garage .gp .sel-paint .sel-arrow { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
+.scr-garage .gp .sel-paint .sel-value { min-width: 0; font-size: var(--fs-sm); }
+.scr-garage .gp .sel-paint.locked .sel-arrow { visibility: hidden; }
+.garage-panels.n-3 .gp .sel-paint .paint-name, .garage-panels.n-4 .gp .sel-paint .paint-name { display: none; }

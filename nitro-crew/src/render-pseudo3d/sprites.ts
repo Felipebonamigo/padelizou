@@ -4,6 +4,7 @@
 import { carDef } from '../core/data/cars';
 import { SPRITE_HALF_WIDTH } from '../core/track/sprites';
 import type { CarBody, SpriteKind } from '../core/types';
+import type { CarColors } from '../game/contracts';
 import { mix } from './palette';
 import { ROAD_WIDTH } from './projection';
 
@@ -288,12 +289,15 @@ export class SpriteAtlas {
     return b;
   }
 
-  car(carId: string, pose: number, braking: boolean, night: boolean): HTMLCanvasElement {
-    const key = `c:${carId}:${pose}:${braking ? 1 : 0}:${night ? 1 : 0}`;
+  /** `paint` = a pintura escolhida pelo jogador (RenderFrame.paints); ausente/null = a de fábrica. */
+  car(carId: string, pose: number, braking: boolean, night: boolean, paint?: CarColors | null): HTMLCanvasElement {
+    const key = `c:${carId}:${pose}:${braking ? 1 : 0}:${night ? 1 : 0}${paint ? `:${paint.color}:${paint.accent}` : ''}`;
     let b = this.cache.get(key);
     if (!b) {
       const def = carDef(carId);
-      b = drawCar(def.color, def.accent ?? mix(def.color, '#ffffff', 0.55), def.body, pose, braking, night);
+      b = paint
+        ? drawCar(paint.color, paint.accent, def.body, pose, braking, night)
+        : drawCar(def.color, def.accent ?? mix(def.color, '#ffffff', 0.55), def.body, pose, braking, night);
       this.cache.set(key, b);
     }
     return b;

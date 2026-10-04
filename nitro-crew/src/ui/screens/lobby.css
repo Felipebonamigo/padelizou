@@ -31,3 +31,14 @@
 #ui.large-text .scr-lobby .slot .seat-badge { line-height: 1.3; }
 /* PRONTO mais estreito: "Sua equipe" cabe numa linha ao lado dele. */
 #ui.large-text .scr-lobby .slot .btn-ready { padding: calc(4 * var(--u)) calc(12 * var(--u)); }
+
+/* Cabeçalho do cartão: P1, o nome (campo) e o dispositivo. O nome subiu da linha "Nome" para cá: a pintura
+   (docs/CARROS.md, "Pintura") ganhou a linha embaixo do carro e o cartão 2×2 não tinha altura para mais uma.
+   Pronto, o dispositivo fica só no ícone (o PRONTO aparece ao lado). */
+.scr-lobby .slot-head .slot-name { flex: 1 1 0; min-width: calc(50 * var(--u)); display: flex; border-radius: calc(8 * var(--u)); }
+.scr-lobby .slot-head .slot-name .name-input { width: 100%; max-width: calc(180 * var(--u)); padding-top: calc(2 * var(--u)); padding-bottom: calc(2 * var(--u)); }
+.scr-lobby .slot-head .slot-name.focus .name-input { border-color: var(--accent); box-shadow: 0 0 0 calc(3 * var(--u)) var(--accent-soft); }
+.scr-lobby .slot-head strong.slot-name { font-size: var(--fs); white-space: nowrap; }
+/* Quem cede largura é o campo do nome (o texto rola dentro dele), nunca o rótulo do dispositivo. */
+.scr-lobby .slot-head .slot-device { margin-left: auto; flex: none; }
+.scr-lobby .slot.ready .slot-device > span { display: none; }

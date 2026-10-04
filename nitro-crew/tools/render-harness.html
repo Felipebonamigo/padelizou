@@ -5,12 +5,14 @@
 import { createRace, stepRace, getTrack, CARS, formatTicks } from '../src/core/index.ts';
 import { CAR_BODIES } from '../src/core/data/cars.ts';
 import { seatColor } from '../src/core/data/drivers.ts';
+import { PAINT_IDS, paintColors, racePaints } from '../src/game/paints.ts';
 import { createRenderer } from '../src/render/renderer.ts';
 import { loadCarAssets } from '../src/render/cars/assets.ts';
 import { loadLandmarkAssets } from '../src/render/scenery/landmarks/assets.ts';
 import { setLanguage, t } from '../src/i18n/index.ts';
 import * as THREE from 'three';
 import '../src/i18n/core.ts';
+import '../src/ui/strings.ts';
 
 const q = new URLSearchParams(location.search);
 const trackId = q.get('track') ?? 'copacabana';
@@ -24,9 +26,12 @@ const forceSkid = q.get('skid') === '1';
 // showroom=1: os 13 estilos em grade na pista (carview escolhe o lado, padrão front34);
 // sheet=side|rear34|front34|rear: folha de contato com os 13 estilos (e o 2º GT) em quadros;
 // ghost=1: fantasma do contra-relógio ao lado do carro do jogador; brake=1: lanternas de freio acesas.
+// paints=<id>,<id>…: pintura de cada humano (P1, P2…; ids de src/game/paints.ts; vazio = Original), como a sessão monta;
+// paintsheet=<carro>: folha de contato com o carro nas 16 pinturas da paleta (carview escolhe a vista, padrão front34).
 const carview = q.get('carview');
 const showroom = q.get('showroom') === '1';
-const sheet = q.get('sheet');
+const paintSheet = q.get('paintsheet');
+const sheet = q.get('sheet') ?? (paintSheet ? (q.get('carview') ?? 'front34') : null);
 const ghostOn = q.get('ghost') === '1';
 const forcePause = q.get('pause') === '1' || carview !== null || showroom || sheet !== null;
 const lang = q.get('lang') ?? 'pt';
@@ -50,8 +55,12 @@ function carForBody(body) {
 const styleCars = CAR_BODIES.map(carForBody);
 
 const track = getTrack(trackId);
-const humans = Array.from({ length: humanCount }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: CARS[i % 8].id, teamId: 0, color: seatColor(i) }));
-const state = createRace({ trackId, laps: track.def.laps, humans, totalCars: 20, difficulty: 'profissional', manualGear: false, assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, seed: 42 }, track);
+const paintIds = (q.get('paints') ?? '').split(',');
+const humans = Array.from({ length: humanCount }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: CARS[i % 8].id, teamId: 0, color: seatColor(i), ...(paintIds[i] ? { paint: paintIds[i] } : {}) }));
+// A config vai sem a pintura (como na sessão: o estado da corrida não carrega cosmético).
+const state = createRace({ trackId, laps: track.def.laps, humans: humans.map(({ paint, ...h }) => h), totalCars: 20, difficulty: 'profissional', manualGear: false, assists: { sharedNitro: true, tow: true, teamDraft: true, catchup: true }, seed: 42 }, track);
+/** Folha de pinturas: a pintura do carro do jogador neste quadro (null = a de fábrica). */
+let sheetPaint = null;
 // Humanos em piloto automático (mesmo truque do scripts/smoke.ts): com `ai` preenchido, stepRace dirige por eles.
 for (const c of state.cars) if (c.seat >= 0) c.ai = { skill: 0.97, laneX: 0.2 * (c.seat - 1.5), laneUntil: 0, lookahead: 28, aggression: 0.6 };
 
@@ -112,7 +121,8 @@ window.landmarkAssets = await loadLandmarkAssets();
 const renderer = createRenderer(canvas, hud);
 // Folha de contato: o renderizador desenha no tamanho de um quadro (5 × 3 na janela) e cada quadro é
 // copiado para a folha — 15 vezes menos pixels que desenhar a janela inteira por estilo.
-const SHEET_COLS = 5; const SHEET_ROWS = 3;
+// A folha de pinturas tem 16 quadros (4 × 4); a de estilos, 14 (5 × 3).
+const SHEET_COLS = paintSheet ? 4 : 5; const SHEET_ROWS = paintSheet ? 4 : 3;
 const tileW = Math.floor(innerWidth / SHEET_COLS); const tileH = Math.floor(innerHeight / SHEET_ROWS);
 function resize() {
   if (sheet !== null) renderer.resize(tileW, tileH, Number(q.get('dpr') ?? 1));
@@ -137,17 +147,21 @@ function renderExtra(view, table, x = 0, y = 0, w = sheet !== null ? tileW : inn
 }
 function raceFrame() {
   const viewports = humans.map((h) => ({ seat: h.seat, carIndex: state.cars.findIndex((c) => c.seat === h.seat), color: h.color, name: h.name, messages: messages.get(h.seat) }));
+  const paints = racePaints(state.cars, humans);
+  if (sheetPaint !== undefined && paintSheet) paints[state.cars.indexOf(me)] = sheetPaint;
   const ghost = ghostOn ? { pose: { z: me.z + 420, x: Math.max(-0.9, Math.min(0.9, me.x + 0.35)), speed: me.speed, steerPose: 0, nitro: false }, carId: me.carId, delta: 0.4 } : undefined;
-  return { state, track, viewports, options: { quality, showMinimap: q.get('map') !== '0', screenShake: true }, time, paused: forcePause, coop: humanCount >= 2, showHud: q.get('hud') !== '0' && !extraCam, ghost };
+  return { state, track, viewports, options: { quality, showMinimap: q.get('map') !== '0', screenShake: true }, time, paused: forcePause, coop: humanCount >= 2, showHud: q.get('hud') !== '0' && !extraCam, ghost, paints };
 }
 
 /** Folha de contato: cada estilo (e o 2º GT) desenhado com a mesma câmera e copiado para um quadro. */
 function renderSheet() {
-  const tiles = [...styleCars.map((id, i) => ({ id, label: CAR_BODIES[i] }))];
+  let tiles = [...styleCars.map((id, i) => ({ id, label: CAR_BODIES[i] }))];
   const second = CARS.filter((c) => c.body === 'gt')[1];
   if (second) tiles.push({ id: second.id, label: `gt · ${second.name}` });
   const first = CARS.find((c) => c.body === 'gt');
   if (first) tiles[0].label = `gt · ${first.name}`;
+  // Folha de pinturas: o mesmo carro nas 16 opções da paleta (a Original primeiro).
+  if (paintSheet) tiles = PAINT_IDS.map((id) => ({ id: paintSheet, paint: id, label: t(`ui.paint.${id}`) }));
   const cols = SHEET_COLS;
   const out = document.getElementById('sheet');
   out.width = innerWidth; out.height = innerHeight;
@@ -156,6 +170,7 @@ function renderSheet() {
   const tw = tileW; const th = tileH;
   tiles.forEach((tile, i) => {
     me.carId = tile.id;
+    sheetPaint = tile.paint ? paintColors(tile.paint) : null;
     renderer.render(raceFrame());
     renderExtra(sheet, SHEET_VIEWS);
     const x = (i % cols) * tw; const y = Math.floor(i / cols) * th;

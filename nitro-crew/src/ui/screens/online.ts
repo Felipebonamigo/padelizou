@@ -4,13 +4,14 @@
 // (src/game/online-session.ts); esta tela só desenha e repassa o que o jogador faz.
 // Também exporta o aviso por cima da corrida (ping/atraso, "aguardando", dessincronia).
 import { assistTagText, seatAssist } from '../../access/humans';
-import { CARS } from '../../core/data/cars';
+import { CARS, carDef } from '../../core/data/cars';
 import { seatColor } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
 import { TRACKS } from '../../core/track';
 import type { AssistLevel } from '../../core/types';
 import type { DeviceId, MenuNav } from '../../game/contracts';
 import { assignSeats, seatName, type OnlineController, type OnlineHud, type OnlineStatus } from '../../game/online-session';
+import { ORIGINAL_PAINT } from '../../game/paints';
 import { DIFFICULTIES } from '../../game/settings';
 import { t } from '../../i18n';
 import { MAX_INPUT_DELAY, MIN_INPUT_DELAY, normalizeServerUrl, PLAYER_NAME_MAX, ROOM_CODE_LENGTH, type RoomSettings } from '../../net/protocol';
@@ -19,6 +20,7 @@ import { isKeyboard } from '../input';
 import { button, createFocusList, dayIcon, flagFor, h, listNav, screenFrame, selector, trackName, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon, medal } from './icons';
 import './online.css';
+import { paintSelector, paintSwatch } from './paint';
 import { assistMark } from './results';
 
 type View = 'connect' | 'connecting' | 'lobby' | 'quit' | 'results' | 'error';
@@ -187,18 +189,23 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
       if (locked) nameInput.disabled = true;
       const nameRow = textRow(t('online.lobby.name'), nameInput);
       const carSel = selector(t('online.lobby.car'), () => carName(online!.locals[i]?.car ?? ''), (d) => online!.cycleCar(i, d), { sfx: api.sfx, cls: locked ? 'locked' : '' });
+      // Pintura do carro deste jogador: vai para a sala (os outros computadores desenham o carro nela).
+      const paintSel = paintSelector({
+        current: () => online!.paintOf(i), car: () => carDef(online!.locals[i]?.car ?? CARS[0].id), onAdjust: (d) => online!.cyclePaint(i, d),
+        sfx: api.sfx, cls: `online-paint${locked ? ' locked' : ''}`,
+      });
       // Direção assistida deste jogador (a do assento local nas opções): vai para a sala e para a largada.
       const assistSel = selector(t('access.lobby.assist'), () => t(`access.level.${online!.assistOf(i)}`), (d) => online!.cycleAssist(i, d),
         { sfx: api.sfx, cls: `sel-assist online-assist${locked ? ' locked' : ''}` });
-      items.push(nameRow, carSel, assistSel);
-      refreshers.push(() => carSel.refresh(), () => assistSel.refresh());
+      items.push(nameRow, carSel, paintSel, assistSel);
+      refreshers.push(() => carSel.refresh(), () => paintSel.refresh(), () => assistSel.refresh());
       const badge = h('span', { class: 'seat-badge' });
       const box = h('div', { class: 'online-local' },
         h('div', { class: 'online-local-head' },
           badge,
           h('span', { class: 'slot-device' }, icon(isKeyboard(p.device) ? 'keyboard' : 'gamepad'), h('span', { text: deviceLabel(p.device) })),
         ),
-        nameRow.el, carSel.el, assistSel.el,
+        nameRow.el, carSel.el, paintSel.el, assistSel.el,
       );
       // O assento (e a cor) segue a ordem da sala: muda se alguém de id menor sai.
       refreshers.push(() => {
@@ -349,7 +356,8 @@ export function onlineScreen(api: ScreenApi): ScreenInstance {
             h('span', { class: 'seat-badge', text: `P${seat + 1}` }),
             // Nome e, embaixo dele, o selo da direção (ao lado, o selo espremia o nome até sumir).
             h('span', { class: 'online-player-who' }, h('span', { class: 'online-player-name', text: seatName(p.name, seat) }), assistTag(p.assist)),
-            h('span', { class: 'online-player-car', text: carName(p.car) }),
+            // Carro com a amostra da pintura que o jogador escolheu (a Original, nas cores de fábrica).
+            h('span', { class: 'online-player-car' }, paintSwatch(p.paint ?? ORIGINAL_PAINT, carDef(p.car)), h('span', { text: carName(p.car) })),
           );
         }),
       );

@@ -6,6 +6,7 @@ import { CUPS, currentCupId, LEGACY_CUP_IDS, legacyCupOpens } from '../core/data
 import type { CupDef, HumanEntry, RaceResultRow } from '../core/types';
 import { sanitizeCareer, sanitizeSavedCup, sanitizeUnlocked } from './career-save';
 import { isFingerprint, lapFingerprint } from './content-version';
+import { sanitizeSeatPaints } from './paints';
 import { DEFAULT_SAVE, type BestLap, type RaceMode, type SaveData } from './contracts';
 import { isRecord, pickNumber, pickString, readJson, writeJson } from './settings';
 import { sanitizeStats } from './stats';
@@ -110,6 +111,8 @@ export function sanitizeSave(raw: unknown): SaveData {
     racesWon: pickNumber(r.racesWon, 0, Number.MAX_SAFE_INTEGER, d.racesWon, true),
     seatNames: seatList(r.seatNames, d.seatNames, () => true, NAME_MAX_LENGTH),
     seatCars: seatList(r.seatCars, d.seatCars, knownCar, 32),
+    // Save de antes da pintura (sem o campo): todo assento com a Original em todo carro.
+    seatPaints: sanitizeSeatPaints(r.seatPaints),
     stats: sanitizeStats(r.stats),
     carsUnlocked: sanitizeUnlocked(r.carsUnlocked),
     career: sanitizeCareer(r.career),

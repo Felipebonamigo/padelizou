@@ -28,13 +28,14 @@ import { createTutorialPanel } from '../ui/screens/tutorial';
 import { newTelemetry, type RaceTelemetry } from './achievements';
 import { saveCupProgress } from './career-save';
 import { compactHumans, createCareerSession } from './career-session';
-import type { AudioEngine, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, RenderStyle, Settings, ViewportSpec } from './contracts';
+import type { AudioEngine, CarColors, HudMessage, InputProvider, MenuEvent, Menus, RaceDriver, RaceMode, RenderFrame, Renderer, RenderStyle, Settings, ViewportSpec } from './contracts';
 import { getDesktop, isDesktop, setFullscreen } from './desktop';
 import { reportError } from './errors';
 import { startGhost, type GhostHooks } from './ghost-session';
 import { gridRival } from './rivals';
 import { createOnlineController, type OnlineController } from './online-session';
 import { createPartySession, isPartyRaceMode } from './party-session';
+import { racePaints, withoutPaint } from './paints';
 import { carIndexOfSeat } from '../core/modes';
 import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
@@ -67,6 +68,8 @@ interface ActiveRace {
   localSeats: number[];
   /** Fantasma do contra-relógio local (ghost-session.ts); null nas outras corridas. */
   ghost: GhostHooks | null;
+  /** Pintura de cada carro (índice = state.cars), montada na largada a partir de `humans` (paints.ts: racePaints). */
+  paints: Array<CarColors | null>;
 }
 
 export interface Session {
@@ -134,7 +137,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   // Online: a sessão empresta a corrida (beginRace com um driver de lockstep) e os menus.
   const online = createOnlineController({
     settings, save, input,
-    startRace: (config, localSeats, driver, state) => beginRace(config, 'quick', config.humans, { driver, localSeats, state }),
+    startRace: (config, localSeats, driver, state, humans) => beginRace(config, 'quick', humans ?? config.humans, { driver, localSeats, state }),
     raceState: () => session.race?.state ?? null,
     clearRace: () => { session.race = null; session.paused = false; },
     showScreen: () => menus.show('online'),
@@ -142,6 +145,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     menuOpen: () => menus.current() !== null,
     exitToMain: () => toMain(),
     persistSettings: () => saveSettings(settings),
+    persistSave: () => saveSave(save),
     // Aba em segundo plano/janela minimizada: sem requestAnimationFrame, o online anda pela rede.
     hidden: () => document.visibilityState === 'hidden',
     runHidden: (dt) => { const r = session.race; if (r?.driver) r.driver.advance(dt, readInputs(r), (i) => stepOnce(r, i)); },
@@ -217,7 +221,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   function baseConfig(trackId: string, laps: number, humans: HumanEntry[], seed: number): RaceConfig {
     return {
-      trackId, laps, humans: assistedHumans(humans, settings.seatAssists), totalCars: Math.max(humans.length, settings.totalCars),
+      // A pintura fica com os humanos da sessão (r.humans → RenderFrame.paints): a config e o estado não a carregam.
+      trackId, laps, humans: assistedHumans(withoutPaint(humans), settings.seatAssists), totalCars: Math.max(humans.length, settings.totalCars),
       difficulty: settings.difficulty, manualGear: settings.manualGear, assists: { ...settings.assists }, seed,
     };
   }
@@ -231,7 +236,10 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     const messages = new Map<number, HudMessage[]>();
     for (const seat of localSeats) messages.set(seat, []);
     const ghost = startGhost(mode, net !== undefined, config.trackId, humans, { settings, hud: (seat, m) => pushMessage(seat, m.text, m.kind, m.ttl) });
-    session.race = { state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null, driver: net?.driver ?? null, localSeats, ghost };
+    session.race = {
+      state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null, driver: net?.driver ?? null, localSeats, ghost,
+      paints: racePaints(state.cars, humans),
+    };
     session.paused = false;
     accumulator = 0;
     menus.hide();
@@ -437,6 +445,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
       showHud: menus.current() === null || menus.current() === 'pause' || (r.driver !== null && online.quitOpen),
       ghost: r.ghost?.frame(r.state),
+      paints: r.paints,
     };
   }
 

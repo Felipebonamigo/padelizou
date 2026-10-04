@@ -302,3 +302,103 @@ a malha do estilo do carro dele) continuam como antes.
   2º GT (`?sheet=front34|rear34|side|rear`, 1920×1080);
 - `carro_<estilo>_<vista>` — um estilo de perto (`?carview=front34|rear34|side|rear&body=<estilo>`; ou
   `&car=<id>`). Estilos sem carro nos dados ganham um carro de demonstração só no harness.
+- `cores_folha` — o Falcão nas 16 pinturas da paleta (`?paintsheet=<carro>[&carview=…]`, 4 × 4); `cores_split2` —
+  tela dividida com P1 e P2 pintados (`?paints=rubi,cobalto`: a pintura de cada humano, como a sessão monta).
+
+## Pintura
+
+Pedido do dono (04/10/2026): "os carros também têm que poder trocar de cor". Cada jogador escolhe a pintura do
+carro dele numa paleta curada; os rivais da IA continuam de fábrica.
+
+### A paleta: 16 opções, cada uma um par cor + detalhe
+
+A primeira é a **Original** (a cor de fábrica do carro: `CarDef.color` e `accent`); depois, 15 pares prontos, do
+arco-íris aos neutros (`PAINTS` em `src/game/paints.ts`, nomes em PT e EN em `src/ui/strings.ts`):
+
+| Id | PT / EN | Cor | Detalhe |
+|---|---|---|---|
+| `original` | Original | a do carro | a do carro |
+| `rubi` | Rubi / Ruby | `#d7263d` | `#f4f4f2` (branco) |
+| `tangerina` | Tangerina / Tangerine | `#ff7a1a` | `#f6f7f9` (branco) |
+| `canarinho` | Canarinho / Canary | `#ffc425` | `#0f7a45` (verde) |
+| `limao` | Limão / Lime | `#9bd61f` | `#24282f` (grafite) |
+| `esmeralda` | Esmeralda / Emerald | `#0f9d58` | `#ffd23f` (amarelo) |
+| `turquesa` | Turquesa / Turquoise | `#18b8c4` | `#ff8a33` (laranja) |
+| `ceu` | Céu / Sky | `#4fb3ff` | `#14254f` (marinho) |
+| `cobalto` | Cobalto / Cobalt | `#2346d6` | `#ffcf26` (amarelo) |
+| `marinho` | Marinho / Navy | `#1b2b5e` | `#e8434f` (vermelho) |
+| `violeta` | Violeta / Violet | `#7a3ff0` | `#ffb02e` (âmbar) |
+| `flamingo` | Flamingo | `#ff4fa0` | `#2fd9e6` (ciano néon) |
+| `gelo` | Gelo / Ice | `#eef1f4` | `#d7263d` (vermelho) |
+| `prata` | Prata / Silver | `#98a2ae` | `#2346d6` (azul) |
+| `grafite` | Grafite / Graphite | `#3b4048` | `#c8ff2e` (limão néon) |
+| `onix` | Ônix / Onyx | `#17191e` | `#d9b25a` (dourado) |
+
+**Por que pares, e não cor e detalhe soltos:** o detalhe pinta faixas, aerofólio, asa, pinças e o capacete do
+roadster (as camadas A/B de "Cor, segunda cor e pintura", acima), e cor × detalhe livres dariam 256 combinações,
+muitas feias ou sem contraste (vermelho com laranja, marinho com preto). Com o par escolhido junto o seletor é um
+só (←→ anda pela paleta), a prévia diz tudo e toda opção é bonita. O custo é o mesmo de uma cor só: o material já
+tinha cor e segunda cor por instância. Regras com teste (`tests/paint.test.ts`): 16 ids sem repetição com a
+Original primeiro; detalhe com contraste na cor (distância ≥ 200, "redmean" 0..765); cores da paleta diferentes
+entre si (≥ 60); e **nenhuma pintura repete a de fábrica de um carro** — ou a cor fica longe (≥ 50) ou o detalhe
+muda (≥ 200): a Tangerina era laranja com preto, igual ao Pororoca de fábrica, e ganhou o detalhe branco; o Céu
+com branco lembrava o Tornado e ficou com marinho; o amarelo com preto repetia o Carcará e virou o Canarinho
+(amarelo e verde).
+
+### Onde se escolhe
+
+- **Lobby** (corrida rápida, campeonato, contra-relógio, escolta, revezamento): a linha **Pintura** logo abaixo do
+  carro, em cada cartão — cada jogador local (até 4) com o próprio teclado ou controle, como o resto do cartão
+  (↓ do carro, ←→ trocam, confirmar é PRONTO, como no carro e na direção). O desenho do carro no cartão é a
+  prévia. Para a linha caber no cartão 2×2 o **nome subiu para o cabeçalho**, ao lado do P1 (a linha "Nome"
+  saiu; pronto, o dispositivo fica só no ícone). Onde o carro não se escolhe ali, a pintura também não: carreira
+  (é na garagem), "Continuar" (a da copa salva, que o desenho já mostra), torneio e o segundo da dupla do
+  revezamento (corre no carro do primeiro, com a pintura dele).
+- **Garagem da carreira**: o seletor de pintura fica na linha do PRONTO de cada piloto, à esquerda dele (embaixo do
+  carro a coluna de 2–4 pilotos rolava 11–26 px; ↑ do carro dá a volta e chega nele), e pinta o carro à mostra — o
+  escolhido ou o da vitrine: dá para ver um carro à venda na sua cor antes de comprar. O desenho do carro, em cima,
+  é a prévia; com 3–4 pilotos só a amostra aparece (o nome fica na dica do mouse). Trava com o PRONTO.
+- **Sala online**: a linha **Pintura** de cada jogador deste computador, entre o carro e a direção; a lista da sala
+  mostra a amostra da cor ao lado do carro de cada um.
+- **Torneio de sofá**: os inscritos (até 8, que se revezam nos controles) correm de fábrica — a amostra da
+  inscrição é a cor do carro. Dois com o mesmo carro numa bateria ficam distinguíveis pela regra abaixo.
+
+### Como salva
+
+Por **assento e carro** — o que o save já modelava para o lobby (`seatNames`, `seatCars` são por assento): cada
+P1..P4 lembra uma pintura para cada carro, e trocar de carro traz a que aquele assento escolheu para ele. Gravada
+na hora da escolha. Formato e save antigo em `docs/SAVE.md`, "Pintura do carro". A copa em andamento guarda a
+pintura de cada humano (o "Continuar" corre com ela).
+
+### Na pista
+
+- **Fora do estado da corrida.** A pintura viaja no `HumanEntry` da sessão (`paint`, opcional), mas a sessão
+  (`baseConfig`), o online (`raceConfigFrom`) e o tutorial a tiram (`withoutPaint`) antes da `RaceConfig`: o núcleo
+  nunca a vê, o `hashRace` e as impressões de `tests/sim-golden.test.ts` não mudam (teste: corrida pintada e de
+  fábrica têm o mesmo hash). Na largada a sessão monta `racePaints(state.cars, humans)` — uma pintura por carro,
+  null para a de fábrica — e manda em `RenderFrame.paints`.
+- **IA e VIP**: de fábrica, sempre.
+- **Dois carros iguais**: o renderizador já tratava dois carros *diferentes* do mesmo estilo (Falcão e Boitatá GT)
+  com pinturas de camada diferentes (`liveryFor`); dois humanos com o *mesmo* carro e a mesma pintura (o caso
+  comum: os dois de Falcão Original) sairiam idênticos. Agora o de assento maior ganha, só naquela corrida, a
+  próxima opção da paleta que ninguém com aquele carro escolheu de propósito (a escolha guardada não muda). Humano
+  de Original com o mesmo carro de um rival da IA fica igual a ele, como antes — a Original é escolha do jogador e
+  a IA fica de fábrica; a etiqueta de nome sobre o carro (e a cor do assento no minimapa) os separa.
+- **3D** (`src/render/cars.ts`): a cor e o detalhe por instância vêm da pintura (`carPaint(def, …, chosen)`); a
+  camada de faixas continua a do carro. Sem custo: a aparência de cada carro é recalculada só quando o carro ou a
+  pintura mudam.
+- **Retrô** (`src/render-pseudo3d/sprites.ts`): o sprite do carro é desenhado na cor e no detalhe da pintura, em
+  cache por pintura.
+- **Menus**: a silhueta do cartão do lobby, a da garagem e a amostra da sala online usam a pintura
+  (`paintedCar`). O HUD e o minimapa usam a cor do **assento** (P1 amarelo, P2 verde…), não a do carro: não mudam.
+- **Fantasma do contra-relógio**: não usa. No 3D ele é um carro translúcido de cor única (azul-claro) e no Retrô o
+  sprite de fábrica; é a volta gravada de um recorde, não o carro de quem está correndo.
+
+### Testes e capturas
+
+`tests/paint.test.ts` (paleta, save, quem corre com qual pintura, `racePaints`, cor na instância do 3D e no sprite
+do Retrô com canvas falso, silhueta), `tests/paint-screens.test.ts` (lobby e garagem pelo teclado/controle com DOM
+falso: a prévia muda, o save guarda e volta), `tests/paint-session.test.ts` (sessão de verdade: rápida, copa e
+"Continuar", carreira, tutorial — `RenderFrame.paints` e a config sem pintura), `tests/online-paint.test.ts`.
+`scripts/playtest-paint.mjs` (Chromium, fluxo real: lobby → corrida 3D e Retrô → garagem → reabrir o jogo; capturas
+`scratch/cores-*.png`) e `scripts/playtest-online.mjs` (o convidado pinta, o anfitrião vê, os dois desenham igual).

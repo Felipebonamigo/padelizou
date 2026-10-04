@@ -12,6 +12,7 @@ import { AI_TEAM_ID_BASE, seatColor } from '../core/data/drivers';
 import type { CarDef, ChampionshipState, HumanEntry, RaceResultRow, StandingRow, TeamStandingRow, UpgradeLevels } from '../core/types';
 import type { SaveData, SavedCup } from './contracts';
 import { isRecord, pickNumber, pickString } from './settings';
+import { withPaint } from './paints';
 
 /** Mesmo teto de nome do save.ts (importar de lá faria um ciclo save ↔ career-save). */
 const NAME_MAX = 12;
@@ -192,7 +193,8 @@ function sanitizeHuman(v: unknown): HumanEntry | null {
   if (!isRecord(v)) return null;
   const seat = strictInt(v.seat, 0, MAX_SEATS - 1); const teamId = strictInt(v.teamId, 0, AI_TEAM_ID_BASE - 1);
   if (seat === null || teamId === null || !knownCar(v.carId)) return null;
-  return { seat, name: name(v.name, `P${seat + 1}`), carId: v.carId, teamId, color: pickString(v.color, seatColor(seat), 16) };
+  // Pintura (só aparência): a da copa salva antes dela não existe, e a que não está mais na paleta vira a Original.
+  return withPaint({ seat, name: name(v.name, `P${seat + 1}`), carId: v.carId, teamId, color: pickString(v.color, seatColor(seat), 16) }, v.paint);
 }
 
 /** Copa normal salva; null se algo essencial não fecha (copa, semente, humanos com assentos 0..n-1). */
@@ -215,7 +217,7 @@ export function saveCupProgress(save: SaveData, champ: ChampionshipState, cupSee
   save.cupInProgress = {
     champ: JSON.parse(JSON.stringify(champ)) as ChampionshipState,
     cupSeed: cupSeed >>> 0,
-    humans: humans.map((h) => ({ seat: h.seat, name: h.name, carId: h.carId, teamId: h.teamId, color: h.color })),
+    humans: humans.map((h) => withPaint({ seat: h.seat, name: h.name, carId: h.carId, teamId: h.teamId, color: h.color }, h.paint)),
   };
 }
 
