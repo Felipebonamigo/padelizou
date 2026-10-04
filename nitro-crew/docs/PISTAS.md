@@ -31,6 +31,7 @@ Transpantaneira) mantiveram id e traçado; a Copa Brasil antiga virou a Copa Rio
 | 1.500–3.000 segmentos, 3–5 voltas; pelo menos uma pista de entardecer ou noite por copa | `tests/track.test.ts` |
 | Copa, país, região, estado e pista com nome em PT e EN (`core.cup.<id>`, `core.country.<País>`, `core.region.<id>`, `core.state.<UF>`, `core.track.<id>` — PT = `name` da pista) | `tests/track.test.ts`, `tests/i18n.test.ts` |
 | A Cuia da Serra Gaúcha desenha uma cuia no minimapa (bojo > boca > cintura, de pé, simétrica, fundo redondo) | `tests/track.test.ts` (Cuia) |
+| Uma pista por estado desenha o símbolo do lugar no minimapa (o Cristo, o MASP…), reconhecível pelas propriedades do contorno; contorno sem cruzar nem encostar em si, proporção que cabe no minimapa, curvas no teto 6 | `tests/track.test.ts` ("Pistas com desenho") |
 | Uma conquista `COPA_<ID>` para cada copa, `REGIAO_<ID>` por região, `PASSAPORTE_COMPLETO` | `tests/desktop.test.ts` |
 | Um rival por região na Expedição (o mesmo nos estados dela) e um por país no Mundial, todos diferentes, com falas próprias | `tests/rivals.test.ts` |
 | IA completa volta sem travar em toda pista; fica na pista nas de dificuldade 5 | `tests/ai.test.ts` (um teste por pista) |
@@ -49,7 +50,7 @@ referência (`falcao`, via `holdableSpeedFraction`) + inclinação média × 20.
 
 Média por copa (índice · dificuldade média):
 
-- Expedição Brasil: RJ 1,4 (dif. 1,33) · SP 3,4 (dif. 2,00) · MG 3,5 (dif. 2,00) · ES 3,7 (dif. 2,00) · PR 4,2 (dif. 2,33) · SC 4,4 (dif. 2,33) · RS 6,1 (dif. 2,67) · DF 6,4 (dif. 2,67) · GO 6,7 (dif. 2,67) · MS 7,1 (dif. 3,00) · MT 7,3 (dif. 3,00) · BA 7,9 (dif. 3,00) · SE 8,1 (dif. 3,33) · AL 8,3 (dif. 3,33) · PE 9,2 (dif. 3,67) · PB 9,5 (dif. 3,67) · RN 9,6 (dif. 3,67) · CE 10,0 (dif. 4,00) · PI 10,2 (dif. 4,00) · MA 10,3 (dif. 4,00) · PA 11,2 (dif. 4,33) · AM 11,4 (dif. 4,33) · AP 11,5 (dif. 4,33) · RR 12,4 (dif. 4,67) · RO 12,8 (dif. 4,67) · AC 13,0 (dif. 4,67) · TO 13,8 (dif. 5,00)
+- Expedição Brasil: RJ 1,4 (dif. 1,33) · SP 3,4 (dif. 2,00) · MG 3,5 (dif. 2,00) · ES 3,7 (dif. 2,00) · PR 4,2 (dif. 2,33) · SC 4,4 (dif. 2,33) · RS 6,1 (dif. 2,67) · DF 6,4 (dif. 2,67) · GO 6,6 (dif. 2,67) · MS 7,1 (dif. 3,00) · MT 7,3 (dif. 3,00) · BA 7,9 (dif. 3,00) · SE 8,1 (dif. 3,33) · AL 8,3 (dif. 3,33) · PE 9,2 (dif. 3,67) · PB 9,5 (dif. 3,67) · RN 9,6 (dif. 3,67) · CE 10,0 (dif. 4,00) · PI 10,2 (dif. 4,00) · MA 10,3 (dif. 4,00) · PA 11,2 (dif. 4,33) · AM 11,4 (dif. 4,33) · AP 11,5 (dif. 4,33) · RR 12,4 (dif. 4,67) · RO 12,8 (dif. 4,67) · AC 13,0 (dif. 4,67) · TO 13,8 (dif. 5,00)
 - Mundial: eua 4,7 (dif. 2,25) · japao 7,5 (dif. 3,25) · europa 8,6 (dif. 3,75) · africa_do_sul 10,3 (dif. 4,00) · australia 10,9 (dif. 4,25) · escandinavia 12,2 (dif. 4,50) · mediterraneo 14,1 (dif. 4,75)
 
 ## Como as 77 pistas novas foram traçadas
@@ -102,6 +103,147 @@ retas e como subida das curvas: altura não muda o contorno. `npx tsx scripts/tr
                         ###########
 ```
 
+## Pistas com desenho (04/10/2026)
+
+Uma pista por estado desenha no minimapa o símbolo do lugar: a cuia do RS (acima, à mão) e mais 26, geradas a partir
+de um polígono. O comentário em cima de cada uma em `tracks.ts` conta o desenho; `tests/track.test.ts` trava a forma.
+`npx tsx scripts/shape-to-track.ts --sheet scratch/desenhos.svg` desenha a folha com os 27 contornos.
+
+| UF | Pista | Desenho | UF | Pista | Desenho |
+|---|---|---|---|---|---|
+| RJ | `copacabana` | Cristo Redentor | SE | `aracaju` | caranguejo |
+| SP | `sampa_noite` | MASP (a caixa sobre os pilares, o vão livre) | AL | `maceio` | jangada (vela, casco, ondas) |
+| MG | `pampulha` | Igreja da Pampulha (as cinco abóbadas) | PE | `olinda` | sombrinha de frevo |
+| ES | `convento_penha` | convento no alto do penhasco | PB | `campina_grande` | balão junino |
+| SC | `floripa` | Ponte Hercílio Luz | RN | `cajueiro_pirangi` | **cajueiro de Pirangi** (no lugar do caju) |
+| DF | `brasilia` | avião do Plano Piloto | CE | `canoa_quebrada` | lua crescente |
+| PR | `curitiba` | araucária | PI | `serra_capivara` | capivara |
+| GO | `caldas_novas` | gota d'água | MA | `sao_luis` | cabeça do boi (bumba-meu-boi) |
+| MS | `bonito` | peixe (piraputanga, com as quatro barbatanas) | PA | `belem` | Mercado de Ferro do Ver-o-Peso (4 torres) |
+| MT | `transpantaneira` | jacaré visto de cima | AM | `manaus` | cúpula do Teatro Amazonas |
+| BA | `porto_seguro` | caravela de Cabral | AP | `macapa` | Fortaleza de São José (4 baluartes) |
+| RS | `cuia_gaucha` | cuia (à mão, de antes) | RR | `monte_roraima` | tepui |
+| | | | RO | `porto_velho` | locomotiva da Madeira-Mamoré |
+| | | | AC | `rio_branco` | **gameleira** (no lugar da folha de seringueira) |
+| | | | TO | `palmas` | sol com raios (o da bandeira) |
+
+**Troca: o caju do RN virou o cajueiro de Pirangi** (o maior cajueiro do mundo, na mesma pista). O caju — castanha
+em cima da fruta — numa linha só saiu bolota, sino ou coelho nas três tentativas: a castanha encostada na fruta vira
+uma cintura, e cintura é o que todos esses desenhos têm. A árvore (copa larga de tufos, galhos que descem até o chão em
+arcos) se lê de primeira e é o cartão-postal de Pirangi do mesmo jeito.
+
+**Troca: a folha de seringueira do AC virou a gameleira** (a figueira que dá nome à pista, `Gameleira de Rio Branco`, e
+é o marco dela). A folha se desenhava — três folíolos, entalhes, pecíolo —, mas não cabia no orçamento do cenário (logo
+abaixo): pontas finas e lados quase retos não têm curva longa, e só as pontas e os entalhes afastam a mata; arredondando
+tudo o que dava, ficava em 920–960 triângulos por segmento, acima do teto de 900. A copa de tufos da gameleira tem curva
+em volta inteira.
+
+### Como uma pista vira desenho
+
+- **O desenho** está em `scripts/track-shapes.ts`: um polígono horário por pista, num quadro de ~100, começando no pé
+  do lado da largada (que sobe na vertical: o minimapa começa apontando para cima), com o raio de cada quina (padrão
+  `radius`, ou um terceiro número no ponto). Ajudantes: `bulge`/`bumps` (arcos estufados: tufos, rodas, vãos),
+  `circle`, `leaf`, `sun`.
+- **A ferramenta** `scripts/shape-to-track.ts` gera os `ops` (o cabeçalho dela explica a conta): cada quina vira um
+  `cv` cujo comprimento é raio × ângulo, a curva sai do ângulo ÷ esse comprimento, e o deslocamento que a entrada e a
+  saída suaves do `cv` causam é medido no próprio perfil do builder e descontado das retas vizinhas — o contorno cai
+  em cima do polígono. As curvas vão a 2 casas, com o erro de arredondamento passado para a quina seguinte (com 1
+  casa o rumo entortava e o desenho não fechava). O `pit(40)` abre a volta, no lado da largada (`startAt`).
+- `npx tsx scripts/shape-to-track.ts <pista…>` mostra o resultado (ASCII, cruzamentos, folga mínima, índice);
+  `--svg x.svg` a sobreposição contorno × alvo; `--current` mede a pista como está em `tracks.ts`; `--apply` grava a
+  linha de `ops` da pista. **Mexer no desenho e regenerar, nunca nos números à mão.**
+- Comprimento e voltas: cada pista ficou com o mesmo número de segmentos de antes (comprimento da volta igual, não só
+  dentro de ±10%); voltas, cenário, período e dificuldade não mudaram.
+- **Orçamento do cenário** (`tests/scenery-forma.test.ts`: ≤ 900 triângulos por segmento): do lado de dentro de curva
+  longa — 18 de 80 segmentos acima de 1,2 (`innerCurve`, `src/render/scenery/layout.ts`) — a mata não nasce perto da
+  pista. Os traçados de antes tinham isso em 20–40% da volta; desenho de quinas curtas e retas longas tem quase 0%, e na
+  mata (tropical) a pista fica com todas as árvores: Bonito foi a 1.010, Rio Branco a 965, Porto Velho a 915 e Macapá a
+  900. Consertado no desenho: quinas arredondadas (`round` 2,4 no peixe, que ganhou a adiposa e a pélvica; 2 na
+  fortaleza; 1,25 na locomotiva, com o beiral e o vão entre as rodas mais largos) e a troca da folha pela gameleira. Com
+  `cmax` refeito pela velocidade da IA, ficaram em 874 / 878 / 862 / 864. Em todas as 26 o custo subiu um pouco (menos
+  curva longa); a ferramenta mostra o custo no relatório e avisa acima do teto.
+
+### Desenho × dificuldade (o que se aprendeu)
+
+Escalar todas as curvas não muda o desenho (o minimapa normaliza a soma), então a força da curva é livre: é a
+dificuldade. A primeira tentativa acertou só o **índice técnico** de antes com as curvas — e a IA ficou muito mais
+lenta (Sampa de medido 3,0 para 4,3): o índice não vê que muitas quinas curtas de curva 6 fazem a IA frear e
+reacelerar sem parar. Então:
+
+1. `cmax` (a curva da quina mais forte; as outras saem na proporção ângulo ÷ raio) foi escolhido em cada pista pela
+   **velocidade média da IA** medida na pista de antes (a mesma régua do "medido" em "Balanceamento");
+2. o resto do índice técnico de antes virou **morro** (`hl` nas retas e desnível dentro das curvas longas): altura
+   não muda o contorno nem a IA (o núcleo não lê `y`), e o índice fica onde estava, na faixa da copa.
+
+Antes × depois — corrida inteira (`scripts/balance.ts` "corrida": 20 carros, piloto médio, sem assistências),
+profissional, sementes 11–13, medido nas duas versões com o mesmo código. Medido limitado a 1–5 (Palmas fica acima
+de 5 nas duas: v média 0,697 → 0,687):
+
+| UF | Pista | Dif. | Índice antes → depois (curva + morro) | Medido | Corrida (pro) | Batidas no cenário | `cmax` · `round` |
+|---|---|---|---|---|---|---|---|
+| RJ | `copacabana` | 1 | 0,65 (0,0 + 0,6) → 0,67 (0,0 + 0,7) | 1,0 → 1,0 | 3:21 → 3:21 | 3,3 → 1,7 | 3 |
+| SP | `sampa_noite` | 3 | 6,13 (6,1 + 0,0) → 6,12 (1,7 + 4,4) | 3,0 → 3,0 | 5:01 → 4:59 | 25,7 → 17,0 | 5,7 |
+| MG | `pampulha` | 1 | 1,17 (1,2 + 0,0) → 1,17 (0,2 + 1,0) | 1,0 → 1,0 | 3:48 → 3:48 | 4,3 → 4,3 | 3,4 |
+| ES | `convento_penha` | 2 | 3,96 (2,5 + 1,5) → 3,96 (0,9 + 3,0) | 2,1 → 2,2 | 3:45 → 3:47 | 1,7 → 0,0 | 4,7 |
+| SC | `floripa` | 2 | 3,00 (1,5 + 1,5) → 3,01 (1,3 + 1,7) | 1,5 → 2,0 | 3:46 → 3:50 | 8,7 → 7,0 | 4,4 |
+| DF | `brasilia` | 3 | 7,74 (7,6 + 0,2) → 7,73 (2,0 + 5,7) | 3,0 → 3,4 | 4:18 → 4:21 | 3,7 → 2,3 | 5,9 |
+| PR | `curitiba` | 3 | 5,63 (5,3 + 0,3) → 5,63 (2,4 + 3,2) | 2,6 → 3,0 | 5:15 → 5:21 | 3,0 → 2,0 | 5,1 |
+| GO | `caldas_novas` | 3 | 7,21 (6,7 + 0,5) → 7,20 (0,3 + 6,9) | **3,9 → 1,9** | 4:07 → 3:44 | 6,0 → 2,7 | 6 |
+| MS | `bonito` | 3 | 7,05 (6,5 + 0,5) → 7,04 (4,2 + 2,8) | 2,6 → 2,7 | 3:57 → 4:00 | 3,0 → 2,0 | 4,5 · 2,4 |
+| MT | `transpantaneira` | 1 | 0,30 (0,0 + 0,3) → 0,30 (0,0 + 0,3) | 1,1 → 1,4 | 3:59 → 4:00 | 0,0 → 1,3 | 3 |
+| BA | `porto_seguro` | 2 | 5,02 (4,3 + 0,7) → 5,01 (1,9 + 3,1) | 2,4 → 2,5 | 3:38 → 3:39 | 5,0 → 4,0 | 4,9 |
+| SE | `aracaju` | 3 | 6,84 (6,6 + 0,3) → 6,81 (3,3 + 3,5) | 2,9 → 3,4 | 4:48 → 4:52 | 10,0 → 10,0 | 5,3 |
+| AL | `maceio` | 4 | 10,63 (9,1 + 1,6) → 10,62 (3,9 + 6,7) | 4,7 → 4,6 | 5:11 → 5:07 | **5,7 → 32,0** | 6 · 1,25 |
+| PE | `olinda` | 4 | 9,97 (8,8 + 1,2) → 9,95 (4,0 + 5,9) | 3,9 → 4,4 | 3:40 → 3:46 | 8,7 → 4,7 | 5,8 |
+| PB | `campina_grande` | 4 | 10,02 (10,0 + 0,0) → 10,01 (4,8 + 5,2) | 4,7 → 4,7 | 5:23 → 5:22 | 2,0 → 3,0 | 6 |
+| RN | `cajueiro_pirangi` | 4 | 10,42 (9,7 + 0,7) → 10,40 (7,1 + 3,3) | 4,4 → 4,4 | 4:20 → 4:19 | 13,7 → 5,7 | 5,1 |
+| CE | `canoa_quebrada` | 4 | 10,03 (6,4 + 3,6) → 9,98 (0,5 + 9,5) | **4,0 → 2,1** | 4:04 → 3:43 | 0,7 → 0,0 | 6 · 1,25 |
+| PI | `serra_capivara` | 4 | 10,29 (9,4 + 0,8) → 10,28 (4,5 + 5,8) | 4,4 → 4,7 | 4:04 → 4:08 | 2,3 → 1,0 | 6 · 1,25 |
+| MA | `sao_luis` | 4 | 10,24 (9,5 + 0,7) → 10,22 (4,0 + 6,3) | 4,4 → 4,7 | 4:25 → 4:32 | 11,0 → 10,7 | 6 · 1,25 |
+| PA | `belem` | 4 | 10,62 (10,6 + 0,0) → 10,61 (5,1 + 5,5) | 4,9 → 4,8 | 4:02 → 3:59 | 4,7 → 3,7 | 6 · 2 |
+| AM | `manaus` | 4 | 10,64 (9,8 + 0,8) → 10,63 (3,8 + 6,9) | 4,1 → 4,4 | 4:27 → 4:34 | 6,3 → 4,3 | 6 · 1,75 |
+| AP | `macapa` | 3 | 8,75 (8,7 + 0,0) → 8,74 (4,8 + 4,0) | 4,2 → 4,2 | 3:41 → 3:41 | 5,3 → 7,3 | 5,4 · 2 |
+| RR | `monte_roraima` | 5 | 13,01 (12,1 + 0,9) → 12,99 (4,9 + 8,1) | 5,0 → 4,6 | 4:40 → 4:28 | **8,0 → 17,3** | 6 · 1,25 |
+| RO | `porto_velho` | 4 | 11,33 (11,0 + 0,3) → 11,33 (6,0 + 5,3) | 4,8 → 4,9 | 4:22 → 4:20 | 2,3 → 0,3 | 5,8 · 1,25 |
+| AC | `rio_branco` | 4 | 11,45 (10,8 + 0,7) → 11,42 (8,0 + 3,4) | 4,3 → 4,4 | 4:26 → 4:23 | **1,0 → 16,0** | 5 · 1,75 |
+| TO | `palmas` | 5 | 13,84 (13,8 + 0,0) → 13,77 (7,7 + 6,1) | 5,0 → 5,0 | 5:37 → 5:34 | **29,3 → 55,7** | 6 · 1,25 |
+
+**O que não fechou** (decisão do dono, se incomodar):
+
+- **Duas ficaram mais fáceis do que eram**, com `cmax` já no teto 6: a gota (`caldas_novas`, 3,9 → 1,9) e a lua
+  (`canoa_quebrada`, 4,0 → 2,1). São desenhos de curva longa e suave com uma ou duas pontas: só as pontas freiam. Arredondar mais (mais trecho em curva) não cabe no desenho (as retas acabam). O
+  índice continua na faixa (o morro completa), mas a IA anda mais solta. Saída possível: chicanes curtas (pares
+  esquerda-direita) que quase não aparecem no minimapa — não feito, muda o caráter da pista. A ordem dentro da copa
+  sente isso: em GO a Caldas Novas, que fecha a copa, passa a ser a mais leve das três (Pirenópolis 2,2, Veadeiros
+  2,4); no CE a Canoa (2ª) fica abaixo da Jericoacoara (1ª, 3,7). A ordem não foi mexida.
+- **Batidas no cenário subiram em quatro**: Maceió (5,7 → 32,0), Monte Roraima (8,0 → 17,3), Palmas (29,3 → 55,7) e
+  Rio Branco (1,0 → 16,0) — muitas quinas seguidas perto do paredão ou da mata (a jangada, o sol e os tufos da copa são
+  quinas por natureza). A corrida dura o mesmo.
+- **Marcos**: o enquadramento (`landmarkSight`, ≥ 2,5 s) depende de onde caem as praças e mirantes, que dependem do
+  traçado. Pampulha, Curitiba, Brasília e Bonito precisaram mudar o ponto da largada no 1º lado (`startAt`) para o
+  marco voltar a ficar à vista; o Convento da Penha fica nos mesmos 2,50 s de antes.
+- **Aviso de combustível no tick da linha**: com `cmax` 5,3 na fortaleza, um carro de pé no fundo recebia o aviso
+  ("entre no box") exatamente no tick em que cruzava a linha para a última volta — `tests/fuel.test.ts` pegou. O
+  núcleo confere `pitStillAhead` com a volta de antes do tick, e a contagem da volta vem depois (`physics.ts` ×
+  `positions.ts`). Ficou 5,4 (mesma velocidade da IA); o defeito do núcleo é de antes e vale para qualquer pista.
+- **Recordes e fantasmas** dessas 26 pistas ficam como "versão anterior" (a impressão do traçado entra na versão do
+  conteúdo: `tests/content-version.test.ts`, "curva"), como nas pistas que ganharam praça ou mirante.
+- As tabelas de "Balanceamento" abaixo são de 03/10, **antes dos desenhos**; para as 26, vale a tabela acima.
+
+### Os testes
+
+`tests/track.test.ts`, "Pistas com desenho": um teste genérico (contorno sem cruzar nem encostar em si — folga > 1,2
+—, proporção entre 0,4 e 2,5, |curva| ≤ 6) e um bloco por estado que reconhece o desenho por propriedades do
+contorno, nunca por coordenada: largura por faixa de altura, corcovas e cavas de um perfil, simetria, pontas nos
+cantos (o Cristo: faixa dos braços a mais larga e de ponta a ponta, cabeça estreita no alto, pedestal; o MASP: mais
+largo que alto, teto reto, vão livre entre os pilares; o sol: ≥ 10 raios no perfil polar). Escritos antes do
+redesenho e vistos falhar no traçado antigo: 88 dos 129 testes do arquivo falham com o `tracks.ts` de antes, e todo
+bloco de estado tem pelo menos dois testes vermelhos ali. Três blocos foram reescritos no meio (e vistos falhar de novo
+no traçado antigo): a ponte (o tabuleiro reto entre as torres, ancoragens nas pontas), o RN (caju → cajueiro) e o AC
+(folha → gameleira: domo, tufos no perfil polar da copa, tronco grosso, raízes; os três vermelhos também no traçado da
+folha). O orçamento do cenário já tinha teste (`tests/scenery-forma.test.ts`), que pegou Bonito, Porto Velho e Rio
+Branco.
+
 ## Migração (save de antes da onda G)
 
 `LEGACY_CUP_IDS` (`cups.ts`): `brasil` → `br_rj`. Na leitura do save (`src/game/save.ts`, `career-save.ts`):
@@ -139,7 +281,7 @@ todas as pistas de hoje (`core/track/startzone.ts`).
 
 | Copa | Pista (id) | Nome | Nome (EN) | Cenário | Período | Voltas | Dif. | Segm. | Índice |
 |---|---|---|---|---|---|---|---|---|---|
-| RJ | `copacabana` | Orla de Copacabana | Copacabana Beachfront | coast | dia | 3 | 1 | 1800 | 0,6 |
+| RJ | `copacabana` | Orla de Copacabana | Copacabana Beachfront | coast | dia | 3 | 1 | 1800 | 0,7 |
 | RJ | `paraty` | Caminho do Ouro de Paraty | Paraty Gold Trail | coast | entardecer | 3 | 1 | 2060 | 1,2 |
 | RJ | `serra_dos_orgaos` | Serra dos Órgãos | Organ Mountains | tropical | dia | 3 | 2 | 1970 | 2,5 |
 | SP | `ilhabela` | Canal de Ilhabela | Ilhabela Channel | coast | dia | 3 | 1 | 1800 | 1,0 |
@@ -259,6 +401,9 @@ com 🇪🇺; as 27 copas de estado usam 🇧🇷 (a sigla do estado é o carimb
 ## Balanceamento
 
 ### As 109 pistas, corrida inteira (03/10/2026)
+
+⚠️ Medição de antes das pistas com desenho (04/10): nas 26 redesenhadas os números de hoje (profissional) estão em
+"Pistas com desenho", acima; nas outras 83 nada mudou.
 
 Medido com `npm run balance -- corrida <dificuldade> <semente>` — o modo novo do `scripts/balance.ts`: a corrida
 inteira (as voltas da pista), 20 carros, sem assistências, com o piloto médio da calibragem (`PROXY_SKILL` 0,97,
@@ -577,7 +722,9 @@ linha de 4 por copa, ↑↓ trocando de copa na mesma coluna; cabe sem rolar em 
 
 1. Escreva a pista em `tracks.ts`, na posição da copa, com um comentário de identidade (o que o
    traçado representa). Curva 2 fácil / 4 média / 6 forte; lombada = `hl(comprimento, altura)`. Volta que não gira
-   para lado nenhum (soma das curvas ~0) vira um risco no minimapa.
+   para lado nenhum (soma das curvas ~0) vira um risco no minimapa. Pista que desenha alguma coisa no minimapa: o
+   polígono vai em `scripts/track-shapes.ts` e os `ops` saem de `scripts/shape-to-track.ts --apply` ("Pistas com
+   desenho"), com um bloco em `tests/track.test.ts` escrito antes e visto falhar.
 2. Ponha o id em `trackIds` da copa (`cups.ts`) e o lugar em `places.ts`. Nome em `core.track.<id>` (PT e EN). Copa
    nova: id ASCII minúsculo, `stage` (e `region`/`state` na Expedição), `requires` = a copa anterior,
    `core.cup.<id>` e `core.country.<País>` em `src/i18n/core.ts`, conquista `COPA_<ID>` em `ACHIEVEMENTS`

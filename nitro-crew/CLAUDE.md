@@ -73,10 +73,11 @@ não use nada de fora desta pasta.
   Onda F (visual, a pedido do dono): 6 carros novos (14), um modelo 3D por estilo de carroceria (13), pista/céu/luz
   por bioma × período, cenário refeito por bioma e país com pegada = colisão, colisão carro-carro do tamanho do
   carro na tela; e o modo Retrô (pseudo-3D) opcional em Opções › Visual. Passo 2.4: carro da arte em glTF.
-  Onda G (03/10/2026): Expedição Brasil — 81 pistas (3 por estado, a do RS em forma de cuia), 27 copas de estado por
+  Onda G (03/10/2026): Expedição Brasil — 81 pistas (3 por estado; uma por estado desenha no minimapa o símbolo do
+  lugar: a cuia do RS, o Cristo, o MASP… — `docs/PISTAS.md`, "Pistas com desenho", `scripts/shape-to-track.ts`), 27 copas de estado por
   região, passaporte com carimbos e cartão-postal, Mundial (7 copas) depois; 161 marcos turísticos procedurais
   (`src/render/scenery/landmarks/`, `placeOf()` em `core/data/places.ts`), praças nas pistas de cidade e mirantes no litoral para o marco
-  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1478 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
+  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1586 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
   `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `ARTE.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
   gente de verdade e trazer a lista de problemas; na Fase 2, a direção de arte (2.1) e a arte final em glTF (2.2–2.4).
