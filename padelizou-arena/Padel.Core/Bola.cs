@@ -36,8 +36,10 @@ public sealed class Bola
     private static readonly float Area = MathF.PI * Raio * Raio;
     /// <summary>Desaceleração por arrasto = KArrasto · v² (≈ 0,02 /m → uma bola a 30 m/s perde ~18 % em 10 m).</summary>
     public static readonly float KArrasto = 0.5f * DensidadeDoAr * CoeficienteDeArrasto * Area / Massa;
-    private static readonly float KMagnus = 0.5f * DensidadeDoAr * Area / Massa;
-    private const float MomentoDeInercia = 2f / 3f;         // casca esférica: I = (2/3) m R²
+    /// <summary>Magnus = KMagnus · Cl · v · (ω̂ × v⃗), com Cl ≤ 1/2 (os cortes exatos dos GolpesEspeciais limitam por ele).</summary>
+    public static readonly float KMagnus = 0.5f * DensidadeDoAr * Area / Massa;
+    /// <summary>Casca esférica: I = (2/3) m R². No quique o atrito tira no máximo I/(1+I) da velocidade tangencial.</summary>
+    public const float MomentoDeInercia = 2f / 3f;
 
     // Superfícies: (restituição normal, atrito). Chão: no vácuo seria sqrt(1,40 / 2,54) ≈ 0,74; com o arrasto do ar
     // na descida e na subida, 0,775 é o que faz a bola solta de 2,54 m subir os 1,35–1,45 m da regra (há teste disso).
@@ -95,17 +97,29 @@ public sealed class Bola
     public float Spin => MathF.Sqrt(Wx * Wx + Wy * Wy + Wz * Wz);
     public float SpinRpm => Spin * 60f / (2 * MathF.PI);
 
+    /// <summary>
+    /// Diagnóstico de desempenho: quantos sub-passos de integração (de até <see cref="PassoMaximo"/>) as bolas deram NESTA
+    /// thread até agora — qualquer bola: a do jogo, as dos solucionadores, as do <see cref="Golpes.Calcular"/>. É o trabalho
+    /// de física sem depender da máquina (leia antes e depois de um trecho); os testes de teto dos GolpesEspeciais contam
+    /// por ele, e nenhuma simulação escapa. Só conta; não muda nenhum resultado.
+    /// </summary>
+    public static long SubPassosNestaThread => _subPassosNestaThread;
+    [ThreadStatic] private static long _subPassosNestaThread;
+
     /// <summary>Avança dt segundos em sub-passos, acumulando os eventos do intervalo.</summary>
     public void Avancar(float dt, List<EventoDaBola> eventos)
     {
         if (!EmJogo || Parada) return;
         float restante = dt;
+        int subPassos = 0;
         while (restante > 1e-7f && EmJogo && !Parada)
         {
             float h = MathF.Min(PassoMaximo, restante);
             Passo(h, eventos);
             restante -= h;
+            subPassos++;
         }
+        _subPassosNestaThread += subPassos;
     }
 
     private void Passo(float h, List<EventoDaBola> eventos)
