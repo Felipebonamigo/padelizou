@@ -597,6 +597,27 @@ A aba do anfiteatro do Véu de Noiva escondia a queda, e os jacarés de frente p
 testes de queda d'água e do bando medem também o modelo girado ±0,8 rad. Bicho no chão não lê a 190 m nem a ×3: no
 jacaré, quem lê primeiro é a placa amarela. Ficaram como estavam: o Itaimbezinho (o corte do cânion, aberto de frente,
 fecha a 0,35–0,6 rad — lê como a escarpa dos Aparados) e a escuna (pequena na contraluz; candidata a ×1,3).
+
+**2ª leva do Norte e do Nordeste** (`tests/landmarks-leitura-norte-nordeste-2.test.ts`, 25 testes): os 35 marcos de
+`brasil-2-norte-nordeste.ts` passaram pela mesma régua; os 25 com nota ≤ 3 foram refeitos (ficam o farol de Piaçabuçu,
+o morro do Pico, os Dois Irmãos, a ponte Rio Negro, o Pai Inácio, o morro do Careca, o morro das Mesas, o Bumbódromo, a
+ponte do rio Acre e a castanheira). Três defeitos se repetiam. **À noite, a luz que se via era a da cidade**: nos 8
+marcos das 6 pistas noturnas, o marco acendia janelas de fachada como os prédios da pista, e o que o define ficava
+escuro. Agora a cor-assinatura vai no material de luz: o casario colorido e a Torre de Cristal do Marco Zero (2% →
+≥ 30% da face acesa), os arcos da Maurício de Nassau, a Pirâmide e as bandeirinhas do Parque do Povo, o azulejo em
+xadrez de São Luís (0,3% → ≥ 35%), a colunata do Palácio Araguaia, o garimpeiro nos holofotes, o guarda-corpo da ponte
+de Palmas e o píer dos Ingleses, agora em diagonal (de ponta, reto para o mar, ele sumia). **A cor do bioma engolia a
+assinatura**: o arenito do Xingó e as falésias de Canoa tinham o tom das mesas do deserto (vermelho vivo 9% → ≥ 45%;
+faixas brancas, a lua e a estrela claras), a areia das dunas de Piaçabuçu era a do chão (branco 0 → ≥ 40%), o forte
+do Guaporé era cinza-escuro na mata (pedra clara 5% → ≥ 45%) e o mangue do Delta não tinha guará (0 → ≥ 6% de
+vermelho, com o bando em voo feito de luz: contra o céu, na sombra, virava urubu). **Baixo ou pequeno demais**: o
+geoglifo rente ao chão (agora numa encosta de ~10° voltada para a pista), o cajueiro em placas de 4–9 m (uma copa só
+de 18 m com a saia até o chão), a vila de Serra do Navio atrás das árvores, as palafitas, as igrejas de Trancoso e São
+Cristóvão do tamanho do casario, o catamarã, a praia de Alter atrás da água, as pedras de Sete Cidades em pilhas de
+discos com céu entre eles e a cortina de São Romão num vão de 56 m (água 20% → ≥ 40%, com a régua das Cataratas).
+Exagero de escala entre 1,2× e 1,75×; tempo à vista mudou no máximo 0,6 s. O que a régua não alcança: as dunas de
+Piaçabuçu ficam atrás da crista do relevo e a ponte de Palmas atrás das quadras de fundo da cidade (o `sightSeconds`
+não conta relevo nem quadras); o vermelho do Xingó, a 300–450 m na névoa do deserto de dia, ainda chega bege.
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
