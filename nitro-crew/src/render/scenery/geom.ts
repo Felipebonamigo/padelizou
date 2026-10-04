@@ -4,9 +4,12 @@
 // atributos position, normal e color — e uv só quando pedida (fachadas, painéis). A normal que sai daqui é a
 // da face; a normal suave com vinco (copa, tronco e cúpula lisos à luz, caixa e beiral vivos) é aplicada uma
 // vez por modelo pelo catálogo (`smooth.ts`, vinco por família) — o material não usa flatShading.
+// Cor e deformação têm duas versões: por face/vértice sorteado (`speckle`, `tintUp`, `jitter`: as faces à mostra,
+// de propósito — marcos e construções) e por PONTO, contínuas (`mottle`, `tintUpSoft`, `lumpy`: as famílias
+// redondas, em que a luz lisa com a cor por face ainda desenhava as facetas; docs/VISUAL.md, "Forma redonda").
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { hash3 } from '../noise';
+import { hash3, valueNoise3 } from '../noise';
 
 export type Geo = THREE.BufferGeometry;
 
@@ -128,6 +131,133 @@ export function speckle(geo: Geo, amount: number, seed: number): Geo {
     for (let k = 0; k < 3; k++) c.setXYZ(i + k, c.getX(i + k) * f, c.getY(i + k) * f, c.getZ(i + k) * f);
   }
   return geo;
+}
+
+/**
+ * Varia o tom (±amount) por PONTO, com ruído 3D suave da posição (`freq` por metro): pontos coincidentes recebem o
+ * mesmo fator, então a cor corre contínua de uma face para a outra — manchas largas e macias que não mostram as
+ * faces. É o que as famílias redondas (planta, pedra) usam; o `speckle`, por face, fica para quem quer as faces
+ * à mostra (marcos, construções).
+ */
+export function mottle(geo: Geo, amount: number, seed: number, freq = 0.8): Geo {
+  const p = geo.attributes.position as THREE.BufferAttribute;
+  const c = geo.attributes.color as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const f = 1 + valueNoise3(seed, p.getX(i) * freq, p.getY(i) * freq, p.getZ(i) * freq) * amount;
+    c.setXYZ(i, c.getX(i) * f, c.getY(i) * f, c.getZ(i) * f);
+  }
+  return geo;
+}
+
+/**
+ * Deforma em bolhas macias: cada ponto anda na direção da origem da peça por ruído 3D suave da DIREÇÃO (`lobes` ≈
+ * bolhas por volta), então pontos coincidentes andam igual e a malha não abre. `amount` é a fração do raio. É o
+ * `jitter` sem aspereza (o jitter sorteia cada vértice: no icosaedro subdividido vira pedra lascada; este, batata).
+ * `horizontal` desloca só em X e Z (corpo de cilindro: o pé continua no chão).
+ */
+export function lumpy(geo: Geo, amount: number, seed: number, lobes = 1.3, horizontal = false): Geo {
+  const p = geo.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i); const y = p.getY(i); const z = p.getZ(i);
+    const r = Math.sqrt(x * x + y * y + z * z);
+    if (r < 1e-9) continue;
+    const f = 1 + valueNoise3(seed, (x / r) * lobes, (y / r) * lobes, (z / r) * lobes) * amount;
+    // `horizontal`: só para os lados (corpo de cilindro: o pé e o topo ficam na altura).
+    p.setXYZ(i, x * f, horizontal ? y : y * f, z * f);
+  }
+  return geo;
+}
+
+/**
+ * `tintUp` sem degrau: o peso de cada ponto vem da normal média das faces que o tocam (pontos soldados pela posição),
+ * numa rampa de ±`soft` em volta do limiar — a neve e o musgo escorrem pela pedra em vez de pintar face sim, face
+ * não (com a luz lisa, a cor por face era o que ainda desenhava as facetas).
+ */
+export function tintUpSoft(geo: Geo, color: THREE.ColorRepresentation, threshold: number, mixAmount = 1, soft = 0.25): Geo {
+  const p = geo.attributes.position as THREE.BufferAttribute;
+  const c = geo.attributes.color as THREE.BufferAttribute;
+  const top = new THREE.Color(color);
+  const key = (i: number) => `${Math.round(p.getX(i) * 1e4)},${Math.round(p.getY(i) * 1e4)},${Math.round(p.getZ(i) * 1e4)}`;
+  const acc = new Map<string, [number, number, number]>();
+  const a = new THREE.Vector3(); const b = new THREE.Vector3(); const d = new THREE.Vector3();
+  for (let i = 0; i + 2 < p.count; i += 3) {
+    a.fromBufferAttribute(p, i); b.fromBufferAttribute(p, i + 1); d.fromBufferAttribute(p, i + 2);
+    const n = b.sub(a).cross(d.sub(a)); // não normalizada: pesa pela área
+    for (let k = 0; k < 3; k++) {
+      const s = acc.get(key(i + k));
+      if (s) { s[0] += n.x; s[1] += n.y; s[2] += n.z; } else acc.set(key(i + k), [n.x, n.y, n.z]);
+    }
+  }
+  for (let i = 0; i < p.count; i++) {
+    const s = acc.get(key(i));
+    if (!s) continue;
+    const len = Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+    if (len < 1e-12) continue;
+    const t = Math.max(0, Math.min(1, (s[1] / len - (threshold - soft)) / (2 * soft)));
+    const w = t * t * (3 - 2 * t) * mixAmount;
+    c.setXYZ(i, c.getX(i) + (top.r - c.getX(i)) * w, c.getY(i) + (top.g - c.getY(i)) * w, c.getZ(i) + (top.b - c.getZ(i)) * w);
+  }
+  return geo;
+}
+
+/**
+ * Barra de perfil arredondado ao longo de Z (cerca-viva aparada): seção `w` × `h` com os dois cantos de cima em
+ * arco de raio `r` (`n` gomos cada), comprimento `L`, sem fundo (fica no chão); `caps` fecha as pontas. A seção não
+ * depende de Z: lances iguais emendam sem degrau.
+ */
+export function roundedBar(w: number, h: number, L: number, r: number, n = 3, caps = true): Geo {
+  // Perfil no plano XY, anti-horário visto de +Z: sobe pela direita, cruza o topo, desce pela esquerda.
+  const prof: Array<[number, number]> = [[w / 2, 0]];
+  for (let k = 0; k <= n; k++) { const a = (k / n) * (Math.PI / 2); prof.push([w / 2 - r + r * Math.cos(a), h - r + r * Math.sin(a)]); }
+  for (let k = 0; k <= n; k++) { const a = Math.PI / 2 + (k / n) * (Math.PI / 2); prof.push([-w / 2 + r + r * Math.cos(a), h - r + r * Math.sin(a)]); }
+  prof.push([-w / 2, 0]);
+  const z0 = -L / 2; const z1 = L / 2;
+  const out: number[] = [];
+  for (let i = 0; i + 1 < prof.length; i++) {
+    const [ax, ay] = prof[i]; const [bx, by] = prof[i + 1];
+    out.push(ax, ay, z0, bx, by, z0, bx, by, z1, ax, ay, z0, bx, by, z1, ax, ay, z1);
+  }
+  if (caps) {
+    let cx = 0; let cy = 0;
+    for (const [x, y] of prof) { cx += x / prof.length; cy += y / prof.length; }
+    for (let i = 0; i < prof.length; i++) {
+      const [ax, ay] = prof[i]; const [bx, by] = prof[(i + 1) % prof.length];
+      out.push(cx, cy, z1, ax, ay, z1, bx, by, z1);
+      out.push(cx, cy, z0, bx, by, z0, ax, ay, z0);
+    }
+  }
+  return tris(out);
+}
+
+/** Elipsoide (centro e semi-eixos, alinhado aos eixos) para `cullInside`. */
+export interface Ellipsoid { x: number; y: number; z: number; rx: number; ry: number; rz: number }
+
+/**
+ * Tira os triângulos que ficam INTEIROS dentro de algum dos elipsoides (o elipsoide é convexo: os três cantos
+ * dentro = o triângulo dentro). A parte de uma bolha enterrada em outra, ou da pedra de cima enterrada no matacão,
+ * nunca aparece (a outra peça é fechada) e custava triângulo — é o que paga a copa redonda. Quem chama encolhe o
+ * elipsoide pela deformação e pela corda da malha da outra peça. Malha não indexada; todos os atributos seguem.
+ */
+export function cullInside(geo: Geo, solids: readonly Ellipsoid[]): Geo {
+  const p = geo.attributes.position as THREE.BufferAttribute;
+  const within = (j: number, e: Ellipsoid): boolean => {
+    const dx = (p.getX(j) - e.x) / e.rx; const dy = (p.getY(j) - e.y) / e.ry; const dz = (p.getZ(j) - e.z) / e.rz;
+    return dx * dx + dy * dy + dz * dz < 1;
+  };
+  const keep: number[] = [];
+  // Os três cantos dentro do MESMO elipsoide (em dois diferentes, o meio do triângulo pode ficar fora dos dois).
+  for (let i = 0; i + 2 < p.count; i += 3) if (!solids.some((e) => within(i, e) && within(i + 1, e) && within(i + 2, e))) keep.push(i);
+  if (keep.length * 3 === p.count) return geo;
+  const out = new THREE.BufferGeometry();
+  for (const name of Object.keys(geo.attributes)) {
+    const a = geo.attributes[name] as THREE.BufferAttribute;
+    const arr = new Float32Array(keep.length * 3 * a.itemSize);
+    let o = 0;
+    for (const i of keep) for (let k = 0; k < 3; k++) for (let c = 0; c < a.itemSize; c++) arr[o++] = a.array[(i + k) * a.itemSize + c];
+    out.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize));
+  }
+  geo.dispose();
+  return out;
 }
 
 export function box(w: number, h: number, d: number): Geo { return new THREE.BoxGeometry(w, h, d); }

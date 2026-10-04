@@ -151,10 +151,71 @@ pedras e dos morros) continua mostrando as faces de propósito; silhuetas de pou
 arco da roda em 6 facetas, a coroa da conífera); os detalhes de carro que são caixas (para-choque, retrovisor,
 aerofólio, grade) e as quinas da carroceria sem chanfro. Saída: chanfro (bevel) nas quinas de lataria e para-choque,
 mais lados nas silhuetas que aparecem perto (pneu, tronco, arco), e menos `speckle` onde a forma já é lisa.
+(O cenário fez a parte dele na onda I: "Forma redonda", abaixo. Os carros continuam como estão.)
 
 Testes: `tests/render-normals.test.ts` (a conta: cilindro, caixa, icosaedro, sem costura, enrolamento trocado, telhado
 com e sem cumeeira, cor por face e determinismo; e a garantia de que carros, rodas, o carro do glTF, os modelos do
 cenário e os materiais saem lisos — uma volta ao `flatShading` quebra ali).
+
+## Forma redonda: geometria e cor do cenário (onda I)
+
+Depois das normais suaves, o que ainda desenhava as facetas na beira da pista era a **cor por face** (a mancha
+`speckle` das copas e pedras e o `tintUp` da neve e do musgo acendiam face sim, face não, mesmo com a luz lisa) e as
+**silhuetas de poucos lados** (copa de icosaedro de 20 faces — 12 pontos, contorno de hexágono —, tronco de 6, camada de
+conífera de 7, cacto de 6–8, moita de caixa). Referência: Horizon Chase Turbo — macio, redondo, cor limpa. Mudou só a
+geometria e a cor dos modelos de vegetação e pedra (`vegetation.ts`), a cerca-viva e o penedo do mar
+(`structures.ts`); marcos, carros, núcleo, layout e runtime ficaram como estavam — mesmas instâncias, mesmas
+chamadas de desenho.
+
+- **Cor por PONTO, nunca por face** (`geom.ts`): `mottle` varia o tom com um ruído 3D suave da posição
+  (`valueNoise3`, `noise.ts`) — pontos coincidentes têm o mesmo fator, a cor corre contínua de uma face para a outra,
+  manchas largas e macias; `tintUpSoft` é o `tintUp` com o peso vindo da normal média do ponto (soldado pela posição)
+  numa rampa — a neve e o musgo escorrem pela pedra. O gradiente de altura (`shadeY`: pé escuro, topo claro) continua;
+  cada camada de conífera ganhou o próprio (saia escura, bico claro). `speckle`, `tintUp` e `jitter` continuam no kit
+  para quem quer as faces à mostra (marcos, construções).
+- **Bolha macia** (`lumpy`): o ponto anda na direção da origem da peça por ruído 3D suave da direção — o `jitter`
+  (sorteio por vértice) no icosaedro subdividido virava pedra lascada; este vira batata. `horizontal` só desloca em X/Z
+  (corpo de cilindro, o pé no chão).
+- **Copa** de icosaedro subdividido (80 faces; < 0,45 m de raio fica com o de 20); poplar e cipreste, esticados
+  3,4–4×, em esfera de 10 × 8 (o icosaedro esticado mostrava faces compridas). **Tronco** de 8 lados (gigante 9,
+  baobá 12) e **sem tampas** — o pé está no chão e a ponta dentro da copa; as tampas eram 1/3 dos triângulos dele
+  (a oliveira, baixa, fica fechada). Galhos de 6, abertos.
+- **Moita do pé** (a pegada das árvores e palmeiras): meia esfera de 12 lados (≥ 96% do raio entre os vértices) com
+  bolhas que sobem e a segunda cor onde sobem (a flor de buganvília no litoral) — eram 10 lados mais quatro tufos de
+  icosaedro de 20 faces (130 triângulos; 60 agora).
+- **Conífera** de 10 lados por camada (eram 7), bico de 8. **Palmeiras**: tronco de 8–10 lados, folha do coqueiro e da
+  imperial com 4 gomos (a curva da folha que cai sai curva), cocos redondos. **Cactos**: saguaro de 12 com braços de 8,
+  barril de 10 com o topo em cúpula (era tampa de panela), eufórbia de 10 com as pontas redondas, cupinzeiro de 12 em
+  bolhas, folhas de babosa/agave de 7 lados (eram pirâmides de 4).
+- **Pedras**: o matacão é uma esfera de 14 × 7 em bolhas, achatada (era o icosaedro de 80 faces com gomos na silhueta), e
+  as duas pedras de cima são redondas (eram blocos de 20 e 12 faces, lascas; a terceira, pequena, saiu); arenito em
+  camadas de 12 lados (eram 10 e 7); penedo do mar, mesa e coluna do mar mais redondos (14 × 7, 12 e 10 lados).
+- **Moitas** em três bolhas de 80 faces (eram quatro de 20); as flores pousam na pele de uma bolha (antes algumas
+  ficavam soltas no ar). **Cerca-viva** (sprite e cerca de divisa): barra de quinas arredondadas (`roundedBar`, seção
+  que não muda ao longo do lance — os lances emendam sem degrau) em vez da caixa.
+- **O que paga a conta** (`cullInside`): a parte de uma bolha enterrada em outra (copa de 5 bolhas, moita de 3, a pedra
+  de cima no matacão, o fundo da moita no chão) nunca aparece e sai na montagem — os três cantos dentro do sólido
+  garantido da outra peça (o elipsoide dela encolhido pela deformação e pela corda das faces). A copa redonda sai com
+  ~1/4 a mais de triângulos em vez do dobro; a pedra, ~70% a mais em vez do dobro.
+
+Custo (medido; `docs/DESEMPENHO.md`, seção 9): mesmas chamadas de desenho e instâncias; triângulos do cenário +10% a
++27% por viewport nas cenas de vegetação, nenhuma cena acima do pior caso de antes. Por modelo: árvore de copa redonda
+354 → 429, gigante 303 → 415, coqueiro 406 → 428, bananeira 238 → 160, conífera 104 → 132, moita 80 → 189,
+saguaro 270 → 340, matacão 156 → 264.
+
+**Ainda parece quadrado** (depois desta onda): as silhuetas de longe (`far:*`, ≤ 60 triângulos — a copa de longe é um
+icosaedro de 20 faces; de 200 m+ são poucos pixels, mas a troca de modelo a 52/90 segmentos ficou mais visível); a
+moita do pé é mais lisa que os tufos de antes (lê como um tapete baixo visto de cima; da câmera de perseguição, como
+monte); as nuvens e os planos do horizonte (facetados de propósito: "Sombreamento", acima — `uFacet` em
+`terrain.ts`, uma linha se o dono quiser mais macio); props de pista (poste, cerca, placa, arquibancada), que são
+caixas por natureza.
+
+Testes: `tests/scenery-forma.test.ts` — nas famílias redondas, a cor não salta (> 1%) entre as duas faces de uma aresta
+lisa (o `speckle` saltava até 23%, o `tintUp` até 77%); a normal lisa fica, em média, a ≤ 22° da face (pedra ≤ 18°;
+icosaedro de 20 faces dá 37°, o subdividido ~19°; cada canto pesa a área × o ângulo, como na normal suave — senão o
+bico de cone, que aponta para cima em qualquer resolução, contava como gomo); modelo redondo ≤ 700 triângulos (pedra
+≤ 360, mesa e coluna ≤ 600) e o custo do cenário por segmento ≤ 900 triângulos em toda pista (antes da onda o pior era
+764, depois 856). Na base de antes a cor reprovava 78 modelos e a forma 55.
 
 ## Cenário
 
@@ -166,7 +227,7 @@ com vinco: "Sombreamento", acima) e cor saturada, na linha de Horizon Chase Turb
 
 | arquivo | o quê |
 |---|---|
-| `geom.ts` | kit de modelagem: primitivas com cor por vértice, `tf`/`lean`, fusão, deformação por hash, sombreado por altura, `bandPoints` (a fatia do modelo na altura do carro) |
+| `geom.ts` | kit de modelagem: primitivas com cor por vértice, `tf`/`lean`, fusão, deformação por hash (`jitter`) e em bolhas macias (`lumpy`), cor por face (`speckle`, `tintUp`) e por ponto (`mottle`, `tintUpSoft`), sombreado por altura, barra arredondada, `cullInside` (o que fica enterrado em outra peça sai), `bandPoints` (a fatia do modelo na altura do carro) |
 | `vegetation.ts` | árvores, coníferas, palmeiras, cactos (e o que os substitui por país), moitas, pedras, forração, silhuetas de longe |
 | `structures.ts` | prédios com fachada texturizada, casas por região, torres (TV, mastro, farol, caixa-d'água, cata-vento), cercas, postes e fios, turbina, torii, pagode, capela, barcos, molhe, mesas |
 | `props.ts` | poste de luz, outdoor, placa de curva, arquibancada com público, pórtico de largada, garagens do box, placa do box, cone; o mapa de UV do atlas de painéis |
@@ -232,7 +293,7 @@ O núcleo bate num sprite sólido quando o carro está no mesmo segmento e `|x_s
 `sprites.ts` mudou — foi o visual que passou a obedecer à física:
 
 - **árvores e palmeiras**: a copa fica alta, então a pegada é uma moita contínua em volta do pé (meia esfera
-  de 10 lados com o raio de colisão, ≥ 95% dele entre os vértices) ou raízes tabulares/tronco (baobá). Antes,
+  de 12 lados com o raio de colisão, ≥ 96% dele entre os vértices) ou raízes tabulares/tronco (baobá). Antes,
   na altura do carro só havia o tronco (0,26 m de raio contra 1,75 m de colisão): a batida vinha 1,5 m antes;
 - **pinheiros**: o degrau de baixo nasce a 0,3 m com o raio de colisão;
 - **cactos**: os braços do saguaro saem baixo (0,7–0,8 m) e alinhados com a pista (giro ±0,3 rad), então a

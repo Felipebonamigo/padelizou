@@ -441,3 +441,48 @@ na névoa). Uma pista tem 2–3 marcos × 1–4 por volta, e só 1–3 instânci
 
 Nas cenas de tick 1500 nenhum marco está na janela (é a posição fixa do harness), então o custo é zero. Com um marco
 à vista, o custo é o do modelo (centenas a ~2 mil triângulos) e, só no horizonte, a chamada do lote `haze`.
+
+## 9. Cenário redondo (onda I)
+
+Copa, pedra, moita, cacto e conífera ganharam silhueta redonda e cor por ponto (`docs/VISUAL.md`, "Forma redonda").
+Só a geometria dos modelos mudou: **mesmas instâncias e mesmas chamadas de desenho** (o layout e o runtime não foram
+tocados). O que segura os triângulos: a parte de uma bolha enterrada em outra sai na montagem (`cullInside`), e o
+tronco e os galhos perderam as tampas (o pé no chão, a ponta na copa).
+
+Medido com `tools/scenery-harness.mjs` (1280×720, qualidade alta, `renderer.info` do 10º quadro), antes = aa7b66f,
+mesmas cenas e ticks. "Cenário" é a diferença do mesmo quadro com e sem o grupo `scenery` (inclui o passe de sombra):
+
+| cena | chamadas total | triângulos total | chamadas do cenário | triângulos do cenário | instâncias (último viewport) |
+|---|---|---|---|---|---|
+| Copacabana (litoral, dia), 1 jog. | 57 → 57 | 129,8 k → **140,7 k** (+8%) | 11 → 11 | 69,8 k → **80,7 k** (+16%) | 685 → 685 |
+| Copacabana, 4 jog. | 218 → 218 | 559,8 k → **603,9 k** (+8%) | 44 → 44 | 274,5 k → **318,6 k** (+16%) | 692 → 692 |
+| Transpantaneira (savana, entardecer), 1 | 51 → 51 | 140,7 k → **154,5 k** (+10%) | 8 → 8 | 51,9 k → **65,7 k** (+27%) | 598 → 598 |
+| Transpantaneira, 4 | 212 → 212 | 521,6 k → **576,6 k** (+11%) | 32 → 32 | 208,5 k → **263,5 k** (+26%) | 600 → 600 |
+| Serra do Mar (tropical, dia), 1 | 51 → 51 | 165,8 k → **174,7 k** (+5%) | 8 → 8 | 89,2 k → **98,1 k** (+10%) | 893 → 893 |
+| Serra do Mar, 4 | 201 → 201 | 646,9 k → **682,1 k** (+5%) | 32 → 32 | 358,3 k → **393,5 k** (+10%) | 885 → 885 |
+| Noite em Sampa (cidade, noite), 1 | 67 → 67 | 159,1 k → **160,5 k** (+1%) | 15 → 15 | 65,9 k → **67,3 k** (+2%) | 680 → 680 |
+| Noite em Sampa, 4 | 269 → 269 | 624,5 k → **629,9 k** (+1%) | 60 → 60 | 265,0 k → **270,4 k** (+2%) | 691 → 691 |
+| Rota 66 (deserto, dia), 1 | 50 → 50 | 134,8 k → **149,0 k** (+11%) | 6 → 6 | 54,3 k → **68,5 k** (+26%) | 518 → 518 |
+| Rota 66, 4 | 196 → 196 | 516,4 k → **573,2 k** (+11%) | 24 → 24 | 222,6 k → **279,4 k** (+26%) | 513 → 513 |
+| Cânion de Nevada (deserto, entardecer), 1 | 47 → 47 | 139,8 k → **153,3 k** (+10%) | 6 → 6 | 52,4 k → **65,9 k** (+26%) | 554 → 554 |
+| Cânion de Nevada, 4 | 200 → 200 | 529,0 k → **580,6 k** (+10%) | 24 → 24 | 213,9 k → **265,5 k** (+24%) | 532 → 532 |
+| Monte Fuji (montanha, dia), 1 | 53 → 53 | 125,1 k → **140,2 k** (+12%) | 8 → 8 | 57,4 k → **72,6 k** (+26%) | 1047 → 1047 |
+| Monte Fuji, 4 | 199 → 199 | 515,7 k → **575,8 k** (+12%) | 32 → 32 | 229,1 k → **289,2 k** (+26%) | 1050 → 1050 |
+
+Leitura: o quadro inteiro sobe 1% a 12%; o cenário 2% (cidade) a 27% (savana, deserto, montanha — onde moita, pedra,
+cacto e conífera pesam mais). O pior quadro medido continua a Serra do Mar com 4 jogadores, **682 mil** triângulos —
+abaixo do pior caso da seção 7 (Paris, 689 mil), que não muda (prédio não foi tocado).
+
+**Por modelo** (triângulos): árvore de copa redonda 354 → 429, gigante 303 → 415, acácia 341 → 317, bananeira 238 → 160,
+oliveira 354 → 558, eucalipto 274 → 466, baobá 276 → 600, conífera 104–132 → 132–172, coqueiro 406 → 428, imperial
+352 → 340, saguaro 270 → 340, barril 370 → 350, eufórbia 340 → 510, cupinzeiro 308 → 360, moita 80–89 → 189–202,
+cerca-viva 30 → 56, matacão 156 → 264, arenito 124 → 192, penedo do mar 80 → 168, mesa 160 → 240. **Por pista** (a soma
+dos triângulos do modelo de perto de cada objeto ÷ segmentos — o que acompanha o quadro): média das 109 pistas
+405 → 484, a pior 764 → 856 (Pororoca do Araguari). Travas em `tests/scenery-forma.test.ts`: modelo redondo ≤ 700
+(pedra ≤ 360, mesa e coluna do mar ≤ 600) e ≤ 900 por segmento em toda pista; `tests/scenery.test.ts` (sprite ≤ 1.600,
+longe ≤ 60, forração ≤ 40) não mudou.
+
+**Montagem** (Node, frio, os 274 modelos de cenário das 109 pistas, sem marcos): ~500–620 ms antes, ~550–580 ms
+depois — dentro do ruído da máquina (o `cullInside` e o `tintUpSoft` são lineares; a normal suave já era o grosso).
+A troca de pista (layout + modelos, uma vez na largada) fica na mesma ordem: Copacabana ~550 → ~600 ms, Rochosas
+~265 → ~315 ms, medidos com outra carga na máquina.

@@ -31,3 +31,22 @@ export function fbm(seed: number, t: number, octaves: number): number {
   }
   return sum / norm;
 }
+
+/**
+ * Ruído de valor 3D suave em [-1, 1]: grade de passo 1, interpolação trilinear com smoothstep. Contínuo — pontos
+ * coincidentes (e vizinhos) recebem valores iguais (e próximos): cor e deformação por ponto sem degrau entre faces.
+ */
+export function valueNoise3(seed: number, x: number, y: number, z: number): number {
+  const xi = Math.floor(x); const yi = Math.floor(y); const zi = Math.floor(z);
+  const fx = x - xi; const fy = y - yi; const fz = z - zi;
+  const u = fx * fx * (3 - 2 * fx); const v = fy * fy * (3 - 2 * fy); const w = fz * fz * (3 - 2 * fz);
+  const s = Math.imul(seed | 0, 0x5bd1e995);
+  const h = (i: number, j: number, k: number): number => hash3((xi + i) ^ s, yi + j, zi + k) * 2 - 1;
+  const x00 = h(0, 0, 0) + (h(1, 0, 0) - h(0, 0, 0)) * u;
+  const x10 = h(0, 1, 0) + (h(1, 1, 0) - h(0, 1, 0)) * u;
+  const x01 = h(0, 0, 1) + (h(1, 0, 1) - h(0, 0, 1)) * u;
+  const x11 = h(0, 1, 1) + (h(1, 1, 1) - h(0, 1, 1)) * u;
+  const y0 = x00 + (x10 - x00) * v;
+  const y1 = x01 + (x11 - x01) * v;
+  return y0 + (y1 - y0) * w;
+}
