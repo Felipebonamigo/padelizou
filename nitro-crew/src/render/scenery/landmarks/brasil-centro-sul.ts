@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { hash2 } from '../../noise';
 import { box, cone, cyl, dodeca, gable, hip, ico, jitter, paint, sphere, tf, tintUp, tris, type Geo } from '../geom';
-import { beam, cable, facadeBox, hill, Kit, landmarkPart, lathe } from './kit';
+import { beam, cable, cliff, facadeBox, hill, Kit, landmarkPart, lathe } from './kit';
 import type { LandmarkRegistry } from './types';
 
 type V3 = [number, number, number];
@@ -20,6 +20,36 @@ const LAMP = '#ffd98a';
 /** Janelinha escura (vidro/abertura) encostada na face +X em (x, y, z). */
 function win(x: number, y: number, z: number, w: number, h: number, color = '#283038'): Geo {
   return paint(box(0.25, h, w), color, tf(x, y, z));
+}
+
+/**
+ * Luz que se vê dos dois lados: o material de luz tem uma face só, e uma superfície aberta (o vidro da Catedral, a
+ * cortina d'água) sumiria do lado de trás. Acrescenta os triângulos com a volta invertida (dobra os triângulos).
+ */
+function bothSides(g: Geo): Geo {
+  const pos = g.getAttribute('position'); const col = g.getAttribute('color');
+  const n = pos.count;
+  const p = new Float32Array(n * 6); const c = new Float32Array(n * 6);
+  for (let i = 0; i < n; i++) {
+    const back = n + i - (i % 3) + (2 - (i % 3)); // o vértice a, b, c do triângulo vai para c, b, a na cópia
+    for (let k = 0; k < 3; k++) {
+      p[i * 3 + k] = p[back * 3 + k] = pos.getComponent(i, k);
+      c[i * 3 + k] = c[back * 3 + k] = col.getComponent(i, k);
+    }
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  out.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  out.computeVertexNormals();
+  g.dispose();
+  return out;
+}
+
+/** Escala o marco montado inteiro (a mesma forma, maior: para ler de longe) a partir da origem da base. */
+function scaled(m: ReturnType<Kit['model']>, s: number): ReturnType<Kit['model']> {
+  const t = new THREE.Matrix4().makeScale(s, s, s);
+  for (const p of m.parts) p.geometry.applyMatrix4(t);
+  return m;
 }
 
 /** Folha em leque (buriti): meia roda de `n` gomos plissados no plano XY, apontando para +Y, raio `r`. */
@@ -87,21 +117,25 @@ function paoDeAcucar(): ReturnType<Kit['model']> {
   return k.model([-20, 180], 0.06, 21);
 }
 
-/** MASP: a caixa de vidro suspensa por dois pórticos vermelhos sobre o vão livre (Av. Paulista). */
+/**
+ * MASP: a caixa de vidro suspensa por dois pórticos vermelhos sobre o vão livre (Av. Paulista). Só aparece em Sampa,
+ * à noite: os pórticos são luz (o vermelho iluminado do cartão-postal) — pintados no material liso, apagavam de noite e
+ * a caixa de janelas acesas lia como mais um prédio da avenida. O vidro é escuro, para o vermelho saltar de dia também.
+ */
 function masp(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const red = '#d4271c';
+  const red = '#c81e14'; // aceso (×2 à noite) continua vermelho; mais claro, o mapeamento de tom puxava para salmão
   const L = 74; const xP = 12.5; const H = 22.5;
   k.add(paint(box(34, 0.5, L + 14), '#b8b4ac', tf(0, 0.25, 0))); // praça do vão livre
   for (const x of [-xP, xP]) {
-    for (const z of [-L / 2 - 1.5, L / 2 + 1.5]) k.add(paint(box(3, H, 3), red, tf(x, H / 2, z)));
-    k.add(paint(box(3, 3.2, L + 6), red, tf(x, H - 1.6, 0))); // viga do teto
-    k.add(paint(box(3, 2.2, L + 6), red, tf(x, 8.2, 0))); // viga de baixo
+    for (const z of [-L / 2 - 1.5, L / 2 + 1.5]) k.light(paint(box(3.2, H, 3.2), red, tf(x, H / 2, z)));
+    k.light(paint(box(3.2, 3.4, L + 6.4), red, tf(x, H - 1.7, 0))); // viga do teto
+    k.light(paint(box(3.2, 2.4, L + 6.4), red, tf(x, 8.2, 0))); // viga de baixo
   }
   // Caixa: laje de concreto e o vidro escuro com caixilhos (janelas acendem à noite).
-  k.add(paint(box(26, 1.2, L), '#7c7f84', tf(0, 9.3, 0)));
-  k.add(paint(box(26, 1, L), '#7c7f84', tf(0, 19.9, 0)));
-  k.facade('office', facadeBox('office', 25.6, 9.4, L - 0.4, '#9aa6b4', tf(0, 14.6, 0)));
+  k.add(paint(box(26, 1.2, L), '#6c6f74', tf(0, 9.3, 0)));
+  k.add(paint(box(26, 1, L), '#6c6f74', tf(0, 19.9, 0)));
+  k.facade('office', facadeBox('office', 25.6, 9.4, L - 0.4, '#5a6672', tf(0, 14.6, 0)));
   // Escada e o vão: gente não, mas o piso e dois canteiros.
   k.add(paint(box(6, 1.2, 10), '#8a9a5a', tf(10, 0.6, -20)), paint(box(6, 1.2, 10), '#8a9a5a', tf(10, 0.6, 22)));
   k.light(paint(box(0.4, 0.4, L - 6), '#fff0d0', tf(13.2, 8.6, 0)));
@@ -181,19 +215,39 @@ function igrejaBarroca(): ReturnType<Kit['model']> {
   return k.model([0, 30], 0.03, 5);
 }
 
-/** Casario colonial: sobrados geminados coloridos subindo a ladeira, telhado de barro, janelas que acendem. */
+/**
+ * Casario colonial (Ouro Preto): sobrados geminados coloridos subindo a ladeira — o serrilhado dos telhados de barro
+ * que sobe o morro é o desenho da cidade —, cada um no seu patamar de pedra, o morro verde atrás. Antes a ladeira subia
+ * 0,7 m por casa (4 m no total, telhado mais alto a 17 m): de longe, uma fileira baixa de casas atrás da mata da beira.
+ */
 function casarioColonial(): ReturnType<Kit['model']> {
   const k = new Kit();
   const walls = ['#f2c94c', '#6f9ad8', '#e98ba0', '#83c27f', '#ffffff', '#f19a52', '#c9a0dc'];
-  const W = 8; const n = 7; const D = 11;
+  const W = 8.4; const n = 9; const D = 11;
+  // O morro atrás das casas de cima, com umas copas.
+  k.add(hill(26, 30, 44, 44, '#5f7f45', '#4f8a3c', 1, 0.14, 0.3, tf(-40, 0, 16)));
+  for (let i = 0; i < 4; i++) {
+    const z = i * 10; const x = -40 + (hash2(i, 47) - 0.5) * 8;
+    k.add(paint(jitter(ico(1, 0), 0.2, 46 + i), i % 2 ? '#3f7a38' : '#4a8a3c', tf(x, 30 * Math.sqrt(1 - ((z - 16) / 44) ** 2) - 2, z, 4.5, 4, 4.5)));
+  }
   for (let i = 0; i < n; i++) {
     const z = (i - (n - 1) / 2) * W;
-    const step = i * 0.7;
+    const step = i * 2.3;
     const floors = hash2(i, 41) < 0.35 ? 3 : 2;
     const h = floors * 3.6;
     const wall = walls[(i * 3) % walls.length];
-    // Alicerce de pedra (cobre o declive) e a casa com a fachada de janelas.
-    k.add(paint(box(D, 3 + step, W), STONE, tf(0, (step - 3) / 2 + step / 2, z)));
+    // Patamar de pedra (cobre o declive e a ladeira) e a casa com a fachada de janelas.
+    k.add(paint(box(D + 1, 3 + step, W), STONE, tf(-0.5, (step - 3) / 2, z)));
+    // A ladeira de pé de moleque na porta de cada casa e, na frente dela, o barranco de capim até a rua de baixo (só o
+    // alto do muro de pedra aparece).
+    k.add(paint(box(3.4, 0.6, W), '#8a8278', tf(D / 2 + 1.7, step - 0.3, z)));
+    if (step > 0.5) {
+      const x0 = D / 2 + 3.4; const run = 2 + step * 0.6; const z0 = z - W / 2; const z1 = z + W / 2; const t = step - 0.1;
+      k.add(paint(tris([
+        x0, t, z0, x0 + run, -0.2, z0, x0 + run, -0.2, z1, x0, t, z0, x0 + run, -0.2, z1, x0, t, z1,
+        x0, t, z0, x0, -0.2, z0, x0 + run, -0.2, z0, x0, t, z1, x0 + run, -0.2, z1, x0, -0.2, z1,
+      ]), i % 2 ? '#6f9a48' : '#64903f'));
+    }
     k.facade('house', facadeBox('house', D, h, W - 0.1, wall, tf(0, step + h / 2, z), hash2(i, 43) * 6));
     // Cunhais e cimalha brancos, porta, telhado de duas águas com beiral.
     for (const dz of [-W / 2 + 0.25, W / 2 - 0.25]) k.add(paint(box(0.5, h, 0.5), WHITE, tf(D / 2 + 0.05, step + h / 2, z + dz)));
@@ -204,28 +258,41 @@ function casarioColonial(): ReturnType<Kit['model']> {
     if (hash2(i, 47) < 0.5) k.add(paint(box(1, 0.15, W * 0.6), '#2a2a2a', tf(D / 2 + 0.5, step + 3.8, z)), paint(box(0.08, 1, W * 0.6), '#2a2a2a', tf(D / 2 + 1, step + 4.3, z)));
     k.light(paint(box(0.4, 0.5, 0.3), LAMP, tf(D / 2 + 0.4, step + 2.8, z)));
   }
-  // Calçada de pé de moleque na frente.
-  k.add(paint(box(4, 0.4, n * W + 2), '#8a8278', tf(D / 2 + 2, 0.2, 0)));
-  return k.model([-3, 14], 0.03, 7);
+  return k.model([-3, 32], 0.03, 7);
 }
 
-/** Convento da Penha (Vila Velha): o convento branco no alto do penhasco de granito, mata no pé. */
+/**
+ * Convento da Penha (Vila Velha): o convento branco coroando o penhasco de granito, mata no pé. O penhasco tem o alto
+ * largo (o convento ocupa o topo inteiro, como no cartão-postal) e o convento é exagerado ~2×: com 20 m de telhado
+ * sobre 330 m de morro, de 400 m ele era um ponto em cima de mais um morro de pedra.
+ */
 function conventoPenha(): ReturnType<Kit['model']> {
   const k = new Kit();
   k.add(hill(150, 55, 120, 31, '#3a7838', '#4a8a40', 1, 0.12, 0.5));
-  const rock = hill(64, 150, 54, 32, '#8a8780', null, 1, 0.1, 0.2);
-  tintUp(rock, '#4f8a40', 0.75, 0.8);
+  // Penhasco: o morro de granito facetado de paredes íngremes, com o alto aplainado (o convento ocupa o topo inteiro);
+  // mata nas saliências.
+  const rock = hill(70, 158, 60, 32, '#8a8780', null, 1, 0.1, 0.2);
+  const rp = rock.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < rp.count; i++) if (rp.getY(i) > 136) rp.setY(i, 136 + (rp.getY(i) - 136) * 0.12);
+  rock.computeVertexNormals();
+  tintUp(rock, '#4f8a40', 0.72, 0.75);
   k.add(rock);
-  const y = 146;
-  k.add(paint(cyl(30, 36, 8, 8), '#8a8780', tf(0, y - 2, 0)));
-  // Claustro (quadra branca com telhado), igreja com a torre e a escadaria.
-  k.add(paint(box(18, 9, 26), WHITE, tf(-4, y + 4.5, 0)), paint(hip(19, 4, 27), TILE, tf(-4, y + 9, 0)));
-  k.add(paint(box(20, 11, 9), WHITE, tf(4, y + 5.5, -14)), paint(gable(9, 4, 20, 0.4), TILE, tf(4, y + 11, -14, 1, 1, 1, 0, Math.PI / 2, 0)));
-  k.add(paint(box(5, 18, 5), WHITE, tf(14, y + 9, -14)), paint(hip(5.6, 5, 5.6), TILE, tf(14, y + 18, -14)));
-  k.add(win(16.6, y + 14, -14, 1.4, 2.4, '#202428'), win(14.6, y + 3, -14, 2.2, 4, '#5a3a22'));
-  for (let i = 0; i < 4; i++) k.add(win(5.1, y + 4, -10 + i * 6, 1.4, 2.4));
-  k.light(paint(box(0.3, 1.2, 0.8), LAMP, tf(16.7, y + 14, -14)));
-  return k.model([0, y + 20], 0.04, 31);
+  const y = 140;
+  k.add(paint(cyl(40, 42, 6, 11), '#8a8780', tf(0, y - 2.5, 0)));
+  // Muralha branca na borda da frente, o claustro (quadra branca de telhado de quatro águas), a igreja de frente para a
+  // pista com o frontão e a torre no canto, com a cúpula de telha e a cruz.
+  k.add(paint(box(1.6, 3.4, 72), WHITE, tf(30, y + 1.7, -2)));
+  k.add(paint(box(30, 14, 50), WHITE, tf(-8, y + 7, 4)), paint(hip(31.5, 7, 51.5), TILE, tf(-8, y + 14, 4)));
+  k.add(paint(box(14, 17, 36), WHITE, tf(14, y + 8.5, -8)), paint(gable(14, 7, 36, 0.8), TILE, tf(14, y + 17, -8)));
+  k.add(paint(gable(17, 6, 1.2, 0), WHITE, tf(21.4, y + 17, -8, 1, 1, 1, 0, Math.PI / 2, 0))); // frontão
+  k.add(paint(box(9, 32, 9), WHITE, tf(16, y + 16, -30)), paint(box(10, 1.2, 10), STONE, tf(16, y + 26, -30)));
+  k.add(paint(hip(10, 9, 10), TILE, tf(16, y + 32, -30)), paint(box(0.9, 5, 0.9), '#30302c', tf(16, y + 43, -30)), paint(box(0.9, 0.9, 3.4), '#30302c', tf(16, y + 44, -30)));
+  // Janelas escuras em fileira, a porta da igreja e a sineira acesa.
+  for (let i = 0; i < 6; i++) k.add(win(21.1, y + 11, -22 + i * 5.6, 1.8, 3.2), win(21.1, y + 4.6, -22 + i * 5.6, 1.8, 3.2));
+  k.add(win(21.1, y + 3.2, -8, 3.4, 6, '#5a3a22'));
+  k.add(win(20.6, y + 24, -30, 2.6, 4.4, '#202428'));
+  k.light(paint(box(0.3, 2.2, 1.4), LAMP, tf(20.8, y + 24, -30)));
+  return k.model([0, y + 44], 0.04, 31);
 }
 
 /** Terceira Ponte (Vitória): o tabuleiro sobe em arco sobre a baía, apoiado em pares de pilares. */
@@ -299,47 +366,60 @@ function tremSerraVerde(): ReturnType<Kit['model']> {
   k.add(paint(box(W + 1.2, 1.6, L + 4), dark, tf(0, H, 0)));
   for (const x of [-1, 1]) k.add(paint(box(0.5, 1.1, L + 4), stone, tf(x * (W / 2 + 0.35), H + 1.3, 0)));
   k.add(paint(box(0.3, 0.3, L), '#4a4a4a', tf(0.9, H + 1, 0)), paint(box(0.3, 0.3, L), '#4a4a4a', tf(-0.9, H + 1, 0)));
-  // Trem: locomotiva amarela com faixa verde e cinco carros verdes de janela creme.
-  const yt = H + 1.1;
-  let z = -66;
-  k.add(paint(box(3.2, 4.2, 16), '#e0a820', tf(0, yt + 2.5, z)), paint(box(3.3, 0.8, 16.1), '#2f6b46', tf(0, yt + 1.8, z)));
-  k.add(paint(box(3, 1.4, 4), '#1e2a30', tf(0, yt + 4.2, z - 5.5)));
-  z += 17.5;
-  for (let c = 0; c < 5; c++) {
-    k.add(paint(box(3.1, 3.6, 17), '#2f6b46', tf(0, yt + 2.4, z + c * 18)));
-    k.add(paint(box(3.2, 1.1, 16), '#efe4c4', tf(0, yt + 3, z + c * 18)));
-    for (let w = 0; w < 5; w++) k.add(paint(box(3.25, 0.8, 1.6), '#2a3238', tf(0, yt + 3, z + c * 18 - 6 + w * 3)));
-    k.add(paint(box(3.2, 0.5, 17.2), '#3a3a3a', tf(0, yt + 4.4, z + c * 18)));
+  // Trem: locomotiva amarela com faixa verde e seis carros verdes de faixa creme — 1,6× o de verdade (o trem é o que
+  // diz "Serra Verde Express"; em tamanho real, a 210 m de lado, eram 6 px de altura e o viaduto lia como aqueduto).
+  const T = 1.6; const yt = H + 1.1;
+  let z = -86;
+  k.add(paint(box(3.2 * T, 4.2 * T, 16 * T), '#e8b018', tf(0, yt + 2.3 * T, z)), paint(box(3.3 * T, 0.8 * T, 16.1 * T), '#2f6b46', tf(0, yt + 1.6 * T, z)));
+  k.add(paint(box(3 * T, 1.4 * T, 4 * T), '#1e2a30', tf(0, yt + 4.2 * T, z - 5.5 * T)));
+  k.light(paint(box(0.4, 0.8, 0.8), LAMP, tf(0, yt + 3.2 * T, z - 8 * T - 0.2)));
+  z += 17.5 * T;
+  for (let c = 0; c < 6; c++) {
+    const zc = z + c * 18 * T;
+    k.add(paint(box(3.1 * T, 3.6 * T, 17 * T), '#2f6b46', tf(0, yt + 2.2 * T, zc)));
+    k.add(paint(box(3.2 * T, 1.2 * T, 16 * T), '#efe4c4', tf(0, yt + 2.8 * T, zc)));
+    for (let w = 0; w < 5; w++) k.add(paint(box(3.25 * T, 0.7 * T, 1.6 * T), '#2a3238', tf(0, yt + 2.8 * T, zc - 6 * T + w * 3 * T)));
+    k.add(paint(box(3.2 * T, 0.5 * T, 17.2 * T), '#3a3a3a', tf(0, yt + 4.2 * T, zc)));
   }
   return k.model([-12, H + 8], 0.04, 41);
 }
 
-/** Estufa do Jardim Botânico de Curitiba: vidro e ferro branco, cúpula central e alas em abóbada, jardim francês. */
+/**
+ * Estufa do Jardim Botânico de Curitiba: vidro e ferro branco, cúpula central e alas em abóbada, jardim francês. O ferro
+ * branco é o desenho — montantes a cada ~1,5 m, as costelas da cúpula e os arcos das alas, grossos para ler de longe —,
+ * e o vidro é verde-claro (as plantas atrás dele): azul-claro, ele sumia no céu, e a estufa virava uma bolha pálida.
+ * Montada em 1/1,3 e escalada (~29 m).
+ */
 function estufaJardimBotanico(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const glass = '#bfe5ee'; const iron = '#fbfbf6';
+  const glass = '#9cc8ae'; const glassLow = '#7fb08e'; const iron = '#fbfbf6';
   // Corpo central: base de vidro e a cúpula alongada; alas com abóbada em Z.
-  k.add(paint(box(14, 9, 14), glass, tf(0, 4.5, 0)));
-  k.add(paint(sphere(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), glass, tf(0, 9, 0, 7.2, 9, 7.2)));
-  k.add(paint(cyl(1.2, 1.4, 2.4, 8), iron, tf(0, 18.8, 0)), paint(cone(1.5, 2.2, 8), iron, tf(0, 21, 0)));
-  for (let a = 0; a < 8; a++) {
-    const ang = (a / 8) * Math.PI * 2;
+  k.add(paint(box(14, 9, 14), glassLow, tf(0, 4.5, 0)));
+  k.add(paint(sphere(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), glass, tf(0, 9, 0, 7.2, 9, 7.2)));
+  k.add(paint(cyl(1.4, 1.6, 2.6, 8), iron, tf(0, 18.9, 0)), paint(cone(1.7, 2.6, 8), iron, tf(0, 21.4, 0)));
+  for (let a = 0; a < 12; a++) {
+    const ang = (a / 12) * Math.PI * 2;
     let prev: V3 | null = null;
     for (let s = 0; s <= 4; s++) {
       const t = (s / 4) * Math.PI / 2;
-      const p: V3 = [Math.cos(ang) * 7.3 * Math.cos(t), 9 + 9.05 * Math.sin(t), Math.sin(ang) * 7.3 * Math.cos(t)];
-      if (prev) k.add(beam(prev, p, 0.35, iron));
+      const p: V3 = [Math.cos(ang) * 7.35 * Math.cos(t), 9 + 9.1 * Math.sin(t), Math.sin(ang) * 7.35 * Math.cos(t)];
+      if (prev) k.add(beam(prev, p, 0.6, iron, 0.4));
       prev = p;
     }
   }
+  for (const y of [9, 13.5]) k.add(paint(cyl(y === 9 ? 7.5 : 6.5, y === 9 ? 7.5 : 6.5, 0.6, 12, true), iron, tf(0, y, 0)));
   for (const s of [-1, 1]) {
     const zc = s * 12.5;
-    k.add(paint(box(11, 6, 11), glass, tf(0, 3, zc)));
-    k.add(paint(cyl(5.5, 5.5, 11, 8), glass, tf(0, 6, zc, 1, 0.9, 1, Math.PI / 2, 0, 0)));
-    for (let r = 0; r <= 4; r++) k.add(paint(cyl(5.65, 5.65, 0.3, 8, true), iron, tf(0, 6, zc - 5.4 + r * 2.7, 1, 0.9, 1, Math.PI / 2, 0, 0)));
-    for (const x of [-5.5, 5.5]) for (let r = 0; r <= 4; r++) k.add(paint(box(0.3, 6, 0.3), iron, tf(x, 3, zc - 5.4 + r * 2.7)));
+    k.add(paint(box(11, 6, 11), glassLow, tf(0, 3, zc)));
+    k.add(paint(cyl(5.5, 5.5, 11, 10), glass, tf(0, 6, zc, 1, 0.9, 1, Math.PI / 2, 0, 0)));
+    for (let r = 0; r <= 6; r++) k.add(paint(cyl(5.7, 5.7, 0.55, 10, true), iron, tf(0, 6, zc - 5.4 + r * 1.8, 1, 0.9, 1, Math.PI / 2, 0, 0)));
+    for (const x of [-5.6, 5.6]) for (let r = 0; r <= 6; r++) k.add(paint(box(0.5, 6, 0.55), iron, tf(x, 3, zc - 5.4 + r * 1.8)));
+    for (const x of [-5.6, 5.6]) k.add(paint(box(0.5, 0.6, 11.4), iron, tf(x, 6, zc)));
+    // A ponta da ala: o arco de ferro da testa.
+    k.add(paint(cyl(5.7, 5.7, 0.6, 10, true), iron, tf(0, 6, zc + s * 5.5, 1, 0.9, 1, Math.PI / 2, 0, 0)));
   }
-  for (const x of [-7, 7]) for (let r = 0; r <= 4; r++) k.add(paint(box(0.3, 9, 0.3), iron, tf(x, 4.5, -7 + r * 3.5)));
+  for (const x of [-7.1, 7.1]) for (let r = 0; r <= 9; r++) k.add(paint(box(0.5, 9, 0.55), iron, tf(x, 4.5, -7 + r * (14 / 9))));
+  for (const x of [-7.1, 7.1]) for (const y of [4.5, 8.8]) k.add(paint(box(0.5, 0.6, 14.4), iron, tf(x, y, 0)));
   k.add(paint(box(15, 0.6, 37), iron, tf(0, 0.3, 0)));
   // Jardim francês na frente: caminho branco, canteiros geométricos (cerca-viva e flores) e a fonte.
   const gx = 22;
@@ -352,51 +432,78 @@ function estufaJardimBotanico(): ReturnType<Kit['model']> {
   k.add(paint(cyl(3.2, 3.4, 0.8, 10), '#d8d2c2', tf(gx, 0.4, 0)), paint(cyl(2.8, 2.8, 0.85, 10), '#6ab4d8', tf(gx, 0.45, 0)));
   k.add(paint(cyl(0.4, 0.6, 2.2, 6), '#d8d2c2', tf(gx, 1.5, 0)));
   for (const z of [-6, 6]) k.light(paint(box(0.4, 0.5, 0.4), LAMP, tf(9, 3.2, z)), paint(box(0.12, 2.8, 0.12), '#2a2a2a', tf(9, 1.4, z)));
-  return k.model([0, 22], 0.02, 13);
+  return scaled(k.model([0, 22], 0.02, 13), 1.3);
 }
 
-/** Ponte Hercílio Luz (Florianópolis): pênsil, duas torres treliçadas, a corrente que desce até o meio do vão. */
+/**
+ * Ponte Hercílio Luz (Florianópolis): pênsil, duas torres treliçadas e a corrente de barras que desce das torres e, no
+ * meio do vão, vira o banzo de cima da treliça (o desenho dela). Vista a ~170 m de lado e de 300 m+, à tarde: torre de
+ * 3,4 m e corrente de 1,2 m sumiam (1–2 px) — a ponte lia como um risco. A torre é uma treliça de 9 m (afina para 5 m
+ * no alto) com os X de lado, a corrente tem 2,8 m e a treliça do meio tem montantes e diagonais.
+ */
 function ponteHercilioLuz(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const steel = '#e6ebee'; const deckY = 32; const tz = 170; const top = 78; const half = 250;
-  // Tabuleiro com treliça baixa e os vãos de acesso sobre pilares.
-  k.add(paint(box(14, 2.4, half * 2), '#c8ccd0', tf(0, deckY, 0)));
-  for (const x of [-7, 7]) k.add(paint(box(0.8, 4, half * 2), steel, tf(x, deckY + 3, 0)));
-  for (const z of [-half + 10, -half + 45, half - 45, half - 10]) for (const x of [-5, 5]) k.add(paint(box(3, deckY + 8, 3), '#b8bcc0', tf(x, (deckY - 8) / 2, z)));
-  // Torres: duas pernas treliçadas por torre, com travessas em X.
+  const steel = '#e8edf0'; const deckY = 32; const tz = 170; const top = 84; const half = 250;
+  // Tabuleiro, guarda-corpo e os vãos de acesso sobre pilares.
+  k.add(paint(box(14, 2.6, half * 2), '#c4c8cc', tf(0, deckY, 0)));
+  for (const x of [-7, 7]) k.add(paint(box(0.8, 2.4, half * 2), steel, tf(x, deckY + 2.4, 0)));
+  for (const z of [-half + 10, -half + 45, half - 45, half - 10]) for (const x of [-5, 5]) k.add(paint(box(3.4, deckY + 8, 3.4), '#b8bcc0', tf(x, (deckY - 8) / 2, z)));
+  // Torres: em cada lado do tabuleiro uma perna treliçada (dois montantes que afinam para cima, os X entre eles e as
+  // travessas) e, de um lado ao outro, as vigas do topo e do tabuleiro; a sapata de pedra no pé.
+  const yb = -6;
   for (const zt of [-tz, tz]) {
-    for (const x of [-7.5, 7.5]) k.add(paint(box(2.6, top + 8, 3.4), steel, tf(x, (top - 8) / 2, zt)));
-    k.add(paint(box(18, 2.4, 4), steel, tf(0, top, zt)), paint(box(18, 1.6, 4), steel, tf(0, deckY + 6, zt)));
-    for (const [y0, y1] of [[deckY + 7, 56], [56, top - 1]]) {
-      k.add(beam([-7.5, y0, zt], [7.5, y1, zt], 0.9, steel), beam([7.5, y0, zt], [-7.5, y1, zt], 0.9, steel));
+    for (const x of [-7.5, 7.5]) {
+      const w = (y: number): number => 4.5 - ((y - yb) / (top - yb)) * 2; // meia largura em z
+      for (const s of [-1, 1]) k.add(beam([x, yb, zt + s * w(yb)], [x, top, zt + s * w(top)], 2, steel, 2));
+      const levels = [yb, deckY + 3, 48, 62, 74, top - 1];
+      for (let i = 0; i < levels.length - 1; i++) {
+        const y0 = levels[i]; const y1 = levels[i + 1];
+        k.add(beam([x, y0, zt - w(y0)], [x, y1, zt + w(y1)], 1.1, steel), beam([x, y0, zt + w(y0)], [x, y1, zt - w(y1)], 1.1, steel));
+        k.add(paint(box(1.4, 1.2, w(y1) * 2 + 1), steel, tf(x, y1, zt)));
+      }
     }
-    k.add(paint(box(18, 8, 8), '#a8acb0', tf(0, -3, zt)));
+    k.add(paint(box(18, 2.8, 5.4), steel, tf(0, top, zt)), paint(box(18, 1.8, 6), steel, tf(0, deckY + 6, zt)));
+    k.add(beam([-7.5, deckY + 7, zt], [7.5, top - 2, zt], 1, steel), beam([7.5, deckY + 7, zt], [-7.5, top - 2, zt], 1, steel));
+    k.add(paint(box(20, 10, 12), '#a8a49c', tf(0, -4, zt)));
   }
-  // Correntes: da torre descem até o banzo do meio (forma da Hercílio Luz) e os tirantes; luzes ao longo (anoitecer).
-  const N = 12;
-  const chainY = (z: number): number => deckY + 5 + (top - deckY - 5) * Math.pow(Math.abs(z) / tz, 1.6);
+  // Correntes: da torre descem até o banzo da treliça do meio; montantes e diagonais entre a corrente e o tabuleiro;
+  // as luzes ao longo (anoitecer).
+  const N = 16;
+  const chainY = (z: number): number => deckY + 8 + (top - deckY - 8) * Math.pow(Math.abs(z) / tz, 1.8);
   for (const x of [-7.5, 7.5]) {
     for (let i = 0; i < N; i++) {
       const z0 = -tz + (i / N) * 2 * tz; const z1 = -tz + ((i + 1) / N) * 2 * tz;
-      k.add(beam([x, chainY(z0), z0], [x, chainY(z1), z1], 1.2, steel, 1.2));
-      if (i > 0) k.add(cable([x, chainY(z0), z0], [x, deckY + 4, z0], 0.35, steel));
-      k.light(paint(box(0.7, 0.7, 0.7), '#fff1c0', tf(x * 1.08, chainY(z0) + 0.9, z0)));
+      k.add(beam([x, chainY(z0), z0], [x, chainY(z1), z1], 1.6, steel, 2.8));
+      if (i > 0) k.add(beam([x, chainY(z0) - 1, z0], [x, deckY + 2, z0], 0.7, steel));
+      // Diagonal do painel (zigue-zague): só onde a corrente já está perto do tabuleiro (a treliça do meio).
+      if (Math.abs(z0 + z1) / 2 < tz * 0.6) {
+        const up = i % 2 === 0;
+        k.add(beam([x, up ? deckY + 2 : chainY(z0) - 1, z0], [x, up ? chainY(z1) - 1 : deckY + 2, z1], 0.6, steel));
+      }
+      k.light(paint(box(0.8, 0.8, 0.8), '#fff1c0', tf(x * 1.1, chainY(z0) + 1.6, z0)));
     }
     for (const s of [-1, 1]) {
-      k.add(beam([x, top, s * tz], [x, deckY + 3, s * (half - 6)], 1.2, steel, 1.2));
+      k.add(beam([x, top, s * tz], [x, deckY + 3, s * (half - 6)], 1.6, steel, 2.8));
       for (let c = 1; c < 4; c++) {
         const t = c / 4;
-        k.light(paint(box(0.7, 0.7, 0.7), '#fff1c0', tf(x * 1.08, top + (deckY + 3 - top) * t + 0.9, s * (tz + (half - 6 - tz) * t))));
+        k.light(paint(box(0.8, 0.8, 0.8), '#fff1c0', tf(x * 1.1, top + (deckY + 3 - top) * t + 1.6, s * (tz + (half - 6 - tz) * t))));
       }
     }
   }
   return k.model([-8, top], 0, 15);
 }
 
-/** Igreja açoriana (Santo Antônio de Lisboa, SC): branca com quinas, molduras e porta azuis, torre no meio da fachada. */
+/**
+ * Igreja açoriana (Santo Antônio de Lisboa, SC): branca com quinas, molduras, barrado e porta azuis, torre no meio da
+ * fachada. Montada em 1/1,4 e escalada (~36 m de torre): com 18 m de frente ela cabia em ~40 px a 200 m, e o azul
+ * fino das molduras sumia.
+ */
 function igrejaAcoriana(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const blue = '#2b5fb4'; const fx = 11;
+  const blue = '#2457b8'; const fx = 11;
+  // Barrado azul no pé das paredes e da torre (a faixa que a casa açoriana pinta).
+  k.add(paint(box(0.4, 1.4, 12.4), blue, tf(fx + 0.05, 0.7, 0)), paint(box(22.4, 1.4, 0.4), blue, tf(0, 0.7, 6.05)), paint(box(22.4, 1.4, 0.4), blue, tf(0, 0.7, -6.05)));
+  k.add(paint(box(0.3, 1.4, 4.6), blue, tf(fx + 3.75, 0.7, 0)));
   k.add(paint(box(26, 0.6, 18), STONE, tf(1, 0.3, 0)));
   k.add(paint(box(22, 9, 12), WHITE, tf(0, 4.5, 0)), paint(gable(12, 4.4, 22, 0.5), TILE, tf(0, 9, 0, 1, 1, 1, 0, Math.PI / 2, 0)));
   // Frontão triangular com moldura azul e a torre central na frente.
@@ -414,7 +521,7 @@ function igrejaAcoriana(): ReturnType<Kit['model']> {
   for (const z of [-4, 4]) k.add(paint(box(0.3, 2.6, 1.6), blue, tf(fx + 0.15, 5.5, z)), win(fx + 0.3, 5.5, z, 1.1, 2.1));
   for (const x of [-6, 0, 6]) k.add(paint(box(1.6, 2.6, 0.3), blue, tf(x, 5.5, 6.1)), paint(box(1.6, 2.6, 0.3), blue, tf(x, 5.5, -6.1)));
   k.light(paint(box(0.3, 1.4, 0.8), LAMP, tf(fx + 3.9, 14.6, 0)), paint(box(0.4, 0.5, 0.4), LAMP, tf(fx + 3.9, 5.2, -1.8)));
-  return k.model([0, 25], 0.02, 17);
+  return scaled(k.model([0, 25], 0.02, 17), 1.4);
 }
 
 /** Catedral de Pedra (Canela, RS): gótica de basalto escuro, uma torre com flecha de 65 m, vitrais acesos. */
@@ -446,48 +553,63 @@ function catedralDePedra(): ReturnType<Kit['model']> {
   return k.model([0, 68], 0.06, 19);
 }
 
-/** Cuia de chimarrão gigante com a bomba (monumento gaúcho). */
+/**
+ * Cuia de chimarrão gigante com a bomba (monumento gaúcho). O que diz "chimarrão" é a bomba de prata enfiada na erva,
+ * inclinada para o lado (lê de frente): grossa, para não sumir de longe — com 0,4 m ela sumia e a cuia lia como um vaso.
+ * Montada em 1/1,5 e escalada: ~26 m, acima da mata da beira.
+ */
 function cuiaChimarrao(): ReturnType<Kit['model']> {
   const k = new Kit();
   k.add(paint(cyl(5.4, 6, 1.4, 8), '#9a9488', tf(0, 0.7, 0)), paint(cyl(4.6, 5, 0.6, 8), '#b8b2a4', tf(0, 1.7, 0)));
   const y = 2;
-  k.add(lathe([[0.1, 0], [2.4, 0.2], [3.6, 1.4], [4.0, 3.0], [3.7, 4.6], [2.9, 5.8], [2.35, 6.6], [2.55, 7.4], [3.2, 8.4], [3.4, 9]], 10, '#7d5a2c', tf(0, y, 0)));
-  k.add(lathe([[3.25, 0], [3.5, 0], [3.5, 0.8], [3.3, 0.8]], 10, '#c9ced4', tf(0, y + 8.4, 0)));
-  // Erva: monte verde inclinado na boca, com o pé da bomba enfiado.
-  k.add(paint(cone(3.1, 1.4, 10), '#5f8f2a', tf(0, y + 8.9, 0, 1, 1, 1, 0.2, 0, 0)));
-  k.add(beam([0.6, y + 7.5, 0.2], [-1.9, y + 14.5, 0.6], 0.42, '#d8dce0'));
-  k.add(beam([-1.9, y + 14.5, 0.6], [-2.5, y + 15, 0.7], 0.42, '#c9a040'));
-  return k.model([0, 17], 0.04, 23);
+  k.add(lathe([[0.1, 0], [2.4, 0.2], [3.6, 1.4], [4.0, 3.0], [3.7, 4.6], [2.9, 5.8], [2.35, 6.6], [2.55, 7.4], [3.2, 8.4], [3.4, 9]], 12, '#8a5a26', tf(0, y, 0)));
+  // Bocal de prata e a faixa de prata da cintura (o enfeite da cuia gaúcha).
+  k.add(lathe([[3.25, 0], [3.55, 0], [3.55, 0.9], [3.3, 0.9]], 12, '#dfe3e8', tf(0, y + 8.3, 0)));
+  k.add(lathe([[2.4, 0], [2.62, 0], [2.62, 0.55], [2.4, 0.55]], 12, '#dfe3e8', tf(0, y + 6.3, 0)));
+  // Erva: monte verde-vivo na boca, com o pé da bomba enfiado.
+  k.add(paint(cone(3.2, 1.6, 10), '#6aa82e', tf(0, y + 9, 0, 1, 1, 1, 0.15, 0, 0)));
+  // Bomba: o tubo de prata inclinado para +Z (de frente para a pista vê-se a diagonal) e o bico dourado dobrado.
+  const foot: V3 = [0.3, y + 7.6, -0.6]; const bend: V3 = [-0.2, y + 15.6, 2.6]; const tip: V3 = [-0.3, y + 16.1, 3.5];
+  k.add(beam(foot, bend, 0.85, '#e4e8ec'));
+  k.add(beam(bend, tip, 0.85, '#d8b048'));
+  return scaled(k.model([0, 17], 0.04, 23), 1.5);
 }
 
-/** Araucárias: três pinheiros-do-paraná de tamanhos diferentes, galhos em candelabro e copa em taça. */
+/**
+ * Araucárias: o capão de pinheiros-do-paraná de alturas diferentes, tronco reto e nu e a copa em taça — os galhos em
+ * candelabro sobem em duas coroas e terminam em tufos largos e achatados que se juntam numa mesa verde-escura de topo
+ * reto. Antes três árvores de tronco fino com tufos soltos (metade da silhueta era tronco e galho): lia como pinheiro
+ * qualquer. A copa é o desenho: larga (~60% da altura) e cheia.
+ */
 function araucaria(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const trees: Array<[number, number, number]> = [[0, 0, 26], [-7, -11, 21], [-4, 12, 17]];
+  const trees: Array<[number, number, number]> = [[0, 0, 31], [-8, -15, 25], [-5, 14, 27], [-14, -1, 21], [-2, 27, 18]];
+  const bark = '#6a4a34';
   trees.forEach(([x, z, H], t) => {
     const seed = 50 + t;
-    k.add(paint(cyl(0.38, 0.62, H, 7), '#5c4838', tf(x, H / 2, z)));
-    const n = 9;
-    for (let b = 0; b < n; b++) {
-      const a = (b / n) * Math.PI * 2 + hash2(seed, b) * 0.5;
-      const yb = H - 3.6 + (b % 3) * 1.1;
-      const out = H * 0.22 + hash2(seed, b + 20) * 1.4;
-      const p0: V3 = [x, yb, z];
-      const p1: V3 = [x + Math.cos(a) * out * 0.75, yb + 0.6, z + Math.sin(a) * out * 0.75];
-      const p2: V3 = [x + Math.cos(a) * out, yb + 2.4, z + Math.sin(a) * out];
-      k.add(beam(p0, p1, 0.26, '#5c4838'), beam(p1, p2, 0.22, '#5c4838'));
-      k.add(paint(jitter(dodeca(1), 0.12, seed + b), b % 2 ? '#2c5a34' : '#336a3a', tf(p2[0], p2[1] + 0.5, p2[2], 1.9, 0.75, 1.9)));
+    const R = H * 0.33; // raio da copa
+    k.add(paint(cyl(0.36, 0.62, H, 7), bark, tf(x, H / 2, z)));
+    // Duas coroas de galhos: a de baixo mais aberta, a de cima mais curta (a taça); o galho sobe em diagonal do tronco
+    // até debaixo do tufo.
+    for (const [ring, n, rise] of [[0, 8, 0], [1, 6, 1]] as Array<[number, number, number]>) {
+      for (let b = 0; b < n; b++) {
+        const a = (b / n) * Math.PI * 2 + hash2(seed, b + ring * 20) * 0.5 + ring * 0.4;
+        const out = R * (ring ? 0.6 : 1) * (0.85 + hash2(seed, b + 40) * 0.2);
+        const yb = H - R * 0.55 + rise * R * 0.24;
+        const p2: V3 = [x + Math.cos(a) * out, yb + R * 0.32, z + Math.sin(a) * out];
+        k.add(beam([x, yb, z], p2, 0.3, bark));
+        // Tufo largo e achatado na ponta (o "pinho" da araucária); os tufos vizinhos se encostam.
+        k.add(paint(jitter(ico(1, 0), 0.14, seed + b + ring * 20), (b + ring) % 2 ? '#24502e' : '#2c5c34', tf(p2[0], p2[1] + 0.1, p2[2], R * 0.46, R * 0.22, R * 0.46)));
+      }
     }
-    k.add(paint(jitter(dodeca(1), 0.1, seed + 30), '#2f6036', tf(x, H + 0.6, z, 2.2, 0.8, 2.2)));
-    // Galhos secos mais abaixo (a araucária perde os de baixo).
-    for (let b = 0; b < 3; b++) {
-      const a = hash2(seed, b + 40) * 6.28; const yb = H * (0.45 + b * 0.12);
-      k.add(beam([x, yb, z], [x + Math.cos(a) * 2.4, yb + 0.8, z + Math.sin(a) * 2.4], 0.14, '#4a3a2e'));
-    }
+    k.add(paint(jitter(ico(1, 0), 0.12, seed + 30), '#2a5832', tf(x, H - R * 0.02, z, R * 0.5, R * 0.2, R * 0.5)));
+    // Galho seco mais abaixo (a araucária perde os de baixo).
+    const a = hash2(seed, 41) * 6.28; const yb = H * 0.55;
+    k.add(beam([x, yb, z], [x + Math.cos(a) * 2.6, yb + 1, z + Math.sin(a) * 2.6], 0.16, '#4a3a2e'));
   });
-  // Capim e uma moita no pé.
-  k.add(paint(jitter(ico(1, 0), 0.2, 59), '#5a8a3a', tf(-2, 0.3, 2, 6, 1, 5)));
-  return k.model([0, 28], 0.06, 51);
+  // Campo no pé: capim e moitas.
+  for (let i = 0; i < 3; i++) k.add(paint(jitter(ico(1, 0), 0.2, 59 + i), '#5a8a3a', tf(-4 + i * 2, 0.3, -12 + i * 12, 6, 1, 5)));
+  return k.model([0, 33], 0.06, 51);
 }
 
 // ───────────────────────────── Centro-Oeste ─────────────────────────────
@@ -520,12 +642,16 @@ function congressoNacional(): ReturnType<Kit['model']> {
   return k.model([0, 100], 0, 27);
 }
 
-/** Catedral de Brasília: coroa de 16 pilares curvos (hiperboloide), vidro azul entre eles, campanário ao lado. */
+/**
+ * Catedral de Brasília: coroa de 16 pilares curvos (hiperboloide), vidro azul entre eles, campanário ao lado. O vidro é
+ * luz: ao entardecer (Brasília) e à noite (Torre de TV) a coroa acende por dentro, azul atrás dos pilares brancos — o
+ * cartão-postal da noite; no material liso ele apagava, e só o anel do topo brilhava.
+ */
 function catedralBrasilia(): ReturnType<Kit['model']> {
   const k = new Kit();
   const w = '#f4f4f0';
   k.add(paint(cyl(36, 36, 0.4, 16), '#c8c4b8', tf(0, 0.2, 0)));
-  k.add(lathe([[29, 0.3], [21, 10], [14.5, 20], [11, 29], [10.6, 33]], 16, '#8cc0dc'));
+  k.light(bothSides(lathe([[29, 0.3], [21, 10], [14.5, 20], [11, 29], [10.6, 33]], 16, '#86bede')));
   for (let i = 0; i < 16; i++) {
     const a = (i / 16) * Math.PI * 2;
     const c = Math.cos(a); const s = Math.sin(a);
@@ -544,76 +670,130 @@ function catedralBrasilia(): ReturnType<Kit['model']> {
   return k.model([0, 42], 0, 29);
 }
 
-/** Cachoeira da Chapada dos Veadeiros: paredão de arenito, a queda d'água branca e o poço azul. */
+/**
+ * Cachoeira da Chapada dos Veadeiros (os Saltos do Rio Preto): o paredão de quartzito em camadas cor de ferrugem com o
+ * cerrado no alto, o salto grande caindo do vão da borda e o menor ao lado, a névoa no pé e o poço verde-escuro. A
+ * régua das Cataratas (tests/landmarks-leitura.test.ts): antes era uma caixa de pedra de 170 m com uma risca branca de
+ * 9 m — de longe, um paredão (um prédio de tijolo); agora a água, em cortinas riscadas que abrem para baixo, é ~1/3
+ * da face.
+ */
 function cachoeiraVeadeiros(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const W = 170; const H = 92;
-  const wall = jitter(new THREE.BoxGeometry(48, H + 30, W, 3, 6, 8), 0.06, 61);
-  const g = paint(wall, '#a8704a', tf(-24, (H - 30) / 2, 0));
-  tintUp(g, '#7f8f3a', 0.65, 1);
-  k.add(g);
-  // Faixas de estrato no paredão.
-  for (let i = 0; i < 4; i++) k.add(paint(box(1.2, 3 + (i % 2) * 2, W * 0.9), i % 2 ? '#8a5a3a' : '#c48a5a', tf(1.4, 20 + i * 18, (hash2(61, i) - 0.5) * 12)));
-  // Topo de cerrado: tufos verdes.
-  for (let i = 0; i < 8; i++) k.add(paint(jitter(ico(1, 0), 0.2, 62 + i), '#5a7f32', tf(-10 - hash2(i, 63) * 24, H + 1.5, -W / 2 + 12 + i * 20, 5, 2.4, 5)));
-  // A queda (faixas de água que brilham claras), a espuma e o poço.
-  const wz = 8;
-  k.add(paint(box(6, 10, 14), '#7a5034', tf(-1, H - 2, wz)));
-  for (const [dz, wd] of [[0, 9], [-4, 3], [4.5, 3]] as Array<[number, number]>) k.light(paint(box(0.6, H + 2, wd), dz === 0 ? '#eaf6ff' : '#c2e4f6', tf(2.6 + Math.abs(dz) * 0.1, H / 2, wz + dz)));
-  k.add(paint(cyl(26, 28, 1, 12), '#2f86b0', tf(16, 0.5, wz, 1, 1, 0.8)));
-  k.add(paint(jitter(ico(1, 1), 0.15, 64), '#f2f8ff', tf(6, 2, wz, 7, 4, 9)));
-  for (let i = 0; i < 6; i++) k.add(paint(jitter(dodeca(1), 0.2, 65 + i), '#8a7a6a', tf(14 + (hash2(i, 66) - 0.5) * 30, 0.8, wz + (i - 2.5) * 9, 3, 1.6, 3)));
-  return k.model([-10, H], 0.06, 61);
+  const H = 92; const wx = -18; const wz = 6;
+  const wall = cliff({
+    len: 150, H, strata: ['#a8704a', '#c48e60', '#94603e', '#d2a274', '#b27c52'], layers: 7, seed: 61, cols: 30, depth: 50,
+    batter: 0.05, gully: 4, gullyLen: 14, bay: 8, ragged: 0.07, ledge: 1.4, talus: 6, talusColor: '#8a6a50', top: '#7f8f3a',
+    ledgeTop: '#8a9a48', ends: 0.16, notch: { z: wz, half: 15, h: H - 7, recess: 9 },
+  }, tf(wx, 0, 0));
+  k.add(wall.geo);
+  // Cortina d'água: do lábio (x, yTop) ao pé, lançada para a frente e abrindo para baixo; faixas de tons (os riscos).
+  const tones = ['#ffffff', '#eaf5fc', '#d6eaf5', '#f4fbff', '#c8e2ef'];
+  const curtain = (seed: number, z: number, xTop: number, yTop: number, xBot: number, wTop: number, wBot: number): void => {
+    const B = 5;
+    for (let b = 0; b < B; b++) {
+      const out: number[] = [];
+      const s0 = -0.5 + b / B; const s1 = -0.5 + (b + 1) / B;
+      const rows: Array<[number, number, number]> = [[xTop, yTop, wTop], [xTop + (xBot - xTop) * 0.45, yTop * 0.55, wTop + (wBot - wTop) * 0.55], [xBot, -0.3, wBot]];
+      for (let j = 0; j < rows.length - 1; j++) {
+        const [xa, ya, wa] = rows[j]; const [xb, yb, wb] = rows[j + 1];
+        out.push(xa, ya, z + s0 * wa, xb, yb, z + s0 * wb, xb, yb, z + s1 * wb, xa, ya, z + s0 * wa, xb, yb, z + s1 * wb, xa, ya, z + s1 * wa);
+      }
+      k.light(bothSides(paint(tris(out), tones[Math.floor(hash2(seed, b) * tones.length)])));
+    }
+  };
+  const lip = wx + wall.lipAt(wz); const foot = wx + wall.footAt(wz);
+  curtain(611, wz, lip + 1.2, wall.topAt(wz) + 0.4, foot + 9, 26, 34);
+  // O salto menor, sobre a borda, à esquerda.
+  const z2 = -44;
+  curtain(612, z2, wx + wall.lipAt(z2) + 1, wall.topAt(z2) + 0.3, wx + wall.footAt(z2) + 7, 11, 16);
+  // Névoa no pé das quedas (luz: de longe é uma mancha clara e macia) e o poço verde-escuro com a espuma.
+  const MIST = '#e4eef2';
+  for (let i = 0; i < 5; i++) k.light(paint(jitter(ico(1, 1), 0.14, 620 + i), MIST, tf(foot + 10 + hash2(621, i) * 6, 5 + (i % 2) * 4, wz - 18 + i * 9, 9, 8, 9)));
+  k.light(paint(jitter(ico(1, 1), 0.14, 626), MIST, tf(wx + wall.footAt(z2) + 8, 4, z2, 7, 6, 9)));
+  k.add(paint(cyl(1, 1, 0.6, 14), '#2f6f6a', tf(foot + 30, 0.3, wz - 8, 26, 1, 46)), paint(cyl(1, 1, 0.66, 14), '#3f8a80', tf(foot + 24, 0.33, wz - 6, 14, 1, 30)));
+  for (let i = 0; i < 6; i++) k.add(paint(jitter(dodeca(1), 0.2, 65 + i), '#7a6656', tf(foot + 30 + (hash2(i, 66) - 0.5) * 34, 0.8, wz - 40 + i * 13, 3.4, 1.8, 3.4)));
+  // Cerrado no alto: tufos e arvoretas atrás da quina (também atrás do vão: a silhueta de cima é verde).
+  for (let i = 0; i < 14; i++) {
+    const z = -70 + i * 10.6 + (hash2(i, 63) - 0.5) * 4;
+    const s = 4.5 + hash2(i, 64) * 3;
+    k.add(paint(jitter(ico(1, 0), 0.2, 62 + i), i % 3 ? '#6f8a3a' : '#5a7f32', tf(wx + wall.lipAt(z) - 6 - hash2(i, 65) * 14, Math.max(wall.topAt(z), H * 0.96) + s * 0.4, z, s * 1.2, s * 0.8, s * 1.2)));
+  }
+  return k.model([-10, H], 0.05, 61);
 }
 
-/** Buritizal (vereda): quatro buritis de leque com a saia de folhas secas e o capim úmido no pé. */
+/**
+ * Buritizal (vereda): a fileira de buritis ao longo do córrego, cada um com o tronco liso e alto e a copa redonda de
+ * leques (os de baixo caídos, a saia de folhas secas) — a vereda do cerrado. Antes eram quatro num bolo de 32 m, que
+ * de longe lia como um coqueiral qualquer; a fileira de sete, de alturas diferentes, enche o quadro com o desenho dela.
+ */
 function buriti(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const palms: Array<[number, number, number]> = [[0, 0, 22], [-6, -9, 18], [-3, 10, 25], [-12, 3, 15]];
+  const palms: Array<[number, number, number]> = [[-2, -33, 19], [1, -22, 26], [-4, -11, 22], [0, 0, 29], [-3, 11, 24], [1, 22, 20], [-2, 33, 27]];
   palms.forEach(([x, z, H], t) => {
     const seed = 70 + t;
-    k.add(paint(cyl(0.42, 0.55, H, 7), '#8a857a', tf(x, H / 2, z)));
-    k.add(paint(cone(1.6, 3.2, 7), '#8a6a3a', tf(x, H - 1.6, z, 1, -1, 1)));
-    const n = 11;
+    k.add(paint(cyl(0.45, 0.6, H, 7), '#8a857a', tf(x, H / 2, z)));
+    k.add(paint(cone(1.9, 4.2, 7), '#8a6a3a', tf(x, H - 2.1, z, 1, -1, 1)));
+    const n = 13;
     for (let b = 0; b < n; b++) {
       const a = (b / n) * Math.PI * 2 + hash2(seed, b) * 0.4;
-      const up = b % 3 === 0 ? 1.2 : 0.55 + hash2(seed, b + 9) * 0.4;
-      const tip: V3 = [x + Math.cos(a) * 2.6 * Math.sin(up), H + 2.6 * Math.cos(up), z + Math.sin(a) * 2.6 * Math.sin(up)];
-      k.add(beam([x, H, z], tip, 0.16, '#6a8a3a'));
+      // Inclinação a partir da vertical: dos leques de pé (0,3) aos caídos (1,9) — a copa fica redonda.
+      const up = 0.3 + ((b * 7) % n) / (n - 1) * 1.6 + (hash2(seed, b + 9) - 0.5) * 0.2;
+      const L = 3;
+      const tip: V3 = [x + Math.cos(a) * L * Math.sin(up), H + L * Math.cos(up), z + Math.sin(a) * L * Math.sin(up)];
+      k.add(beam([x, H, z], tip, 0.18, '#6a8a3a'));
       // Leque perpendicular ao pecíolo, inclinado para fora.
       const m = new THREE.Matrix4().compose(new THREE.Vector3(...tip), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -a + Math.PI / 2, -(up - 0.35), 'YXZ')), new THREE.Vector3(1, 1, 1));
-      k.add(fanLeaf(4.4, 7, b % 2 ? '#4f8f3a' : '#5ea044', m));
+      k.add(fanLeaf(4.8, 7, b % 3 === 0 ? '#3f7f34' : b % 2 ? '#4f8f3a' : '#5ea044', m));
     }
   });
-  for (let i = 0; i < 5; i++) k.add(paint(jitter(ico(1, 0), 0.2, 80 + i), i % 2 ? '#5a9a3a' : '#6aa844', tf(-5 + (hash2(i, 81) - 0.5) * 16, 0.4, (i - 2) * 6, 3.2, 1.2, 3.2)));
-  return k.model([0, 26], 0.05, 71);
+  // A vereda: o capim úmido verde-vivo em faixa, o córrego e as moitas no pé.
+  k.add(paint(box(16, 0.3, 84), '#6aa844', tf(-1, 0.15, 0)), paint(box(3.2, 0.36, 80), '#4f8aa0', tf(3, 0.18, 0)));
+  for (let i = 0; i < 7; i++) k.add(paint(jitter(ico(1, 0), 0.2, 80 + i), i % 2 ? '#5a9a3a' : '#6aa844', tf(-3 + (hash2(i, 81) - 0.5) * 8, 0.4, (i - 3) * 11 + 5, 3.4, 1.3, 3.4)));
+  return k.model([0, 30], 0.05, 71);
 }
 
-/** Gruta do Lago Azul (Bonito): paredão de calcário com mata, a boca escura da gruta e o azul lá dentro. */
+/**
+ * Gruta do Lago Azul (Bonito): o morro de calcário claro tomado de mata, a boca grande e escura da gruta na encosta e,
+ * lá dentro, o azul do lago (luz: brilha no escuro da boca). Antes era uma caixa de pedra de topo reto com uma boca
+ * pequena, e o azul — 33 m² virados para dentro da pedra — não se via.
+ */
 function grutaLagoAzul(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const W = 56; const H = 30;
-  const rock = jitter(new THREE.BoxGeometry(26, H + 8, W, 2, 4, 6), 0.08, 91);
-  const g = paint(rock, '#b8ab90', tf(-13, (H - 8) / 2, 0));
-  tintUp(g, '#4f8a3a', 0.6, 1);
-  k.add(g);
-  // Mata por cima e dos lados.
-  for (let i = 0; i < 9; i++) k.add(paint(jitter(ico(1, 0), 0.18, 92 + i), i % 2 ? '#2f7a36' : '#3f8a3c', tf(-6 - hash2(i, 93) * 16, H + 2, -W / 2 + 4 + i * 6, 4.5, 3.4, 4.5)));
-  for (const s of [-1, 1]) k.add(paint(jitter(ico(1, 0), 0.18, 102 + s), '#2f7a36', tf(2, 5, s * (W / 2 + 3), 6, 7, 5)));
-  // Boca da gruta: arco escuro na face, e o azul do lago no fundo (brilha).
+  const H = 30; const wx = -10;
+  const wall = cliff({ len: 84, H, strata: ['#cfc4a6', '#bdb092', '#d8cfb4', '#ada084'], layers: 5, seed: 91, cols: 20, depth: 34, batter: 0.06, gully: 2.4, gullyLen: 9, bay: 5, ragged: 0.16, ledge: 0.8, talus: 3, talusColor: '#a49a80', top: '#4f8a3a', ledgeTop: '#5a8f3e', ends: 0.22 }, tf(wx, 0, 0));
+  k.add(wall.geo);
+  // Mata fechada no alto (copas redondas acima da quina, o topo não é reta) e moitas no pé dos lados.
+  for (let i = 0; i < 11; i++) {
+    const z = -36 + i * 7.2 + (hash2(i, 93) - 0.5) * 3;
+    const s = 4 + hash2(i, 94) * 2.6;
+    k.add(paint(jitter(ico(1, 0), 0.18, 92 + i), i % 2 ? '#2f7a36' : '#3f8a3c', tf(wx + wall.lipAt(z) - 3 - hash2(i, 95) * 10, wall.topAt(z) + s * 0.5, z, s * 1.1, s, s * 1.1)));
+  }
+  for (const s of [-1, 1]) k.add(paint(jitter(ico(1, 0), 0.18, 102 + s), '#2f7a36', tf(wx + wall.footAt(s * 30) + 3, 5, s * 30, 6, 7, 6)));
+  // Boca da gruta: arco escuro na face (um pouco à frente dela), as estalactites e o azul do lago no fundo, aceso.
+  const R = 13.5; const cx = wx + wall.footAt(0) + 3.6; const cy = 7;
   const arch: number[] = [];
-  const R = 9; const cx = 0.6; const cy = 9;
-  for (let a = 0; a < 8; a++) {
-    const t0 = (a / 8) * Math.PI; const t1 = ((a + 1) / 8) * Math.PI;
+  for (let a = 0; a < 10; a++) {
+    const t0 = (a / 10) * Math.PI; const t1 = ((a + 1) / 10) * Math.PI;
     arch.push(cx, cy, 0, cx, cy + Math.sin(t0) * R * 1.3, Math.cos(t0) * R, cx, cy + Math.sin(t1) * R * 1.3, Math.cos(t1) * R);
   }
-  arch.push(cx, 0.4, -R, cx, 0.4, R, cx, cy, R, cx, 0.4, -R, cx, cy, R, cx, cy, -R);
-  k.add(paint(tris(arch), '#12161c'));
-  k.light(paint(tris([cx + 0.1, 0.5, -6, cx + 0.1, 0.5, 6, cx + 0.1, 4.2, 4, cx + 0.1, 0.5, -6, cx + 0.1, 4.2, 4, cx + 0.1, 4.2, -4]), '#1f8cff'));
+  arch.push(cx, 0.3, -R, cx, 0.3, R, cx, cy, R, cx, 0.3, -R, cx, cy, R, cx, cy, -R);
+  k.add(paint(tris(arch), '#101418'));
+  // Estalactites penduradas no alto da boca: é gruta, não túnel.
+  for (let i = 0; i < 6; i++) {
+    const t = Math.PI * (0.28 + (i / 5) * 0.44); const len = 2.6 + hash2(i, 96) * 2.2;
+    k.add(paint(cone(0.9, len, 5), '#d8cfb4', tf(cx + 0.3, cy + Math.sin(t) * R * 1.3 - len / 2 - 0.3, Math.cos(t) * R * 0.94, 1, 1, 1, Math.PI, 0, 0)));
+  }
+  const lake: number[] = [];
+  const L = (y: number): number => Math.sqrt(Math.max(0, 1 - ((y - cy) / (R * 1.3)) ** 2)) * R * 0.86; // meia largura dentro do arco
+  for (const [y0, y1] of [[0.4, 4], [4, 8], [8, 12]] as Array<[number, number]>) {
+    const w0 = y0 < cy ? R * 0.86 : L(y0); const w1 = y1 < cy ? R * 0.86 : L(y1);
+    lake.push(cx + 0.15, y0, -w0, cx + 0.15, y0, w0, cx + 0.15, y1, w1, cx + 0.15, y0, -w0, cx + 0.15, y1, w1, cx + 0.15, y1, -w1);
+  }
+  k.light(bothSides(paint(tris(lake), '#1a86ff')));
   // Passarela de madeira descendo até a boca.
-  k.add(beam([14, 0.6, -10], [2, 1, -3], 2, WOOD, 0.3));
-  for (let i = 0; i < 4; i++) k.add(paint(box(0.2, 1.1, 0.2), WOOD, tf(14 - i * 4, 1.2, -10 + i * 2.3)));
-  return k.model([0, H], 0.07, 91);
+  k.add(beam([cx + 14, 0.6, -14], [cx + 1, 1, -6], 2.2, WOOD, 0.3));
+  for (let i = 0; i < 4; i++) k.add(paint(box(0.2, 1.1, 0.2), WOOD, tf(cx + 14 - i * 4.3, 1.2, -14 + i * 2.6)));
+  return k.model([0, H + 8], 0.05, 91);
 }
 
 /**
@@ -631,11 +811,12 @@ function jabiru(k: Kit, x: number, y: number, z: number, face: number, S: number
   const M = (a: number, h: number, b: number, sx: number, sy: number, sz: number, tilt = 0): THREE.Matrix4 => tf(...P(a, h, b), sx * S, sy * S, sz * S, 0, -face, tilt);
   const BLACK = '#16161a'; const WHITE = '#f8f8f4';
   const fly = pose === 'fly';
-  // Corpo (comprido em +X) e as asas.
+  // Corpo (comprido em +X) e as asas. Em voo, as asas no plano do corpo; de asas abertas no ninho, as asas levantadas em
+  // V e de frente para quem olha (a vela branca que se vê de longe; deitadas, de frente eram um risco).
   k.add(paint(ico(1, 0), WHITE, M(0, fly ? 0 : 0.95, 0, 0.42, 0.24, 0.22)));
-  if (pose !== 'stand') {
-    const up = fly ? 0.12 : 0.45;
-    for (const b of [-1, 1]) k.add(paint(box(0.5, 0.05, 1.25), WHITE, tf(...P(-0.05, (fly ? 0 : 1.05) + 0.3 * up, b * 0.68), S, S, S, -b * up, -face, 0)));
+  if (fly) for (const b of [-1, 1]) k.add(paint(box(0.5, 0.05, 1.25), WHITE, tf(...P(-0.05, 0.036, b * 0.68), S, S, S, -b * 0.12, -face, 0)));
+  if (pose === 'wings') {
+    for (const b of [-1, 1]) k.add(paint(box(0.06, 0.55, 1.25), WHITE, tf(...P(-0.05, 1.25, b * 0.62), S, S, S, -b * 0.5, -face, 0)));
   }
   if (fly) {
     // Pescoço e cabeça esticados para a frente, pernas para trás.
@@ -654,44 +835,46 @@ function jabiru(k: Kit, x: number, y: number, z: number, face: number, S: number
 }
 
 /**
- * Ninho de tuiuiú: a árvore alta e rala da beira da baía com o ninho largo de gravetos no topo — um tuiuiú de pé e
- * outro de asas abertas nele, um terceiro chegando em voo —, a baía rasa embaixo com dois pescando. Os tuiuiús têm a
- * proporção de verdade ×2,2 (para ler a 40–80 m), brancos contra a copa escura e o céu.
+ * Ninho de tuiuiú: a árvore alta da beira da baía com a copa escura e o ninho largo de gravetos no topo — um tuiuiú de
+ * pé e outro de asas abertas nele, um terceiro chegando em voo —, a baía rasa embaixo com dois pescando. Os tuiuiús
+ * têm a proporção de verdade ×3 e ficam de perfil para a pista (de frente, um tuiuiú é um palito), brancos contra a
+ * copa escura e o céu. Antes, árvore de 16 m com tufos ralos e tuiuiús ×2,2 de frente: 99 m² de silhueta, um graveto.
  */
 function tuiuiuNinho(): ReturnType<Kit['model']> {
   const k = new Kit();
-  const bark = '#5e5040'; const H = 16; const S = 2.2;
+  const bark = '#5e5040'; const H = 19; const S = 3;
   // Baía rasa ao lado da árvore (clara na borda, escura no meio) com a orla de capim, comprida ao longo da pista.
-  k.add(paint(cyl(1, 1, 0.16, 14), '#8aa850', tf(-1, 0.08, 7, 9.5, 1, 16)));
-  k.add(paint(cyl(1, 1, 0.2, 14), '#7aa6a0', tf(-1.3, 0.1, 7.5, 7.6, 1, 13.4)), paint(cyl(1, 1, 0.24, 14), '#4f7f80', tf(-2, 0.12, 8, 4.8, 1, 9)));
-  // Tronco grosso, forquilha no alto e galhos com copas ralas abaixo do ninho (o ninho fica no céu).
-  k.add(paint(cyl(0.7, 1.05, H, 7), bark, tf(0, H / 2, 0)));
-  const forks: V3[] = [[2.4, H + 2.6, 1.0], [-2.4, H + 2.4, -1.2], [0.4, H + 3.0, 2.4], [-0.4, H + 2.6, -2.6]];
-  for (const f of forks) k.add(beam([0, H - 0.4, 0], f, 0.5, bark));
-  for (let b = 0; b < 5; b++) {
-    const a = hash2(111, b) * 6.28; const y = 6 + b * 1.7;
-    const tip: V3 = [Math.cos(a) * 4.4, y + 2, Math.sin(a) * 5];
-    k.add(beam([0, y, 0], tip, 0.26, bark), paint(jitter(ico(1, 0), 0.2, 112 + b), b % 2 ? '#4a7a34' : '#5a8a3a', tf(tip[0], tip[1] + 0.5, tip[2], 2.6, 1.5, 2.6)));
+  k.add(paint(cyl(1, 1, 0.16, 14), '#8aa850', tf(-1, 0.08, 9, 11, 1, 19)));
+  k.add(paint(cyl(1, 1, 0.2, 14), '#7aa6a0', tf(-1.3, 0.1, 9.5, 8.8, 1, 16)), paint(cyl(1, 1, 0.24, 14), '#4f7f80', tf(-2, 0.12, 10, 5.6, 1, 11)));
+  // Tronco grosso, forquilha no alto e a copa: galhos com tufos largos e escuros abaixo do ninho (o ninho fica por cima).
+  k.add(paint(cyl(0.85, 1.3, H, 7), bark, tf(0, H / 2, 0)));
+  const forks: V3[] = [[2.8, H + 2.8, 1.2], [-2.8, H + 2.6, -1.4], [0.5, H + 3.2, 2.8], [-0.5, H + 2.8, -3]];
+  for (const f of forks) k.add(beam([0, H - 0.4, 0], f, 0.6, bark));
+  for (let b = 0; b < 7; b++) {
+    const a = (b / 7) * 6.28 + hash2(111, b) * 0.6; const y = 8 + (b % 4) * 2.2;
+    const tip: V3 = [Math.cos(a) * 4.6, y + 2.2, Math.sin(a) * 6.2];
+    k.add(beam([0, y, 0], tip, 0.32, bark), paint(jitter(ico(1, 0), 0.2, 112 + b), b % 2 ? '#3e6e30' : '#4a7a34', tf(tip[0], tip[1] + 0.6, tip[2], 4, 2.4, 4.4)));
   }
   // Ninho: prato largo de gravetos sobre a forquilha, a borda desfiada.
-  const ny = H + 2.8;
-  k.add(paint(jitter(cyl(3.6, 2.2, 1.6, 10), 0.12, 113), '#6e5232', tf(0, ny, 0)));
-  k.add(paint(cyl(2.9, 2.9, 0.3, 10), '#4e3a24', tf(0, ny + 0.72, 0)));
-  for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3; k.add(beam([Math.cos(a) * 2.6, ny + 0.2, Math.sin(a) * 2.6], [Math.cos(a) * 4.4, ny - 0.5, Math.sin(a) * 4.4], 0.18, '#7a5c38')); }
-  // Casal no ninho (olhando a pista) e o terceiro chegando.
-  jabiru(k, 0.6, ny + 0.8, -1.2, 0.2, S, 'stand');
-  jabiru(k, -0.6, ny + 0.8, 1.4, -0.4, S, 'wings');
-  jabiru(k, 3, H + 7.5, -8, 0.4, S, 'fly');
-  // Dois pescando na baía.
-  jabiru(k, 1.5, 0, 4, 0.9, S, 'stand');
-  jabiru(k, 0, 0, 13, -1.2, S, 'stand');
-  return k.model([0, H + 6], 0.05, 111);
+  const ny = H + 3;
+  k.add(paint(jitter(cyl(4.6, 2.8, 2, 10), 0.12, 113), '#6e5232', tf(0, ny, 0)));
+  k.add(paint(cyl(3.7, 3.7, 0.3, 10), '#4e3a24', tf(0, ny + 0.92, 0)));
+  for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3; k.add(beam([Math.cos(a) * 3.3, ny + 0.2, Math.sin(a) * 3.3], [Math.cos(a) * 5.6, ny - 0.6, Math.sin(a) * 5.6], 0.24, '#7a5c38')); }
+  // Casal no ninho (de perfil para a pista; o de asas abertas de frente, as asas em V) e o terceiro chegando.
+  jabiru(k, 0.4, ny + 1, -1.8, Math.PI / 2, S, 'stand');
+  jabiru(k, -0.8, ny + 1, 1.8, 0.1, S, 'wings');
+  jabiru(k, 3, H + 9, -10, 0.35, S, 'fly');
+  // Dois pescando na baía, de perfil.
+  jabiru(k, 1.5, 0, 5, Math.PI / 2 + 0.3, S, 'stand');
+  jabiru(k, 0, 0, 15, -Math.PI / 2 - 0.2, S, 'stand');
+  return k.model([0, H + 8], 0.05, 111);
 }
 
 /**
- * Portal da Transpantaneira: o pórtico de troncos grossos (11 m) com a travessa dupla, a tábua clara do nome (faixa
+ * Portal da Transpantaneira: o pórtico de troncos grossos (~17 m) com a travessa dupla, a tábua clara do nome (faixa
  * entalhada, sem letras) e o telhadinho, as lanternas, a cerca de curral de três réguas dos dois lados e a estrada de
- * terra que passa por ele e segue pela primeira das pontes de madeira, sobre o corixo com aguapés.
+ * terra que passa por ele e segue pela primeira das pontes de madeira, sobre o corixo com aguapés. Montado em 1/1,4 e
+ * escalado, com troncos mais grossos e a tábua maior: com 13,5 m e troncos de 1,9 m, de 150 m era um risco marrom.
  */
 function portalTranspantaneira(): ReturnType<Kit['model']> {
   const k = new Kit();
@@ -705,17 +888,17 @@ function portalTranspantaneira(): ReturnType<Kit['model']> {
   for (const x of [-48, -43, -38, -33]) for (const s of [-1, 1]) k.add(paint(box(0.4, 3, 0.4), '#5a3e26', tf(x, 0.6, s * 3)));
   for (const s of [-1, 1]) k.add(paint(box(18, 0.2, 0.2), '#6a4a2a', tf(-40, 2.6, s * 3.1)));
   for (const s of [-1, 1]) {
-    // Pilar de tronco com a mão-francesa.
-    k.add(paint(cyl(0.85, 0.95, H + 1, 8), log, tf(0, (H + 1) / 2, s * span / 2)));
-    k.add(beam([0, 0.2, s * (span / 2 + 3.2)], [0, H * 0.6, s * span / 2], 0.42, log));
-    k.add(beam([-3, 0.2, s * span / 2], [0, H * 0.55, s * span / 2], 0.42, log));
+    // Pilar de tronco grosso com a mão-francesa.
+    k.add(paint(cyl(1.05, 1.2, H + 1.6, 8), log, tf(0, (H + 1.6) / 2, s * span / 2)));
+    k.add(beam([0, 0.2, s * (span / 2 + 3.4)], [0, H * 0.6, s * span / 2], 0.55, log));
+    k.add(beam([-3, 0.2, s * span / 2], [0, H * 0.55, s * span / 2], 0.55, log));
   }
-  k.add(paint(cyl(0.7, 0.7, span + 4.4, 8), log, tf(0, H + 0.3, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
-  k.add(paint(cyl(0.5, 0.5, span, 8), log, tf(0, H - 3.2, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
-  // Tábua do nome: clara, com a faixa entalhada escura e os cravos.
-  k.add(paint(box(0.4, 2.3, 12), '#dcbc80', tf(0.35, H - 1.45, 0)), paint(box(0.45, 1.0, 10.4), '#5a3a22', tf(0.4, H - 1.45, 0)));
-  for (const dz of [-5.4, 5.4]) k.add(paint(box(0.5, 0.5, 0.5), '#3a2a1a', tf(0.45, H - 1.45, dz)));
-  k.add(paint(gable(3, 1.5, span + 5, 0.2), '#6a4428', tf(0, H + 0.9, 0)));
+  k.add(paint(cyl(0.85, 0.85, span + 5, 8), log, tf(0, H + 0.4, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
+  k.add(paint(cyl(0.6, 0.6, span, 8), log, tf(0, H - 3.9, 0, 1, 1, 1, Math.PI / 2, 0, 0)));
+  // Tábua do nome: grande e clara, com a faixa entalhada escura e os cravos.
+  k.add(paint(box(0.4, 3.0, 13.4), '#e2c488', tf(0.35, H - 1.85, 0)), paint(box(0.45, 1.3, 11.6), '#5a3a22', tf(0.4, H - 1.85, 0)));
+  for (const dz of [-6.1, 6.1]) k.add(paint(box(0.5, 0.5, 0.5), '#3a2a1a', tf(0.45, H - 1.85, dz)));
+  k.add(paint(gable(3.4, 1.8, span + 6, 0.2), '#6a4428', tf(0, H + 1.1, 0)));
   // Lanternas acesas nos pilares.
   for (const s of [-1, 1]) k.light(paint(box(0.5, 0.7, 0.5), LAMP, tf(1.0, H - 4.6, s * (span / 2 - 0.2))));
   // Cerca de curral de três réguas dos dois lados.
@@ -723,7 +906,7 @@ function portalTranspantaneira(): ReturnType<Kit['model']> {
     for (let i = 0; i < 6; i++) k.add(paint(box(0.3, 2, 0.3), log, tf(0, 1, s * (span / 2 + 3.2 + i * 3))));
     for (const y of [0.55, 1.15, 1.75]) k.add(paint(box(0.14, 0.22, 15.4), '#9a7048', tf(0.12, y, s * (span / 2 + 10.7))));
   }
-  return k.model([0, H + 2], 0.06, 121);
+  return scaled(k.model([0, H + 2], 0.06, 121), 1.4);
 }
 
 export const LANDMARKS_BRASIL_CENTRO_SUL: LandmarkRegistry = {
