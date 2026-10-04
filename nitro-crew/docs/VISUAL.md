@@ -618,6 +618,24 @@ discos com céu entre eles e a cortina de São Romão num vão de 56 m (água 20
 Exagero de escala entre 1,2× e 1,75×; tempo à vista mudou no máximo 0,6 s. O que a régua não alcança: as dunas de
 Piaçabuçu ficam atrás da crista do relevo e a ponte de Palmas atrás das quadras de fundo da cidade (o `sightSeconds`
 não conta relevo nem quadras); o vermelho do Xingó, a 300–450 m na névoa do deserto de dia, ainda chega bege.
+
+**1ª leva do Centro-Sul** (`brasil-centro-sul.ts`, `tests/landmarks-leitura-centro-sul-1.test.ts`): os 22 marcos
+avaliados de longe (folha de contato a el 0,04, e a 180/300/800 m na névoa do jogo) e no ponto de aproximação; 15
+refeitos ou ajustados, cada um com a medida que o fazia ilegível travada na vista de frente — a mesma régua, guardando
+também o material (a luz é o que se vê à noite). À noite e ao entardecer: o MASP só aparece em Sampa, à noite, e os
+pórticos no material liso apagavam — a caixa de janelas acesas lia como mais um prédio; agora são luz (vermelho aceso
+0 → 41% da face) e o vidro é escuro; o vidro da Catedral de Brasília também é luz (a coroa acende por dentro: 1 → 50%).
+Peça fina: a corrente da Hercílio Luz 1,25 → 3 m e a torre treliçada 3,5 → 8,5 m; a bomba da cuia 0,5 → 1,5 m, em
+diagonal. Tamanho: o convento coroa o topo aplainado do penhasco (336 → 1.392 m²), o casario sobe a ladeira (telhado
+mais alto 17 → 32 m), igreja açoriana ×1,4, cuia ×1,5, portal da Transpantaneira ×1,4, trem da Serra Verde 1,6×, ninho
+de tuiuiú com copa e tuiuiús ×3 de perfil, buritizal numa vereda de sete. Silhueta: a araucária com a copa em taça
+(verde 52 → 81%); a cachoeira dos Veadeiros deixou de ser caixa (paredão `cliff` de quartzito com dois saltos: água 7 →
+27%); a gruta do Lago Azul é um morro de mata com a boca grande e o lago aceso (o plano azul antigo era luz virada
+para dentro da pedra e nunca aparecia — a luz tem uma face só; `bothSides` para vidro, lago e cortinas abertas); a
+estufa de Curitiba tem o ferro branco grosso e o vidro verde (vidro cor de céu 81 → 0%). Sem mudança (nota 4–5): Cristo,
+Pão de Açúcar, Ponte Estaiada, igreja barroca, Terceira Ponte, Catedral de Pedra e Congresso. Tempo à vista: todos
+≥ 2,5 s (o menor continua o Convento, 2,5 s). Ficam em 3: o portal da Transpantaneira (genérico sem o nome escrito) e,
+em Bonito, o buritizal, que compete com as palmeiras do bioma.
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
