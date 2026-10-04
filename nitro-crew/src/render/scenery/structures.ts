@@ -5,7 +5,7 @@
 // Puro: só Three, sem DOM.
 import * as THREE from 'three';
 import { hash2 } from '../noise';
-import { box, cone, cyl, gable, hip, ico, jitter, lean, merge, paint, shadeY, speckle, sphere, tf, tintUp, tris, type Geo, type MatKey, type Model, type ModelPart } from './geom';
+import { box, cone, cyl, gable, hip, ico, jitter, lean, lumpy, merge, mottle, paint, roundedBar, shadeY, sphere, tf, tintUp, tintUpSoft, tris, type Geo, type MatKey, type Model, type ModelPart } from './geom';
 
 /** Tamanho (m) de uma repetição de cada textura de fachada (4 colunas de janela × 4 andares). */
 export const FACADE_TILE: Record<'office' | 'apartment' | 'classic' | 'house', [number, number]> = {
@@ -464,7 +464,8 @@ export function fence(style: FenceStyle, seed: number): Model {
       for (const y of [0.55, 1.02]) parts.push(paint(box(0.06, 0.06, L), '#e8eaee', tf(0, y, 0)));
       break;
     case 'hedge':
-      parts.push(paint(jitter(box(0.9, 1.1, L + 0.1), 0.05, seed), '#3c7a3a', tf(0, 0.55, 0)));
+      // Cerca-viva aparada de quinas redondas (era uma caixa). A seção não muda ao longo do lance: emenda sem degrau.
+      parts.push(paint(roundedBar(0.9, 1.1, L + 0.1, 0.32, 3), '#3c7a3a'));
       break;
   }
   const g = merge(parts);
@@ -616,9 +617,9 @@ export function pier(): Model {
   return { parts: [{ geometry: merge(parts), mat: 'flat' }] };
 }
 
-/** Pedras soltas grandes no mar/encosta (um penedo). */
+/** Pedras soltas grandes no mar/encosta (um penedo): redondo em bolhas macias, a cor por ponto (era por face). */
 export function seaRock(seed: number, color: string, r: number): Model {
-  const g = paint(jitter(ico(1, 1), 0.16, seed), color, tf(0, r * 0.2, 0, r, r * 0.8, r * 0.9));
-  return { parts: [{ geometry: speckle(tintUp(g, '#ffffff', 0.7, 0.2), 0.06, seed), mat: 'flat' }] };
+  const g = paint(lumpy(sphere(1, 14, 7), 0.12, seed), color, tf(0, r * 0.2, 0, r, r * 0.8, r * 0.9));
+  return { parts: [{ geometry: mottle(tintUpSoft(g, '#ffffff', 0.7, 0.2), 0.1, seed, 0.5), mat: 'flat' }] };
 }
 
