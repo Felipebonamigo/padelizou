@@ -24,10 +24,12 @@
 
 ## As regras (sem exceção)
 
-1. **Licença.** Só entra modelo marcado **CC BY 4.0**, que permite uso comercial com crédito. O jogo vai ser
-   vendido na Steam. "Private", modelo sem licença visível ou licença que você não consiga ler na página: **pula**.
-   Leia também os termos de uso da Meshy para download de modelo da comunidade e anote o que eles dizem sobre
-   uso comercial. Se os termos contradisserem o CC BY da página, pare e pergunte ao Felipe.
+1. **Licença.** Só entra modelo marcado **CC0** na página. O jogo vai ser vendido na Steam. "Private", modelo sem
+   licença visível ou licença que você não consiga ler na página: **pula**.
+   *Revisto em 04/10/2026:* a regra pedia CC BY 4.0, mas os Termos de Uso da Meshy (§3.3, versão de 19/09/2026)
+   põem todo modelo 3D da comunidade em CC0 1.0, e o Felipe aceitou. O CC0 permite uso comercial e não exige
+   crédito, e o crédito vai para o `CREDITOS.md` mesmo assim. Os termos (§2.4) também proíbem remover metadado que
+   identifique conteúdo de IA: confira o GLB antes de reduzir. Se a página ou os termos mudarem, pare e pergunte.
 2. **Nada de marca nem de pessoa real.** Recuse raquete com logo (Bullpadel, Nox, Adidas, Head, Babolat…),
    roupa com marca, o logo do Premier Padel ou da FIP, e o rosto ou o corpo de uma pessoa reconhecível
    (atleta, celebridade, político). Na dúvida, pula.
@@ -41,6 +43,10 @@
    para sempre. Passou do limite: escolha outro modelo ou pergunte.
 6. **Polígonos**, como teto: raquete 8 mil triângulos, bola 2 mil, jogador 40 mil, objeto de cenário 15 mil,
    arquibancada 60 mil. Meça; não confie na página.
+   *Revisto em 04/10/2026:* os modelos da comunidade vêm com 160 mil a 900 mil triângulos. Com aprovação do
+   Felipe, o original é reduzido **localmente** até o teto pelo `simplify` do glTF-Transform (meshoptimizer,
+   sem IA), e só o reduzido entra no git. O `CREDITOS.md` anota antes e depois. O que não cabe no teto nem
+   reduzido fica de fora.
 
 ## O que procurar, em ordem de prioridade
 
