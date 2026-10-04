@@ -8,6 +8,7 @@
 // ?ids=a,b,c&night=1&cols=4&az=0.6&el=0.16&zoom=1
 import * as THREE from 'three';
 import { LANDMARKS_BRASIL_NORTE_NORDESTE as L } from '../src/render/scenery/landmarks/brasil-norte-nordeste.ts';
+import { smoothModel } from '../src/render/scenery/smooth.ts';
 import { facadeTextures } from '../src/render/scenery/textures.ts';
 
 const q = new URLSearchParams(location.search);
@@ -26,11 +27,11 @@ renderer.shadowMap.enabled = true;
 renderer.setScissorTest(true);
 document.body.appendChild(renderer.domElement);
 
-const flat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, side: THREE.DoubleSide });
+const flat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: false, roughness: 0.86, side: THREE.DoubleSide });
 const fac = {};
 for (const s of ['office', 'apartment', 'classic', 'house']) {
   const t = facadeTextures(s);
-  fac[s] = new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, emissiveMap: t.light, emissive: '#ffffff', emissiveIntensity: night ? 1.25 : 0, roughness: 0.78, flatShading: true });
+  fac[s] = new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, emissiveMap: t.light, emissive: '#ffffff', emissiveIntensity: night ? 1.25 : 0, roughness: 0.78, flatShading: false });
 }
 const mats = { flat, ...fac,
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color().setScalar(night ? 2.0 : 0.95) }),
@@ -47,7 +48,7 @@ ids.forEach((id, i) => {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(night ? '#0b1440' : '#8fc8f0');
   const box3 = new THREE.Box3();
-  const model = d.build();
+  const model = smoothModel(`lm:${id}`, d.build()); // a mesma normal suave do jogo (catalog.ts)
   for (const p of model.parts) {
     const mesh = new THREE.Mesh(p.geometry, mats[p.mat]);
     mesh.castShadow = p.mat !== 'glow' && p.mat !== 'beacon'; mesh.receiveShadow = true;

@@ -62,7 +62,7 @@ export function createCarMaterial(): { material: THREE.MeshPhysicalMaterial; uni
     uPopup: { value: 0 }, uEnvBoost: { value: 1.6 },
   };
   const material = new THREE.MeshPhysicalMaterial({
-    vertexColors: true, flatShading: true, roughness: 0.4, metalness: 0.2,
+    vertexColors: true, roughness: 0.4, metalness: 0.2, // normal suave da malha (kit.ts), não sombreado plano
     clearcoat: 0, clearcoatRoughness: 0.06,
   });
   material.onBeforeCompile = (shader) => {

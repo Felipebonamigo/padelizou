@@ -93,12 +93,75 @@ numa malha, largada no decalque), triângulos sobem ~8–10 mil por viewport (pl
 redondas, zebras, duas colunas de terreno), a CPU do terreno por quadro cai (tabela por pista). Baixa e média não
 ganham nada caro: o bloom continua só na alta; sombras como antes.
 
+## Sombreamento: normais suaves com vinco
+
+Pedido do dono (04/10/2026): o jogo inteiro "menos quadrado". Até aqui todo material do cenário e dos carros usava
+`flatShading` — cada triângulo uma luz só, então cilindro, cúpula, copa, pedra, para-lama e pneu saíam facetados
+mesmo quando a silhueta já era redonda. Agora a luz é suave onde a superfície é curva e a aresta continua viva onde
+ela é de verdade (caixa, beiral, vinco da lataria). A geometria não mudou: mesma malha, mesmos triângulos.
+
+- **A conta** (`src/render/normals.ts`, `smoothNormals(geo, vinco)`): a malha continua **não indexada** — cor,
+  pintura e material seguem por face, intactos. Os pontos coincidentes são soldados (0,1 mm, para as contas em
+  float32 de peças fundidas); aresta de exatamente duas faces com dobra menor que o vinco é lisa, o resto (dobra
+  maior, borda solta, aresta de 3+ faces) é viva. Em cada ponto, as faces ligadas por arestas lisas formam um leque
+  e dividem **uma** normal (média ponderada pelo ângulo do canto), como o "auto smooth" dos editores 3D — sem
+  costura de luz dentro de uma região lisa. (A primeira versão fazia a média por face, só com as vizinhas dentro do
+  vinco; num morro ou copa irregular cada canto ficava com uma normal e a luz mostrava costuras. Teste "sem costura".)
+- **Telhado** (`ROOF_TURN_DEG`, só construções e marcos): as águas de um telhado baixo de quatro águas dobram só
+  ~28° entre si — menos que o gomo de um cilindro de 10 lados — e pelo vinco viravam travesseiro. Com a regra, a
+  aresta entre duas faces inclinadas que viram 75° ou mais em planta fica viva (o gomo de uma cúpula de 8 vira 45°),
+  e também a entre uma água e uma face plana de verdade (a cumeeira do telhado truncado: senão o leque do canto de
+  cima passava de uma água para a outra através dela).
+- **Face degenerada** (a ponta colapsada de um `hip()`, área zero) não conta na aresta: antes de corrigir, ela fazia a
+  aresta "ter 3 faces" e a travava viva.
+- **Enrolamento trocado**, que o sombreado plano escondia (ele tira a normal das derivadas da tela, sempre para a
+  câmera): a vizinha que percorre a aresta no mesmo sentido entra **virada** na média e cada face fica com a normal
+  do próprio lado. O diagnóstico achou 28 partes assim (marcos do Norte/Nordeste como o coqueiral e a palafita,
+  palmeiras e samambaias). Com o material de dois lados do cenário, a luz sai certa dos dois lados.
+- **Onde** (uma vez por modelo, nunca por instância nem por quadro): cenário e marcos em `catalog.ts` `getModel` →
+  `scenery/smooth.ts` (vinco pela família do id; só as partes `flat` e de fachada — `glow`, `beacon` e `cone` são
+  luz, sem normal, e `panel` é placa plana; malha indexada é arte glTF com normal própria e fica como veio); carros em
+  `MeshBuilder.build()` (`cars/kit.ts`) — o casco procedural e o carregado de um .glb passam pelo mesmo caminho e saem
+  iguais — e rodas com o vinco delas (`wheels.ts`). Os materiais liso, decoração, horizonte (`haze`), fachadas,
+  carros e fantasma não usam mais `flatShading`. Os showrooms (`tools/scenery-showroom.html`,
+  `landmark-showroom-*.html`) mostram como no jogo; `scenery-showroom.html?…&flat=1` mostra o antes.
+- **Continua plano de propósito**: acostamento, zebras e box (`road.ts`: a crista de 3 vértices da zebra é o
+  desenho), os planos do horizonte (montanha facetada que o sol acende) e o modo Retrô (`src/render-pseudo3d/`).
+  O terreno já tinha normais suaves.
+
+| família (`CREASE`) | vinco | por quê (capturas `ondai-suave-*`) |
+|---|---|---|
+| carro (`car`) | 45° | lataria e para-lama lisos, para-brisa sem facetas; para-choque, grade, soleira, vinco de cintura e moldura do vidro vivos. 40° e 50° saíram quase iguais nas folhas de contato |
+| roda (`wheel`) | 50° | o pneu de 12 lados (30°) e o ombro ficam redondos; raios e porcas (caixas) continuam caixas |
+| vegetação (`plant`: tree, pine, palm, cactus, bush, tuft, flowers, far redondos/cones/palmeiras) | 60° | copa de icosaedro (41,8°), tronco e cacto de 6 lados (60°) e o cone da conífera redondos; 75° não mudava nada à vista |
+| pedra (`rock`: rock, searock, stack, mesa, termite, pebbles, far:rock/boulder) | 50° | lisa, mas o dodecaedro (63,4°) e a quina da laje ainda mostram a lasca; com 65° virava seixo de rio |
+| marcos (`landmark`, `lm:*`) + regra do telhado | 45° | cúpula, torre redonda (igreja barroca), cuia e vidro da Catedral lisos; caixa, telhado e pináculo de 4 lados vivos |
+| construções e objetos de pista (`built`, o resto) + regra do telhado | 40° | poste, caixa-d'água e torre de 10+ lados arredondam; casa, beiral, telhado (casa de fazenda, casa japonesa, pagode) e fachada (caixa) saem como antes |
+
+**Custo**: chamadas de desenho, triângulos e instâncias **iguais** (render-harness e scenery-harness, antes e depois:
+Copacabana 56 / 133.263, Sampa noite 66 / 153.112, Rochosas 52 / 153.412, Transpantaneira 50 / 141.044, Amalfi 53 /
+130.362; o cenário isolado nas 4 cenas × 1 e 4 jogadores do scenery-harness, idem): o quadro não muda, a normal já era
+um atributo do lote. A montagem, uma vez (Node, frio, antes → depois): carros (13 cascos + 9 rodas) ~35 → ~46 ms de
+mediana (o primeiro, com o JIT frio, ~95 → ~160 ms); o catálogo inteiro do cenário (435 modelos, 278 mil triângulos)
+~830 → ~1.100 ms; a troca de pista (layout + modelos) Copacabana ~285 → ~345 ms e Sampa ~195 → ~265 ms. O
+`smoothNormals` sozinho custa ~0,23 µs por canto (750 mil cantos do catálogo em ~175 ms).
+
+**Ainda parece quadrado** (próximo passo é geometria, não luz): a cor por face (`speckle`, as manchas das copas, das
+pedras e dos morros) continua mostrando as faces de propósito; silhuetas de poucos lados (tronco de 6, pneu de 12, o
+arco da roda em 6 facetas, a coroa da conífera); os detalhes de carro que são caixas (para-choque, retrovisor,
+aerofólio, grade) e as quinas da carroceria sem chanfro. Saída: chanfro (bevel) nas quinas de lataria e para-choque,
+mais lados nas silhuetas que aparecem perto (pneu, tronco, arco), e menos `speckle` onde a forma já é lisa.
+
+Testes: `tests/render-normals.test.ts` (a conta: cilindro, caixa, icosaedro, sem costura, enrolamento trocado, telhado
+com e sem cumeeira, cor por face e determinismo; e a garantia de que carros, rodas, o carro do glTF, os modelos do
+cenário e os materiais saem lisos — uma volta ao `flatShading` quebra ali).
+
 ## Cenário
 
 O que aparece na beira da pista: árvores, pedras, prédios, placas, arquibancadas, box, cercas, postes e os
-pontos de referência de cada país. Tudo procedural (Three.js + canvas), low-poly de faces planas e cor
-saturada, na linha de Horizon Chase Turbo. Código em `src/render/scenery/` (a porta de entrada continua
-`src/render/scenery.ts`, com o mesmo contrato para o renderizador: `new Scenery()`, `group`, `setNight()`,
+pontos de referência de cada país. Tudo procedural (Three.js + canvas), low-poly de cor por face (luz suave
+com vinco: "Sombreamento", acima) e cor saturada, na linha de Horizon Chase Turbo. Código em
+`src/render/scenery/` (a porta de entrada continua `src/render/scenery.ts`, com o mesmo contrato para o renderizador: `new Scenery()`, `group`, `setNight()`,
 `update(frame, track, time)`, `dispose()`).
 
 | arquivo | o quê |
@@ -113,6 +176,7 @@ saturada, na linha de Horizon Chase Turbo. Código em `src/render/scenery/` (a p
 | `layout.ts` | onde cada objeto fica, uma vez por pista e determinístico (inclusive os marcos turísticos) |
 | `landmarks/` | marcos turísticos (onda G): registro, contrato, kit e os modelos por região — ver "Marcos turísticos" |
 | `runtime.ts` | os lotes instanciados e a pose por quadro, por viewport |
+| `smooth.ts` | o vinco da normal suave de cada família de modelo, aplicado pelo `getModel` (ver "Sombreamento") |
 
 ### Duas fontes de objetos
 
@@ -241,7 +305,7 @@ registro por região: `landmarks/brasil-centro-sul.ts` (Sudeste, Sul, Centro-Oes
 **O modelo** (convenção comum às três tarefas de modelos): origem no centro da pegada, `y = 0` no chão (alicerce ou saia
 de pedra abaixo de 0 para pousar em declive), frente para `+X` (o lado que olha a pista), o comprimento ao longo de `Z`
 (paralelo à pista), com `side: 'sea'` o mar fica atrás (`−X`); metros reais (skyline já na escala grande). Peças por
-material: `flat` (cor por vértice, faces planas), `glow` (luz pintada: janelas, holofotes, cabos da Estaiada, a água
+material: `flat` (cor por face, normal suave com o vinco de marco, 45°), `glow` (luz pintada: janelas, holofotes, cabos da Estaiada, a água
 da cachoeira, o lago azul da gruta — brilha à noite), fachadas com janelas que acendem à noite (`office` na caixa do
 MASP e nas torres do Congresso, `house` no casario), `beacon` (luz de topo que pisca). O kit em `landmarks/kit.ts`:
 `Kit` (acumula por material e funde), `beam`/`cable` (viga ou cabo entre dois pontos), `lathe` (cúpula, cuia,

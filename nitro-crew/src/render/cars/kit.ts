@@ -1,9 +1,11 @@
 // Kit de modelagem procedural dos carros: um construtor de malha com "pincéis" (cor + como a face
 // recebe a pintura da instância + material) e primitivas fechadas (cuboide, viga, torno, loft). Tudo
 // em coordenadas do carro: x para a direita, y para cima, −z é a frente. Saída: BufferGeometry não
-// indexada, faces planas, atributos compactos (Uint8 normalizado) para cor, pintura e material.
+// indexada (cor, pintura e material por face, em Uint8 normalizado) com a normal suave do vinco de carro
+// (`normals.ts`): a lataria é lisa à luz e os vincos de verdade continuam vivos.
 // Puro (só Three, sem DOM): os testes montam os 13 modelos no Node.
 import * as THREE from 'three';
+import { CREASE, smoothNormals } from '../normals';
 
 export type P3 = readonly [number, number, number];
 export type P2 = readonly [number, number];
@@ -110,7 +112,8 @@ export class MeshBuilder {
   /** Posições cruas (para testes e medidas). */
   positions(): Float32Array { return new Float32Array(this.pos); }
 
-  build(): THREE.BufferGeometry {
+  /** Monta a geometria; `crease` é o vinco (graus) da normal suave: o de carro, ou o de roda em wheels.ts. */
+  build(crease: number = CREASE.car): THREE.BufferGeometry {
     const n = this.pos.length / 3;
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
@@ -120,7 +123,7 @@ export class MeshBuilder {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
     g.setAttribute('aPaint', new THREE.BufferAttribute(pnt, 4, true));
     g.setAttribute('aMat', new THREE.BufferAttribute(mat, 4, true));
-    g.computeVertexNormals(); // não indexada: normal da face (a sombra usa; o sombreado plano usa derivadas)
+    smoothNormals(g, crease);
     g.computeBoundingBox(); g.computeBoundingSphere();
     return g;
   }

@@ -7,6 +7,7 @@ import { bandPoints, type Model } from './geom';
 import { LANDMARKS } from './landmarks';
 import type { LandmarkDef } from './landmarks/types';
 import * as P from './props';
+import { smoothModel } from './smooth';
 import * as S from './structures';
 import * as V from './vegetation';
 
@@ -143,7 +144,7 @@ export function getModel(id: string): Model {
   const lm = landmarkOf(id);
   const b = BUILDERS[id] ?? dynamicBuilder(id) ?? (lm ? lm.build : undefined);
   if (!b) throw new Error(`modelo desconhecido: ${id}`);
-  m = b();
+  m = smoothModel(id, b()); // normal suave com o vinco da família (smooth.ts), uma vez por modelo
   cache.set(id, m);
   return m;
 }

@@ -124,8 +124,9 @@ export class Scenery {
 
   constructor() {
     this.group.name = 'scenery';
-    this.flatMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
-    this.hazeMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
+    // Sem flatShading: a normal suave com vinco vem do modelo (smooth.ts); caixa continua caixa.
+    this.flatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0, side: THREE.DoubleSide });
+    this.hazeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide });
     this.hazeMat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <fog_fragment>', `#ifdef USE_FOG
   float hazeD = fogDensity * ${HAZE_FOG_SCALE.toFixed(3)} * vFogDepth;
@@ -137,7 +138,7 @@ export class Scenery {
       const t = facadeTextures(style);
       this.textures.push(t.map, t.light);
       const glass = style === 'office';
-      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, emissiveMap: t.light, emissive: '#ffffff', emissiveIntensity: 0, roughness: glass ? 0.34 : 0.78, metalness: glass ? 0.22 : 0, flatShading: true });
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: t.map, emissiveMap: t.light, emissive: '#ffffff', emissiveIntensity: 0, roughness: glass ? 0.34 : 0.78, metalness: glass ? 0.22 : 0 });
       this.facadeMats.push(mat);
       return mat;
     };
