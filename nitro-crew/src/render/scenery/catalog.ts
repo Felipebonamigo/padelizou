@@ -141,6 +141,8 @@ export function getModel(id: string): Model {
   let m = cache.get(id);
   if (m) return m;
   const lm = landmarkOf(id);
+  const file = lm ? landmarkFiles.get(id.slice(LANDMARK_PREFIX.length)) : undefined;
+  if (file) { cache.set(id, file); return file; }
   const b = BUILDERS[id] ?? dynamicBuilder(id) ?? (lm ? lm.build : undefined);
   if (!b) throw new Error(`modelo desconhecido: ${id}`);
   m = b();
@@ -219,6 +221,21 @@ export function modelHeight(id: string): number {
   }
   heights.set(id, v);
   return v;
+}
+
+/** Marcos que vieram de um .glb (landmarks/assets.ts, antes de o renderizador nascer): id do marco → modelo. */
+const landmarkFiles = new Map<string, Model>();
+
+/** Troca (ou, com null, devolve ao procedural) o modelo de um marco; os caches esquecem o que mediram dele. */
+export function setLandmarkOverride(id: string, model: Model | null): void {
+  if (model) landmarkFiles.set(id, model); else landmarkFiles.delete(id);
+  const key = LANDMARK_PREFIX + id;
+  for (const c of [cache, fronts, bandRadii, bounds, heights]) c.delete(key);
+}
+
+/** De onde vem o modelo do marco: do arquivo da arte ou do código. */
+export function landmarkSource(id: string): 'glb' | 'procedural' {
+  return landmarkFiles.has(id) ? 'glb' : 'procedural';
 }
 
 /** Prédios e torres têm parâmetros (andares, raio) no próprio id: "bld:<tipo>:<andares>:<semente>". */

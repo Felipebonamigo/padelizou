@@ -2,6 +2,8 @@ node_modules/
 dist/
 release/
 scratch/
+# Modelos baixados (galeria do Meshy etc.) antes do conversor: ficam fora do repositório (docs/ARTE.md, "Marcos baixados").
+art/raw/
 *.log
 .DS_Store
 # Capturas do playtest ficam fora; só docs/screenshot*.png é versionado.

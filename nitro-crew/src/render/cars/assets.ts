@@ -23,7 +23,7 @@ let last: CarAssetReport = { loaded: [], rejected: [], warnings: [] };
 /** O resultado do último carregamento (para o harness e os playtests). */
 export function lastCarAssetReport(): CarAssetReport { return last; }
 
-function dataUrlToArrayBuffer(url: string): ArrayBuffer {
+export function dataUrlToArrayBuffer(url: string): ArrayBuffer {
   const comma = url.indexOf(',');
   const bin = atob(url.slice(comma + 1));
   const out = new Uint8Array(bin.length);

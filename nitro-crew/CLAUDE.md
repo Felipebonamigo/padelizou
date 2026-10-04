@@ -24,6 +24,7 @@ não use nada de fora desta pasta.
   Chromium: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (`--use-gl=swiftshader --enable-unsafe-swiftshader`). Sob carga a
   captura de 4 jogadores passa dos 30 s padrão: rode uma cópia com `page.setDefaultTimeout(240000)`.
 - Arte: `npm run car-templates` (modelos-base em `art/templates/cars/`) · `npm run check-car -- x.glb` · carro em `src/assets/cars/<estilo>.glb` substitui o procedural (`docs/ARTE.md`).
+  Marco baixado: `node tools/convert-landmark.mjs art/raw/x.glb --id <marco>` (low-poly de cor chapada, validado) · marco em `src/assets/landmarks/<id>.glb` substitui a geometria do procedural (`docs/ARTE.md`, "Marcos baixados").
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
 - ⚠️ Para matar um relay órfão, filtre pelo processo `node` (`ps -eo pid,comm,args`); `pkill -f relay.mjs` casa com o próprio shell.
 

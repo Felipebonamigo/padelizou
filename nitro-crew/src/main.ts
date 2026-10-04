@@ -5,12 +5,13 @@ import { dropOldestGhost } from './game/ghost-store';
 import { createSaveNotice } from './game/save-notice';
 import { createSession, type Session } from './game/session';
 import { loadCarAssets, type CarAssetReport } from './render/cars/assets';
+import { loadLandmarkAssets, type LandmarkAssetReport } from './render/scenery/landmarks/assets';
 import { saveHealth, setSpaceFreers } from './game/storage';
 import { showFatal } from './errors/fatal';
 import { createErrorToast, createSaveToast } from './errors/toast';
 
 // API de depuração/playtest: window.nc.session, window.nc.startQuick(...)
-declare global { interface Window { nc: { session: Session; carAssets?: CarAssetReport } } }
+declare global { interface Window { nc: { session: Session; carAssets?: CarAssetReport; landmarkAssets?: LandmarkAssetReport } } }
 
 function localStore(): Storage | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
@@ -52,6 +53,10 @@ async function boot(): Promise<void> {
   const carAssets = await loadCarAssets();
   for (const r of carAssets.rejected) console.warn(`[carros] ${r.file} recusado: ${r.problems.join('; ')}`);
   for (const w of carAssets.warnings) console.warn(`[carros] ${w}`);
+  // Marcos da arte (src/assets/landmarks/<id>.glb), idem: substituem a geometria do marco procedural do mesmo id.
+  const landmarkAssets = await loadLandmarkAssets();
+  for (const r of landmarkAssets.rejected) console.warn(`[marcos] ${r.file} recusado: ${r.problems.join('; ')}`);
+  for (const w of landmarkAssets.warnings) console.warn(`[marcos] ${w}`);
 
   const canvas = document.getElementById('game') as HTMLCanvasElement | null;
   const hud = document.getElementById('hud');
@@ -67,7 +72,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pointerdown', unlock);
 
   s.start();
-  window.nc = { session: s, carAssets };
+  window.nc = { session: s, carAssets, landmarkAssets };
 
   // Gravação que não ficou em lugar nenhum: aviso no canto, no menu principal ou no resultado (save-notice.ts).
   const saveToast = createSaveToast(document.body);
