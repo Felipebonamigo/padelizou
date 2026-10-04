@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { CARS, carDef } from '../core/data/cars';
 import { NITRO_DURATION_TICKS } from '../core/constants';
 import type { CarBody, RaceState, Track } from '../core/types';
-import type { GhostFrame, Quality, RenderFrame } from '../game/contracts';
+import type { CarColors, GhostFrame, Quality, RenderFrame } from '../game/contracts';
 import { hash2 } from './noise';
 import { locateOnFrame, type FramePoint, type RoadFrame } from './roadframe';
 import { blobTexture, labelTexture } from './textures';
@@ -63,9 +63,11 @@ export class Cars {
   private readonly blob: THREE.InstancedMesh;
   private readonly flames: THREE.InstancedMesh;
   private readonly flameMaterial: THREE.ShaderMaterial;
-  /** Aparência por carro (estilo, cores, pintura), recalculada só quando o carId muda. */
+  /** Aparência por carro (estilo, cores, pintura), recalculada só quando o carro ou a pintura escolhida mudam. */
   private readonly looks: Array<CarLook | null> = [];
   private readonly lookIds: string[] = [];
+  /** Pintura de cada carro no quadro atual (RenderFrame.paints; ausente = todos de fábrica). */
+  private paints: ReadonlyArray<CarColors | null> | undefined;
   /** Etiquetas por assento (0..3) e, no índice VIP_LABEL, a do VIP da escolta; denso de propósito. */
   private readonly labels: Array<THREE.Sprite | null> = [null, null, null, null, null];
   private readonly labelKeys = ['', '', '', '', ''];
@@ -172,13 +174,15 @@ export class Cars {
   }
 
   private look(i: number, carId: string): CarLook {
+    const chosen = this.paints?.[i] ?? null;
+    const key = chosen ? `${carId}|${chosen.color}|${chosen.accent}` : carId;
     const cached = this.looks[i];
-    if (cached && this.lookIds[i] === carId) return cached;
+    if (cached && this.lookIds[i] === key) return cached;
     const def = carDef(carId);
     const style = this.styleOf(def.body);
-    const paint = carPaint(def, CARS, style.model.liveries);
+    const paint = carPaint(def, CARS, style.model.liveries, chosen);
     const look: CarLook = { style, color: new THREE.Color(paint.color), accent: new THREE.Color(paint.accent), livery: paint.livery };
-    this.looks[i] = look; this.lookIds[i] = carId;
+    this.looks[i] = look; this.lookIds[i] = key;
     return look;
   }
 
@@ -192,6 +196,7 @@ export class Cars {
   update(frame: RenderFrame): void {
     const dt = this.lastTime < 0 ? 1 / 60 : Math.min(0.1, Math.max(0, frame.time - this.lastTime));
     this.lastTime = frame.time;
+    this.paints = frame.paints;
     const cars = frame.state.cars;
     const segs = frame.track.segments;
     for (let i = 0; i < cars.length && i < MAX_CARS; i++) {

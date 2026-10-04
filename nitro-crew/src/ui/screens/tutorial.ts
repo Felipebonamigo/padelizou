@@ -7,6 +7,7 @@ import '../../tutorial/strings';
 import { seatColor } from '../../core/data/drivers';
 import type { HumanEntry } from '../../core/types';
 import type { DeviceId, MenuContext, MenuNav, SaveData, TutorialDoneData } from '../../game/contracts';
+import { seatPaint, withPaint } from '../../game/paints';
 import type { PanelSeat, TutorialPanel } from '../../game/tutorial-session';
 import { t } from '../../i18n';
 import { uiScale, viewportRects } from '../../render/layout';
@@ -21,13 +22,14 @@ export function shouldOfferTutorial(save: Pick<SaveData, 'tutorialDone' | 'races
   return !save.tutorialDone && save.racesRun === 0;
 }
 
-/** Jogadores do tutorial: nome e carro que o lobby lembra de cada assento, todos na mesma equipe. */
+/** Jogadores do tutorial: nome, carro e a pintura dele que o lobby lembra de cada assento, todos na mesma equipe. */
 export function tutorialHumans(ctx: Pick<MenuContext, 'cars' | 'save' | 'settings'>, seats: readonly number[]): HumanEntry[] {
   const cars = availableCars(ctx);
   return seats.slice().sort((a, b) => a - b).map((seat) => {
     const saved = ctx.save.seatCars[seat];
     const car = cars.find((c) => c.id === saved) ?? cars[0];
-    return { seat, name: ctx.save.seatNames[seat] ?? `P${seat + 1}`, carId: car ? car.id : 'falcao', teamId: 0, color: seatColor(seat, ctx.settings.colorPalette) };
+    const carId = car ? car.id : 'falcao';
+    return withPaint({ seat, name: ctx.save.seatNames[seat] ?? `P${seat + 1}`, carId, teamId: 0, color: seatColor(seat, ctx.settings.colorPalette) }, seatPaint(ctx.save, seat, carId));
   });
 }
 

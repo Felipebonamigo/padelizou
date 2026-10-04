@@ -154,6 +154,11 @@ export interface HumanEntry {
   upgrades?: UpgradeLevels;
   /** Direção assistida deste jogador; ausente = 'none'. Vai na config, então vale igual em todo cliente online. */
   assist?: AssistLevel;
+  /**
+   * Pintura escolhida (id da paleta, src/game/paints.ts); ausente = a de fábrica. Só aparência: a sessão e o online
+   * a tiram (`withoutPaint`) antes de montar a RaceConfig — o núcleo nunca a vê e o estado da corrida não a carrega.
+   */
+  paint?: string;
 }
 
 export interface RaceConfig {

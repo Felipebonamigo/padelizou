@@ -4,6 +4,7 @@
 // regras de forma e de tamanho, mas não entende o jogo; quem valida o conteúdo é o cliente.
 import { ASSIST_LEVELS } from '../core/sim/assist';
 import type { AssistLevel, CoopAssists, Difficulty, PlayerInput } from '../core/types';
+import { withPaint } from '../game/paints';
 
 export const PROTOCOL_VERSION = 1;
 export const DEFAULT_SERVER_URL = 'ws://localhost:8787';
@@ -114,6 +115,8 @@ export interface LobbyPlayer {
   car: string;
   /** Direção assistida escolhida por este jogador; ausente = nenhuma (sim/assist.ts). */
   assist?: AssistLevel;
+  /** Pintura do carro (id da paleta, src/game/paints.ts); ausente = a de fábrica. Só aparência: fica fora da RaceConfig. */
+  paint?: string;
 }
 
 /** O que cada cliente publica sobre si no lobby. */
@@ -159,6 +162,8 @@ export interface SeatAssignment {
   car: string;
   /** Direção assistida do jogador do assento (vai para HumanEntry.assist); ausente = nenhuma. */
   assist?: AssistLevel;
+  /** Pintura do carro do assento (vai para os humanos da sessão, nunca para a RaceConfig); ausente = a de fábrica. */
+  paint?: string;
 }
 
 /** Tudo que um cliente precisa para montar a mesma corrida que os outros. */
@@ -287,7 +292,8 @@ export function parseClientInfo(v: unknown, rules: ContentRules): ClientInfo | n
     const name = cleanName(p.name);
     const assist = parseAssistLevel(p.assist);
     if (!name || typeof p.car !== 'string' || !rules.cars.includes(p.car) || !assist) return null;
-    players.push(withAssist({ name, car: p.car }, assist));
+    // Pintura desconhecida (ou de outro tipo) vira a de fábrica: cosmético não recusa a mensagem.
+    players.push(withPaint(withAssist({ name, car: p.car }, assist), p.paint));
   }
   return { players, ready: v.ready };
 }
@@ -325,7 +331,7 @@ export function parseStartConfig(v: unknown, rules: ContentRules): StartConfig |
     const assist = parseAssistLevel(s.assist);
     if (!name || typeof s.car !== 'string' || !rules.cars.includes(s.car) || used.has(s.seat) || !assist) return null;
     used.add(s.seat);
-    seats.push(withAssist({ seat: s.seat, client: s.client, name, car: s.car }, assist));
+    seats.push(withPaint(withAssist({ seat: s.seat, client: s.client, name, car: s.car }, assist), s.paint));
   }
   // Nenhum cliente com mais assentos que o limite local.
   const perClient = new Map<number, number>();

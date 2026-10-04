@@ -59,6 +59,17 @@ que já existia: o formato e o `PROTOCOL_VERSION` não mudaram), a lista da sala
 "ASSIST · Completa" ao lado do nome, e a largada a copia para cada assento. Trava com o "pronto" e depois
 da largada. Detalhes em `docs/ASSISTENCIAS.md`.
 
+**Pintura do carro.** Cada jogador local escolhe a sua no cartão da sala (linha "Pintura", entre o carro e a
+direção; começa com a que o assento local guardou para aquele carro e trocar grava no save, como no lobby
+local). Ela vai no `info` (`LobbyPlayer.paint`, campo opcional — ausente = a de fábrica, então a mensagem de
+quem não pinta é a de antes e o `PROTOCOL_VERSION` não muda), a lista da sala mostra a amostra da cor ao lado do
+carro de cada um, e a largada a copia para cada assento (`SeatAssignment.paint`). Pintura desconhecida ou de
+outro tipo vira a de fábrica **sem** recusar a mensagem (cosmético não derruba a sala). Na largada cada
+computador monta a `RaceConfig` **sem** a pintura (`raceConfigFrom` → `withoutPaint`: o estado e o hash do
+lockstep não carregam cosmético) e entrega à sessão os humanos com ela (`startHumans`, 5º argumento de
+`OnlineHost.startRace`); a sessão pinta cada carro com `racePaints`, função pura da largada — todos chegam à
+mesma lista. Trava com o "pronto" e depois da largada, como o carro. Ver `docs/CARROS.md`, "Pintura".
+
 **Opções da sala.** Só o anfitrião muda pista, voltas, modo, dificuldade, carros e atraso. Cada ajuste
 vai ao relay (`settings`), que guarda e devolve a sala inteira a todos — inclusive ao anfitrião, e
 atrasado: pela rede e, com a máquina carregada, pelo próprio navegador, que atende as teclas antes das
@@ -135,7 +146,7 @@ npm run dev                         # terminal 2: abra duas janelas (uma anônim
 ```
 
 Menu → Online → **Criar sala** numa janela; na outra, digite o código e **Entrar na sala**. O
-convidado escolhe nome, carro e direção assistida e aperta **PRONTO**; o anfitrião escolhe a própria
+convidado escolhe nome, carro, pintura e direção assistida e aperta **PRONTO**; o anfitrião escolhe a própria
 direção, pista, voltas, modo, dificuldade, carros e atraso e aperta **LARGAR**. Segundo jogador no mesmo computador: no lobby,
 aperte F (teclado WASD) ou A num controle. O carro se escolhe entre os mesmos do lobby local: os livres e
 os comprados numa carreira daquele computador (até a onda F a sala oferecia os 14, inclusive os à venda
@@ -151,6 +162,9 @@ nunca comprados); o carro de quem está do outro lado vale qualquer um do jogo (
   ao sair; etiqueta IA no resultado; `advance` quadro a quadro; janela escondida.
 - `tests/net-session.test.ts` — numeração dos assentos (nome padrão acompanha o assento), corrida
   montada da largada igual em todas as máquinas, endereço do servidor nas opções.
+- `tests/online-paint.test.ts` — pintura escolhida na sala: começa com a guardada (assento + carro), vai no
+  `info` e no save, volta com o carro trocado, trava com o "pronto"; a do convidado chega à largada e à corrida
+  dos dois computadores; a config sem ela; protocolo tolerante a pintura desconhecida.
 - `tests/online-assist.test.ts` — direção assistida escolhida na sala: vai no `info` e fica salva, a do
   segundo jogador local, trava com o "pronto" e depois da largada, a do convidado chega à largada, o
   anfitrião que troca e larga em seguida larga com a nova; rótulos da sala e do resultado.
@@ -173,7 +187,8 @@ nunca comprados); o carro de quem está do outro lado vale qualquer um do jogo (
   (`LaggySocket`) ajustando 3→1 volta e 20→8 carros a cada 15 ms e largando em seguida. Leva ~25 s.
   **Sem `server/node_modules` o arquivo é pulado**; no CI ele é obrigatório (`NC_REQUIRE_RELAY=1`).
 - `scripts/playtest-online.mjs` — Playwright com duas páginas no mesmo relay, pelo fluxo real de
-  teclado: criar/entrar, pronto, o anfitrião troca pista, voltas e carros (cada seta sem esperar o
+  teclado: criar/entrar, o convidado pinta o carro (o anfitrião vê na sala e os dois desenham a mesma cor na
+  corrida, com a config sem a pintura), pronto, o anfitrião troca pista, voltas e carros (cada seta sem esperar o
   relay; a tela dele não pode voltar sozinha a um valor anterior) e larga, a config da corrida é a
   escolhida e igual nos dois, 10 s de corrida com `debugStep`, hashes iguais, Esc sem
   pausa, "aguardando", queda e volta, anfitrião saindo e a IA assumindo. Capturas em

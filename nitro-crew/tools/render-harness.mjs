@@ -32,6 +32,11 @@ const scenes = [
   ['folha_tras34', 'track=copacabana&sheet=rear34&frames=3', BIG],
   ['folha_lado', 'track=copacabana&sheet=side&frames=3', BIG],
   ['folha_noite', 'track=sampa_noite&sheet=front34&frames=3', BIG],
+  // Pintura (docs/CARROS.md, "Pintura"): o mesmo carro nas 16 da paleta; e a corrida com dois humanos pintados.
+  ['cores_folha', 'track=copacabana&paintsheet=falcao&carview=front34&frames=3', BIG],
+  ['cores_split2', 'track=copacabana&humans=2&paints=rubi,cobalto&ticks=1500&frames=24'],
+  ['cores_rubi', 'track=copacabana&carview=rear34&car=falcao&paints=rubi&ticks=60&frames=6'],
+  ['cores_cobalto', 'track=copacabana&carview=rear34&car=falcao&paints=cobalto&ticks=60&frames=6'],
 ];
 const BODIES = ['gt', 'muscle', 'hatch', 'sedan', 'electric', 'rally', 'hyper', 'classic', 'wedge', 'pickup', 'prototype', 'micro', 'roadster'];
 const carScenes = BODIES.flatMap((b) => ['front34', 'rear34', 'side', 'rear'].map((v) => [`carro_${b}_${v}`, `track=copacabana&carview=${v}&body=${b}&frames=6`]));

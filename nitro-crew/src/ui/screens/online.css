@@ -171,7 +171,7 @@
 .online-player { --seat: var(--accent); display: flex; align-items: center; gap: calc(8 * var(--u)); min-width: 0; }
 .online-player .seat-badge { font-size: var(--fs-sm); }
 .online-player-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.online-player-car { margin-left: auto; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; }
+.online-player-car { margin-left: auto; color: var(--muted); font-size: var(--fs-sm); white-space: nowrap; display: inline-flex; align-items: center; gap: calc(5 * var(--u)); }
 
 /* ───────────── Saída, resultado ───────────── */
 

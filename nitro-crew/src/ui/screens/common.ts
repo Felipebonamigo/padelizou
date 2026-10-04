@@ -4,6 +4,7 @@ import { getTrack } from '../../core/track';
 import { TRACKS } from '../../core/track/tracks';
 import type { CarDef, TimeOfDay, TrackDef } from '../../core/types';
 import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData, TutorialDoneData } from '../../game/contracts';
+import { ORIGINAL_PAINT, paintedCar } from '../../game/paints';
 import { t } from '../../i18n';
 import { carSilhouette, icon } from './icons';
 
@@ -410,12 +411,13 @@ export function carCount(car: CarDef, cars: readonly CarDef[]): string {
 }
 
 /** Cartão do carro: silhueta do estilo dele na cor, nome, quatro barras (animadas ao entrar) e a frase de apresentação. */
-export function carCard(car: CarDef, cars: readonly CarDef[]): HTMLElement {
+/** Ficha do carro no lobby; `paint` = a pintura escolhida (id da paleta), que o desenho já mostra. */
+export function carCard(car: CarDef, cars: readonly CarDef[], paint: string = ORIGINAL_PAINT): HTMLElement {
   const bars = carBars(car, cars);
-  return h('div', { class: 'car-card', attrs: { 'data-car': car.id } },
+  return h('div', { class: 'car-card', attrs: { 'data-car': car.id, 'data-paint': paint } },
     h('div', { class: 'car-name', text: car.name }),
     // O contador fica embaixo do desenho, não ao lado do nome: na grade 2×2 o "POROROCA V10" não cabia com ele.
-    h('div', { class: 'car-visual' }, carSilhouette(car), cars.length > 1 ? h('span', { class: 'car-count mono', text: carCount(car, cars) }) : null),
+    h('div', { class: 'car-visual' }, carSilhouette(paintedCar(car, paint)), cars.length > 1 ? h('span', { class: 'car-count mono', text: carCount(car, cars) }) : null),
     h('div', { class: 'car-bars' }, CAR_STAT_KEYS.map((key, i) =>
       h('div', { class: 'car-bar' },
         h('span', { class: 'car-bar-label', text: t(`ui.lobby.stat.${key}`) }),

@@ -159,6 +159,11 @@ export interface SaveData {
   seatNames: string[];
   /** Carro escolhido por assento na última sessão. */
   seatCars: string[];
+  /**
+   * Pintura escolhida por assento (P1..P4) para cada carro: carro → id da paleta (src/game/paints.ts). Carro
+   * ausente = a Original (a de fábrica). Gravada na hora da escolha (lobby, garagem, sala online). Ver docs/SAVE.md.
+   */
+  seatPaints: Array<Record<string, string>>;
   /** Estatísticas por jogador (nome do lobby) e totais — src/game/stats.ts. */
   stats: StatsData;
   /** Carros comprados em alguma carreira: ficam liberados em todas as modalidades. */
@@ -180,7 +185,7 @@ export interface SavedCup {
 
 export const DEFAULT_SAVE: Readonly<SaveData> = Object.freeze({
   cupsCompleted: [], cupsUnlocked: [], stamps: [], bestLaps: {}, bestRaces: {}, achievements: [], racesRun: 0, racesWon: 0,
-  seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'],
+  seatNames: ['P1', 'P2', 'P3', 'P4'], seatCars: ['falcao', 'trovao', 'tornado', 'camelo'], seatPaints: [{}, {}, {}, {}],
   stats: EMPTY_STATS,
   carsUnlocked: [], career: null, cupInProgress: null, tutorialDone: false,
 });
@@ -195,6 +200,12 @@ export interface RenderOptions {
   reduceEffects: boolean;
   /** Paleta das cores dos jogadores (os de outro computador, no online, não têm viewport aqui). */
   palette: ColorPalette;
+}
+
+/** Cores de um carro na pista quando o jogador o pintou (src/game/paints.ts): carroceria e segunda cor. */
+export interface CarColors {
+  color: string;
+  accent: string;
 }
 
 export interface HudMessage {
@@ -247,6 +258,11 @@ export interface RenderFrame {
   showHud: boolean;
   /** Fantasma do contra-relógio (ausente fora dele ou com a opção desligada). */
   ghost?: GhostFrame;
+  /**
+   * Pintura de cada carro (índice = `state.cars`); null ou ausente = a de fábrica (CarDef.color/accent). Só
+   * aparência, montada pela sessão na largada (racePaints em src/game/paints.ts): o estado da corrida não a tem.
+   */
+  paints?: ReadonlyArray<CarColors | null>;
 }
 
 /**

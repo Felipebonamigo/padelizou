@@ -2,6 +2,7 @@
 // segunda cor e da pintura (camadas A/B) de cada carro. Nada de DOM: os testes usam direto.
 import * as THREE from 'three';
 import type { CarBody, CarDef } from '../../core/types';
+import type { CarColors } from '../../game/contracts';
 import { brush, withBrush } from './kit';
 
 // Pintura sólida: quase sem metal (o metal come o difuso e desbota a cor); o brilho de verniz vem do
@@ -69,6 +70,12 @@ export function liveryFor(def: CarDef, cars: readonly CarDef[], order: readonly 
 
 export interface CarPaint { color: string; accent: string; livery: number; body: CarBody }
 
-export function carPaint(def: CarDef, cars: readonly CarDef[], order: readonly number[]): CarPaint {
-  return { color: def.color, accent: def.accent ?? defaultAccent(def.color), livery: liveryFor(def, cars, order), body: def.body };
+/**
+ * Cores e pintura (camadas A/B) do carro na pista. `chosen` é a pintura que o jogador escolheu (RenderFrame.paints,
+ * src/game/paints.ts): troca a cor e a segunda cor, e as faixas continuam as do carro. Sem ela, a de fábrica.
+ */
+export function carPaint(def: CarDef, cars: readonly CarDef[], order: readonly number[], chosen?: CarColors | null): CarPaint {
+  const livery = liveryFor(def, cars, order);
+  if (chosen) return { color: chosen.color, accent: chosen.accent, livery, body: def.body };
+  return { color: def.color, accent: def.accent ?? defaultAccent(def.color), livery, body: def.body };
 }
