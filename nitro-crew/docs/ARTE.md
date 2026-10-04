@@ -2,10 +2,12 @@
 
 Briefing de arte (direção, paleta, carros, cenário, especificação, lotes): https://claude.ai/code/artifact/049e138a-cb57-4adb-baef-d3084b4f0d03
 
-**Decisão (04/10/2026): sem IA de 3D (Meshy) neste jogo.** O estilo é low-poly (referência Horizon Chase Turbo) e o
-código dá conta dele — prédios, pontes, torres, relevo. A IA de 3D brilha em formas orgânicas e realistas, que não são
-o alvo aqui; fica para jogos com realismo. Estimativa feita na conversa, para referência: o jogo inteiro sairia
-~15–20 mil créditos, só as ~30 peças orgânicas (Cristo, estátuas, bichos, carros) ~3–4 mil.
+**Decisão (dono, 04/10/2026): não gerar 3D por IA neste jogo; baixar o orgânico pronto.** O estilo é low-poly
+(referência Horizon Chase Turbo) e o código dá conta dele — prédios, pontes, torres, relevo. As formas orgânicas
+(bichos, estátuas), onde o código fica quadrado, vêm de modelos **prontos da galeria da comunidade do Meshy (CC0)**,
+convertidos para o estilo (seção "Marcos baixados"). **Nada de gerar pela API** — gasta créditos do dono (custou 200 em
+04/10 por engano). A conta assinada é Pro (downloads da comunidade ilimitados); o download é pelo navegador logado do
+dono (sessão local com o Claude in Chrome), não por aqui.
 
 ## Carros — pronto
 1. **Modelo-base**: `art/templates/cars/<estilo>.glb` (13), o carro atual do jogo na convenção. `npm run car-templates` regera.
@@ -33,8 +35,8 @@ Mesmo caminho (convenção na seção Especificação do briefing); para árvore
 ## Marcos baixados (Meshy, CC0)
 Um modelo pronto, realista e texturizado (dezenas a centenas de milhares de triângulos) vira o marco do jogo: low-poly,
 cor chapada por face, na convenção de `src/render/scenery/landmarks/types.ts`. **Não gera nada por IA nem gasta
-crédito** — traz um arquivo já pronto para o estilo do jogo; usar ou não continua sendo decisão do dono (ver a decisão
-de 04/10 no topo). Nenhum marco baixado está no jogo hoje.
+crédito** — traz um arquivo já pronto para o estilo do jogo (decisão de 04/10 no topo). Primeira leva escolhida:
+tuiuiú (de cegonha), jacaré, búfalo (de boi), garça, girafa, rena, cavalo, troll, shisa, garimpeiro.
 
 1. **Arquivo bruto**: em `art/raw/` — **fora do repositório** (`.gitignore`). Baixe o **GLB** (o conversor lê `.glb` e
    `.gltf` autocontido; FBX e OBJ não). Anote a página de origem e a licença (ver "Licença", abaixo).

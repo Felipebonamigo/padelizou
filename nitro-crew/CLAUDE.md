@@ -76,7 +76,7 @@ não use nada de fora desta pasta.
   Onda G (03/10/2026): Expedição Brasil — 81 pistas (3 por estado, a do RS em forma de cuia), 27 copas de estado por
   região, passaporte com carimbos e cartão-postal, Mundial (7 copas) depois; 161 marcos turísticos procedurais
   (`src/render/scenery/landmarks/`, `placeOf()` em `core/data/places.ts`), praças nas pistas de cidade e mirantes no litoral para o marco
-  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1391 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
+  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1412 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
   `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `ARTE.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
   gente de verdade e trazer a lista de problemas; na Fase 2, a direção de arte (2.1) e a arte final em glTF (2.2–2.4).
@@ -85,9 +85,10 @@ não use nada de fora desta pasta.
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
   renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
-  "Nitro Crew" é nome provisório (Fase 2.1 decide). Geração de 3D por IA (Meshy): **não neste jogo** (dono, 04/10/2026)
-  — o estilo é low-poly e fica em código; IA de 3D fica para jogos realistas. O caminho glTF (carros) continua para
-  arte feita à mão, se vier.
+  "Nitro Crew" é nome provisório (Fase 2.1 decide). Gerar 3D por IA (Meshy): **não neste jogo** (dono, 04/10/2026)
+  — o estilo é low-poly e fica em código. Mas as peças orgânicas (bichos, estátuas) vêm de **modelos prontos baixados
+  da galeria da comunidade do Meshy (CC0)**, convertidos para o estilo por `tools/convert-landmark.mjs` (`docs/ARTE.md`).
+  Não gerar nada pela API: gasta créditos do dono.
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks,
   direção assistida completa (hoje vence a IA profissional em 70% das corridas e conta para recordes: teto de
   velocidade medido em `docs/ASSISTENCIAS.md`, ou tirar dos recordes), ordem das pistas nas copas (Great Ocean e
