@@ -79,7 +79,7 @@ export class Cars {
   private lastTime = -1;
   /** Fantasma do contra-relógio: a malha do estilo dele, translúcida e clara, fora das instâncias (só visual). */
   private readonly ghostMaterial = new THREE.MeshStandardMaterial({
-    color: '#cfeaff', emissive: '#6fb4ff', emissiveIntensity: 0.5, transparent: true, opacity: 0.38, depthWrite: false, flatShading: true, roughness: 0.6,
+    color: '#cfeaff', emissive: '#6fb4ff', emissiveIntensity: 0.5, transparent: true, opacity: 0.38, depthWrite: false, roughness: 0.6,
   });
   private readonly ghost: THREE.Mesh;
 

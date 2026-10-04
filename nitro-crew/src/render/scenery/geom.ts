@@ -1,7 +1,9 @@
 // Kit de modelagem low-poly do cenário: primitivas com cor por vértice, transformação, fusão e
 // deformação determinística. Puro (só Three, sem DOM): os modelos podem ser montados e medidos nos
-// testes. Toda geometria sai não indexada (faces planas: o material usa flatShading) com os atributos
-// position, normal e color — e uv só quando pedida (fachadas, painéis).
+// testes. Toda geometria sai não indexada (a cor é por face: a malha não compartilha vértices) com os
+// atributos position, normal e color — e uv só quando pedida (fachadas, painéis). A normal que sai daqui é a
+// da face; a normal suave com vinco (copa, tronco e cúpula lisos à luz, caixa e beiral vivos) é aplicada uma
+// vez por modelo pelo catálogo (`smooth.ts`, vinco por família) — o material não usa flatShading.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { hash3 } from '../noise';
@@ -9,7 +11,7 @@ import { hash3 } from '../noise';
 export type Geo = THREE.BufferGeometry;
 
 /**
- * Material de cada parte (scenery.ts cria um de cada): `flat` é o geral (cor por vértice, faces planas);
+ * Material de cada parte (scenery.ts cria um de cada): `flat` é o geral (cor por face, normal suave com vinco);
  * as fachadas têm textura de janelas que acende à noite; `glow` é luz pintada (brilha à noite);
  * `panel` é o atlas de outdoors e placas; `cone` é o facho de luz aditivo (só à noite).
  */
@@ -63,7 +65,7 @@ export function paint(geo: Geo, color: THREE.ColorRepresentation, m?: THREE.Matr
   return g;
 }
 
-/** Funde as partes (e libera cada uma). Normais por face: a malha não compartilha vértices. */
+/** Funde as partes (e libera cada uma). Normais por face (a malha não compartilha vértices); o catálogo suaviza depois. */
 export function merge(parts: Geo[]): Geo {
   const g = mergeGeometries(parts, false);
   if (!g) throw new Error('fusão de geometria falhou (atributos diferentes entre as partes?)');

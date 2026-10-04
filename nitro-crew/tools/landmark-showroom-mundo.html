@@ -7,6 +7,7 @@
 // de dia ou de noite. Query: ids=a,b (padrão: todos), night=1, cols=N, cw/ch = tamanho da célula, az/el = ângulo (rad).
 import * as THREE from 'three';
 import { LANDMARKS_MUNDO } from '../src/render/scenery/landmarks/mundo.ts';
+import { smoothModel } from '../src/render/scenery/smooth.ts';
 
 const q = new URLSearchParams(location.search);
 const ids = (q.get('ids') ?? Object.keys(LANDMARKS_MUNDO).join(',')).split(',').filter(Boolean);
@@ -23,7 +24,7 @@ renderer.shadowMap.enabled = true;
 renderer.setScissorTest(true);
 document.body.appendChild(renderer.domElement);
 const mats = {
-  flat: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.86, side: THREE.DoubleSide }),
+  flat: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: false, roughness: 0.86, side: THREE.DoubleSide }),
   glow: new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color().setScalar(night ? 2.0 : 0.95) }),
   beacon: new THREE.MeshBasicMaterial({ vertexColors: true }),
   cone: new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, visible: night }),
@@ -33,7 +34,7 @@ ids.forEach((id, i) => {
   const def = LANDMARKS_MUNDO[id];
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(night ? '#0b1440' : '#8fc8f0');
-  const m = def.build();
+  const m = smoothModel(`lm:${id}`, def.build()); // a mesma normal suave do jogo (catalog.ts)
   const box = new THREE.Box3();
   for (const p of m.parts) {
     const mesh = new THREE.Mesh(p.geometry, mats[p.mat]);
