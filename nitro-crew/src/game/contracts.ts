@@ -117,6 +117,8 @@ export interface Settings {
   largeText: boolean;
   /** Sem tremor de câmera, linhas de velocidade, piscadas e faíscas. */
   reduceEffects: boolean;
+  /** Legenda com o nome do marco turístico quando ele entra bem à vista (src/render/caption/, Opções › Acessibilidade). */
+  landmarkCaptions: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
@@ -128,6 +130,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   serverUrl: 'ws://localhost:8787',
   ghost: true,
   seatAssists: ['none', 'none', 'none', 'none'] as AssistLevel[], colorPalette: 'default' as ColorPalette, hudScale: 1, largeText: false, reduceEffects: false,
+  landmarkCaptions: true,
 });
 
 export interface BestLap {
@@ -195,6 +198,8 @@ export interface RenderOptions {
   reduceEffects: boolean;
   /** Paleta das cores dos jogadores (os de outro computador, no online, não têm viewport aqui). */
   palette: ColorPalette;
+  /** Legenda dos marcos turísticos (src/render/caption/); ausente = ligada. O modo Retrô não tem marcos nem legenda. */
+  landmarkCaptions?: boolean;
 }
 
 export interface HudMessage {

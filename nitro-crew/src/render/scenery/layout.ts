@@ -59,6 +59,12 @@ export interface Placement {
 export interface Layout {
   models: string[];
   bySeg: Placement[][];
+  /**
+   * A pista da conta de enquadramento (sight.ts) com a grade de alturas dos sprites — a mesma com que `placeLandmarks`
+   * escolheu o lugar dos marcos —, só se pedida (`sceneryLayout(…, keepSight)`: ~0,7 MB por pista). A legenda dos marcos
+   * (render/caption/) mede com ela, sem refazer os sprites. Ausente na pista sem marco.
+   */
+  sight?: SightRoad;
 }
 
 class ModelTable {
@@ -265,14 +271,15 @@ function distToFoot(f: Pick<LandmarkFoot, 'cx' | 'cz' | 'ct' | 'st' | 'b'>, x: n
   return Math.hypot(Math.max(f.b.minX - lx, 0, lx - f.b.maxX), Math.max(f.b.minZ - lz, 0, lz - f.b.maxZ));
 }
 
-function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy, block: Occupancy): void {
+/** Devolve a pista da conta de enquadramento que usou (`Layout.sight`), ou nada sem marco. */
+function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable, out: Placement[][], occ: Occupancy, tall: Occupancy, block: Occupancy): SightRoad | undefined {
   const segs = track.segments; const n = segs.length;
   const entries: Array<{ id: string; def: LandmarkDef }> = [];
   for (const id of ids) {
     const def = landmarkOf(LANDMARK_PREFIX + id);
     if (def) entries.push({ id, def });
   }
-  if (entries.length === 0) { setClearings(track, []); return; }
+  if (entries.length === 0) { setClearings(track, []); return undefined; }
   const biome = track.def.scenery;
   const seed = hashString(track.def.id) & 0xffff;
   // Linha central desenrolada em três voltas (o marco do segmento i é medido na volta do meio, k = i + n) e a conta de
@@ -447,6 +454,7 @@ function placeLandmarks(track: Track, ids: readonly string[], table: ModelTable,
     }
   }
   setClearings(track, clearings);
+  return road;
 }
 
 /**
@@ -691,24 +699,37 @@ function dress(track: Track, recipe: DressingRecipe, table: ModelTable, out: Pla
 /**
  * Layout do cenário da pista. Sem cache aqui de propósito: são ~10 mil posições por pista, e guardar as
  * 32 pistas pesaria no heap da sessão inteira — quem desenha (runtime.ts) guarda só o da pista atual.
- * `landmarks`: ids dos marcos turísticos (padrão: os da pista em places.ts; os testes passam outros).
+ * `landmarks`: ids dos marcos turísticos (padrão: os da pista em places.ts; os testes passam outros). `keepSight`: guarda
+ * no layout a pista da conta de enquadramento (`Layout.sight`), para a legenda dos marcos (o runtime pede).
  */
-export function sceneryLayout(track: Track, landmarks: readonly string[] = placeOf(track.def.id)?.landmarks ?? []): Layout {
+export function sceneryLayout(track: Track, landmarks: readonly string[] = placeOf(track.def.id)?.landmarks ?? [], keepSight = false): Layout {
   const table = new ModelTable();
   const bySeg: Placement[][] = track.segments.map(() => []);
   const occ = new Occupancy(track.segments.length);
   const tall = new Occupancy(track.segments.length);
   const block = new Occupancy(track.segments.length);
   placeSprites(track, table, bySeg, occ, tall, block);
-  placeLandmarks(track, landmarks, table, bySeg, occ, tall, block);
+  const sight = placeLandmarks(track, landmarks, table, bySeg, occ, tall, block);
   dress(track, dressingRecipe(track.def), table, bySeg, occ);
   for (const list of bySeg) for (const p of list) { p.yawC = Math.cos(p.yaw); p.yawS = Math.sin(p.yaw); }
-  return { models: table.ids, bySeg };
+  return keepSight && sight ? { models: table.ids, bySeg, sight } : { models: table.ids, bySeg };
 }
 
 /** A pista pronta para a conta de enquadramento (sight.ts), com a grade do que tapa a vista (prédios, arquibancadas, box, outdoors). */
 function sightRoadOf(track: Track, block: Occupancy): SightRoad {
   return sightRoad(track, (seg, side, lat) => block.at(seg, side, lat), block.maxLat, (seg) => block.any(seg));
+}
+
+/**
+ * A pista pronta para a conta de enquadramento (sight.ts) com a grade do que tapa a vista — a mesma que `placeLandmarks`
+ * usa (prédios, arquibancadas, box e outdoors dos sprites), refeita a partir da pista: para medir de novo um layout
+ * pronto (aqui e nos testes). Quem tem o layout usa `Layout.sight`, sem refazer os sprites.
+ */
+export function landmarkSightRoad(track: Track): SightRoad {
+  const n = track.segments.length;
+  const block = new Occupancy(n);
+  placeSprites(track, new ModelTable(), track.segments.map(() => []), new Occupancy(n), new Occupancy(n), block);
+  return sightRoadOf(track, block);
 }
 
 /** Um marco do layout e quanto tempo ele fica na tela (`landmarkSight`). */
@@ -726,9 +747,7 @@ export interface LandmarkSight {
  */
 export function landmarkSight(track: Track, layout: Layout): LandmarkSight[] {
   const n = track.segments.length;
-  const block = new Occupancy(n);
-  placeSprites(track, new ModelTable(), track.segments.map(() => []), new Occupancy(n), new Occupancy(n), block);
-  const road = sightRoadOf(track, block);
+  const road = landmarkSightRoad(track);
   const plazas = landmarkPlazas(track);
   const out: LandmarkSight[] = [];
   const firstSeg = new Map<string, number>();

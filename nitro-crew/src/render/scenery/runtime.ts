@@ -158,6 +158,9 @@ export class Scenery {
     this.applyNight();
   }
 
+  /** O layout da pista atual (montado no primeiro `update` dela): a legenda dos marcos lê as instâncias dele (render/caption/). */
+  get currentLayout(): Layout | null { return this.layout; }
+
   setNight(night: boolean): void {
     this.night = night;
     this.applyNight();
@@ -176,7 +179,8 @@ export class Scenery {
 
   private setTrack(track: Track): void {
     this.disposeBatches();
-    const layout = sceneryLayout(track);
+    // Com a pista da conta de enquadramento: a legenda dos marcos (render/caption/) mede com ela.
+    const layout = sceneryLayout(track, undefined, true);
     this.layout = layout;
     const n = track.segments.length;
     const time = track.def.timeOfDay;

@@ -192,8 +192,8 @@ export function sightSeconds(road: SightRoad, k: number, f: number, x: number, y
   return Math.round(seen * 1000) / 1000;
 }
 
-/** Altura da pista (m) no ponto `t` (segmentos, desenrolado). */
-function roadY(py: Float64Array, t: number): number {
+/** Altura da pista (m) no ponto `t` (segmentos, desenrolado). Exportada para a legenda dos marcos (render/caption/). */
+export function roadY(py: Float64Array, t: number): number {
   const q = Math.floor(t);
   return py[q] + (py[q + 1] - py[q]) * (t - q);
 }
@@ -202,8 +202,9 @@ function roadY(py: Float64Array, t: number): number {
  * Algo alto da grade na linha de visada? Anda pela linha (horizontal) de RAY_STEP_M em RAY_STEP_M, acha o segmento e a
  * lateral de cada ponto (plano de início do segmento, andando a partir do da câmera) e compara a altura da visada ali,
  * acima da pista, com a do que estiver na célula. Para quando a visada passa da lateral de tudo o que é alto.
+ * Exportada para a legenda dos marcos (render/caption/): a mesma conta com a câmera de cada jogador.
  */
-function blocked(road: SightRoad, cx: number, cy: number, cz: number, tx: number, ty: number, tz: number, q0: number, qEnd: number): boolean {
+export function blocked(road: SightRoad, cx: number, cy: number, cz: number, tx: number, ty: number, tz: number, q0: number, qEnd: number): boolean {
   const { px, pz, hs, hc, py, n } = road;
   const lo = Math.max(0, q0 - 2); const hi = Math.min(3 * n - 1, Math.max(q0, qEnd) + 2);
   if (road.blockCum[hi + 1] - road.blockCum[lo] === 0) return false;

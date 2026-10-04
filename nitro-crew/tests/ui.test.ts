@@ -55,6 +55,17 @@ describe('sanitizeSettings', () => {
     expect(s.quality).toBe('high');
   });
 
+  it('legenda dos marcos: ligada por padrão, e a config de antes dela (sem o campo) também liga', () => {
+    expect(DEFAULT_SETTINGS.landmarkCaptions).toBe(true);
+    // Uma config gravada antes da legenda: tudo o que ela tinha, menos o campo novo.
+    const { landmarkCaptions: _novo, ...antiga } = { ...DEFAULT_SETTINGS, language: 'en', showMinimap: false };
+    const s = sanitizeSettings(JSON.parse(JSON.stringify(antiga)));
+    expect(s.landmarkCaptions).toBe(true);
+    expect(s.showMinimap).toBe(false);
+    expect(sanitizeSettings({ landmarkCaptions: false }).landmarkCaptions).toBe(false);
+    for (const lixo of ['não', 0, null, {}]) expect(sanitizeSettings({ landmarkCaptions: lixo }).landmarkCaptions).toBe(true);
+  });
+
   it('sem localStorage (Node), carregar dá o padrão e gravar não lança', () => {
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
     expect(() => saveSettings(DEFAULT_SETTINGS)).not.toThrow();

@@ -6,7 +6,7 @@
 //   3. nenhum rótulo cortado com reticências (text-overflow: ellipsis que de fato cortou);
 //   4. nenhum par de elementos irmãos sobreposto (cada irmão conta com o que transborda dele).
 // Depois mede o HUD do Steam Deck: 2 jogadores em tela dividida a 1280×800, números de posição,
-// volta e velocidade com pelo menos 12 px efetivos.
+// volta e velocidade com pelo menos 12 px efetivos, e a legenda dos marcos sem cobrir os painéis dos cantos.
 // Uso: node scripts/playtest-layout.mjs [url] [prefixo-das-capturas]
 //   NC_LAYOUT_ONLY=options,lobby-4   só essas telas      NC_LAYOUT_RES=1280x720,1024x640   só essas resoluções
 //   NC_LAYOUT_TEXT=normal|large      só um tamanho de texto      NC_LAYOUT_SKIP_HUD=1   pula a parte do HUD
@@ -387,11 +387,22 @@ if (!process.env.NC_LAYOUT_SKIP_HUD) {
       s.debugStep(60 * 6);
       s.frame(performance.now()); // um quadro desenhado (HUD atualizado) sem religar o laço
     }, { hs: humans(n), hudScale });
-    await page.waitForTimeout(300);
+    // A legenda dos marcos (src/render/caption/) na tela com o nome e o lugar mais compridos: ela não pode cobrir os
+    // painéis dos cantos (combustível, velocímetro, minimapa) em nenhuma divisão de tela. O laço está parado: a classe
+    // posta à mão fica até a medição.
+    await page.evaluate(() => {
+      for (const cap of document.querySelectorAll('#hud .vp .lmk')) {
+        cap.querySelector('.lmk-name').textContent = 'Passarela nas copas do Daintree';
+        const where = cap.querySelector('.lmk-where');
+        where.textContent = 'Território do Norte · Austrália'; where.classList.remove('empty');
+        cap.classList.add('show');
+      }
+    });
+    await page.waitForTimeout(800);
     const hud = await page.evaluate(() => {
       const px = (el) => (el ? parseFloat(getComputedStyle(el).fontSize) : null);
       return [...document.querySelectorAll('#hud .vp')].filter((v) => v.style.display !== 'none').map((vp) => {
-        const panels = [...vp.querySelectorAll(':scope > .tl, :scope > .tr, :scope > .mates, :scope > .bl, :scope > .br, :scope > .mini')]
+        const panels = [...vp.querySelectorAll(':scope > .tl, :scope > .tr, :scope > .mates, :scope > .bl, :scope > .br, :scope > .mini, :scope > .lmk')]
           .filter((e) => getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0);
         const overlaps = [];
         for (let i = 0; i < panels.length; i++) for (let j = i + 1; j < panels.length; j++) {
@@ -400,8 +411,8 @@ if (!process.env.NC_LAYOUT_SKIP_HUD) {
         }
         return {
           nums: { pos: px(vp.querySelector('.pos-n')), of: px(vp.querySelector('.pos-of')), lap: px(vp.querySelector('.lap')), time: px(vp.querySelector('.time')),
-            laps: px(vp.querySelector('.laps')), kmh: px(vp.querySelector('.kmh')), gear: px(vp.querySelector('.gear')) },
-          labels: { tag: px(vp.querySelector('.tag')), label: px(vp.querySelector('.label')), unit: px(vp.querySelector('.unit')) },
+            laps: px(vp.querySelector('.laps')), kmh: px(vp.querySelector('.kmh')), gear: px(vp.querySelector('.gear')), landmark: px(vp.querySelector('.lmk-name')) },
+          labels: { tag: px(vp.querySelector('.tag')), label: px(vp.querySelector('.label')), unit: px(vp.querySelector('.unit')), caption: px(vp.querySelector('.lmk-where')) },
           overlaps,
         };
       });

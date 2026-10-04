@@ -15,7 +15,9 @@ import { VIP_COLOR } from '../core/modes';
 import { formatTicks } from '../core/sim/race';
 import type { CarState, RaceState, Track } from '../core/types';
 import type { HudMessage, RenderFrame, ViewportSpec } from '../game/contracts';
-import { t } from '../i18n';
+import { getLanguage, t } from '../i18n';
+import { captionName, captionPlace } from './caption/names';
+import './caption/caption.css';
 import { GhostDelta } from './ghost-hud';
 import { spareCell, uiScale, viewportRects, type Rect } from './layout';
 import { outlinePoint, trackOutline, type Outline } from './minimap';
@@ -46,6 +48,53 @@ function setStyle(e: HTMLElement, prop: string, value: string): void { if (e.sty
 function setAttr(e: Element, name: string, value: string): void { if (e.getAttribute(name) !== value) e.setAttribute(name, value); }
 
 function ordinal(n: number): string { return t('hud.ordinal', { n, s: ordinalSuffix(n) }); }
+
+/** O que o HUD precisa da legenda dos marcos de um viewport (caption/caption.ts: CaptionDirector). */
+export interface LandmarkCaptionState {
+  /** O marco da legenda (continua durante a saída, para o texto não sumir antes da animação). */
+  readonly landmark: string | null;
+  readonly showing: boolean;
+}
+
+/**
+ * Legenda dos marcos turísticos: cartão-postal no pé do viewport, entre o combustível e o velocímetro — o selo com o
+ * alfinete, o nome do marco e, embaixo, onde fica. O texto só é montado quando o marco muda; a entrada e a saída são
+ * transições de CSS (caption/caption.css).
+ */
+class LandmarkCaption {
+  readonly root: HTMLElement;
+  private readonly name: HTMLElement;
+  private readonly where: HTMLElement;
+  /** O marco, a pista e o idioma do texto montado (comparados sem montar string: nada alocado por quadro). */
+  private shownId = ''; private shownTrack = ''; private shownLang = '';
+
+  constructor(parent: HTMLElement) {
+    this.root = el('div', 'lmk', parent);
+    this.root.setAttribute('aria-live', 'polite');
+    const stamp = el('div', 'lmk-stamp', this.root);
+    const pin = svg('svg', stamp, { viewBox: '0 0 24 24', 'aria-hidden': 'true' });
+    svg('path', pin, { class: 'lmk-pin', d: 'M12 1.8a7.4 7.4 0 0 0-7.4 7.4c0 5.5 7.4 13 7.4 13s7.4-7.5 7.4-13A7.4 7.4 0 0 0 12 1.8z' });
+    svg('circle', pin, { class: 'lmk-hole', cx: '12', cy: '9.2', r: '2.7' });
+    const text = el('div', 'lmk-text', this.root);
+    this.name = el('div', 'lmk-name', text);
+    this.where = el('div', 'lmk-where', text);
+  }
+
+  update(state: LandmarkCaptionState | undefined, trackId: string, paused: boolean): void {
+    const id = state?.landmark ?? null;
+    if (id !== null) {
+      const lang = getLanguage();
+      if (id !== this.shownId || trackId !== this.shownTrack || lang !== this.shownLang) {
+        this.shownId = id; this.shownTrack = trackId; this.shownLang = lang;
+        setText(this.name, captionName(id));
+        const where = captionPlace(trackId);
+        setText(this.where, where);
+        setClass(this.where, 'empty', where === '');
+      }
+    }
+    setClass(this.root, 'show', id !== null && state?.showing === true && !paused);
+  }
+}
 
 /** Minimapa: contorno + um ponto por carro. */
 class MiniMap {
@@ -138,6 +187,7 @@ class SeatHud {
   private readonly pause: HTMLElement; private readonly lines: HTMLElement;
   private readonly topList: HudMessage[] = []; private readonly centerList: HudMessage[] = [];
   private readonly ghost: GhostDelta;
+  private readonly caption: LandmarkCaption;
 
   constructor(parent: HTMLElement) {
     this.root = el('div', 'vp', parent);
@@ -172,12 +222,13 @@ class SeatHud {
     const speed = el('div', 'speed', br); this.kmh = el('span', 'kmh', speed); this.unit = el('span', 'unit', speed);
     this.gear = el('div', 'gear', br); this.gearLabel = el('small', '', this.gear); this.gear.appendChild(document.createTextNode(''));
     this.mini = new MiniMap(this.root, 'mini glass');
+    this.caption = new LandmarkCaption(this.root);
     const top = el('div', 'top-msgs', this.root); this.topMsgs = new MessageSlots(top, 2);
     const center = el('div', 'center', this.root); this.count = el('div', 'count', center); this.centerMsgs = new MessageSlots(center, 3);
     this.pause = el('div', 'pause', this.root);
   }
 
-  update(frame: RenderFrame, vp: ViewportSpec, rect: Rect): void {
+  update(frame: RenderFrame, vp: ViewportSpec, rect: Rect, caption?: LandmarkCaptionState): void {
     const { state, track } = frame;
     const car: CarState | undefined = state.cars[vp.carIndex];
     const r = this.root;
@@ -277,6 +328,8 @@ class SeatHud {
     } else if (this.lastCount) { this.lastCount = ''; setClass(this.count, 'show', false); }
     setText(this.pause, t('hud.pause'));
     setClass(this.pause, 'show', frame.paused);
+    // Legenda dos marcos (só o renderizador 3D passa: o Retrô não tem marcos). Some na pausa.
+    this.caption.update(caption, track.def.id, frame.paused);
   }
 }
 
@@ -340,7 +393,8 @@ export class Hud {
     root.classList.add('nc-hud');
   }
 
-  update(frame: RenderFrame, width: number, height: number): void {
+  /** `captions`: a legenda dos marcos de cada viewport, na ordem de `frame.viewports` (ausente = sem legenda). */
+  update(frame: RenderFrame, width: number, height: number, captions?: ReadonlyArray<LandmarkCaptionState>): void {
     if (!this.visible) { this.visible = true; this.root.classList.remove('hidden'); }
     const n = frame.viewports.length;
     while (this.seats.length < n) this.seats.push(new SeatHud(this.root));
@@ -348,7 +402,7 @@ export class Hud {
     const rects = viewportRects(n, width, height);
     for (let i = 0; i < n; i++) {
       setStyle(this.seats[i].root, 'display', 'block');
-      this.seats[i].update(frame, frame.viewports[i], rects[i]);
+      this.seats[i].update(frame, frame.viewports[i], rects[i], captions?.[i]);
     }
     const spare = spareCell(n, width, height);
     if (spare) {
