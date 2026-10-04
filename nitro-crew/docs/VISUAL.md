@@ -562,6 +562,24 @@ em dois degraus e a Garganta numa queda só; rocha de basalto tomada de musgo qu
 redondas atrás do lábio; as pontas da ferradura descem em encosta de mata (o paredão visto de lado lia como muro); a
 névoa é luz (`glow`, sem sombra — acesa pelo sol virava pedra cinza); o arco-íris na névoa da Garganta; sem a torre.
 4.376 triângulos (teto de longe: 5.000). Os outros marcos passam pela mesma régua na revisão de legibilidade.
+
+**Mundial** (`tests/landmarks-leitura-mundo.test.ts`): os 44 marcos do mundo passaram pela régua — folha de contato com
+a câmera da pista (el 0,04, zoom 1,6) e captura no jogo a ~100 m (perto) e ~300 m (longe). 26 liam em 2 s (Torre
+Eiffel, Coliseu, Ópera, Uluru, Fuji, Matterhorn…); 18 não, por quatro motivos, cada um com o seu teste: **à noite,
+apagado** — a placa de Las Vegas, a pirâmide do Luxor, a Tsutenkaku, o arco da Harbour Bridge e a Catedral Ártica eram
+vultos escuros contra as janelas acesas; a face, as arestas, o fuste, o arco e os painéis viraram luz (`glow`), e a
+água do Stigfossen também, como a das Cataratas; **de faca ou pequeno** — o escudo da Rota 66 e a placa dos trolls,
+virados 30° para +Z "para quem vem", ficavam de faca para quem chega pela direita (agora de frente: o layout já gira o
+marco para quem chega), as shisas de 3,5 m foram a 5,2 m em pedestais, as girafas a 8 e 5,5 m, a Catedral 1,3×; **o
+traço errado mandando** — o morro de 104 m do pagode Chureito, as copas acima da torre de Daintree, os abetos acima das
+lavvu da Lapônia, o vagão baixo do diner atrás do outdoor (agora o pagode 1,35× num morro baixo, a torre acima da mata
+com o telhado vermelho, as lavvu de 12 m com as faixas sami, o letreiro DINER de 17 m), e a girafa, cujo pescoço tinha
+2,6× o comprimento e passava da cabeça; **sem silhueta própria** — o Drakensberg lia como a Table Mountain (crista
+recortada com os contrafortes e a queda do Tugela em luz), Storseisundet era uma linha baixa (a corcova de 40 m em
+260 m), a treliça das Rochosas, de barras de 0,6 m, sumia (banzos de 1,4 m em aço vermelho), o portão do Kruger tinha
+a claridade do capim (cal e sapé escuro). Tempo à vista igual (±0,4 s); triângulos dentro do teto (o diner caiu de
+2.764 para 1.812: as letras só na face da pista). Pendente fora dos modelos: a Tsutenkaku a 300 m e parte do arco da
+Harbour Bridge ficam atrás das quadras de fundo do terreno.
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
