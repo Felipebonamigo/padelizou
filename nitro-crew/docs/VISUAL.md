@@ -636,6 +636,26 @@ estufa de Curitiba tem o ferro branco grosso e o vidro verde (vidro cor de céu 
 Pão de Açúcar, Ponte Estaiada, igreja barroca, Terceira Ponte, Catedral de Pedra e Congresso. Tempo à vista: todos
 ≥ 2,5 s (o menor continua o Convento, 2,5 s). Ficam em 3: o portal da Transpantaneira (genérico sem o nome escrito) e,
 em Bonito, o buritizal, que compete com as palmeiras do bioma.
+
+**1ª leva do Norte e do Nordeste** (`brasil-norte-nordeste.ts`, `tests/landmarks-leitura-norte-nordeste-1.test.ts`): dos
+33 marcos, 22 refeitos pela mesma régua (para os furos, a vista girada de quem chega, a 0,6–1 rad; para a ponte de
+Aracaju, só a parte de luz, porque a pista é à noite). **Elevador Lacerda**: a escarpa era uma placa verde lisa e a
+torre, da altura do casario, sumia — agora a encosta é de rocha e mata e a torre passa o resto em 29 m (eram 7).
+**Fortes dos Reis Magos e de Macapá**: de baixo eram um muro; agora proa de baluarte, escarpa escura, cordão claro e
+guaritas de cúpula (Macapá 164 → 88 m, muro a 12,5 m; Reis Magos sem o passadiço de 46 m que o afastava). **Furos**: a
+Pedra Furada da Capivara fechava para quem chega de lado (28 → 257 m² a 0,6 rad), a de Jeri era um bloco (0 → 50 m²
+a 1 rad), o furo do Marco Zero tinha 4 m² (agora 24). **Superfícies**: as pinturas rupestres eram 1,6% da face (agora
+11%); as lagoas dos Lençóis, discos deitados, eram 0% da vista da pista (agora 22%, inclinadas para a pista); a falésia
+do Cabo Branco era um bolo de caixas. **Cor e luz**: as dunas do Jalapão tinham a cor do chão do deserto, a do Pôr do
+Sol lia como morro, a ponte de Aracaju à noite era a fileira de postes (agora estais e torres são luz). **Tamanho**
+(1,3–1,5×): jangada 9 → 14 m de velas coloridas, bonecos de Olinda 7 → 12 m, locomotiva 6 → 15 m com a fumaça, barco
+regional, maloca, gameleira, coqueiral. **Assinatura**: a cúpula do Teatro Amazonas 18 → 26 m com o corpo rosa, as
+pernas das caixas-d'água que sumiam, a bandeira do Acre no Palácio Rio Branco. Ainda fracos no jogo: as dunas do Pôr do
+Sol e do Jalapão e as lagoas dos Lençóis, a 260–310 m de lado e no contraluz do entardecer; bonecos, locomotiva, barco
+e coqueiral seguem pequenos a 180 m (o exagero parou em 1,5×).
+
+Balanço da revisão (as 5 levas): dos 161 marcos, 95 refeitos (Cataratas, 15 + 22 + 14 + 25 do Brasil e 18 do Mundial),
+cada um com o teste da medida que o fazia ilegível, visto falhar no modelo antigo.
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
