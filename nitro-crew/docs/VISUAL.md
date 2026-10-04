@@ -580,6 +580,23 @@ recortada com os contrafortes e a queda do Tugela em luz), Storseisundet era uma
 a claridade do capim (cal e sapé escuro). Tempo à vista igual (±0,4 s); triângulos dentro do teto (o diner caiu de
 2.764 para 1.812: as letras só na face da pista). Pendente fora dos modelos: a Tsutenkaku a 300 m e parte do arco da
 Harbour Bridge ficam atrás das quadras de fundo do terreno.
+
+**2ª leva do Centro-Sul** (`tests/landmarks-leitura-centro-sul-2.test.ts`): os outros 26 marcos de
+`brasil-2-centro-sul.ts` passaram pela mesma régua — folha de contato com a câmera da pista e captura no jogo no ponto
+de aproximação — e 14 foram refeitos. Os defeitos se repetiam. **Muro de blocos**: o Véu de Noiva enchia 98% da caixa,
+como fachada, e a Casca d'Anta era uma torre cinza entre dois morros. Viraram paredões em estratos (`cliff`, com talude
+e pontas de mata), com a água num véu de faixas de tons (lançado do lábio e abrindo para baixo) e névoa de luz no pé.
+**Peça fina que some**: o arco da Ponte da Amizade (4 m a 270 m), os arcos da JK, a estrada do Rio do Rastro (4 m,
+quase do tom da mata) e os tubos da Ópera de Arame (0,36 m). Ganharam espessura projetada de 6–12 m e contraste de
+claridade. **O traço do lugar escondido ou genérico**: a abóbada grande da Pampulha tapava as pequenas, o Dedo de Deus
+era um cone entre picos da mesma altura, a duna de Itaúnas uma faixa de 32 m. **Cor-assinatura fraca**: Pedra Azul
+cinza; Cavalhadas com 13% de azul e 14% de vermelho. **Escala**: jacarés, relógio de Campo Grande e Centro Geodésico
+menores que o que os cerca, levados a ×1,45–1,5. E **o ângulo de quem chega**: o marco só está no quadro até ~46° do
+eixo da pista, e o giro de chegada é de 0,3–0,45 rad, então o jogador o vê de 0,4 a 1 rad da frente, nunca de frente.
+A aba do anfiteatro do Véu de Noiva escondia a queda, e os jacarés de frente para a pista viravam traço; por isso os
+testes de queda d'água e do bando medem também o modelo girado ±0,8 rad. Bicho no chão não lê a 190 m nem a ×3: no
+jacaré, quem lê primeiro é a placa amarela. Ficaram como estavam: o Itaimbezinho (o corte do cânion, aberto de frente,
+fecha a 0,35–0,6 rad — lê como a escarpa dos Aparados) e a escuna (pequena na contraluz; candidata a ×1,3).
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
