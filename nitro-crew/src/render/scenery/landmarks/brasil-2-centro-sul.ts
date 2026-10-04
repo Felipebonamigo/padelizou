@@ -450,60 +450,115 @@ function dunasItaunas(): Model {
 // ───────────────────────────── Sul ─────────────────────────────
 
 /**
- * Cataratas do Iguaçu: o paredão em ferradura em dois degraus, as quedas brancas entre ilhas de mata, a Garganta do
- * Diabo no meio, a névoa, o rio barrento, a passarela e a torre do elevador.
+ * Cataratas do Iguaçu, vistas de dentro da ferradura (a boca para +X, a pista): as quedas em dois degraus — cortinas
+ * brancas riscadas que abrem para baixo, quase sem rocha à mostra —, a Garganta do Diabo no meio numa queda só com a
+ * nuvem de névoa e o arco-íris, a mata fechada na borda de cima, a névoa cobrindo o pé, o rio e a passarela. Sem a
+ * torre do elevador: de longe ela e os painéis retos liam como prédios (tests/landmarks-leitura.test.ts).
  */
 function cataratasIguacu(): Model {
   const k = new Kit();
-  const C: V3 = [40, 0, 0]; const R = 130; const N = 12; const A = 1.15;
+  const C: V3 = [40, 0, 0]; const R = 130; const N = 14; const A = 1.05;
+  const H1 = 64; const H2 = 30; // topo do planalto e o degrau do meio
   const at = (r: number, a: number): [number, number] => [C[0] - r * Math.cos(a), r * Math.sin(a)];
-  const basalt = '#6a5e4e';
-  k.add(paint(box(140, 0.6, 250), '#8a8a62', tf(-45, 0.3, 0))); // rio
+  const basalt = '#46503a'; // basalto escuro tomado de musgo
+  const greens = ['#2f6a33', '#3f7a3a', '#2a5e30', '#4a8a3c'];
+  const tones = ['#ffffff', '#eaf5fc', '#d6eaf5', '#f4fbff', '#c8e2ef'];
+  // Cortina d'água: do lábio (raio r0, altura yTop) até o pé (yBot), lançada para a frente no alto e abrindo para
+  // baixo; faixas verticais de tons diferentes (os riscos) e duas fileiras (a barriga da queda).
+  const curtain = (seed: number, a: number, r0: number, yTop: number, yBot: number, wTop: number, wBot: number, lip: number): void => {
+    const out: number[] = [];
+    const B = 5; const T = [0, 0.3, 1];
+    const tx = Math.sin(a); const tz = Math.cos(a);
+    const P = (s: number, t: number): V3 => {
+      const r = r0 - lip * Math.sqrt(t); const w = wTop + (wBot - wTop) * t;
+      const [x, z] = at(r, a);
+      return [x + tx * s * w, yTop - (yTop - yBot) * t, z + tz * s * w];
+    };
+    const nx = Math.cos(a); const nz = -Math.sin(a); // para dentro da ferradura (para quem olha)
+    for (let b = 0; b < B; b++) {
+      const band: number[] = [];
+      for (let j = 0; j < T.length - 1; j++) {
+        const s0 = -0.5 + b / B; const s1 = -0.5 + (b + 1) / B;
+        const p00 = P(s0, T[j]); const p10 = P(s1, T[j]); const p11 = P(s1, T[j + 1]); const p01 = P(s0, T[j + 1]);
+        // Vira o quadrilátero para quem olha (o material de luz tem uma face só).
+        const ux = p10[0] - p00[0]; const uy = p10[1] - p00[1]; const uz = p10[2] - p00[2];
+        const vx = p01[0] - p00[0]; const vy = p01[1] - p00[1]; const vz = p01[2] - p00[2];
+        const facing = (uy * vz - uz * vy) * nx + (ux * vy - uy * vx) * nz;
+        if (facing >= 0) quad(band, p00, p10, p11, p01); else quad(band, p00, p01, p11, p10);
+      }
+      out.push(...band);
+      k.light(paint(tris(band), tones[Math.floor(hash2(seed, b) * tones.length)]));
+    }
+  };
+  // Rio na frente (verde-barrento, mas de água) com a espuma.
+  k.add(paint(box(116, 0.6, 250), '#5d8a7a', tf(-56, 0.3, 0)));
   for (let i = 0; i < N; i++) {
     const a = -A + ((i + 0.5) / N) * 2 * A;
     const chord = 2 * R * Math.sin(A / N) + 2;
     const center = Math.abs(a) < 0.2;
-    // Degrau de cima (até 72 m) e o de baixo (32 m), mais à frente; na Garganta, uma queda só.
-    const [ux, uz] = at(R + 15, a);
-    const up = rock(250 + i, basalt, tf(ux, 36, uz, 30, 72, chord, 0, a, 0), [1, 2, 2], 0.04);
-    tintUp(up, '#3f7a36', 0.6, 1);
-    k.add(up);
+    // Rocha atrás das quedas: o planalto (até H1) e o degrau do meio (até H2), quase toda escondida pela água.
+    const [ux, uz] = at(R + 16, a);
+    k.add(tintUp(rock(250 + i, basalt, tf(ux, H1 / 2, uz, 32, H1, chord, 0, a, 0), [1, 1, 1], 0.05), greens[i % 4], 0.6, 1));
     if (!center) {
       const [lx, lz] = at(R - 16, a);
-      const low = rock(270 + i, basalt, tf(lx, 16, lz, 32, 32, chord, 0, a, 0), [1, 2, 2], 0.04);
-      tintUp(low, '#4a8a3c', 0.6, 1);
-      k.add(low);
+      k.add(tintUp(rock(270 + i, basalt, tf(lx, H2 / 2, lz, 30, H2, chord, 0, a, 0), [1, 1, 1], 0.05), greens[(i + 1) % 4], 0.7, 1));
     }
-    // Quedas: quase todo trecho tem água; algumas ilhas de mata ficam secas.
-    const dry = hash2(i, 290) < 0.25 && !center;
-    if (!dry) {
-      const w = chord * (center ? 0.95 : 0.55 + hash2(i, 291) * 0.3);
-      const [fx, fz] = at(R - 2, a);
-      k.light(paint(box(0.6, center ? 70 : 38, w), WATER_FALL, tf(fx, center ? 36 : 52, fz, 1, 1, 1, 0, a, 0)));
-      if (!center) {
-        const [gx, gz] = at(R - 34, a);
-        k.light(paint(box(0.6, 30, w * 0.9), '#dcefff', tf(gx, 16, gz, 1, 1, 1, 0, a, 0)));
-      }
-    } else {
-      const [bx, bz] = at(R - 4, a);
-      k.add(blob(292 + i, '#3f7a36', bx, 50, bz, 6, 14, chord * 0.4));
+    // Quedas: largas (a água é o que se vê); uma ou outra estreita, com a ilha de mata do lado.
+    const narrow = hash2(i, 290) < 0.15 && !center;
+    const w = chord * (center ? 1.0 : narrow ? 0.55 : 0.92 + hash2(i, 291) * 0.12);
+    if (center) curtain(300 + i, a, R - 1, H1, 0, w, w * 1.25, 10);
+    else {
+      curtain(300 + i, a, R - 1, H1, H2 - 1, w, w * 1.15, 5);
+      curtain(320 + i, a, R - 31, H2, 0, w * 0.95, w * 1.2, 4);
     }
-    // Mata no alto da borda.
-    const [tx, tz] = at(R + 24, a);
-    k.add(blob(300 + i, i % 2 ? '#2f6a33' : '#3f7a3a', tx, 74, tz, 12, 7, chord * 0.6));
+    if (narrow) {
+      const [bx, bz] = at(R - 4, a + (chord * 0.32) / R);
+      k.add(paint(jitter(ico(1, 1), 0.18, 292 + i), greens[i % 4], tf(bx, H2 + 14, bz, 9, 16, chord * 0.25)));
+    }
+    // Mata fechada no alto da borda: copas redondas acima do lábio (a silhueta de cima é floresta).
+    const [tx, tz] = at(R + 20, a); // atrás do lábio: a copa não cobre o alto da queda
+    k.add(paint(jitter(ico(1, 1), 0.16, 340 + i), greens[i % 4], tf(tx, H1 + 3, tz, 18, 9, chord * 0.62)));
+    if (!center) { // e no degrau do meio, entre as duas quedas
+      const [mx, mz] = at(R - 22, a);
+      k.add(paint(jitter(ico(1, 0), 0.2, 380 + i), greens[(i + 2) % 4], tf(mx, H2 + 0.5, mz, 7, 2.5, chord * 0.5)));
+    }
   }
-  // Névoa da Garganta e no pé das quedas.
-  for (let i = 0; i < 5; i++) {
-    const a = -0.9 + i * 0.45;
-    const [mx, mz] = at(R - 40, a);
-    k.add(paint(jitter(ico(1, 1), 0.12, 320 + i), '#eef4f6', tf(mx, 6, mz, 14, i === 2 ? 16 : 8, 16)));
+  // As pontas da ferradura, que se veem de lado: a encosta de mata desce do planalto até o rio (sem paredão à mostra).
+  for (const s of [-1, 1]) {
+    const [ex, ez] = at(R + 6, s * (A + 0.06));
+    k.add(hill(16, H1 + 6, 16, s > 0 ? 361 : 362, '#3f6a36', greens[1], 1, 0.12, 0.25, tf(ex, 0, ez)));
   }
-  // Passarela até a Garganta e a torre do elevador (lado brasileiro).
-  k.add(beam([20, 4, 70], [-40, 4, 26], 2.6, '#cfcfc8', 0.5));
-  for (let i = 0; i <= 4; i++) k.add(paint(box(0.6, 4, 0.6), '#9a9a94', tf(20 - i * 15, 2, 70 - i * 11)));
-  k.add(paint(box(7, 74, 7), '#d8d4c8', tf(14, 37, 112)), paint(box(9, 6, 9), '#8ab0c8', tf(14, 71, 112)));
-  k.add(beam([14, 72, 112], [-2, 72, 112], 2.4, '#cfcfc8', 0.6));
-  return k.model([0, 74], 0.05, 251);
+  // Névoa: a faixa branca que esconde o pé das quedas e a nuvem que sobe da Garganta.
+  // Luz (sem sombra): de longe a névoa é uma mancha clara e macia; acesa pelo sol, virava pedra cinza.
+  const MIST = '#e4eef2';
+  for (let i = 0; i < 10; i++) {
+    const a = -A - 0.12 + ((i + 0.5) / 10) * (2 * A + 0.24);
+    const [mx, mz] = at(R - 44, a);
+    k.light(paint(jitter(ico(1, 1), 0.14, 400 + i), MIST, tf(mx, 6, mz, 16, 13, 2 * (R - 44) * Math.sin(A / 10) + 12)));
+  }
+  for (const s of [-1, 1]) { // a névoa que o vento leva para o pé das pontas
+    const [mx, mz] = at(R - 4, s * (A + 0.06));
+    k.light(paint(jitter(ico(1, 1), 0.14, s > 0 ? 418 : 419), MIST, tf(mx, 3, mz, 20, 9, 22)));
+  }
+  for (let i = 0; i < 4; i++) {
+    const [gx, gz] = at(R - 26 - i * 6, (hash2(i, 410) - 0.5) * 0.2);
+    k.light(paint(jitter(ico(1, 1), 0.14, 412 + i), MIST, tf(gx, 12 + i * 9, gz, 12 - i, 9, 16 - i * 2)));
+  }
+  // Arco-íris na névoa da frente da Garganta.
+  const bow = ['#e8483a', '#f29a2e', '#f2d23a', '#5ab84a', '#3a7ad8'];
+  bow.forEach((c, b) => {
+    const r = 34 - b * 1.4; const out: number[] = []; const S = 18;
+    for (let s = 0; s < S; s++) {
+      const t0 = (Math.PI * s) / S; const t1 = (Math.PI * (s + 1)) / S;
+      const p = (t: number, rr: number): V3 => [-10, 6 + rr * Math.sin(t), -rr * Math.cos(t)];
+      quad(out, p(t0, r), p(t1, r), p(t1, r - 1.4), p(t0, r - 1.4));
+    }
+    k.light(paint(tris(out), c));
+  });
+  // Passarela até a Garganta (lado brasileiro).
+  k.add(beam([0, 4, 62], [-48, 4, 28], 2.6, '#cfcfc8', 0.5));
+  for (let i = 0; i <= 4; i++) k.add(paint(box(0.6, 4, 0.6), '#9a9a94', tf(-i * 12, 2, 62 - i * 8.5)));
+  return k.model([0, H1], 0.05, 251);
 }
 
 /**

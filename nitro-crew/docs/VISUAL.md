@@ -543,6 +543,23 @@ pegava o **primeiro** lugar válido; agora mede todos e fica com o que a câmera
   de TV 1,0–1,3 → 2,7–2,8. Quinze instâncias perdem tempo (outro lugar da praça), nenhuma abaixo da meta: a menor fica
   com 2,5 s (Convento da Penha, 2,7 → 2,5). Os de longe da cidade à noite ficam perto da meta (2,5–2,8 s): a névoa
   a 390 m e o marco a 150–230 m de lado deixam ~240 m de aproximação numa reta.
+
+**Leitura** (onda J, `tests/landmarks-leitura.test.ts`): estar na tela não basta — o marco tem de ser reconhecido. O
+dono correu em Foz e "não achou as cataratas": o modelo ficava 4,4 s à vista, mas de frente era um paredão de blocos
+de rocha com painéis brancos retos (caixas de 0,6 m) e a torre do elevador, a peça mais alta e clara — lia como
+prédios. A vista de frente (`tests/front-view.ts`: projeção ortográfica de +X, o lado que o jogador vê, com z-buffer;
+cada célula de 1 m guarda a cor sRGB da face da frente) mede o que faz uma queda d'água ser reconhecida de longe:
+
+- a água domina a face (≥ 45% da silhueta; antes 32%, agora 50%);
+- em cortinas riscadas, não painel liso — nenhum tom de água passa de 45% da água (antes um tom tinha 59%);
+- a névoa cobre o pé (≥ 75% das colunas do quarto de baixo; antes 55%, agora 95%);
+- a borda de cima é mata (≥ 90% das colunas têm topo verde; a torre do elevador quebrava isso de longe).
+
+O modelo novo: cortinas que se lançam do lábio e abrem para baixo, em 5 faixas de tons de branco-azulado (os riscos),
+em dois degraus e a Garganta numa queda só; rocha de basalto tomada de musgo quase toda escondida atrás da água; copas
+redondas atrás do lábio; as pontas da ferradura descem em encosta de mata (o paredão visto de lado lia como muro); a
+névoa é luz (`glow`, sem sombra — acesa pelo sol virava pedra cinza); o arco-íris na névoa da Garganta; sem a torre.
+4.376 triângulos (teto de longe: 5.000). Os outros marcos passam pela mesma régua na revisão de legibilidade.
 - **O que a busca não alcança** (`tests/landmarks-enquadramento.test.ts` documenta, com o número de cada um):
   - **A janela perto da largada** (≤ 150/300 segmentos do fim da largada): os do mar no litoral com curva para o lado
     do mar logo depois da largada — o marco alto não fica do lado de dentro dela —, onde o único lugar na janela é antes
