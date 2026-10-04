@@ -1,9 +1,9 @@
 // Elétrico: fastback liso num arco só, bico fechado (sem grade), teto de vidro, faixa de luz de ponta a
 // ponta na frente e atrás, ombros arredondados, sem escapamento (a chama do nitro sai do difusor) e
 // rodas aerodinâmicas de disco.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { lightBar, mirrors, onTop } from '../details';
-import { beam, box, MeshBuilder, type P3 } from '../kit';
+import { beam, box, MeshBuilder, roundBar, type P3 } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { DRL, GLASS, GLASS_DARK, HEAD, HEAD_HOUSING, LIVERY_B, PAINT, TAIL, TRIM, TRIM_SOFT, UNDER } from '../paints';
 
@@ -27,7 +27,7 @@ export function buildElectric(): CarModel {
   });
   shape.build(b);
   // Teto de vidro inteiro: da base do para-brisa ao fim do vidro traseiro, uma peça escura só.
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.98, hwb: 0.8, yb: 0.78, hwt: 0.8, yt: 0.78 },
       { z: -0.12, hwb: 0.83, yb: 0.81, hwt: 0.62, yt: 1.36, crown: 0.05 },
@@ -36,22 +36,24 @@ export function buildElectric(): CarModel {
     ],
     top: (gap) => (gap === 1 ? GLASS_DARK : GLASS),
     side: () => GLASS,
-  });
-  // Moldura fina de acabamento em volta do vidro (colunas na cor do carro).
+  };
+  buildCabin(b, cab);
+  // Moldura fina de acabamento em volta do vidro (colunas na cor do carro), no alto do vidro lateral.
+  const ga = cabinGlassTop(cab, -0.16); const gb = cabinGlassTop(cab, 0.64);
   b.mirrored(() => {
-    beam(b, [0.8, 0.79, -0.96], [0.62, 1.36, -0.12], 0.06, 0.035, PAINT);
-    beam(b, [0.62, 1.36, -0.12], [0.6, 1.34, 0.6], 0.05, 0.035, PAINT);
-    beam(b, [0.6, 1.34, 0.6], [0.76, 0.89, 1.93], 0.06, 0.035, PAINT);
+    beam(b, [0.8, 0.79, -0.96], ga, 0.06, 0.035, PAINT);
+    beam(b, ga, gb, 0.05, 0.035, PAINT);
+    beam(b, gb, [0.76, 0.89, 1.93], 0.06, 0.035, PAINT);
   });
   // Frente: faixa de luz no bico e dois faróis finos nas pontas; entrada inferior estreita.
   onTop(b, shape, 0, -2.12, 1.3, 0.05, 0.04, TRIM, { pv: DRL });
   onTop(b, shape, 0.62, -2.07, 0.3, 0.1, 0.05, HEAD_HOUSING, { pv: HEAD });
   onTop(b, shape, -0.62, -2.07, 0.3, 0.1, 0.05, HEAD_HOUSING, { pv: HEAD });
-  box(b, [0, 0.3, -2.18], [1.0, 0.06, 0.06], TRIM);
+  roundBar(b, [0, 0.3, -2.18], [1.0, 0.06, 0.06], TRIM, { r: 0.03 });
   mirrors(b, 0.85, 0.9, -0.66, PAINT, 0.9);
   // Traseira: faixa de lanterna de ponta a ponta e difusor liso (sem escapamento).
   lightBar(b, 0.78, 2.205, 1.5, 0.06, TAIL, false);
-  box(b, [0, 0.3, 2.18], [1.3, 0.1, 0.1], UNDER);
+  roundBar(b, [0, 0.3, 2.18], [1.3, 0.1, 0.1], UNDER, { r: 0.04 });
   // Maçanetas embutidas (detalhe fino na cor escura).
   b.mirrored(() => { box(b, [0.935, 0.66, -0.25], [0.02, 0.025, 0.16], TRIM); box(b, [0.935, 0.68, 0.55], [0.02, 0.025, 0.16], TRIM); });
   const exhausts: P3[] = [[0.3, 0.3, 2.24], [-0.3, 0.3, 2.24]];

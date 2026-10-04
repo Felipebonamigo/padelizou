@@ -1,7 +1,7 @@
 // Cunha dos anos 80: planos retos e vincos secos, bico rente ao chão subindo em linha reta até a
 // traseira, faróis escamoteáveis (fechados de dia, sobem à noite), frisos horizontais nas portas,
 // venezianas pretas sobre a tampa, grade preta de ponta a ponta cobrindo as lanternas, asa na tampa.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { exhaust, mirrors, onTop, wing } from '../details';
 import { beam, box, MeshBuilder, withBrush } from '../kit';
 import { finish, regions, type CarModel } from '../model';
@@ -20,12 +20,13 @@ export function buildWedge(): CarModel {
       { z: 2.05, yb: 0.21, yt: 0.84, hw: 0.95, crown: 0.01, sh: 0.1, tuck: 0.1 },
       { z: 2.2, yb: 0.27, yt: 0.83, hw: 0.93, crown: 0, sh: 0.1, tuck: 0.08 },
     ],
-    axles, rise: [0.03, 0.02], band: 0.05,
+    // Cunha de vincos secos: o bico e a traseira arredondam só pela metade.
+    axles, rise: [0.27, 0.02], band: 0.05, round: 0.5,
     brush: regions({ sill: TRIM }),
     capFront: PAINT, capBack: TRIM,
   });
   shape.build(b);
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -1.02, hwb: 0.78, yb: 0.61, hwt: 0.78, yt: 0.61 },
       { z: -0.1, hwb: 0.82, yb: 0.71, hwt: 0.62, yt: 1.08, crown: 0 },
@@ -34,8 +35,10 @@ export function buildWedge(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : gap === 2 ? PAINT : GLASS),
     side: (gap) => (gap === 2 ? PAINT : GLASS),
-  });
-  b.mirrored(() => beam(b, [0.78, 0.62, -1.0], [0.62, 1.08, -0.1], 0.05, 0.035, TRIM_SOFT));
+    edge: 0.04, // borda do teto mais seca que a dos outros
+  };
+  buildCabin(b, cab);
+  b.mirrored(() => beam(b, [0.78, 0.62, -1.0], cabinGlassTop(cab, -0.14), 0.05, 0.035, TRIM_SOFT));
   // Venezianas pretas sobre a tampa (no lugar do vidro traseiro).
   for (let i = 0; i < 6; i++) onTop(b, shape, 0, 0.72 + i * 0.13, 1.16 - i * 0.05, 0.05, 0.03, TRIM, {}, 0.1 + i * 0.012);
   // Faróis escamoteáveis: a caixa fica abaixo do capô de dia e sobe 11 cm à noite (aPaint.w no shader).

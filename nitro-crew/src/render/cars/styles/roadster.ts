@@ -3,7 +3,7 @@
 // na cor de acento, à esquerda), santantônio duplo, faróis redondos, escapes gêmeos, rodas de magnésio.
 import { BodyShape, type Axle } from '../body';
 import { ball, exhaust, grille, mirrors, roundLampPair } from '../details';
-import { AXIS_NZ, beam, box, cylinder, extrudeZY, insideBox, MeshBuilder } from '../kit';
+import { AXIS_NZ, beam, box, cylinder, extrudeZY, fillet, insideBox, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { ACCENT, AMBER, CHROME, GLASS, GLASS_DARK, HEAD, INTERIOR, LIVERY_A, LIVERY_B, PAINT, SEAT, TAIL, TRIM, TRIM_SOFT } from '../paints';
 
@@ -35,11 +35,11 @@ export function buildRoadster(): CarModel {
   insideBox(b, [0, 0.56, (PIT0 + PIT1) / 2], [inner * 2, 0.4, PIT1 - PIT0], INTERIOR);
   // Bancos e o piloto (à esquerda: o Brasil dirige pela direita da pista).
   b.mirrored(() => {
-    box(b, [0.36, 0.44, 0.45], [0.44, 0.1, 0.44], SEAT);
-    box(b, [0.36, 0.66, 0.66], [0.44, 0.5, 0.1], SEAT);
+    roundBar(b, [0.36, 0.44, 0.45], [0.44, 0.1, 0.44], SEAT, { r: 0.04 });
+    roundBar(b, [0.36, 0.66, 0.66], [0.44, 0.5, 0.1], SEAT, { r: 0.05, axis: 'y' });
   });
-  box(b, [-0.36, 0.72, 0.4], [0.4, 0.34, 0.26], TRIM_SOFT); // tronco
-  ball(b, [-0.36, 1.0, 0.38], 0.15, ACCENT, 8, GLASS_DARK); // capacete com viseira
+  roundBar(b, [-0.36, 0.72, 0.4], [0.4, 0.34, 0.26], TRIM_SOFT, { r: 0.1, axis: 'y' }); // tronco
+  ball(b, [-0.36, 1.0, 0.38], 0.15, ACCENT, 12, GLASS_DARK); // capacete com viseira
   cylinder(b, { ...AXIS_NZ, o: [-0.36, 0.8, -0.1] }, 0.16, 0, 0.03, 10, TRIM); // volante
   box(b, [0, 0.72, -0.44], [inner * 2, 0.12, 0.12], TRIM); // painel
   // Para-brisa baixo com moldura.
@@ -52,17 +52,17 @@ export function buildRoadster(): CarModel {
     beam(b, [0.2, 0.78, PIT1 + 0.02], [0.2, 1.12, PIT1 - 0.02], 0.05, 0.05, CHROME);
     beam(b, [0.52, 0.78, PIT1 + 0.02], [0.52, 1.12, PIT1 - 0.02], 0.05, 0.05, CHROME);
     beam(b, [0.18, 1.12, PIT1 - 0.02], [0.54, 1.12, PIT1 - 0.02], 0.05, 0.05, CHROME);
-    extrudeZY(b, [[PIT1 - 0.02, 0.78], [PIT1 + 0.02, 0.98], [PIT1 + 0.2, 1.0], [1.7, 0.84], [1.7, 0.8]], 0.2, 0.52, PAINT);
+    extrudeZY(b, fillet([[PIT1 - 0.02, 0.78], [PIT1 + 0.02, 0.98], [PIT1 + 0.2, 1.0], [1.7, 0.84], [1.7, 0.8]], [0, 0.08, 0.12, 0.03, 0]), 0.2, 0.52, PAINT);
   });
   // Frente: faróis redondos, boca com grade cromada, piscas.
   grille(b, 0.36, -2.21, 0.64, 0.14, CHROME, 2, CHROME);
-  roundLampPair(b, 0.6, 0.53, -2.02, 0.1, HEAD, true, CHROME, 0.06, 12);
-  b.mirrored(() => box(b, [0.66, 0.34, -2.15], [0.1, 0.05, 0.05], AMBER));
-  box(b, [0, 0.24, -2.2], [1.3, 0.05, 0.08], TRIM);
+  roundLampPair(b, 0.6, 0.53, -2.05, 0.1, HEAD, true, CHROME, 0.06, 16);
+  b.mirrored(() => box(b, [0.62, 0.34, -2.2], [0.1, 0.05, 0.05], AMBER));
+  roundBar(b, [0, 0.24, -2.2], [1.3, 0.05, 0.08], TRIM, { r: 0.025 });
   mirrors(b, 0.84, 0.86, -0.44, CHROME, 0.8);
   // Traseira: lanternas redondas, escapes gêmeos.
-  roundLampPair(b, 0.56, 0.64, 2.17, 0.075, TAIL, false, CHROME, 0.05, 10);
-  box(b, [0, 0.34, 2.2], [1.4, 0.08, 0.08], TRIM);
+  roundLampPair(b, 0.56, 0.64, 2.17, 0.075, TAIL, false, CHROME, 0.05, 14);
+  roundBar(b, [0, 0.34, 2.2], [1.4, 0.08, 0.08], TRIM, { r: 0.035 });
   const exhausts = [exhaust(b, 0.4, 0.26, 2.26, 0.055), exhaust(b, -0.4, 0.26, 2.26, 0.055)];
   return finish('roadster', b, { wheel: 'mag', axles, exhausts, liveries: [LIVERY_A, LIVERY_B] });
 }

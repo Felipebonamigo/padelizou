@@ -1,8 +1,9 @@
-// Rodas: pneu com ombro e flanco (torno de 16 lados), aro com borda, poço escuro e o desenho de cada
-// estilo (raios, calota, prato de rali, trava central, raios de arame, roda de aço). Montadas em
-// escala unitária (raio 1, largura 1, face de fora em +x) — a instância escala para o raio e a largura
-// do carro. `symmetry` é o ângulo que repete o desenho: o giro na tela é limitado a uma fração dele
-// por quadro, para os raios não "andarem para trás" (efeito estroboscópico) a 300 km/h.
+// Rodas: pneu com ombro e flanco (torno de `TIRE_SIDES` = 18 lados; eram 12 até a onda I), aro com
+// borda, poço escuro e o desenho de cada estilo (raios, calota, prato de rali, trava central, raios de
+// arame, roda de aço). Montadas em escala unitária (raio 1, largura 1, face de fora em +x) — a instância
+// escala para o raio e a largura do carro. `symmetry` é o ângulo que repete o desenho: o giro na tela é
+// limitado a uma fração dele por quadro, para os raios não "andarem para trás" (efeito estroboscópico) a
+// 300 km/h.
 import type * as THREE from 'three';
 import { AXIS_X, beam, box, cylinder, lathe, MeshBuilder, type Brush, type P2, type P3 } from './kit';
 import { ACCENT, ALU, CHROME, GUNMETAL, TIRE, TIRE_SIDE, TRIM, UNDER, WHITE, WHITEWALL } from './paints';
@@ -14,7 +15,9 @@ export const WHEEL_DESIGNS: readonly WheelDesign[] = ['sport5', 'mag', 'multi', 
 
 export interface WheelModel { design: WheelDesign; geometry: THREE.BufferGeometry; symmetry: number; triangles: number }
 
-const SEGS = 12;
+/** Lados do pneu e do aro (torno). 18: o contorno lê redondo de perto (eram 12, um dodecágono na tela). */
+export const TIRE_SIDES = 18;
+const SEGS = TIRE_SIDES;
 const X = (o: number) => ({ ...AXIS_X, o: [o, 0, 0] as const });
 
 /** Pneu + aro + poço: `rim` = raio do aro (fração do pneu), `lip` = pincel da borda, `dish` = fundo. */
@@ -161,11 +164,11 @@ export function buildWheel(design: WheelDesign): WheelModel {
 
 /**
  * Roda simples da qualidade baixa: pneu e disco liso prateado (a camada B pinta o disco), a mesma para
- * todos os estilos — uma chamada de desenho só para as 80 rodas e ~110 triângulos cada.
+ * todos os estilos — uma chamada de desenho só para as 80 rodas e ~140 triângulos cada (12 lados).
  */
 export function buildSimpleWheel(): WheelModel {
   const b = new MeshBuilder();
-  lathe(b, X(0), [[0, -0.4], [0.86, -0.5], [1, -0.28], [1, 0.28], [0.88, 0.5], [0.62, 0.5], [0.6, 0.34], [0, 0.34]], 10,
+  lathe(b, X(0), [[0, -0.4], [0.86, -0.5], [1, -0.28], [1, 0.28], [0.88, 0.5], [0.62, 0.5], [0.6, 0.34], [0, 0.34]], 12,
     (i) => [UNDER, TIRE_SIDE, TIRE, TIRE_SIDE, TIRE_SIDE, RIM_B, RIM_B][i]);
   return { design: 'hubcap', geometry: b.build(CREASE.wheel), symmetry: Math.PI * 2, triangles: b.triangles };
 }

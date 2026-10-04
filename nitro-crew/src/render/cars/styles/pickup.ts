@@ -1,9 +1,9 @@
 // Picape: alta e quadrada, cabine simples e caçamba aberta (fundo e paredes de dentro, caixas das rodas),
 // santantônio com quatro faróis de milha, grade cromada grande, para-choques cromados grossos,
 // para-lamas de plástico preto, lanternas verticais nos cantos e rodas de aço com pneu de flanco alto.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { exhaust, grille, lampPair, mirrors, plate, roundLampPair } from '../details';
-import { beam, box, insideBox, MeshBuilder } from '../kit';
+import { beam, box, insideBox, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { AMBER, CHROME, GLASS, HEAD, HEAD_HOUSING, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, TAIL, TRIM, TRIM_SOFT, UNDER } from '../paints';
 
@@ -40,7 +40,7 @@ export function buildPickup(): CarModel {
   insideBox(b, [0, (FLOOR + RAIL) / 2 + 0.01, (BED0 + BED1) / 2], [inner * 2, RAIL - FLOOR, BED1 - BED0], TRIM_SOFT, { nv: UNDER });
   b.mirrored(() => box(b, [inner - 0.14, FLOOR + 0.07, axles[1].z], [0.28, 0.14, 0.9], TRIM_SOFT));
   // Cabine alta com o vidro traseiro quase vertical.
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.98, hwb: 0.84, yb: 1.03, hwt: 0.84, yt: 1.03 },
       { z: -0.45, hwb: 0.86, yb: 1.04, hwt: 0.76, yt: 1.72, crown: 0.02 },
@@ -48,13 +48,14 @@ export function buildPickup(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : GLASS),
     side: () => GLASS,
-  });
-  // Parede de trás da cabine (o loft da cabine é aberto nas pontas) com o vidro traseiro.
-  box(b, [0, 1.395, BED0 - 0.03], [1.72, 0.7, 0.04], PAINT);
-  box(b, [0, 1.47, BED0 - 0.005], [1.12, 0.3, 0.02], GLASS);
+    // Parede de trás da cabine: a tampa do loft, no contorno da cabine (borda do teto redonda).
+    capBack: PAINT,
+  };
+  buildCabin(b, cab);
+  box(b, [0, 1.47, BED0 - 0.005], [1.12, 0.3, 0.02], GLASS); // vidro traseiro
   b.mirrored(() => {
-    beam(b, [0.84, 1.04, -0.96], [0.76, 1.72, -0.45], 0.07, 0.04, PAINT);
-    beam(b, [0.865, 1.06, -0.05], [0.765, 1.71, -0.05], 0.08, 0.03, TRIM_SOFT);
+    beam(b, [0.84, 1.04, -0.96], cabinGlassTop(cab, -0.49), 0.07, 0.04, PAINT);
+    beam(b, [0.865, 1.06, -0.05], cabinGlassTop(cab, -0.05), 0.08, 0.03, TRIM_SOFT);
   });
   // Santantônio com quatro faróis de milha.
   b.mirrored(() => {
@@ -68,13 +69,13 @@ export function buildPickup(): CarModel {
   grille(b, 0.78, -2.21, 1.12, 0.32, CHROME, 3, CHROME);
   lampPair(b, 0.72, 0.8, -2.2, 0.28, 0.17, 0, HEAD, true, CHROME, 0.06);
   b.mirrored(() => box(b, [0.72, 0.66, -2.2], [0.24, 0.06, 0.05], AMBER));
-  box(b, [0, 0.5, -2.22], [1.84, 0.16, 0.12], CHROME);
+  roundBar(b, [0, 0.5, -2.22], [1.84, 0.16, 0.12], CHROME, { r: 0.05 });
   box(b, [0, 0.38, -2.12], [1.1, 0.06, 0.2], TRIM);
   plate(b, 0.5, -2.29);
   mirrors(b, 0.87, 1.2, -0.72, TRIM, 1.1);
   // Traseira: lanternas verticais nos cantos, para-choque cromado com engate, escape de lado.
   lampPair(b, 0.84, 0.9, 2.2, 0.1, 0.3, 0, TAIL, false, HEAD_HOUSING, 0.05);
-  box(b, [0, 0.5, 2.22], [1.84, 0.14, 0.12], CHROME);
+  roundBar(b, [0, 0.5, 2.22], [1.84, 0.14, 0.12], CHROME, { r: 0.05 });
   box(b, [0, 0.43, 2.3], [0.08, 0.06, 0.08], TRIM);
   plate(b, 0.7, 2.21);
   const exhausts = [exhaust(b, -0.62, 0.4, 2.2, 0.065, 0.2)];

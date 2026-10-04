@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CAR_BODIES, CARS } from '../src/core/data/cars';
 import type { CarBody, CarDef } from '../src/core/types';
 import { box, cylinder, extrudeZY, insideBox, lathe, loft, MeshBuilder, signedVolume, AXIS_X, type P2 } from '../src/render/cars/kit';
+import { CAR_LIMITS } from '../src/render/cars/check';
 import type { CarModel } from '../src/render/cars/model';
 import { buildModel, MODEL_BUILDERS } from '../src/render/cars/models';
 import { carPaint, defaultAccent, LIVERY_A, LIVERY_B, PAINT } from '../src/render/cars/paints';
@@ -98,10 +99,11 @@ describe('modelos dos carros', () => {
     }
   });
 
-  it('orçamento: casco ≤ 2.000 triângulos, roda ≤ 360 e a roda da qualidade baixa ≤ 130', () => {
-    for (const body of CAR_BODIES) expect((models.get(body) as CarModel).triangles, body).toBeLessThanOrEqual(2000);
-    for (const d of WHEEL_DESIGNS) expect(buildWheel(d).triangles, d).toBeLessThanOrEqual(360);
-    expect(buildSimpleWheel().triangles).toBeLessThanOrEqual(130);
+  it('orçamento: casco ≤ 3.500 triângulos, roda ≤ 480 e a roda da qualidade baixa ≤ 150', () => {
+    expect(CAR_LIMITS.maxShellTriangles).toBe(3500);
+    for (const body of CAR_BODIES) expect((models.get(body) as CarModel).triangles, body).toBeLessThanOrEqual(CAR_LIMITS.maxShellTriangles);
+    for (const d of WHEEL_DESIGNS) expect(buildWheel(d).triangles, d).toBeLessThanOrEqual(480);
+    expect(buildSimpleWheel().triangles).toBeLessThanOrEqual(150);
   });
 
   it('as rodas de todo estilo são de um desenho conhecido, fechadas e com as faces para fora', () => {
