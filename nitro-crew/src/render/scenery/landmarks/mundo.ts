@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { hash2, hash3, valueNoise } from '../../noise';
 import { box, cone, cyl, dodeca, frond, gable, hip, ico, merge, paint, shadeY, speckle, sphere, tf, tintUp, tris, type Geo, type Model, type ModelPart } from '../geom';
+import { landmarkPart } from './kit';
 import type { LandmarkRegistry } from './types';
 
 type C = THREE.ColorRepresentation;
@@ -786,14 +787,20 @@ function shisaFigure(k: Kit, m: THREE.Matrix4, open: boolean, seed: number): voi
   k.add(s, m);
 }
 
-/** Par de shisas sobre pilares de pedra coral, num muro baixo (a entrada de uma casa de Okinawa). */
+/**
+ * Par de shisas sobre pilares de pedra coral, num muro baixo (a entrada de uma casa de Okinawa). A shisa baixada
+ * (peça `shisa`, parts.ts, com a base dela) entra no lugar das procedurais, da mesma altura (2,6 × 1,35 sobre o
+ * pilar), de frente (+X) para a pista e um pouco virada para a outra.
+ */
 function shisa(): Model {
   const k = new Kit();
+  const part = landmarkPart('shisa');
   for (const sz of [-1, 1]) {
     k.raw(speckle(paint(box(1.7, 2.6, 1.7), '#d8cfb4', tf(0, 1.3, sz * 3.4)), 0.07, 2));
     k.f(box(2.0, 0.3, 2.0), '#c4b89c', tf(0, 2.75, sz * 3.4));
     k.raw(speckle(paint(box(1.0, 1.6, 6), '#d8cfb4', tf(0, 0.8, sz * 7.2)), 0.07, 3));
-    shisaFigure(k, tf(0, 2.9, sz * 3.4, 1.35, 1.35, 1.35), sz < 0, sz < 0 ? 5 : 6);
+    if (part) k.raw(part.at({ height: 2.6 * 1.35 }, 0, 2.9, sz * 3.4, sz * 0.15));
+    else shisaFigure(k, tf(0, 2.9, sz * 3.4, 1.35, 1.35, 1.35), sz < 0, sz < 0 ? 5 : 6);
   }
   k.f(box(5, 0.12, 5.4), '#cfc6b2', tf(1, 0.06, 0));
   k.raw(speckle(paint(ico(1.2, 1), '#3f8a3a', tf(1.2, 0.8, -10.5, 1.3, 0.9, 1.4)), 0.12, 7));
@@ -1241,10 +1248,18 @@ function giraffe(k: Kit, m: THREE.Matrix4, seed: number): void {
   k.add(s, m);
 }
 
+/**
+ * O par de girafas. A girafa baixada (peça `girafa`, parts.ts) entra no lugar das procedurais, com 6,2 m (a cabeça da
+ * procedural fica em 5,8 m e o pescoço passa dela; um marco de perto tem de ter ≥ 6 m; a menor × 0,7) e com a cabeça
+ * (+X da peça) para onde a procedural olha (+Z local girado `ry`).
+ */
 function girafa(): Model {
   const k = new Kit();
-  giraffe(k, tf(0, 0, -2.5, 1, 1, 1, 0, 0.25, 0), 121);
-  giraffe(k, tf(1.5, 0, 3.0, 0.7, 0.7, 0.7, 0, -0.4, 0), 122);
+  const part = landmarkPart('girafa');
+  for (const [x, z, ry, sc, seed] of [[0, -2.5, 0.25, 1, 121], [1.5, 3.0, -0.4, 0.7, 122]] as const) {
+    if (part) k.raw(part.at({ height: 6.2 * sc }, x, 0, z, ry - Math.PI / 2));
+    else giraffe(k, tf(x, 0, z, sc, sc, sc, 0, ry, 0), seed);
+  }
   return k.model(5.9, { shadow: true, blob: 2.5 });
 }
 
@@ -1778,8 +1793,11 @@ function vilaLapponia(): Model {
   spruce(-16, 4, 11, false);
   spruce(14, 16, 12, false);
   spruce(8, -14, 8, true);
-  // Renas e o trenó.
+  // Renas e o trenó. A rena baixada (peça `rena`, parts.ts) entra no lugar das procedurais, encaixada pelo lombo na
+  // altura do lombo delas (1,475 × 1,3; a galhada fica como veio), a cabeça (+X da peça) para +Z local girado `ry`.
+  const reindeerPart = landmarkPart('rena');
   const reindeer = (x: number, z: number, ry: number): void => {
+    if (reindeerPart) { k.raw(reindeerPart.at({ back: 1.475 * 1.3 }, x, 0, z, ry - Math.PI / 2)); return; }
     const r = new Kit();
     r.f(box(0.55, 0.65, 1.5), '#6a5444', tf(0, 1.15, 0));
     for (const [lx, lz] of [[0.18, 0.55], [-0.18, 0.55], [0.18, -0.55], [-0.18, -0.55]] as const) r.f(box(0.12, 0.85, 0.12), '#4a3a30', tf(lx, 0.42, lz));
@@ -1842,7 +1860,11 @@ function placaTrolls(): Model {
   for (let i = 0; i < 5; i++) t.f(cone(0.14, 0.7, 4), '#3a3226', tf(-0.1 + i * 0.08, 3.95, -0.4 + i * 0.2, 1, 1, 1, 0.3 - i * 0.15, 0, 0.3));
   t.bar(moss, [-0.9, 1.0, 0], [-1.7, 0.4, 0.4], 0.3);
   for (const g of t.flat) speckle(g, 0.1, 191);
-  k.add(t, tf(1.0, 0, 4.2, 1.1, 1.1, 1.1, 0, 0.5, 0));
+  // O troll baixado (peça `troll`, parts.ts) entra no lugar do de pedra, da mesma altura (4,3 × 1,1) e no mesmo giro
+  // (os dois olham para +X).
+  const part = landmarkPart('troll');
+  if (part) k.raw(part.at({ height: 4.3 * 1.1 }, 1.0, 0, 4.2, 0.5));
+  else k.add(t, tf(1.0, 0, 4.2, 1.1, 1.1, 1.1, 0, 0.5, 0));
   return k.model(7, { shadow: true, blob: 2 });
 }
 

@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { hash2, hash3 } from '../../noise';
 import { box, cone, cyl, dodeca, frond, gable, hip, ico, jitter, merge, paint, shadeY, speckle, sphere, tf, tintUp, tris, type Geo, type MatKey, type Model, type ModelPart } from '../geom';
 import { FACADE_TILE } from '../structures';
-import { cliff, dune as duneShape } from './kit';
+import { cliff, dune as duneShape, landmarkPart } from './kit';
 import type { LandmarkDef, LandmarkRegistry } from './types';
 
 // ───────────────────────────── Kit ─────────────────────────────
@@ -989,39 +989,49 @@ function praiaDeRio(): Model {
 function bufalo(): Model {
   const k = new Kit();
   const S = 1.7;
+  // Peças baixadas (parts.ts): o búfalo (o boi recolorido de ardósia) entra no lugar do de caixas, encaixado pelo
+  // lombo na altura do lombo do procedural (1,925 × S: o vaqueiro senta nele como antes), a cabeça (+X da peça) para
+  // onde a procedural olha (+Z local girado `yaw`); a garça-vaqueira no lombo, com 0,5 m × S (a peça é a garça-branca
+  // grande, de 1 m: a vaqueira é a metade). Com a peça, a manada fica com 8 + o do vaqueiro (orçamento do marco).
+  const buffaloPart = landmarkPart('bufalo');
+  const egretPart = landmarkPart('garca');
   // Campo: capim claro em volta, a lâmina d'água (clara, do céu) e touceiras de capim aquático.
   k.add(plan(blobPoly(14, 30, 40, 0.12, 550), 0.08), '#9ab45a', tf(-2, 0.02, 0));
   pond(k, -3, 2, 25, 34, ['#a4c4bc', '#8cb4ae'], 551);
   for (let i = 0; i < 8; i++) k.raw(paint(jitter(ico(1, 0), 0.25, 556 + i), i % 2 ? '#7fa050' : '#94b45a', tf(-18 + hash2(557, i) * 32, 0.2, -27 + i * 7.5, 1.8 + hash2(558, i), 0.5, 1.8 + hash2(559, i))));
-  const one = (x: number, z: number, yaw: number, rider: boolean, seed: number, wade = 0): void => {
+  const one = (x: number, z: number, yaw: number, rider: boolean, seed: number, wade = 0, egret = false): void => {
     const s = S; const c = Math.cos(yaw); const sn = Math.sin(yaw);
     const P = (lx: number, y: number, lz: number): THREE.Matrix4 => tf(x + lx * c + lz * sn, y - wade, z - lx * sn + lz * c, 1, 1, 1, 0, yaw, 0);
     const at = (lx: number, y: number, lz: number): V3 => { const v = new THREE.Vector3().setFromMatrixPosition(P(lx, y, lz)); return [v.x, v.y, v.z]; };
     const hide = hash2(seed, 1) > 0.3 ? '#2e2a28' : '#4a3c34';
-    k.add(box(1.25 * s, 1.15 * s, 2.5 * s), hide, P(0, 1.35 * s, 0));
-    k.add(box(1.35 * s, 0.6 * s, 1.0 * s), hide, P(0, 1.85 * s, 0.75 * s));
-    for (const lx of [-0.4, 0.4]) for (const lz of [-0.95, 0.95]) k.add(box(0.28 * s, 0.9 * s, 0.28 * s), hide, P(lx * s, 0.45 * s, lz * s));
-    k.add(box(0.6 * s, 0.6 * s, 0.9 * s), hide, P(0, 1.4 * s, 1.55 * s));
-    // Chifres largos e curvados para trás.
-    for (const side of [-1, 1]) {
-      const a = at(side * 0.25 * s, 1.75 * s, 1.5 * s); const b = at(side * 0.85 * s, 1.95 * s, 1.15 * s); const d = at(side * 0.75 * s, 2.15 * s, 0.75 * s);
-      k.beam(a, b, 0.14 * s, '#d8ccb8').beam(b, d, 0.11 * s, '#d8ccb8');
+    if (buffaloPart) k.raw(buffaloPart.at({ back: 1.925 * s }, x, -wade, z, yaw - PI / 2));
+    else {
+      k.add(box(1.25 * s, 1.15 * s, 2.5 * s), hide, P(0, 1.35 * s, 0));
+      k.add(box(1.35 * s, 0.6 * s, 1.0 * s), hide, P(0, 1.85 * s, 0.75 * s));
+      for (const lx of [-0.4, 0.4]) for (const lz of [-0.95, 0.95]) k.add(box(0.28 * s, 0.9 * s, 0.28 * s), hide, P(lx * s, 0.45 * s, lz * s));
+      k.add(box(0.6 * s, 0.6 * s, 0.9 * s), hide, P(0, 1.4 * s, 1.55 * s));
+      // Chifres largos e curvados para trás.
+      for (const side of [-1, 1]) {
+        const a = at(side * 0.25 * s, 1.75 * s, 1.5 * s); const b = at(side * 0.85 * s, 1.95 * s, 1.15 * s); const d = at(side * 0.75 * s, 2.15 * s, 0.75 * s);
+        k.beam(a, b, 0.14 * s, '#d8ccb8').beam(b, d, 0.11 * s, '#d8ccb8');
+      }
     }
     if (rider) {
       k.add(box(0.5 * s, 0.8 * s, 0.4 * s), '#e8dcc0', P(0, 2.45 * s, 0.1 * s));
       k.add(box(0.36 * s, 0.36 * s, 0.36 * s), '#8a5a3a', P(0, 3.05 * s, 0.15 * s));
       k.add(cyl(0.45 * s, 0.45 * s, 0.08 * s, 8), '#c8a860', P(0, 3.27 * s, 0.15 * s)).add(cyl(0.2 * s, 0.22 * s, 0.25 * s, 6), '#c8a860', P(0, 3.4 * s, 0.15 * s));
       k.beam(at(0.35 * s, 1.2 * s, 0.6 * s), at(0.45 * s, 3.8 * s, 1.4 * s), 0.07 * s, '#7a5a3a');
-    } else if (hash2(seed, 5) > 0.5) {
+    } else if (egretPart ? egret : hash2(seed, 5) > 0.5) {
       // Garça-vaqueira no lombo.
-      k.add(new THREE.OctahedronGeometry(0.3 * s, 0), '#f6f6f2', P(0.1 * s, 2.1 * s, -0.4 * s).multiply(tf(0, 0, 0, 0.8, 0.9, 1.4)));
+      if (egretPart) { const [ex, ey, ez] = at(0.1 * s, 1.925 * s, -0.4 * s); k.raw(egretPart.at({ height: 0.5 * s }, ex, ey, ez, yaw - PI / 2)); } else k.add(new THREE.OctahedronGeometry(0.3 * s, 0), '#f6f6f2', P(0.1 * s, 2.1 * s, -0.4 * s).multiply(tf(0, 0, 0, 0.8, 0.9, 1.4)));
     }
   };
   // Manada no alagado: de lado para a pista (yaw 0 ou π), alguns virados; os de dentro d'água afundados.
-  for (let i = 0; i < 11; i++) {
+  // Com a peça da garça, as vaqueiras vão no lombo de uns búfalos escolhidos (EGRET_BACKS), com ou sem a peça do búfalo.
+  for (let i = 0; i < (buffaloPart ? 8 : 11); i++) {
     const side = hash2(555, i) < 0.75;
     const yaw = (side ? (i % 2 ? 0 : PI) : hash2(565, i) * PI * 2) + (hash2(566, i) - 0.5) * 0.5;
-    one(-12 + hash2(553, i) * 22, -27 + i * 5 + (hash2(554, i) - 0.5) * 2.5, yaw, false, 552 + i, 0.3 * S);
+    one(-12 + hash2(553, i) * 22, -27 + i * 5 + (hash2(554, i) - 0.5) * 2.5, yaw, false, 552 + i, 0.3 * S, EGRET_BACKS.includes(i));
   }
   // O vaqueiro montado, na frente, de lado para quem chega.
   one(19, 8, PI + 0.25, true, 560);
@@ -1039,13 +1049,16 @@ function bufalo(): Model {
   k.rod([-20, -0.5, 28], [-20, 5, 28], 0.8, '#5a4636', 6);
   crown(k, -20, 9, 28, 8, 5, 8, '#2f6a2a', 561, 1);
   crown(k, -16, 7, 33, 5, 3.4, 5, '#3a7a32', 562);
-  // Garças brancas no alagado.
+  // Garças brancas no alagado (procedurais: pequenas, e o orçamento da peça vai para a manada).
   for (let i = 0; i < 5; i++) {
     const x = 6 + i * 2.6; const z = -6 + (i % 2) * 5;
     k.add(box(0.08, 1.0, 0.08), '#2a2a2a', tf(x, 0.5, z)).add(new THREE.OctahedronGeometry(0.55, 0), '#f6f6f2', tf(x, 1.25, z, 0.8, 0.85, 1.4));
   }
   return k.model(14);
 }
+
+/** Búfalos da manada (índice) que levam a garça-vaqueira quando a peça da garça existe (dentro dos 8 da manada curta). */
+const EGRET_BACKS: readonly number[] = [1, 3, 6];
 
 /** Palafitas: casinhas de madeira coloridas sobre estacas no rio, passarelas, canoas e açaizeiros. */
 function palafita(): Model {
@@ -1199,14 +1212,20 @@ function monumentoGarimpeiro(): Model {
   k.add(plan(ellipse(16, 15, 15), 0.9), '#bab2a2', tf(0, 0, 0));
   k.add(plan(ellipse(16, 14, 14), 0.2), '#4a8ab0', tf(0, 0.8, 0));
   k.add(box(7, 3.2, 7), '#a8a090', tf(0, 2.2, 0));
-  // Figura de cócoras virada para a pista, segurando a bateia (cone raso largo).
+  // Figura de cócoras virada para a pista, segurando a bateia (cone raso largo). A estátua baixada (peça
+  // `garimpeiro`, parts.ts, convertida em bronze pela paleta) entra no lugar dela, da mesma altura (4,05 × S sobre o
+  // pedestal), de frente (+X) para a pista.
   const bronze = '#9a8a68'; const y0 = 3.8; const S = 2.3;
-  k.add(box(1.6 * S, 1.2 * S, 2.0 * S), bronze, tf(-0.6 * S, y0 + 0.6 * S, 0)); // pernas dobradas
-  k.add(box(1.2 * S, 2.0 * S, 1.6 * S), bronze, tf(-0.5 * S, y0 + 2.0 * S, 0, 1, 1, 1, 0, 0, -0.35)); // tronco inclinado
-  k.add(sphere(0.48 * S, 7, 5), bronze, tf(0.2 * S, y0 + 3.3 * S, 0));
-  k.add(cyl(0.75 * S, 0.75 * S, 0.12 * S, 8), bronze, tf(0.2 * S, y0 + 3.62 * S, 0)).add(cyl(0.38 * S, 0.42 * S, 0.4 * S, 6), bronze, tf(0.2 * S, y0 + 3.85 * S, 0));
-  for (const s of [-1, 1]) k.beam([-0.2 * S, y0 + 2.7 * S, s * 0.8 * S], [1.3 * S, y0 + 1.5 * S, s * 1.1 * S], 0.35 * S, bronze);
-  k.add(cyl(1.7 * S, 0.4 * S, 0.5 * S, 10), '#8a7a5a', tf(1.6 * S, y0 + 1.5 * S, 0));
+  const statue = landmarkPart('garimpeiro');
+  if (statue) k.raw(statue.at({ height: 4.05 * S }, 0, y0, 0, 0));
+  else {
+    k.add(box(1.6 * S, 1.2 * S, 2.0 * S), bronze, tf(-0.6 * S, y0 + 0.6 * S, 0)); // pernas dobradas
+    k.add(box(1.2 * S, 2.0 * S, 1.6 * S), bronze, tf(-0.5 * S, y0 + 2.0 * S, 0, 1, 1, 1, 0, 0, -0.35)); // tronco inclinado
+    k.add(sphere(0.48 * S, 7, 5), bronze, tf(0.2 * S, y0 + 3.3 * S, 0));
+    k.add(cyl(0.75 * S, 0.75 * S, 0.12 * S, 8), bronze, tf(0.2 * S, y0 + 3.62 * S, 0)).add(cyl(0.38 * S, 0.42 * S, 0.4 * S, 6), bronze, tf(0.2 * S, y0 + 3.85 * S, 0));
+    for (const s of [-1, 1]) k.beam([-0.2 * S, y0 + 2.7 * S, s * 0.8 * S], [1.3 * S, y0 + 1.5 * S, s * 1.1 * S], 0.35 * S, bronze);
+    k.add(cyl(1.7 * S, 0.4 * S, 0.5 * S, 10), '#8a7a5a', tf(1.6 * S, y0 + 1.5 * S, 0));
+  }
   // Holofotes no pé (acendem à noite) e palmeiras imperiais e postes da praça.
   for (let i = 0; i < 4; i++) { const a = (i / 4) * PI * 2 + PI / 4; k.light(box(0.6, 0.4, 0.6), '#fff1c8', tf(Math.cos(a) * 5.5, 1.0, Math.sin(a) * 5.5)); }
   for (const z of [-18, 18]) for (const x of [10, -16]) palm(k, x, z, 14, 590 + x + z, 0, 6);

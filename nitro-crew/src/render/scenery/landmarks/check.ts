@@ -2,7 +2,8 @@
 // materiais, cor por vértice, malha não indexada, orçamento de triângulos e tamanho do lugar, base no chão e origem
 // na pegada. Vale para o marco procedural e para o carregado de um .glb (gltf.ts): o mesmo critério de aceite para
 // os dois (o procedural passa: tests/landmark-gltf.test.ts). Puro, sem DOM.
-import type { MatKey, Model } from '../geom';
+import type { Geo, MatKey, Model } from '../geom';
+import { isPartName, PART_NAMES, PART_SPECS } from './parts';
 import type { LandmarkDef } from './types';
 
 type Place = LandmarkDef['place'];
@@ -72,5 +73,54 @@ export function checkLandmarkModel(m: Model, place: Place): string[] {
   if (minY < -Math.max(1, height)) out.push(`a parte abaixo do chão (${m1(-minY)} m) passa da altura do marco`);
   // Origem no centro da pegada: no mínimo dentro dela (o layout gira o marco em torno da origem).
   if (minX > 0 || maxX < 0 || minZ > 0 || maxZ < 0) out.push(`a origem fica fora da pegada (x ${m1(minX)} a ${m1(maxX)} m, z ${m1(minZ)} a ${m1(maxZ)} m): centre o modelo`);
+  return out;
+}
+
+/**
+ * Limites de uma peça baixada (parts.ts): a medida (altura ou comprimento) entre metade e o dobro da de verdade — pega o
+ * arquivo em centímetros ou fora de escala —, a base em y = 0 (até 2% da altura abaixo) e a pegada centrada na origem
+ * (o construtor põe a peça pela origem). O teto de triângulos é o da especificação de cada peça.
+ */
+export const PART_LIMITS = { sizeRange: [0.5, 2], below: 0.02, centre: 0.05 } as const;
+
+/** Problemas de uma peça (vazio = aceita), em português. A peça é uma geometria lisa só (a parte `flat`). */
+export function checkLandmarkPart(g: Geo, name: string): string[] {
+  if (!isPartName(name)) return [`"${name}" não é uma peça (${PART_NAMES.join(', ')}; o nome do arquivo é o da peça)`];
+  const spec = PART_SPECS[name];
+  const out: string[] = [];
+  if (g.index) out.push('malha indexada (a peça usa faces planas, sem vértice compartilhado)');
+  const pos = g.getAttribute('position');
+  if (!pos || pos.count < 3) return [...out, 'sem triângulos'];
+  if (!g.index && pos.count % 3 !== 0) out.push(`${int(pos.count)} vértices não fecham triângulos`);
+  if (!g.getAttribute('color')) out.push('sem cor por vértice (COLOR_0) — passe pelo conversor');
+  const tris = Math.floor((g.index ? g.index.count : pos.count) / 3);
+  if (tris > spec.maxTris) {
+    const uses = Object.entries(spec.users).map(([id, n]) => `${n}× em ${id}`).join(', ');
+    out.push(`${int(tris)} triângulos (até ${int(spec.maxTris)} na peça "${name}", que entra ${uses}) — converta com --tris ${spec.tris}`);
+  }
+  let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+  let bad = false;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i); const y = pos.getY(i); const z = pos.getZ(i);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) { bad = true; continue; }
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+  if (bad) out.push('vértices com coordenada inválida (NaN ou infinito)');
+  if (!Number.isFinite(maxY)) return out;
+  const [lo, hi] = PART_LIMITS.sizeRange;
+  const size = spec.measure === 'length' ? maxX - minX : maxY;
+  const what = spec.measure === 'length' ? 'comprimento' : 'altura';
+  if (size < spec.size * lo || size > spec.size * hi) {
+    out.push(`${what} ${m1(size)} m fora de ${m1(spec.size * lo)}–${m1(spec.size * hi)} m (a ${spec.label} tem ~${m1(spec.size)} m) — escala errada? use --${spec.measure === 'length' ? 'length' : 'height'} ${spec.size}`);
+  }
+  if (minY > 0.01) out.push(`a base começa a ${m1(minY)} m do chão (tem de tocar y = 0)`);
+  if (minY < -Math.max(0.01, maxY * PART_LIMITS.below)) out.push(`a peça desce ${m1(-minY)} m abaixo do chão (a base fica em y = 0)`);
+  const w = Math.max(maxX - minX, maxZ - minZ);
+  const cx = (minX + maxX) / 2; const cz = (minZ + maxZ) / 2;
+  if (Math.abs(cx) > w * PART_LIMITS.centre + 0.01 || Math.abs(cz) > w * PART_LIMITS.centre + 0.01) {
+    out.push(`a pegada não está centrada na origem (centro em x ${m1(cx)}, z ${m1(cz)} m): o construtor põe a peça pela origem`);
+  }
   return out;
 }

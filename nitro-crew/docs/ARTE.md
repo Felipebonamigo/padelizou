@@ -37,7 +37,9 @@ Mesmo caminho (convenção na seção Especificação do briefing); para árvore
 Um modelo pronto, realista e texturizado (dezenas a centenas de milhares de triângulos) vira o marco do jogo: low-poly,
 cor chapada por face, na convenção de `src/render/scenery/landmarks/types.ts`. **Não gera nada por IA nem gasta
 crédito** — traz um arquivo já pronto para o estilo do jogo (decisão de 04/10 no topo). Primeira leva escolhida:
-tuiuiú (de cegonha), jacaré, búfalo (de boi), garça, girafa, rena, cavalo, troll, shisa, garimpeiro.
+tuiuiú (de cegonha), jacaré, búfalo (de boi), garça, girafa, rena, cavalo, troll, shisa, garimpeiro — que não são
+marcos inteiros, e sim **peças** de cenas que já existem (o tuiuiú no ninho, a manada de búfalos…): o mesmo conversor no
+modo `--part`, seção "Peças baixadas", abaixo. Este caminho (o arquivo no lugar do marco inteiro) continua valendo.
 
 1. **Arquivo bruto**: em `art/raw/` — **fora do repositório** (`.gitignore`). Baixe o **GLB** (o conversor lê `.glb` e
    `.gltf` autocontido; FBX e OBJ não). Anote a página de origem e a licença (ver "Licença", abaixo).
@@ -91,6 +93,101 @@ tuiuiú (de cegonha), jacaré, búfalo (de boi), garça, girafa, rena, cavalo, t
 7. **Limites**: uma cor por face (detalhe menor que um triângulo some — a prévia mostra); transparência da textura
    (folhas recortadas) é ignorada; `.gltf` com arquivos separados não abre (use o GLB); a prévia é do swiftshader.
 
-| Marco (id) | Origem (página, autor) | Licença | Data |
+| Marco (id) ou peça | Origem (página, autor) | Licença | Data |
 |---|---|---|---|
 | — | nenhum instalado | | |
+
+## Peças baixadas (o bicho ou a estátua dentro de um marco)
+A primeira leva do Meshy (04/10) não substitui marcos: entra como **peça** de uma cena procedural que já existe — o
+tuiuiú de pé no ninho da árvore, os jacarés na baía, a manada de búfalos com as garças no lombo, o par de girafas, as
+renas da vila da Lapônia, o cavalo debaixo do cavaleiro da Cavalhada, o troll ao lado da placa, o par de shisas no
+muro, o garimpeiro de bronze no pedestal. O resto da cena (árvore, baía, curral, cavaleiro, pedestal) continua em
+código; sem o arquivo da peça, o marco usa o bicho procedural de sempre (byte a byte o de antes).
+
+**Convenção da peça** (`src/render/scenery/landmarks/parts.ts`): metros, +Y para cima, base em y = 0, pegada
+centrada na origem, a **frente (a cabeça, o rosto) em +X**; uma parte lisa só (`flat`, nada brilha), malha não
+indexada, cor chapada por face (COLOR_0). Um arquivo por peça: `src/assets/landmarks/parts/<peça>.glb`.
+
+1. **Arquivo bruto**: `art/raw/<peça>.glb` (fora do repositório, como os marcos). Anote a origem e a licença.
+2. **Converter no modo peça** (o mesmo `tools/convert-landmark.mjs`, com `--part`): grava `scratch/pecas/<peça>.glb`,
+   `.png` (a prévia: em cima o original, embaixo o convertido; "de frente" é a cabeça, +X) e `.json`; com `--install`,
+   se o validador da peça aceitar, copia para `src/assets/landmarks/parts/<peça>.glb`. Sem `--tris`, o alvo é o da
+   peça (tabela abaixo); sem `--height`/`--length`, a medida de verdade dela.
+   - `--length <m>`: a medida é o comprimento ao longo da frente (X), não a altura — o jacaré.
+   - `--paint '<condições>:<cor>'` (repete): pinta as faces cujo centro cai na região. Condições `x`, `y`, `z` com
+     `<`, `>`, `<=`, `>=` e um número de 0 a 1 — a fração da caixa final: `y` 0 = o chão, 1 = o topo; `x` 0 = a
+     traseira, 1 = a frente (a cabeça); `z` 0 = −Z, 1 = +Z. Separe as condições por vírgula; as regras valem em ordem
+     e **a última que casa vence** (pinte o geral primeiro e o detalhe depois). As cores entram na paleta do relatório.
+   - `--palette '#a,#b,…' --by-light`: cada face vai para o tom da paleta de **mesma claridade relativa** (o escuro no
+     tom mais escuro, o claro no mais claro; o matiz não conta) — a estátua de bronze, o boi de ardósia. Sem
+     `--by-light`, `--palette` continua mandando cada face para a cor mais perto.
+   - `--front`: a frente do glTF é +Z (o padrão) e é como o Meshy costuma exportar; se na prévia o bicho aparecer de
+     lado ou de costas em "de frente (+X, a cabeça)", troque para `-z`, `+x` ou `-x`.
+3. **Os comandos da primeira leva** (prontos para quando os arquivos chegarem; as faixas do `--paint` são o ponto de
+   partida — confira a prévia `scratch/pecas/<peça>.png` e ajuste os números):
+   ```
+   # Tuiuiú (de cegonha): pernas pretas, corpo todo branco (some o preto das asas da cegonha), cabeça e pescoço pelados
+   # pretos (o bico também) e o colar vermelho na base do pescoço — só na metade da frente (x > 0,45), onde fica o pescoço.
+   node tools/convert-landmark.mjs art/raw/tuiuiu.glb --part tuiuiu --height 1.6 --tris 600 --front +z \
+     --paint 'y<0.4:#1b1b1b' --paint 'y>=0.4:#f4f2ea' --paint 'y>0.62,x>0.45:#1b1b1b' --paint 'y>0.58,y<=0.62,x>0.45:#c8202a' --install
+   # Jacaré: 2,7 m do focinho à cauda (pelo comprimento).
+   node tools/convert-landmark.mjs art/raw/jacare.glb --part jacare --length 2.7 --tris 220 --front +z --colors 6 --install
+   # Búfalo (de boi): ardósia escura pela claridade (o claro do boi vira o tom mais claro da ardósia, chifres incluídos).
+   node tools/convert-landmark.mjs art/raw/bufalo.glb --part bufalo --height 1.7 --tris 190 --front +z \
+     --palette '#1e2124,#2e3237,#40454b,#5a6066' --by-light --install
+   # Garça-branca: 1 m; pernas pretas.
+   node tools/convert-landmark.mjs art/raw/garca.glb --part garca --height 1.0 --tris 150 --front +z --colors 4 --paint 'y<0.35:#2a2a2a' --install
+   # Girafa: 5 m (até os ossicones); as manchas ficam na paleta (12 cores).
+   node tools/convert-landmark.mjs art/raw/girafa.glb --part girafa --height 5 --tris 1200 --front +z --install
+   # Rena: 1,3 m na cernelha; a altura total, com a cabeça e a galhada, ~2,1 m.
+   node tools/convert-landmark.mjs art/raw/rena.glb --part rena --height 2.1 --tris 500 --front +z --install
+   # Cavalo branco com sela: 1,6 m na cernelha; ~2,3 m até as orelhas.
+   node tools/convert-landmark.mjs art/raw/cavalo.glb --part cavalo --height 2.3 --tris 190 --front +z --install
+   # Troll (estátua): 3–4 m.
+   node tools/convert-landmark.mjs art/raw/troll.glb --part troll --height 3.5 --tris 1500 --front +z --install
+   # Shisa (estátua colorida, com a base dela): 1,5–2 m.
+   node tools/convert-landmark.mjs art/raw/shisa.glb --part shisa --height 1.8 --tris 1200 --front +z --install
+   # Garimpeiro (estátua de bronze): 2,5 m, quatro tons de bronze pela claridade.
+   node tools/convert-landmark.mjs art/raw/garimpeiro.glb --part garimpeiro --height 2.5 --tris 2000 --front +z \
+     --palette '#4a3520,#6e5030,#9a7444,#c8a060' --by-light --install
+   ```
+   Prova sem baixar nada: `--make-synthetic scratch/boi.glb --kind boi` (ou `girafa`; `estatua` é a ave no pedestal) e
+   converta como acima.
+4. **No jogo**: `loadLandmarkParts` (`landmarks/assets.ts`) carrega as peças antes do renderizador (`main.ts` e os
+   harnesses, logo antes dos marcos inteiros; embutidas como data URL), confere cada uma com o validador da peça
+   (`check.ts`, `checkLandmarkPart`: o nome é de uma peça; malha não indexada, com cor por vértice; triângulos até o
+   teto da peça; a medida entre metade e o dobro da de verdade — pega centímetros; base em y = 0; pegada centrada) e
+   registra as aceitas; recusada = a cena segue procedural e o motivo vai para o console (`[peças] …`; os harnesses
+   expõem `window.landmarkParts`). Se uma peça mudar depois de um marco montado, o catálogo esquece os marcos e as
+   medidas deles (`onLandmarkPartsChange`). O marco montado com a peça passa pelo `smoothModel` como sempre (o bicho
+   curvo sai liso, o vinco de marco de 45°).
+5. **Como os construtores usam a peça** (`landmarkPart(nome)` pelo `kit.ts`; `peça.at(encaixe, x, y, z, giro)` devolve
+   uma cópia): a peça entra **no tamanho do bicho procedural que ela substitui** — pela altura, pelo comprimento ou pelo
+   lombo (o ponto mais alto da faixa do meio do comprimento: onde o cavaleiro senta) —, então a cena fica com as
+   proporções em que foi desenhada qualquer que seja a altura usada na conversão; e com a cabeça (+X) para onde o
+   procedural olhava. Determinístico (nada sorteado).
+
+   | peça | marco (cena) | instâncias | encaixe | alvo / teto de triângulos |
+   |---|---|---|---|---|
+   | tuiuiu | `tuiuiu_ninho` | 3 (os de pé: o do ninho e os dois pescando; o de asas abertas e o em voo seguem procedurais) | altura 1,6 m × 2,2 | 600 / 800 |
+   | jacare | `jacare` | 8 (6 do bando na prainha + 2 nadando; os outros 6 saem) | comprimento 2,7 m × 2,1 | 220 / 250 |
+   | bufalo | `bufalo` | 9 (8 da manada + o do vaqueiro; a manada de 11 fica em 8) | lombo 1,925 × 1,7 (o vaqueiro senta) | 190 / 220 |
+   | garca | `bufalo` | 3 (a vaqueira no lombo de 3 búfalos escolhidos; as do alagado seguem procedurais) | altura 0,5 m × 1,7 | 150 / 160 |
+   | girafa | `girafa` | 2 (a menor × 0,7) | altura 6,2 m | 1.200 / 1.600 |
+   | rena | `vila_lapponia` | 3 | lombo 1,475 × 1,3 | 500 / 600 |
+   | cavalo | `cavalhada` | 6 (3 por esquadrão; o 4º de cada sai) | lombo (a sela) 2,2 × 2 (o cavaleiro procedural senta; a manta do time fica) | 190 / 215 |
+   | troll | `placa_trolls` | 1 | altura 4,3 × 1,1 | 1.500 / 2.000 |
+   | shisa | `shisa` | 2 (nos pilares, um pouco viradas uma para a outra) | altura 2,6 × 1,35 sobre o pilar | 1.200 / 1.600 |
+   | garimpeiro | `monumento_garimpeiro` | 1 (no pedestal) | altura 4,05 × 2,3 | 2.000 / 2.500 |
+
+   **Orçamento** (marco de perto: 3.500 triângulos): o teto de cada peça sai do resto da cena dividido pelas
+   instâncias, e o teste monta cada marco com todas as peças no teto — tuiuiu_ninho 828 + 3 × 800 = 3.228; jacare
+   1.424 + 8 × 250 = 3.424; bufalo 1.012 + 9 × 220 + 3 × 160 = 3.472; girafa 2 × 1.600 = 3.200; vila_lapponia 1.526 +
+   3 × 600 = 3.326; placa_trolls 90 + 2.000 = 2.090; shisa 184 + 2 × 1.600 = 3.384; cavalhada 2.158 + 6 × 215 = 3.448;
+   monumento_garimpeiro 740 + 2.500 = 3.240. Peça acima do teto é recusada com o `--tris` a usar.
+6. **Conferir no jogo**: com a peça em `src/assets/landmarks/parts/` e `npx vite --port <porta>` no ar (nunca 5174,
+   4174 ou 5601): `node tools/scenery-showroom.mjs <porta> antes.png lm:<marco> '&gap=60&nolm=1'` (procedural) e
+   `… depois.png lm:<marco> '&gap=60'`. Provado em 04/10 com peças sintéticas (boi → búfalo de ardósia, girafa)
+   instaladas e tiradas depois.
+7. Testes: `tests/landmark-parts.test.ts` (validador, carregador, os 9 construtores com e sem a peça, orçamento,
+   caches, sombreado; no conversor, o modo peça, `--length`, `--paint` e `--by-light`).

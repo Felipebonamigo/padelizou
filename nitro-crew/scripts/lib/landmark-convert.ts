@@ -13,12 +13,19 @@
 // 4. `decimate`: reduz ao alvo de triângulos com o simplificador do meshoptimizer (o do SimplifyModifier do three),
 //    que preserva a silhueta (erro quadrático); componentes pequenos e, em último caso, agrupamento de vértices;
 // 5. `transfer`: cada triângulo da malha reduzida fica com a cor da paleta de MAIOR ÁREA entre os triângulos
-//    originais mais próximos dele (com a mesma face voltada) — moda, não média: a média de branco e preto é cinza.
+//    originais mais próximos dele (com a mesma face voltada) — moda, não média: a média de branco e preto é cinza;
+// 6. `paint` (--paint): regiões da caixa final (x, y, z de 0 a 1) repintadas de uma cor — a cegonha que vira tuiuiú
+//    (cabeça e pescoço pretos, o colar vermelho), o boi que vira búfalo.
+//
+// Modo PEÇA (`part`, docs/ARTE.md "Peças baixadas"): o bicho ou a estátua que entra num marco procedural
+// (src/render/scenery/landmarks/parts.ts). Sem lugar: o alvo de triângulos e a medida padrão (altura ou comprimento)
+// são os da peça, tudo vai para a parte lisa (nada brilha) e quem confere é o validador da peça.
 import * as THREE from 'three';
 import { MeshoptSimplifier } from 'three/examples/jsm/libs/meshopt_simplifier.module.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Model, ModelPart } from '../../src/render/scenery/geom';
-import { checkLandmarkModel } from '../../src/render/scenery/landmarks/check';
+import { checkLandmarkModel, checkLandmarkPart } from '../../src/render/scenery/landmarks/check';
+import { isPartName, PART_NAMES, PART_SPECS } from '../../src/render/scenery/landmarks/parts';
 import type { LandmarkDef } from '../../src/render/scenery/landmarks/types';
 
 export type Place = LandmarkDef['place'];
@@ -149,9 +156,12 @@ export function gatherTriangles(root: THREE.Object3D, read: PixelReader, opts: G
 // ───────────────────────────── Orientação, escala e base ─────────────────────────────
 
 export interface OrientOptions {
-  place: Place;
-  /** Altura final (m); sem ela e sem `scale`, DEFAULT_HEIGHT do lugar. */
+  /** Lugar do marco (sem `part`): dá o alvo de triângulos e a altura padrão. */
+  place?: Place;
+  /** Altura final (m); sem ela, sem `length` e sem `scale`, DEFAULT_HEIGHT do lugar. */
   height?: number;
+  /** Comprimento final (m) ao longo de X (da traseira à frente), no lugar da altura: o jacaré mede 2,7 m. */
+  length?: number;
   /** Escala uniforme (no lugar da altura). */
   scale?: number;
   /** Eixo do arquivo que é a frente do marco (vai para +X, a pista). Padrão: +z (a frente do glTF). */
@@ -178,7 +188,9 @@ export function orient(pos: Float32Array, opts: OrientOptions): { pos: Float32Ar
     box.expandByPoint(v);
   }
   const tall = Math.max(1e-9, box.max.y - box.min.y);
-  const scale = opts.scale ?? (opts.height ?? DEFAULT_HEIGHT[opts.place]) / tall;
+  const scale = opts.scale ?? (opts.length !== undefined
+    ? opts.length / Math.max(1e-9, box.max.x - box.min.x)
+    : (opts.height ?? DEFAULT_HEIGHT[opts.place ?? 'near']) / tall);
   const cx = (box.min.x + box.max.x) / 2; const cz = (box.min.z + box.max.z) / 2;
   for (let i = 0; i < out.length; i += 3) {
     out[i] = (out[i] - cx) * scale; out[i + 1] = (out[i + 1] - box.min.y) * scale; out[i + 2] = (out[i + 2] - cz) * scale;
@@ -205,8 +217,20 @@ export interface Quantized {
  * o k-means parte a maior área (o corpo, com o ruído e o sombreado da foto) em tons quase iguais, e o modelo sai
  * manchado em vez de chapado. `fixed`: paleta dada (--palette), cada cor vai para a mais próxima dela.
  */
-export interface QuantizeOptions { fixed?: readonly THREE.Color[]; merge?: number }
+export interface QuantizeOptions {
+  fixed?: readonly THREE.Color[];
+  merge?: number;
+  /**
+   * Com `fixed`: cada cor vai para o tom da paleta de MESMA CLARIDADE RELATIVA, não para o de cor mais perto (a
+   * estátua de bronze, o boi que vira búfalo de ardósia). A claridade (luma sRGB) de cada cor é posta na faixa entre os
+   * percentis 5 e 95 do modelo (pesados pela área) e cai no tom da mesma altura da escada da paleta (ordenada pela
+   * claridade de cada tom): o escuro vai ao tom mais escuro, o claro ao mais claro, e o matiz não conta.
+   */
+  byLight?: boolean;
+}
 export const DEFAULT_MERGE = 0.12;
+
+const luma = (r: number, g: number, b: number) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 export function quantize(colors: Float32Array, weights: Float32Array, k: number, opts: QuantizeOptions = {}): Quantized {
   const fixed = opts.fixed;
@@ -226,7 +250,28 @@ export function quantize(colors: Float32Array, weights: Float32Array, k: number,
     const palette = new Float32Array(fixed.flatMap((c) => [c.r, c.g, c.b]));
     const ps = palette.map(toSrgb);
     const index = new Uint16Array(n);
-    for (let i = 0; i < n; i++) index[i] = nearest(ps, fixed.length, srgb[i * 3], srgb[i * 3 + 1], srgb[i * 3 + 2]);
+    if (!opts.byLight) {
+      for (let i = 0; i < n; i++) index[i] = nearest(ps, fixed.length, srgb[i * 3], srgb[i * 3 + 1], srgb[i * 3 + 2]);
+      return { palette, index };
+    }
+    const m = fixed.length;
+    const lumaOf = (j: number) => luma(ps[j * 3], ps[j * 3 + 1], ps[j * 3 + 2]);
+    const ladder = Array.from({ length: m }, (_, j) => j).sort((a, b) => lumaOf(a) - lumaOf(b) || a - b);
+    const L = new Float32Array(n);
+    for (let i = 0; i < n; i++) L[i] = luma(srgb[i * 3], srgb[i * 3 + 1], srgb[i * 3 + 2]);
+    const byL = Array.from({ length: n }, (_, i) => i).sort((a, b) => L[a] - L[b] || a - b);
+    let total = 0;
+    for (let i = 0; i < n; i++) total += Math.max(1e-12, weights[i]);
+    const percentile = (p: number) => {
+      let acc = 0;
+      for (const i of byL) { acc += Math.max(1e-12, weights[i]); if (acc >= p * total) return L[i]; }
+      return L[byL[n - 1]];
+    };
+    const lo = percentile(0.05); const hi = percentile(0.95);
+    for (let i = 0; i < n; i++) {
+      const t = hi > lo ? Math.min(1, Math.max(0, (L[i] - lo) / (hi - lo))) : 0.5;
+      index[i] = ladder[Math.min(m - 1, Math.round(t * (m - 1)))];
+    }
     return { palette, index };
   }
   // Caixas ocupadas: peso, soma sRGB (para o k-means) e soma linear (para a cor final).
@@ -446,9 +491,60 @@ export function transfer(inPos: Float32Array, inIndex: Uint16Array, inGlow: Uint
   return { index, glow };
 }
 
+// ───────────────────────────── Pintura por região (--paint) ─────────────────────────────
+
+export type PaintAxis = 'x' | 'y' | 'z';
+export interface PaintCond { axis: PaintAxis; op: '<' | '>' | '<=' | '>='; value: number }
+/**
+ * Regra de pintura: as faces cujo centro cumpre TODAS as condições ficam com `color` (hex sRGB). As coordenadas são
+ * da caixa final, de 0 a 1: x de trás (0) para a frente (1, a cabeça, +X), y da base (0) ao topo (1), z de −Z (0) a
+ * +Z (1). Várias regras: aplicadas em ordem, a última que casa vence.
+ */
+export interface PaintRule { when: PaintCond[]; color: string }
+
+const COND = /^([xyz])\s*(<=|>=|<|>)\s*(-?[0-9]*\.?[0-9]+)$/i;
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/;
+
+/** Lê `--paint 'y>0.58,y<0.62:#c8202a'` (condições separadas por vírgula, dois-pontos, a cor). */
+export function parsePaintRule(text: string): PaintRule {
+  const usage = `--paint "${text}": use "<condições>:<cor>", ex. 'y>0.62:#1b1b1b' ou 'y>0.58,y<0.62,x>0.5:#c8202a' (x, y, z de 0 a 1)`;
+  const at = text.lastIndexOf(':');
+  if (at < 0) throw new Error(usage);
+  const conds = text.slice(0, at).split(',').map((c) => c.trim()).filter(Boolean);
+  const colorText = text.slice(at + 1).trim().toLowerCase();
+  if (conds.length === 0) throw new Error(usage);
+  const when: PaintCond[] = conds.map((c) => {
+    const m = COND.exec(c);
+    if (!m) throw new Error(`${usage} — a condição "${c}" não se lê (eixo x, y ou z; <, >, <= ou >=; um número)`);
+    const value = Number(m[3]);
+    if (!(value >= 0 && value <= 1)) throw new Error(`--paint "${text}": a condição "${c}" pede um número de 0 a 1 (a fração da caixa)`);
+    return { axis: m[1].toLowerCase() as PaintAxis, op: m[2] as PaintCond['op'], value };
+  });
+  const hex = HEX.exec(colorText);
+  if (!hex) throw new Error(`--paint "${text}": a cor "${colorText}" não é #rrggbb`);
+  const h = hex[1];
+  const color = h.length === 3 ? `#${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}` : `#${h}`;
+  return { when, color };
+}
+
+const holds = (c: PaintCond, v: number): boolean => (c.op === '<' ? v < c.value : c.op === '>' ? v > c.value : c.op === '<=' ? v <= c.value : v >= c.value);
+
+/** Índice da regra (a última que casa) para o ponto normalizado, ou −1. */
+export function paintRuleAt(rules: readonly PaintRule[], x: number, y: number, z: number): number {
+  let hit = -1;
+  rules.forEach((r, i) => { if (r.when.every((c) => holds(c, c.axis === 'x' ? x : c.axis === 'y' ? y : z))) hit = i; });
+  return hit;
+}
+
 // ───────────────────────────── Tudo junto ─────────────────────────────
 
 export interface ConvertOptions extends OrientOptions, GatherOptions {
+  /** Modo peça (parts.ts): o nome da peça; sem lugar, o alvo e a medida padrão são os dela, nada brilha. */
+  part?: string;
+  /** Pintura por região, em ordem (a última que casa vence). */
+  paint?: PaintRule[];
+  /** Com `palette`: cada face vai para o tom de mesma claridade relativa (QuantizeOptions.byLight). */
+  byLight?: boolean;
   /** Alvo de triângulos (padrão: TARGET_TRIS do lugar). */
   tris?: number;
   /** Tamanho da paleta (padrão 12). */
@@ -462,7 +558,8 @@ export interface ConvertOptions extends OrientOptions, GatherOptions {
 }
 
 export interface ConvertReport {
-  place: Place;
+  place?: Place;
+  part?: string;
   trianglesIn: number;
   trianglesOut: number;
   target: number;
@@ -477,15 +574,27 @@ export interface ConvertReport {
   warnings: string[];
 }
 
-export async function convertLandmark(root: THREE.Object3D, read: PixelReader, opts: ConvertOptions): Promise<{ model: Model; report: ConvertReport; matrix: THREE.Matrix4 }> {
+export async function convertLandmark(root: THREE.Object3D, read: PixelReader, options: ConvertOptions): Promise<{ model: Model; report: ConvertReport; matrix: THREE.Matrix4 }> {
+  const opts: ConvertOptions = { ...options };
+  if (opts.part !== undefined && !isPartName(opts.part)) throw new Error(`"${opts.part}" não é uma peça (${PART_NAMES.join(', ')})`);
+  const spec = opts.part !== undefined && isPartName(opts.part) ? PART_SPECS[opts.part] : null;
+  if (!spec && !opts.place) throw new Error('diga o lugar do marco (place) ou a peça (part)');
+  if (opts.byLight && !opts.palette?.length) throw new Error('--by-light pede uma paleta (--palette)');
+  if (spec) {
+    // A peça: a medida de verdade da especificação (altura ou comprimento); nada brilha.
+    if (opts.height === undefined && opts.length === undefined && opts.scale === undefined) {
+      if (spec.measure === 'length') opts.length = spec.size; else opts.height = spec.size;
+    }
+    opts.emissiveGlow = false; opts.glowMaterials = null; opts.glowColors = [];
+  }
   const soup = gatherTriangles(root, read, opts);
   if (soup.count === 0) throw new Error('nenhum triângulo no arquivo');
-  const target = Math.max(4, Math.floor(opts.tris ?? TARGET_TRIS[opts.place]));
+  const target = Math.max(4, Math.floor(opts.tris ?? (spec ? spec.tris : TARGET_TRIS[opts.place ?? 'near'])));
   const placed = orient(soup.pos, opts);
   const area = new Float32Array(soup.count);
   const nv = new THREE.Vector3();
   for (let t = 0; t < soup.count; t++) area[t] = triInfo(placed.pos, t, nv);
-  const q = quantize(soup.color, area, opts.colors ?? 12, { fixed: opts.palette?.map((h) => new THREE.Color(h)), merge: opts.merge });
+  const q = quantize(soup.color, area, opts.colors ?? 12, { fixed: opts.palette?.map((h) => new THREE.Color(h)), merge: opts.merge, byLight: opts.byLight });
   const k = q.palette.length / 3;
   const dec = await decimate(placed.pos, target);
   const tr = transfer(placed.pos, q.index, soup.glow, dec.pos, k);
@@ -500,25 +609,45 @@ export async function convertLandmark(root: THREE.Object3D, read: PixelReader, o
     d.forEach((v, j) => { if (v <= m + 1e-9 || v <= 0.12) glowEntry[j] = 1; });
   }
 
-  // Base de novo em y = 0, pegada centrada e a altura pedida (a redução mexe um pouco nas pontas).
+  // Base de novo em y = 0, pegada centrada e a medida pedida (a redução mexe um pouco nas pontas).
   const out = dec.pos;
   const box = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(out, 3));
-  const fit = opts.scale === undefined ? (opts.height ?? DEFAULT_HEIGHT[opts.place]) / Math.max(1e-9, box.max.y - box.min.y) : 1;
+  const fit = opts.scale !== undefined ? 1 : opts.length !== undefined
+    ? opts.length / Math.max(1e-9, box.max.x - box.min.x)
+    : (opts.height ?? DEFAULT_HEIGHT[opts.place ?? 'near']) / Math.max(1e-9, box.max.y - box.min.y);
   const cx = (box.min.x + box.max.x) / 2; const cz = (box.min.z + box.max.z) / 2;
   for (let i = 0; i < out.length; i += 3) {
     out[i] = (out[i] - cx) * fit; out[i + 1] = (out[i + 1] - box.min.y) * fit; out[i + 2] = (out[i + 2] - cz) * fit;
   }
 
+  // Pintura por região: as cores das regras entram no fim da paleta; a face pintada não brilha.
+  const rules = opts.paint ?? [];
+  const ruleColors = [...new Set(rules.map((r) => r.color))];
+  const kk = k + ruleColors.length;
+  const pal = new Float32Array(kk * 3);
+  pal.set(q.palette);
+  ruleColors.forEach((hex, i) => { const c = new THREE.Color(hex); pal.set([c.r, c.g, c.b], (k + i) * 3); });
+  const pb = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(out, 3));
+  const unit = (v: number, lo: number, hi: number) => (v - lo) / Math.max(1e-9, hi - lo);
+
   const nOut = out.length / 9;
   const lists: Record<'flat' | 'glow', { pos: number[]; col: number[] }> = { flat: { pos: [], col: [] }, glow: { pos: [], col: [] } };
-  const share = new Float64Array(k); const shareGlow = new Float64Array(k);
+  const share = new Float64Array(kk); const shareGlow = new Float64Array(kk);
   let totalArea = 0; let glowTriangles = 0;
   for (let t = 0; t < nOut; t++) {
-    const j = tr.index[t];
-    const lit = tr.glow[t] === 1 || glowEntry[j] === 1;
+    let j = tr.index[t];
+    let lit = tr.glow[t] === 1 || glowEntry[j] === 1;
+    if (rules.length) {
+      const o = t * 9;
+      const r = paintRuleAt(rules,
+        unit((out[o] + out[o + 3] + out[o + 6]) / 3, pb.min.x, pb.max.x),
+        unit((out[o + 1] + out[o + 4] + out[o + 7]) / 3, pb.min.y, pb.max.y),
+        unit((out[o + 2] + out[o + 5] + out[o + 8]) / 3, pb.min.z, pb.max.z));
+      if (r >= 0) { j = k + ruleColors.indexOf(rules[r].color); lit = false; }
+    }
     const dst = lit ? lists.glow : lists.flat;
     for (let v = 0; v < 9; v++) dst.pos.push(out[t * 9 + v]);
-    for (let v = 0; v < 3; v++) dst.col.push(q.palette[j * 3], q.palette[j * 3 + 1], q.palette[j * 3 + 2]);
+    for (let v = 0; v < 3; v++) dst.col.push(pal[j * 3], pal[j * 3 + 1], pal[j * 3 + 2]);
     const a = triInfo(out, t, nv);
     share[j] += a; totalArea += a;
     if (lit) { shareGlow[j] += a; glowTriangles++; }
@@ -535,12 +664,16 @@ export async function convertLandmark(root: THREE.Object3D, read: PixelReader, o
   }
   const model: Model = { parts, blob: 0 };
   const fb = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(out, 3));
-  const palette = Array.from({ length: k }, (_, j) => j).filter((j) => share[j] > 0).sort((a, b) => share[b] - share[a])
-    .map((j) => ({ hex: `#${new THREE.Color(q.palette[j * 3], q.palette[j * 3 + 1], q.palette[j * 3 + 2]).getHexString()}`, share: share[j] / Math.max(1e-12, totalArea), glow: shareGlow[j] > share[j] / 2 }));
+  const palette = Array.from({ length: kk }, (_, j) => j).filter((j) => share[j] > 0).sort((a, b) => share[b] - share[a])
+    .map((j) => ({ hex: `#${new THREE.Color(pal[j * 3], pal[j * 3 + 1], pal[j * 3 + 2]).getHexString()}`, share: share[j] / Math.max(1e-12, totalArea), glow: shareGlow[j] > share[j] / 2 }));
+  // A peça é uma parte lisa só (nada brilha no modo peça); o marco, até 4 partes.
+  const problems = spec && opts.part
+    ? (parts.length === 1 && parts[0].mat === 'flat' ? checkLandmarkPart(parts[0].geometry, opts.part) : ['a peça saiu com mais de uma parte'])
+    : checkLandmarkModel(model, opts.place ?? 'near');
   const report: ConvertReport = {
-    place: opts.place, trianglesIn: soup.count, trianglesOut: nOut, target, method: dec.method, scale: placed.scale * fit,
+    place: spec ? undefined : opts.place, part: spec ? opts.part : undefined, trianglesIn: soup.count, trianglesOut: nOut, target, method: dec.method, scale: placed.scale * fit,
     bounds: { minX: fb.min.x, maxX: fb.max.x, minY: fb.min.y, maxY: fb.max.y, minZ: fb.min.z, maxZ: fb.max.z },
-    palette, glowTriangles, problems: checkLandmarkModel(model, opts.place), warnings: soup.warnings,
+    palette, glowTriangles, problems, warnings: soup.warnings,
   };
   const matrix = new THREE.Matrix4().makeScale(fit, fit, fit).multiply(new THREE.Matrix4().makeTranslation(-cx, -box.min.y, -cz)).multiply(placed.matrix);
   return { model, report, matrix };

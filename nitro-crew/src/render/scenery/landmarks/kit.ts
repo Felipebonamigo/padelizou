@@ -10,6 +10,9 @@ import { jitter, merge, paint, shadeY, speckle, tintUp, type Geo, type MatKey, t
 
 type FacadeStyle = keyof typeof FACADE_TILE;
 
+// As peças baixadas (bicho, estátua) que os construtores usam quando o arquivo existe: parts.ts.
+export { landmarkPart, type LandmarkPart, type PartFit, type PartName } from './parts';
+
 /** Peças de um marco por material; `model()` funde cada grupo numa parte (uma geometria por lote). */
 export class Kit {
   readonly flat: Geo[] = [];

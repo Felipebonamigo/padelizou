@@ -405,7 +405,9 @@ material: `flat` (cor por face, normal suave com o vinco de marco, 45°), `glow`
 da cachoeira, o lago azul da gruta — brilha à noite), fachadas com janelas que acendem à noite (`office` na caixa do
 MASP e nas torres do Congresso, `house` no casario), `beacon` (luz de topo que pisca). O kit em `landmarks/kit.ts`:
 `Kit` (acumula por material e funde), `beam`/`cable` (viga ou cabo entre dois pontos), `lathe` (cúpula, cuia,
-torre redonda), `facadeBox`, `hill` (morro facetado com saia).
+torre redonda), `facadeBox`, `hill` (morro facetado com saia). E `landmarkPart(nome)` (`landmarks/parts.ts`): a peça baixada (o tuiuiú do ninho, a
+manada de búfalos, as girafas, o garimpeiro…) que o construtor põe no lugar do bicho procedural, no tamanho dele, quando o
+arquivo existe (`docs/ARTE.md`, "Peças baixadas"); o marco montado passa pelo `smoothModel` com a peça dentro.
 
 **Onde ele aparece** (`layout.ts`, `placeLandmarks`, uma vez por pista, depois dos sprites e antes da decoração):
 

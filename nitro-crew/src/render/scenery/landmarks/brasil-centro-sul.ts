@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { hash2 } from '../../noise';
 import { box, cone, cyl, dodeca, gable, hip, ico, jitter, paint, sphere, tf, tintUp, tris, type Geo } from '../geom';
-import { beam, cable, facadeBox, hill, Kit, lathe } from './kit';
+import { beam, cable, facadeBox, hill, Kit, landmarkPart, lathe } from './kit';
 import type { LandmarkRegistry } from './types';
 
 type V3 = [number, number, number];
@@ -622,6 +622,10 @@ function grutaLagoAzul(): ReturnType<Kit['model']> {
  * no ninho ou voando (corpo deitado, pescoço e pernas esticados, asas abertas).
  */
 function jabiru(k: Kit, x: number, y: number, z: number, face: number, S: number, pose: 'stand' | 'wings' | 'fly'): void {
+  // O tuiuiú baixado (peça `tuiuiu`, parts.ts) entra no lugar dos de pé: 1,6 m de verdade × S, a cabeça (+X da peça)
+  // para `face`, como o procedural. O de asas abertas e o em voo continuam procedurais (a peça tem uma pose só).
+  const part = pose === 'stand' ? landmarkPart('tuiuiu') : null;
+  if (part) { k.add(part.at({ height: 1.6 * S }, x, y, z, -face)); return; }
   const c = Math.cos(face); const s = Math.sin(face);
   const P = (a: number, h: number, b = 0): V3 => [x + (a * c - b * s) * S, y + h * S, z + (a * s + b * c) * S];
   const M = (a: number, h: number, b: number, sx: number, sy: number, sz: number, tilt = 0): THREE.Matrix4 => tf(...P(a, h, b), sx * S, sy * S, sz * S, 0, -face, tilt);

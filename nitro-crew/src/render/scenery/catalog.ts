@@ -5,6 +5,7 @@ import type { SceneryId, SpriteKind, TrackDef } from '../../core/types';
 import { hash2 } from '../noise';
 import { bandPoints, type Model } from './geom';
 import { LANDMARKS } from './landmarks';
+import { onLandmarkPartsChange } from './landmarks/parts';
 import type { LandmarkDef } from './landmarks/types';
 import * as P from './props';
 import { smoothModel } from './smooth';
@@ -233,6 +234,12 @@ export function setLandmarkOverride(id: string, model: Model | null): void {
   const key = LANDMARK_PREFIX + id;
   for (const c of [cache, fronts, bandRadii, bounds, heights]) c.delete(key);
 }
+
+// Peça baixada (landmarks/parts.ts: o tuiuiú, a girafa…) registrada ou tirada depois de um marco montado: os marcos
+// e as medidas deles são remontados no próximo uso (a peça entra pelo construtor, não pelo arquivo do marco inteiro).
+onLandmarkPartsChange(() => {
+  for (const c of [cache, fronts, bandRadii, bounds, heights]) for (const k of [...c.keys()]) if (k.startsWith(LANDMARK_PREFIX)) c.delete(k);
+});
 
 /** De onde vem o modelo do marco: do arquivo da arte ou do código. */
 export function landmarkSource(id: string): 'glb' | 'procedural' {

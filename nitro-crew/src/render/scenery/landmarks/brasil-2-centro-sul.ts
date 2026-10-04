@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { hash2 } from '../../noise';
 import { box, cone, cyl, gable, hip, ico, jitter, paint, sphere, tf, tintUp, tris, type Geo, type Model } from '../geom';
-import { beam, cable, cliff, dune, facadeBox, hill, Kit, lathe } from './kit';
+import { beam, cable, cliff, dune, facadeBox, hill, Kit, landmarkPart, lathe } from './kit';
 import type { LandmarkRegistry } from './types';
 
 type V3 = [number, number, number];
@@ -926,16 +926,23 @@ function cavalhada(): Model {
   k.add(paint(cyl(0.16, 0.2, 15, 6), '#e8e4da', tf(-6, 7.5, 0)));
   k.add(paint(box(0.12, 3.2, 4.8), '#c82828', tf(-6, 13.2, 2.5)), paint(new THREE.OctahedronGeometry(0.7, 0), '#f8f8f4', tf(-5.9, 13.2, 2.5, 0.4, 0.8, 1.4)));
   // Cavaleiros: cavalo com manta da cor do time, cavaleiro de capa e chapéu de pluma, lança para a frente.
+  // O cavalo baixado (peça `cavalo`, parts.ts) entra no lugar do de caixas: encaixado pelo lombo (a sela) na altura do
+  // lombo do procedural (2,2 × S), o cavaleiro procedural senta nele como antes; a manta e a faixa dourada do time
+  // ficam (o caparazão). A cabeça (+X da peça) para a carga (+Z × dir).
+  const horsePart = landmarkPart('cavalo');
   const knight = (x: number, z: number, dir: number, color: string, horse: string, S: number): void => {
     const P = (a: number, y: number, b = 0): V3 => [x + a * S, y * S, z + dir * b * S];
     const L: (a: V3, b: V3, w: number, c: string) => void = (a, b, w, c) => { k.add(beam(a, b, w * S, c)); };
-    k.add(paint(box(1, 1.1, 2.4), horse, tf(...P(0, 1.65), S, S, S)));
+    if (horsePart) k.add(horsePart.at({ back: 2.2 * S }, x, 0, z, -dir * Math.PI / 2));
+    else k.add(paint(box(1, 1.1, 2.4), horse, tf(...P(0, 1.65), S, S, S)));
     k.add(paint(box(1.15, 0.8, 2.1), color, tf(...P(0, 1.45), S, S, S)));
     k.add(paint(box(1.2, 0.18, 2.2), GOLD, tf(...P(0, 1.05), S, S, S)));
-    L(P(0, 2.0, 1.0), P(0, 2.9, 1.7), 0.55, horse);
-    k.add(paint(box(0.5, 0.5, 1.1), horse, tf(...P(0, 2.95, 2.0), S, S, S, dir * 0.5, 0, 0)));
-    for (const [a, b, c] of [[-0.35, 0.9, 1.6], [0.35, 0.9, 0.9], [-0.35, -0.9, -0.3], [0.35, -0.9, -1.4]] as Array<[number, number, number]>) L(P(a, 1.2, b), P(a, 0.05, c), 0.22, horse);
-    L(P(0, 1.9, -1.2), P(0, 1.0, -1.7), 0.25, '#3a2a1a');
+    if (!horsePart) {
+      L(P(0, 2.0, 1.0), P(0, 2.9, 1.7), 0.55, horse);
+      k.add(paint(box(0.5, 0.5, 1.1), horse, tf(...P(0, 2.95, 2.0), S, S, S, dir * 0.5, 0, 0)));
+      for (const [a, b, c] of [[-0.35, 0.9, 1.6], [0.35, 0.9, 0.9], [-0.35, -0.9, -0.3], [0.35, -0.9, -1.4]] as Array<[number, number, number]>) L(P(a, 1.2, b), P(a, 0.05, c), 0.22, horse);
+      L(P(0, 1.9, -1.2), P(0, 1.0, -1.7), 0.25, '#3a2a1a');
+    }
     // Cavaleiro.
     k.add(paint(box(0.55, 0.9, 0.45), color, tf(...P(0, 2.75, -0.1), S, S, S)));
     k.add(paint(box(0.7, 0.5, 0.5), GOLD, tf(...P(0, 2.4, -0.1), S, S, S)));
@@ -944,9 +951,10 @@ function cavalhada(): Model {
     L(P(0.35, 2.6, -1.2), P(0.35, 3.6, 3.2), 0.08, '#d8d0c0');
     k.add(paint(box(0.04, 0.4, 0.6), color, tf(...P(0.35, 3.5, 2.8), S, S, S)));
   };
-  // Dois esquadrões de quatro em carga um contra o outro (×2,0: o cavaleiro com o cavalo passa de 7 m).
-  knight(4, -9, 1, BLUE, '#f2f0ea', 2); knight(11, -15, 1, BLUE, '#7a5a3a', 2); knight(-3, -17, 1, BLUE, '#f2f0ea', 2); knight(5, -25, 1, BLUE, '#3a2a22', 2);
-  knight(4, 9, -1, RED, '#3a2a22', 2); knight(11, 15, -1, RED, '#f2f0ea', 2); knight(-3, 17, -1, RED, '#7a5a3a', 2); knight(5, 25, -1, RED, '#f2f0ea', 2);
+  // Dois esquadrões de quatro em carga um contra o outro (×2,0: o cavaleiro com o cavalo passa de 7 m). Com o cavalo
+  // baixado (mais caro que o de caixas), três de cada lado: o último de cada esquadrão sai (orçamento do marco).
+  knight(4, -9, 1, BLUE, '#f2f0ea', 2); knight(11, -15, 1, BLUE, '#7a5a3a', 2); knight(-3, -17, 1, BLUE, '#f2f0ea', 2); if (!horsePart) knight(5, -25, 1, BLUE, '#3a2a22', 2);
+  knight(4, 9, -1, RED, '#3a2a22', 2); knight(11, 15, -1, RED, '#f2f0ea', 2); knight(-3, 17, -1, RED, '#7a5a3a', 2); if (!horsePart) knight(5, 25, -1, RED, '#f2f0ea', 2);
   // Mascarados: roupa colorida e a máscara de boi branca com chifres e flores.
   for (const [x, z, c] of [[16, -4, '#e86aa0'], [15, 5, '#2a9a4a']] as Array<[number, number, string]>) {
     k.add(paint(cone(0.8, 1.9, 6), c, tf(x, 0.95, z)), paint(box(0.5, 0.8, 0.5), c, tf(x, 2.2, z)));
@@ -1065,11 +1073,22 @@ function jacare(): Model {
     [18, 7, -0.25, false], [15, 15, Math.PI - 0.3, true], [18, 23, 0.4, true], [13, 29, Math.PI + 0.2, false],
     [12, -22, 0.2, true], [20, -2, Math.PI - 0.6, true], [11, 10, Math.PI / 2 + 0.3, true],
   ];
-  for (const [x, z, yaw, open] of bask) caiman(x, z, yaw, S, open);
-  // Dois nadando (só o dorso e os olhos de fora) e um na margem do fundo.
-  caiman(-2, -6, 2.2, S, false, 0, 0.05);
-  caiman(2, 12, -0.6, S, false, 0, 0.05);
-  caiman(-17, 20, 1.2, S, true, 0.25, 0.15);
+  // O jacaré baixado (peça `jacare`, parts.ts): 2,7 m de verdade × S, a cabeça (+X da peça) para onde a procedural
+  // olha (+Z local girado `yaw`). Mais detalhado e mais caro que o procedural: 6 do bando na prainha (os da frente) e
+  // os 2 nadando (só o dorso de fora) — 8 no orçamento do marco; o da margem do fundo some.
+  const part = landmarkPart('jacare');
+  if (part) {
+    const put = (x: number, z: number, yaw: number, y0: number): void => { k.add(part.at({ length: 2.7 * S }, x, y0, z, yaw - Math.PI / 2)); };
+    for (const [x, z, yaw] of bask.slice(0, 6)) put(x, z, yaw, 0.95);
+    put(-2, -6, 2.2, -0.15);
+    put(2, 12, -0.6, -0.15);
+  } else {
+    for (const [x, z, yaw, open] of bask) caiman(x, z, yaw, S, open);
+    // Dois nadando (só o dorso e os olhos de fora) e um na margem do fundo.
+    caiman(-2, -6, 2.2, S, false, 0, 0.05);
+    caiman(2, 12, -0.6, S, false, 0, 0.05);
+    caiman(-17, 20, 1.2, S, true, 0.25, 0.15);
+  }
   // Ponte de madeira da Estrada Parque atravessando o corixo: tabuleiro, estacas e guarda-corpo.
   const bx = -17;
   k.add(paint(box(5.2, 0.45, 56), '#8a6a48', tf(bx, 2.2, 0)));
