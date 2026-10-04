@@ -34,12 +34,24 @@ function twoSided(p: number[]): Geo {
   return tris(out);
 }
 
+/** Tons de água das quedas (do branco ao azul-claro): as faixas de tons diferentes são os riscos da queda. */
+const FALL_TONES = ['#ffffff', '#eaf5fc', '#d6eaf5', '#f4fbff', '#c8e2ef'];
+/** Névoa e espuma: luz (sem sombra) — acesa pelo sol, a névoa virava pedra cinza. */
+const MIST = '#e4eef2';
+
 /**
- * Painel no plano x (normal para +X, o lado que o material de luz desenha): base de zb0 a zb1 em yb, topo de zt0 a
- * zt1 em yt (trapézio: o leque de uma queda d'água).
+ * Véu d'água diante de um paredão que olha para +X: do lábio (x0, yTop) ao pé (x1, yBot), centrado em z, abrindo de
+ * `wTop` a `wBot`; `B` faixas verticais de tons (os riscos: "queda d'água", não "painel") e `R` fileiras (a barriga
+ * que se lança do lábio). Material de luz: brilha à noite e não pega a sombra do paredão.
  */
-function panelX(x: number, yb: number, yt: number, zb0: number, zb1: number, zt0: number, zt1: number): Geo {
-  return tris([x, yb, zb1, x, yb, zb0, x, yt, zt0, x, yb, zb1, x, yt, zt0, x, yt, zt1]);
+function veil(k: Kit, seed: number, z: number, x0: number, x1: number, yTop: number, yBot: number, wTop: number, wBot: number, B = 6, R = 3): void {
+  const P = (s: number, t: number): V3 => [x0 + (x1 - x0) * Math.sqrt(t), yTop - (yTop - yBot) * t, z + s * (wTop + (wBot - wTop) * t)];
+  for (let b = 0; b < B; b++) {
+    const out: number[] = [];
+    const s0 = -0.5 + b / B; const s1 = -0.5 + (b + 1) / B;
+    for (let j = 0; j < R; j++) quad(out, P(s0, j / R), P(s1, j / R), P(s1, (j + 1) / R), P(s0, (j + 1) / R));
+    k.light(paint(tris(out), FALL_TONES[Math.floor(hash2(seed, b) * FALL_TONES.length)]));
+  }
 }
 
 /**
@@ -202,22 +214,27 @@ function escuna(): Model {
 }
 
 /**
- * Dedo de Deus (Serra dos Órgãos, skyline): a agulha de granito inclinada sobre o maciço de mata, o "punho" mais
- * baixo ao lado, o Escalavrado largo e o Nariz do Frade.
+ * Dedo de Deus (Serra dos Órgãos, skyline): o dedo de granito — coluna de ponta arredondada, com o nó e inclinado —
+ * sozinho acima do ombro da serra de mata, o polegar encostado, o Escalavrado largo e o Nariz do Frade bem mais baixos.
+ * Era um cone entre picos da mesma altura: de longe, três pedras quaisquer (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function dedoDeDeus(): Model {
   const k = new Kit();
-  const granite = '#83837b';
+  const granite = '#7d7e77';
   k.add(hill(330, 115, 280, 201, '#2f6a33', '#3f7f3a', 1, 0.14, 1.0, tf(-70, 0, 0)));
-  k.add(tintUp(hill(125, 235, 105, 202, '#7a7b74', null, 1, 0.12, 0.4, tf(-50, 0, -170)), '#46803f', 0.5, 0.9));
-  k.add(tintUp(hill(80, 175, 66, 203, '#73776f', null, 1, 0.1, 0.4, tf(-26, 0, 34)), '#3f7a3a', 0.45, 1));
-  // A agulha: fina, alta e inclinada para +Z (lê de perfil para quem vem pela pista).
-  k.add(tintUp(hill(34, 340, 30, 204, granite, null, 1, 0.07, 0.3, tf(-14, 0, 8, 1, 1, 1, 0.13, 0, 0)), '#4a8340', 0.75, 0.6));
-  // O polegar: uma ponta menor encostada.
-  k.add(tintUp(hill(26, 230, 24, 205, granite, null, 1, 0.08, 0.3, tf(-30, 0, 60, 1, 1, 1, 0.22, 0, 0)), '#4a8340', 0.7, 0.6));
-  // Nariz do Frade, mais longe em +Z.
-  k.add(tintUp(hill(40, 205, 36, 206, '#7f7f77', null, 1, 0.1, 0.3, tf(-60, 0, 175, 1, 1, 1, -0.08, 0, 0)), '#4a8340', 0.6, 0.8));
-  return k.model([0, 330], 0.06, 201);
+  // O ombro da serra, bem abaixo do dedo: o Escalavrado largo, o polegar encostado e o Nariz do Frade.
+  k.add(tintUp(hill(120, 195, 100, 202, '#7a7b74', null, 1, 0.12, 0.4, tf(-50, 0, -175)), '#46803f', 0.5, 0.9));
+  k.add(tintUp(hill(70, 165, 60, 203, '#73776f', null, 1, 0.1, 0.4, tf(-30, 0, 48)), '#3f7a3a', 0.45, 1));
+  k.add(tintUp(hill(36, 175, 32, 205, granite, null, 1, 0.08, 0.3, tf(-24, 0, 64, 1, 1, 1, 0.2, 0, 0)), '#4a8340', 0.7, 0.6));
+  k.add(tintUp(hill(40, 175, 36, 206, '#7f7f77', null, 1, 0.1, 0.3, tf(-60, 0, 180, 1, 1, 1, -0.08, 0, 0)), '#4a8340', 0.6, 0.8));
+  // O dedo (o traço do lugar): uma coluna de granito quase da mesma largura até a ponta arredondada, sozinho acima do
+  // ombro, com a dobra do nó e inclinado para +Z (lê de perfil para quem vem pela pista). Era um cone entre picos.
+  // A rugosidade (jitter) no referencial da peça, antes de levar ao lugar: as duas metades continuam encostadas.
+  const lower = jitter(lathe([[34, -20], [31, 60], [28, 150], [26.5, 232]], 8, granite), 0.03, 207).applyMatrix4(tf(-14, 0, 6, 1, 1, 1, 0.07, 0, 0));
+  const upper = jitter(lathe([[27, -4], [25.5, 70], [23.5, 120], [20.5, 146], [15, 158], [6, 165], [0.5, 166]], 8, granite), 0.015, 208)
+    .applyMatrix4(tf(-14, 228 * Math.cos(0.07), 6 + 228 * Math.sin(0.07), 1, 1, 1, 0.16, 0, 0));
+  for (const g of [lower, upper]) k.add(tintUp(g, '#4f8442', 0.82, 0.55));
+  return k.model([0, 390], 0.06, 201);
 }
 
 /** Farol de Ilhabela: torre branca de faixa vermelha na ponta de pedra, a casa do faroleiro e a espuma em volta. */
@@ -321,81 +338,111 @@ function chaleEnxaimel(): Model {
 }
 
 /**
- * Igreja da Pampulha (Niemeyer): as quatro abóbadas pequenas em fila com o painel de azulejos azuis, a abóbada
- * grande da nave atrás, a torre em trapézio invertido ligada pela marquise inclinada; a lagoa atrás.
+ * Igreja da Pampulha (Niemeyer, ×1,5): a onda de abóbadas brancas — a da nave e três menores, lado a lado —, cada
+ * tampa com o painel de azulejos azuis de Portinari emoldurado pela borda da casca, a torre em trapézio invertido
+ * ligada pela marquise inclinada; a lagoa atrás. Era um borrão branco de 14 m entre os prédios: a abóbada grande
+ * escondia as pequenas e o azulejo era um xadrez solto (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function igrejaPampulha(): Model {
   const k = new Kit();
-  const shell = '#eceae4'; const blue = '#2a5aa8';
-  k.add(paint(box(60, 0.2, 80), '#3f78a0', tf(-46, 0.1, 0))); // lagoa
-  k.add(paint(box(18, 0.25, 50), '#5c9a48', tf(16, 0.12, 0))); // jardim
-  for (let i = 0; i < 4; i++) k.add(blob(410 + i, '#3f7a36', 18 + (i % 2) * 4, 0.6, -18 + i * 12, 2.6, 0.9, 3.4)); // canteiros
-  // Nave: abóbada grande (vão 16, 14 m de altura) ao longo de X.
-  k.add(paint(tris(vaultShell(16, 14, 26, 12)), shell, tf(-13, 0, 0)));
-  k.add(paint(tris(vaultCap(16, 14, 12, 0)), '#dcdad2', tf(0, 0, 0)));
-  k.add(paint(tris(vaultCap(16, 14, 12, 0, -1)), '#8ab0c8', tf(-26, 0, 0))); // vidro da frente para a lagoa
-  // Quatro abóbadas pequenas na frente (+X), lado a lado em Z, com o painel de azulejos nas tampas.
-  const zs = [-10.6, -3.6, 3.6, 10.6]; const sp = 7.2; const rs = 7.6;
-  zs.forEach((z, i) => {
-    k.add(paint(tris(vaultShell(sp, rs, 10, 8)), shell, tf(5, 0, z)));
-    k.add(paint(tris(vaultCap(sp, rs, 8, 0)), '#f4f4f0', tf(10, 0, z)));
-    // Azulejos: quadros azuis num xadrez solto dentro da parábola.
-    for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) {
-      const zz = -sp / 2 + 0.6 + a * 1.1; const yy = 0.4 + b * 1.2;
-      if (yy + 1 > rs * (1 - (2 * (Math.abs(zz) + 0.55) / sp) ** 2)) continue;
-      if (hash2(i * 13 + a, b + 7) < 0.45) continue;
-      k.add(paint(tris([0, yy, zz + 0.5, 0, yy, zz - 0.5, 0, yy + 1, zz - 0.5, 0, yy, zz + 0.5, 0, yy + 1, zz - 0.5, 0, yy + 1, zz + 0.5]), hash2(a, b + i) < 0.3 ? '#6a98d8' : blue, tf(10.08, 0, z)));
+  const shell = '#f2f1ec'; const blue = '#1f4f9e'; const blue2 = '#3a74c4'; const fx = 8;
+  k.add(paint(box(70, 0.2, 104), '#3f78a0', tf(-52, 0.1, 2))); // lagoa
+  k.add(paint(box(22, 0.25, 84), '#5c9a48', tf(19, 0.12, 4))); // jardim
+  for (let i = 0; i < 5; i++) k.add(blob(410 + i, '#3f7a36', 22 + (i % 2) * 5, 0.6, -26 + i * 13, 2.8, 0.9, 3.6)); // canteiros
+  // A onda de abóbadas (o traço do lugar, ×1,5): lado a lado em Z, eixo em X, da nave às menores — o perfil de cima
+  // sobe e desce quatro vezes. Na face da pista, a tampa de cada uma é o painel de azulejos azuis, emoldurado pela
+  // borda branca da casca.
+  const vaults: Array<[number, number, number, number]> = [ // z, vão, flecha, comprimento
+    [-16, 20, 22, 34], [-0.5, 11, 14, 16], [10.5, 11, 11.5, 14], [21, 10, 9, 12],
+  ];
+  vaults.forEach(([z, sp, rise, len], i) => {
+    k.add(paint(tris(vaultShell(sp, rise, len, 12)), shell, tf(fx - len / 2, 0, z)));
+    // Borda da casca (1 m de espessura vista de frente) e o painel recuado dentro dela.
+    const rim: number[] = []; const N = 12; const w = 1.1;
+    for (let j = 0; j < N; j++) {
+      const P = (t: number, d: number): V3 => {
+        const zz = -sp / 2 + sp * t; const h = rise * (1 - (2 * zz / sp) ** 2);
+        const nz = (8 * rise * zz) / (sp * sp); const n = Math.hypot(nz, 1);
+        return [fx + 0.06, h - d / n, z + zz - (d * nz) / n];
+      };
+      quad(rim, P(j / N, 0), P((j + 1) / N, 0), P((j + 1) / N, w), P(j / N, w));
+    }
+    k.add(paint(tris(rim), shell));
+    k.add(paint(tris(vaultCap(sp - 2 * w, rise - w, 12, 0)), i === 0 ? blue : blue2, tf(fx, 0, z)));
+    k.add(paint(tris(vaultCap(sp, rise, 12, 0, -1)), '#8ab0c8', tf(fx - len, 0, z))); // vidro para a lagoa
+    // As figuras do painel (Portinari): manchas de azulejo claro e branco, poucas, dentro da parábola.
+    for (let a = 0; a < 5; a++) {
+      const zz = -sp / 2 + w + 0.8 + ((a + 0.5) / 5) * (sp - 2 * w - 1.6); const yy = 1 + hash2(i * 7 + a, 412) * rise * 0.45;
+      const hh = 1.4 + hash2(i, a + 413) * 2.4;
+      if (yy + hh > (rise - w) * (1 - (2 * (Math.abs(zz) + 0.8) / (sp - 2 * w)) ** 2)) continue;
+      k.add(paint(box(0.2, hh, 1.2), hash2(a, i + 414) < 0.5 ? '#f4f6fa' : '#8fb4e6', tf(fx + 0.1, yy + hh / 2, z + zz)));
     }
   });
-  // Torre sineira: trapézio invertido (mais larga no alto), com a cruz; marquise inclinada até a nave.
-  const tx = 8; const tz = 22;
-  k.add(paint(hip(1.6, 15, 2.4, 3.6, 4.4), shell, tf(tx, 0, tz)));
-  k.add(paint(box(0.25, 2.2, 0.25), '#3a3a3a', tf(tx, 16.1, tz)), paint(box(0.25, 0.25, 1.2), '#3a3a3a', tf(tx, 16.6, tz)));
-  k.add(beam([tx - 1, 4.2, tz - 1.5], [-2, 3.2, 8.5], 0.35, shell, 3.4));
-  for (const t of [0.35, 0.7]) k.add(paint(cyl(0.12, 0.12, 3.6, 5), shell, tf(tx - 1 + (-2 - tx + 1) * t, 1.8, tz - 1.5 + (8.5 - tz + 1.5) * t)));
+  // Torre sineira: trapézio invertido (mais larga no alto), com a cruz; marquise inclinada até as abóbadas.
+  const tx = fx - 2; const tz = 36;
+  k.add(paint(hip(2.4, 23, 3.4, 5.2, 6.2), shell, tf(tx, 0, tz)));
+  k.add(paint(box(0.35, 3.2, 0.35), '#3a3a3a', tf(tx, 24.6, tz)), paint(box(0.35, 0.35, 1.8), '#3a3a3a', tf(tx, 25.4, tz)));
+  k.add(beam([tx - 1, 6, tz - 2.5], [fx - 6, 4.6, 26], 0.5, shell, 5));
+  for (const t of [0.35, 0.7]) k.add(paint(cyl(0.18, 0.18, 5.2, 5), shell, tf(tx - 1 + (fx - 6 - tx + 1) * t, 2.6, tz - 2.5 + (26 - tz + 2.5) * t)));
   // Luz no pé do painel (acende à noite).
-  k.light(paint(box(0.3, 0.3, 28), '#fff0d0', tf(10.6, 0.3, 0)), paint(box(0.3, 0.3, 1.4), '#fff0d0', tf(tx + 1.6, 0.3, tz)));
-  return k.model([0, 16], 0, 411);
+  k.light(paint(box(0.3, 0.3, 58), '#fff0d0', tf(fx + 2.6, 0.3, 2)), paint(box(0.3, 0.3, 2), '#fff0d0', tf(tx + 2.4, 0.3, tz)));
+  return k.model([0, 22], 0, 411);
 }
 
 /**
- * Cachoeira Casca d'Anta (Serra da Canastra): paredão de quartzito cinza com mata nas saliências, o chapadão de campo
- * no alto, a queda que abre em leque, o poço e o começo do São Francisco.
+ * Cachoeira Casca d'Anta (Serra da Canastra): a escarpa de quartzito cinza em estratos, com mata nas saliências e no
+ * talude e o campo dourado do chapadão em cima; a queda larga que se lança do vão da borda e abre em riscos até a
+ * névoa, o poço e o começo do São Francisco. Era um bloco cinza (torre) entre dois morros com um fio d'água de 10 m,
+ * que de quem chega nem aparecia (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function cascaDanta(): Model {
   const k = new Kit();
-  const H = 140;
-  const wall = rock(221, '#7a7468', tf(-30, (H - 20) / 2, 0, 60, H + 20, 130), [2, 6, 5], 0.06);
-  tintUp(wall, '#4f7a3a', 0.5, 0.9);
-  k.add(wall);
-  // Encostas de mata dos dois lados e o chapadão (campo dourado) por cima.
-  k.add(hill(80, H * 0.92, 100, 222, '#4f6a3e', '#6f8f4a', 1, 0.12, 0.3, tf(-40, 0, -150)));
-  k.add(hill(80, H * 0.86, 100, 223, '#4f6a3e', '#6f8f4a', 1, 0.12, 0.3, tf(-40, 0, 150)));
-  k.add(paint(box(80, 6, 380), '#a8a85a', tf(-75, H - 1, 0)));
-  for (let i = 0; i < 10; i++) k.add(blob(224 + i, i % 2 ? '#5f7a3a' : '#6f8a42', -20 - hash2(i, 225) * 30, H + 2.5, -130 + i * 28, 6, 3, 6));
-  // A queda: estreita no alto e larga embaixo (leque), duas camadas, e a espuma.
-  k.add(paint(box(12, 8, 18), '#5f5a50', tf(-1, H - 3, 0)));
-  k.light(paint(panelX(4, 2, H + 1, -15, 15, -4, 4), WATER_FALL));
-  k.light(paint(panelX(5, 2, H - 10, -9, 7, -2, 2.5), '#ffffff'));
-  k.add(paint(cyl(30, 32, 1, 12), '#3f8ab0', tf(26, 0.5, 0, 1, 1, 1.2)));
-  k.add(paint(jitter(ico(1, 1), 0.15, 226), '#f2f8ff', tf(10, 3, 0, 10, 6, 16)));
-  // O rio saindo do poço para a frente, entre pedras.
-  k.add(paint(box(30, 0.5, 12), '#4a90b4', tf(60, 0.25, 4)));
-  for (let i = 0; i < 6; i++) k.add(paint(jitter(ico(1, 0), 0.25, 227 + i), '#6a6458', tf(45 + i * 6, 0.8, (i % 2 ? 9 : -2) + hash2(i, 228) * 3, 3, 1.6, 3)));
-  return k.model([-10, H], 0.06, 221);
+  const H = 140; const xw = -36;
+  // A escarpa da Canastra: quartzito cinza em estratos, mata nas saliências e no talude, o campo dourado do chapadão
+  // em cima; no meio, o vão que o rio cortou na borda (o topo baixa, a face recua).
+  const wall = cliff({
+    len: 380, H, strata: ['#8a8478', '#76706a', '#9a9386', '#6c665e', '#857f72'], layers: 6, seed: 221, cols: 26, depth: 90,
+    batter: 0.05, gully: 9, gullyLen: 28, bay: 16, ragged: 0.05, ledge: 3, talus: 30, talusColor: '#3f6a3a', top: '#b4ad62',
+    ledgeTop: '#5a7f3e', ends: 0.24, notch: { z: 0, half: 18, h: H - 12, recess: 7 },
+  }, tf(xw, 0, 0));
+  k.add(wall.geo);
+  // As pontas da escarpa descem em encosta de mata (o corte, visto de lado, lia como rampa).
+  for (const s of [-1, 1]) k.add(hill(48, 84, 58, 222 + s, '#3f6a3a', '#5a7f3e', 1, 0.12, 0.25, tf(xw - 22, 0, s * 178)));
+  // Capões no chapadão, atrás da borda.
+  for (let i = 0; i < 8; i++) {
+    const z = -160 + i * 44 + hash2(i, 225) * 12;
+    if (Math.abs(z) < 30) continue;
+    k.add(blob(224 + i, i % 2 ? '#5f7a3a' : '#6f8a42', xw + wall.lipAt(z) - 16 - hash2(i, 226) * 24, wall.topAt(z) + 2.5, z, 9, 4, 9));
+  }
+  // A queda: lança do lábio do vão e abre em riscos (24 → 48 m) até a névoa, na frente do talude.
+  const lip = xw + wall.lipAt(0); const top = wall.topAt(0);
+  veil(k, 227, 0, lip + 6, xw + wall.footAt(0) + 22, top - 1, 6, 26, 50, 7, 3);
+  // Névoa no pé (luz), o poço e o rio saindo para a frente entre pedras.
+  const fx = xw + wall.footAt(0) + 30;
+  for (let i = 0; i < 4; i++) k.light(paint(jitter(ico(1, 1), 0.14, 230 + i), MIST, tf(fx + (i % 2) * 6, 7 + (i >> 1) * 6, (i - 1.5) * 16, 18, 11, 18)));
+  k.add(paint(cyl(30, 32, 0.6, 12), '#3f8ab0', tf(fx + 20, 0.3, 0, 1, 1, 1.3)));
+  k.add(paint(box(40, 0.5, 14), '#4a90b4', tf(fx + 60, 0.25, 4)));
+  for (let i = 0; i < 6; i++) k.add(paint(jitter(ico(1, 0), 0.25, 234 + i), '#6a6458', tf(fx + 45 + i * 6, 0.8, (i % 2 ? 11 : -3) + hash2(i, 228) * 3, 3, 1.6, 3)));
+  // Mata no pé da escarpa, dos dois lados do poço.
+  for (let i = 0; i < 10; i++) {
+    const z = (i < 5 ? -1 : 1) * (48 + (i % 5) * 30);
+    k.add(blob(240 + i, i % 2 ? '#2f6a33' : '#3f7a3a', xw + wall.footAt(z) + 26 + hash2(i, 241) * 10, 6, z, 14, 10, 14));
+  }
+  return k.model([-10, H], 0.04, 221);
 }
 
 /** Pedra Azul (ES, skyline): o domo de granito azulado de paredes quase verticais, o Lagarto e a Pedra das Flores. */
 function pedraAzul(): Model {
   const k = new Kit();
   k.add(hill(310, 70, 270, 231, '#3f7038', '#4f8442', 1, 0.14, 1));
-  k.add(tintUp(hill(125, 195, 110, 232, '#7d8a92', null, 2, 0.06, 0.3, tf(-40, 0, 160)), '#5a8a48', 0.55, 0.85));
-  const p = hill(98, 330, 88, 233, '#6f8298', null, 2, 0.05, 0.3, tf(-20, 0, -40));
-  tintUp(p, '#8fa2b8', 0.8, 0.6);
+  k.add(tintUp(hill(125, 195, 110, 232, '#6a86ac', null, 2, 0.06, 0.3, tf(-40, 0, 160)), '#5a8a48', 0.55, 0.85));
+  const p = hill(98, 330, 88, 233, '#5578b0', null, 2, 0.05, 0.3, tf(-20, 0, -40));
+  tintUp(p, '#7f9fd0', 0.8, 0.6);
   k.add(p);
-  // O Lagarto: a saliência alongada subindo pela face, mais escura.
-  k.add(paint(jitter(ico(1, 1), 0.08, 234), '#8796a4', tf(60, 200, -46, 12, 50, 16, 0, 0, 0.3)));
-  k.add(paint(jitter(ico(1, 0), 0.08, 235), '#8796a4', tf(45, 246, -48, 10, 13, 12)));
+  // O Lagarto: a saliência alongada subindo pela face, mais escura. O azul é saturado (a cor do nome): com 0,15 de
+  // saturação a pedra lia cinza na névoa.
+  k.add(paint(jitter(ico(1, 1), 0.08, 234), '#46628e', tf(60, 200, -46, 12, 50, 16, 0, 0, 0.3)));
+  k.add(paint(jitter(ico(1, 0), 0.08, 235), '#46628e', tf(45, 246, -48, 10, 13, 12)));
   // Mata no pé do domo.
   k.add(tintUp(hill(150, 55, 130, 236, '#2f6a33', '#3f7a3a', 1, 0.16, 0.4, tf(20, 0, -40)), '#3f7a3a', 0.3, 1));
   return k.model([0, 330], 0.04, 231);
@@ -403,20 +450,22 @@ function pedraAzul(): Model {
 
 /**
  * Dunas de Itaúnas: o campo de dunas de areia clara (barlavento suave, a face de avalanche íngreme para a pista), a
- * restinga no pé, a passarela de madeira subindo e a torre da igreja velha que a areia engoliu.
+ * restinga no pé, a passarela de madeira subindo e a torre da igreja velha que a areia engoliu. A duna grande tem
+ * 50 m (×1,6) e 210 m de crista: com 30 m em 260 m, a 210 m da pista era uma faixa bege rente ao chão.
  */
 function dunasItaunas(): Model {
   const k = new Kit();
   const slip = '#d6b484';
   // A duna grande avançando para a pista (face de avalanche lisa e mais escura, crista viva) e duas de través nos
   // lados, que mostram o barlavento claro com as ondulações e a sombra da face de avalanche.
-  const big = dune({ len: 260, H: 30, back: 100, seed: 241, sand: '#f2e2b4', slip, cols: 26, rows: 8, sinuous: 12, horns: 12 }, tf(-34, 0, 0));
+  const X0 = -60;
+  const big = dune({ len: 210, H: 50, back: 125, seed: 241, sand: '#f2e2b4', slip, cols: 24, rows: 8, sinuous: 10, horns: 16 }, tf(X0, 0, 0));
   k.add(big.geo);
-  k.add(dune({ len: 150, H: 22, back: 70, seed: 242, sand: '#efdcac', slip: '#d0ac7a', cols: 14, rows: 8, horns: 20, sinuous: 6 }, tf(-26, 0, -108, 1, 1, 1, 0, 0.95, 0)).geo);
-  k.add(dune({ len: 120, H: 17, back: 56, seed: 243, sand: '#f4e6bc', slip, cols: 12, rows: 8, horns: 16, sinuous: 5 }, tf(-4, 0, 104, 1, 1, 1, 0, -1.0, 0)).geo);
+  k.add(dune({ len: 130, H: 27, back: 70, seed: 242, sand: '#efdcac', slip: '#d0ac7a', cols: 14, rows: 8, horns: 20, sinuous: 6 }, tf(X0 + 4, 0, -96, 1, 1, 1, 0, 0.95, 0)).geo);
+  k.add(dune({ len: 110, H: 22, back: 56, seed: 243, sand: '#f4e6bc', slip, cols: 12, rows: 8, horns: 16, sinuous: 5 }, tf(X0 + 22, 0, 92, 1, 1, 1, 0, -1.0, 0)).geo);
   // A igreja velha que a areia engoliu, no pé da face de avalanche: a torre (sineira aberta, cornijas, coruchéu e
   // cruz) e o frontão da fachada saindo da areia, de frente para a pista.
-  const cz = -22; const toe = -34 + big.toeAt(cz);
+  const cz = -22; const toe = X0 + big.toeAt(cz);
   const sandAt = (x: number): number => Math.max(0, (toe - x) / 1.6);
   const WALL = '#f4f1e8'; const TRIM = '#c9a46a';
   const tx = toe - 15; const tw = 5.6; const tTop = sandAt(tx - tw / 2) + 11;
@@ -438,13 +487,13 @@ function dunasItaunas(): Model {
   for (let i = 0; i < 16; i++) k.add(blob(244 + i, i % 3 ? '#5a8a3a' : '#7a9a44', toe + 8 + hash2(i, 245) * 22, 0.7, -124 + i * 16.5, 3 + hash2(i, 246) * 2.4, 1.5, 3.4));
   // Passarela de madeira do pé até o alto, sobre estacas.
   const pz = 58; const [cxp, cyp] = big.crestAt(pz);
-  const p0: V3 = [toe + 14, 1.2, pz - 6]; const p1: V3 = [-34 + cxp + 4, cyp - 1.5, pz];
+  const p0: V3 = [toe + 14, 1.2, pz - 6]; const p1: V3 = [X0 + cxp + 4, cyp - 1.5, pz];
   k.add(beam(p0, p1, 2.2, WOOD, 0.3));
   for (let i = 0; i <= 6; i++) {
     const t = i / 6; const x = p0[0] + (p1[0] - p0[0]) * t; const y = p0[1] + (p1[1] - p0[1]) * t; const z = p0[2] + (p1[2] - p0[2]) * t;
     k.add(paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x, y + 0.5, z + 1)), paint(box(0.25, 1.1, 0.25), '#5a3e26', tf(x, y + 0.5, z - 1)));
   }
-  return k.model([-2, 32], 0.03, 241);
+  return k.model([-2, 52], 0.03, 241);
 }
 
 // ───────────────────────────── Sul ─────────────────────────────
@@ -562,86 +611,104 @@ function cataratasIguacu(): Model {
 }
 
 /**
- * Ponte da Amizade (Foz do Iguaçu): arco de concreto de 290 m sobre o cânion do Paraná, os montantes até o tabuleiro,
- * os viadutos de acesso nas cabeceiras de rocha e os postes acesos.
+ * Ponte da Amizade (Foz do Iguaçu): o arco de concreto de 300 m sobre o cânion do Paraná — grosso (9–13 m, a face de
+ * baixo na sombra), encostando no tabuleiro no meio —, os montantes, os viadutos de acesso nas cabeceiras de rocha e os
+ * postes acesos. O arco tinha 4 m: a 270 m sobrava o tabuleiro reto (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function ponteAmizade(): Model {
   const k = new Kit();
-  const deckY = 60; const half = 270; const S = 145; const A = deckY - 4;
-  const con = '#cfcbc0';
+  const deckY = 62; const half = 280; const S = 150;
+  const con = '#d6d2c8'; const under = '#a8a49a';
   // Cabeceiras de rocha avermelhada com mata e o rio no fundo do cânion.
-  for (const s of [-1, 1]) k.add(tintUp(hill(70, deckY - 6, 130, 330 + s, '#8a5a3e', null, 1, 0.12, 0.4, tf(-6, 0, s * 225)), '#4a8a3c', 0.5, 1));
-  k.add(paint(box(60, 0.5, 2 * S - 40), '#4a7a6a', tf(0, 0.25, 0)));
-  const y = (z: number): number => A * (1 - (z / S) ** 2);
-  const NS = 14;
-  for (const x of [-5, 5]) {
-    for (let i = 0; i < NS; i++) {
-      const z0 = -S + (2 * S * i) / NS; const z1 = -S + (2 * S * (i + 1)) / NS;
-      k.add(beam([x, y(z0) - 1, z0], [x, y(z1) - 1, z1], 3.2, con, 4));
-    }
+  for (const s of [-1, 1]) k.add(tintUp(hill(74, deckY - 4, 120, 330 + s, '#8a5a3e', null, 1, 0.12, 0.4, tf(-6, 0, s * (S + 90))), '#4a8a3c', 0.5, 1));
+  k.add(paint(box(70, 0.5, 2 * S - 20), '#4a7a6a', tf(0, 0.25, 0)));
+  // O arco (o traço do lugar, ×2 na espessura: a 270 m, 4 m sumiam): costela de concreto de 9 m no fecho a 13 m nas
+  // nascenças, 13 m de largura, encostando no tabuleiro no meio; a face de baixo mais escura (a sombra que desenha a curva).
+  const T = (z: number): number => 9 + 4 * (z / S) ** 2;
+  const A = deckY - 1.3 - T(0) / 2;
+  const y = (z: number): number => A * (1 - (z / S) ** 2) + 4;
+  const NS = 16;
+  for (let i = 0; i < NS; i++) {
+    const z0 = -S + (2 * S * i) / NS; const z1 = -S + (2 * S * (i + 1)) / NS;
+    const t = T((z0 + z1) / 2);
+    k.add(beam([0, y(z0), z0], [0, y(z1), z1], 13, con, t));
+    k.add(beam([0, y(z0) - t / 2 - 0.3, z0], [0, y(z1) - t / 2 - 0.3, z1], 12, under, 0.8));
   }
-  for (let i = 1; i < NS; i += 2) { const z = -S + (2 * S * i) / NS; k.add(paint(box(10, 1.4, 1.4), con, tf(0, y(z) - 1, z))); }
-  // Montantes do arco ao tabuleiro.
-  for (let z = -S + 20; z <= S - 20; z += 20) {
-    const h = deckY - y(z);
-    if (h < 2.5) continue;
-    for (const x of [-5, 5]) k.add(paint(box(1.6, h, 1.6), con, tf(x, y(z) + h / 2 - 1, z)));
+  // Nascenças em sapatas de rocha.
+  for (const s of [-1, 1]) k.add(paint(box(18, 8, 14), '#7a5a46', tf(0, 4, s * (S + 2))));
+  // Montantes do arco ao tabuleiro (dois por linha).
+  for (let z = -S + 18; z <= S - 18; z += 18) {
+    const h = deckY - 1.3 - (y(z) + T(z) / 2);
+    if (h < 2) continue;
+    for (const x of [-4.5, 4.5]) k.add(paint(box(2.4, h, 2.4), con, tf(x, y(z) + T(z) / 2 + h / 2, z)));
   }
   // Tabuleiro, guarda-corpo e os pilares dos acessos.
-  k.add(paint(box(17, 2.6, 2 * half), '#d8d4ca', tf(0, deckY, 0)));
+  k.add(paint(box(17, 2.6, 2 * half), '#dedad0', tf(0, deckY, 0)));
   for (const x of [-8.3, 8.3]) k.add(paint(box(0.5, 1.2, 2 * half), '#9a9690', tf(x, deckY + 1.8, 0)));
-  for (const s of [-1, 1]) for (const z of [S + 22, S + 62, S + 102]) for (const x of [-5, 5]) k.add(paint(box(3, deckY + 10, 3), con, tf(x, deckY / 2 - 5, s * z)));
+  for (const s of [-1, 1]) for (const z of [S + 30, S + 75]) for (const x of [-5, 5]) k.add(paint(box(3.4, deckY + 10, 3.4), con, tf(x, deckY / 2 - 5, s * z)));
   for (let z = -half + 15; z < half; z += 45) for (const x of [-8.6, 8.6]) k.light(paint(box(0.5, 0.5, 0.5), LAMP, tf(x, deckY + 5, z)), paint(box(0.2, 3.6, 0.2), '#5a5a5a', tf(x, deckY + 3, z)));
   return k.model([-4, deckY], 0, 331);
 }
 
 /**
- * Ópera de Arame (Curitiba): o teatro de tubos de aço e vidro na pedreira alagada — paredes de tubos, cúpula de
- * nervuras, a ponte de entrada sobre o lago e o paredão da pedreira com mata. Os tubos acendem à noite.
+ * Ópera de Arame (Curitiba): o teatro de tubos de aço e vidro na pedreira alagada — a gaiola de tubos brancos grossos
+ * sobre o vidro escuro, cúpula de nervuras e a lanterna —, a ponte de entrada sobre o lago e o paredão da pedreira em
+ * estratos, mais baixo que o teatro, com mata. Os tubos acendem à noite. Era um cilindro de vidro claro com tubos de
+ * 0,36 m diante de um paredão de blocos mais alto que ele: lia como estufa (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function operaDeArame(): Model {
   const k = new Kit();
-  const R = 15; const Hw = 11; const Hd = 8; const n = 20;
-  const tube = '#f2f4fa';
-  k.add(paint(cyl(R + 13, R + 13, 0.3, 20), '#2f6f78', tf(0, 0.15, 0, 1, 1, 1.25)));
-  k.add(paint(cyl(R + 0.8, R + 1, 1.2, 20), '#9a948a', tf(0, 0.6, 0)));
-  // Vidro (claro de dia) e a cúpula.
-  k.add(paint(cyl(R - 0.2, R - 0.2, Hw, n, true), '#a8ccd8', tf(0, 1.2 + Hw / 2, 0)));
-  k.add(paint(sphere(R - 0.2, n, 4, 0, Math.PI * 2, 0, Math.PI / 2), '#b8d8e2', tf(0, Hw + 1.2, 0, 1, Hd / R, 1)));
-  // Tubos: pilares, anéis e as nervuras da cúpula (luz).
+  // ×1,3: o teatro passa da pedreira. A gaiola de tubos brancos grossos (o traço do lugar) sobre vidro escuro — de
+  // dia o vidro mostra o escuro de dentro e os tubos riscam por cima; à noite os tubos acendem (luz).
+  const R = 16; const Hw = 14; const Hd = 10; const n = 28; const y0 = 1.4;
+  const tube = '#f4f6fa';
+  k.add(paint(cyl(R + 16, R + 16, 0.3, 20), '#2f6f78', tf(0, 0.15, 0, 1, 1, 1.25)));
+  k.add(paint(cyl(R + 0.8, R + 1, y0, 20), '#9a948a', tf(0, y0 / 2, 0)));
+  // Vidro escuro (o interior) e a cúpula.
+  k.add(paint(cyl(R - 0.3, R - 0.3, Hw, 14, true), '#34474e', tf(0, y0 + Hw / 2, 0)));
+  k.add(paint(sphere(R - 0.3, 14, 4, 0, Math.PI * 2, 0, Math.PI / 2), '#3e555c', tf(0, Hw + y0, 0, 1, Hd / R, 1)));
+  // Tubos: pilares grossos, anéis, as nervuras da cúpula e os X das faces (luz).
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2; const c = Math.cos(a); const s = Math.sin(a);
-    k.light(paint(cyl(0.18, 0.18, Hw, 4, true), tube, tf(c * R, 1.2 + Hw / 2, s * R)));
-    let prev: V3 = [c * R, Hw + 1.2, s * R];
+    k.light(paint(cyl(0.45, 0.45, Hw, 4, true), tube, tf(c * R, y0 + Hw / 2, s * R)));
+    let prev: V3 = [c * R, Hw + y0, s * R];
     for (let j = 1; j <= 3; j++) {
       const t = (j / 3) * Math.PI / 2;
-      const p: V3 = [c * R * Math.cos(t), Hw + 1.2 + Hd * Math.sin(t), s * R * Math.cos(t)];
-      k.light(cable(prev, p, 0.3, tube));
+      const p: V3 = [c * R * Math.cos(t) * (j === 3 ? 0.12 : 1), Hw + y0 + Hd * Math.sin(t), s * R * Math.cos(t) * (j === 3 ? 0.12 : 1)];
+      k.light(cable(prev, p, 0.7, tube));
       prev = p;
     }
   }
-  for (const y of [1.6, 5.2, 8.8, Hw + 1.2]) k.light(paint(cyl(R + 0.15, R + 0.15, 0.25, n, true), tube, tf(0, y, 0)));
-  k.light(paint(cyl(R * 0.7, R * 0.7, 0.25, n, true), tube, tf(0, Hw + 1.2 + Hd * 0.72, 0)));
-  k.add(paint(cyl(1.4, 1.6, 1.4, 8), tube, tf(0, Hw + Hd + 1.6, 0)));
+  for (const y of [y0 + 0.3, y0 + Hw * 0.36, y0 + Hw * 0.7, y0 + Hw]) k.light(paint(cyl(R + 0.3, R + 0.3, 0.6, n, true), tube, tf(0, y, 0)));
+  k.light(paint(cyl(R * 0.72, R * 0.72, 0.5, n, true), tube, tf(0, Hw + y0 + Hd * 0.7, 0)));
+  // A lanterna do topo.
+  k.light(paint(cyl(1.6, 2, 2.4, 8, true), tube, tf(0, Hw + Hd + y0 + 1, 0)));
+  k.add(paint(cone(2.2, 2.2, 8), '#d8dce2', tf(0, Hw + Hd + y0 + 3.3, 0)));
   // Ponte de entrada de tubos, sobre o lago.
-  const bx0 = R + 0.5; const bx1 = R + 15;
-  k.add(paint(box(bx1 - bx0, 0.5, 3.2), '#8a8a86', tf((bx0 + bx1) / 2, 1.4, 0)));
+  const bx0 = R + 0.5; const bx1 = R + 17;
+  k.add(paint(box(bx1 - bx0, 0.5, 3.6), '#8a8a86', tf((bx0 + bx1) / 2, 1.4, 0)));
   for (const s of [-1, 1]) {
-    k.light(paint(box(bx1 - bx0, 0.15, 0.15), tube, tf((bx0 + bx1) / 2, 2.6, s * 1.6)));
-    for (let i = 0; i <= 5; i++) k.light(paint(cyl(0.1, 0.1, 1.3, 4, true), tube, tf(bx0 + i * (bx1 - bx0) / 5, 2, s * 1.6)));
-    k.add(paint(box(0.4, 1.6, 0.4), '#8a8a86', tf(bx0 + 3, 0.6, s * 1.4)), paint(box(0.4, 1.6, 0.4), '#8a8a86', tf(bx1 - 3, 0.6, s * 1.4)));
+    k.light(paint(box(bx1 - bx0, 0.3, 0.3), tube, tf((bx0 + bx1) / 2, 2.8, s * 1.8)));
+    for (let i = 0; i <= 5; i++) k.light(paint(cyl(0.18, 0.18, 1.4, 4, true), tube, tf(bx0 + i * (bx1 - bx0) / 5, 2.1, s * 1.8)));
+    k.add(paint(box(0.5, 1.6, 0.5), '#8a8a86', tf(bx0 + 3, 0.6, s * 1.5)), paint(box(0.5, 1.6, 0.5), '#8a8a86', tf(bx1 - 3, 0.6, s * 1.5)));
   }
-  // Pedreira: o paredão de rocha em arco atrás, com mata no alto e a cascatinha.
+  // Pedreira: o paredão em arco atrás, mais baixo que o teatro (em estratos, não em blocos), mata no alto e a cascatinha.
+  const r = R + 26;
+  for (let i = 0; i < 3; i++) {
+    const a = Math.PI * (0.62 + i * 0.38);
+    const q = cliff({
+      len: 34, H: 15, strata: ['#8a7f70', '#7a705f', '#958a78'], layers: 4, seed: 340 + i, cols: 6, depth: 14, batter: 0.08,
+      gully: 1.6, ragged: 0.12, ledge: 0.7, talus: 2.5, talusColor: '#4f6a3a', top: '#3f7a3a', ledgeTop: '#4f7a3a',
+      ends: i === 0 ? [0, 0.3] : i === 2 ? [0.3, 0] : 0,
+    }, tf(Math.cos(a) * r, 0, Math.sin(a) * r, 1, 1, 1, 0, Math.PI - a, 0));
+    k.add(q.geo);
+  }
   for (let i = 0; i < 6; i++) {
     const a = Math.PI * 0.62 + (i / 5) * Math.PI * 0.76;
-    const r = R + 19;
-    const g = rock(340 + i, '#8a7f70', tf(Math.cos(a) * r, 10, Math.sin(a) * r, 8, 26, 17, 0, -a, 0), [1, 3, 2], 0.07);
-    tintUp(g, '#4f7a3a', 0.6, 1);
-    k.add(g);
-    k.add(blob(350 + i, i % 2 ? '#2f6a33' : '#3f7a3a', Math.cos(a) * (r + 3), 24, Math.sin(a) * (r + 3), 7, 4, 7));
+    k.add(blob(350 + i, i % 2 ? '#2f6a33' : '#3f7a3a', Math.cos(a) * (r + 5), 16, Math.sin(a) * (r + 5), 8, 3.5, 8));
   }
-  k.light(paint(box(0.5, 20, 2.4), '#dff0ff', tf(-R - 14.5, 10, 0)));
-  return k.model([0, 24], 0.03, 341);
+  k.light(paint(box(0.5, 13, 2.6), '#dff0ff', tf(-r + 1.5, 7, 0)));
+  return k.model([0, 26], 0.03, 341);
 }
 
 /**
@@ -710,39 +777,48 @@ function rodaGigante(): Model {
 }
 
 /**
- * Serra do Rio do Rastro (skyline): a escarpa de mata de 260 m com o paredão de rocha no alto e a estrada em
- * zigue-zague que sobe a face — iluminada à noite (a imagem famosa) — e o mirante na borda do campo.
+ * Serra do Rio do Rastro (skyline): a escarpa de mata de 260 m, de borda quebrada, com o paredão de rocha no alto e a
+ * estrada em zigue-zague que sobe a face — asfalto claro e largo com os grampos, iluminada à noite (a imagem famosa) —
+ * e o mirante na borda do campo. A estrada era uma linha de 4 m quase do tom da mata: a 600 m sobrava uma caixa verde
+ * (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function miranteRioDoRastro(): Model {
   const k = new Kit();
   const H = 260; const L = 700; const XB = -260;
   const front = (y: number): number => 120 - (140 * Math.max(0, y)) / H;
   const ripple = (z: number): number => 14 * Math.sin(z / 55);
-  const g = new THREE.BoxGeometry(1, 1, 1, 3, 8, 10);
+  const g = new THREE.BoxGeometry(1, 1, 1, 3, 8, 14);
   const p = g.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < p.count; i++) {
     const u = p.getX(i) + 0.5; const v = p.getY(i) + 0.5; const w = p.getZ(i);
-    const y = v * (H + 20) - 20; const z = w * L;
+    // A borda de cima quebrada (picos e selas da serra, não uma régua) e as pontas baixando.
+    const z = w * L; const edge = 1 - 0.45 * Math.max(0, Math.abs(w) * 2 - 0.6) / 0.4;
+    const crest = (H + 20) * edge + (v > 0.99 ? 18 * Math.sin(z / 41 + 1.3) + 10 * Math.sin(z / 17) : 0);
+    const y = v * crest - 20;
     const xf = front(y) + ripple(z);
     p.setXYZ(i, XB + u * (xf - XB), y, z);
   }
-  const massif = paint(g, '#456f3c');
+  const massif = paint(g, '#3f6a38');
   tintUp(massif, '#8a9a58', 0.85, 1);
   k.add(massif);
-  k.add(rock(381, '#7c7a70', tf(-12, 228, 0, 34, 56, L * 0.86), [1, 2, 6], 0.08));
-  for (const s of [-1, 1]) k.add(hill(160, 210, 130, 382 + s, '#3f6a38', '#7f9a52', 1, 0.12, 0.3, tf(-50, 0, s * 360)));
-  // Estrada em zigue-zague pela face: trechos que acompanham a ondulação; faixa de luz por cima.
-  const legs = 9; const sub = 4;
+  k.add(rock(381, '#7c7a70', tf(-12, 226, 0, 34, 52, L * 0.62), [1, 2, 8], 0.12));
+  for (const s of [-1, 1]) k.add(hill(160, 190, 130, 382 + s, '#3f6a38', '#7f9a52', 1, 0.12, 0.3, tf(-50, 0, s * 360)));
+  // Estrada em zigue-zague pela face (o traço do lugar): asfalto claro e largo (10 m na vertical, ×3: a 600 m a
+  // pista de verdade some), a faixa de luz por cima (a foto famosa é à noite) e os grampos nas pontas.
+  const legs = 9; const sub = 4; const ROAD = '#c8c6c0';
   const zEnd = (j: number): number => (j % 2 ? 1 : -1) * (120 + hash2(j, 383) * 40);
-  const roadAt = (y: number, z: number): V3 => [front(y) + ripple(z) + 3, y, z];
+  const roadAt = (y: number, z: number): V3 => [front(y) + ripple(z) + 5, y, z];
   for (let j = 0; j < legs; j++) {
-    const y0 = 12 + j * 27; const y1 = y0 + 27; const za = zEnd(j); const zb = zEnd(j + 1);
+    const y0 = 12 + j * 26; const y1 = y0 + 26; const za = zEnd(j); const zb = zEnd(j + 1);
     for (let s = 0; s < sub; s++) {
       const t0 = s / sub; const t1 = (s + 1) / sub;
       const a = roadAt(y0 + (y1 - y0) * t0, za + (zb - za) * t0); const b = roadAt(y0 + (y1 - y0) * t1, za + (zb - za) * t1);
-      k.add(beam(a, b, 9, '#5a5b60', 3));
-      k.light(cable([a[0] + 2.6, a[1] + 2, a[2]], [b[0] + 2.6, b[1] + 2, b[2]], 2, '#ffe2a0'));
+      k.add(beam(a, b, 7, ROAD, 10));
+      k.light(cable([a[0] + 3.8, a[1] + 3, a[2]], [b[0] + 3.8, b[1] + 3, b[2]], 2.4, '#ffe2a0'));
     }
+    // O grampo: a curva fechada na ponta, um degrau largo do mesmo asfalto.
+    const e = roadAt(y1, zb);
+    k.add(paint(cyl(9, 9, 10, 8), ROAD, tf(e[0] - 2, e[1], e[2] + Math.sign(zb) * 3)));
   }
   // Mirante na borda de cima: plataforma, guarda-corpo e a luz.
   const mx = front(H) + 6;
@@ -832,8 +908,9 @@ function canionItaimbezinho(): Model {
 // ───────────────────────────── Centro-Oeste ─────────────────────────────
 
 /**
- * Ponte JK (Lago Paranoá): os três arcos de aço assimétricos que saltam o tabuleiro na diagonal, os estais em leque
- * de cada arco até as duas bordas, os pilares na água e os arcos acesos à noite.
+ * Ponte JK (Lago Paranoá): os três arcos de aço assimétricos que saltam o tabuleiro na diagonal — com 5,6 m de altura
+ * de seção (×2: a 250 m, 2,6 m clareavam contra o céu) —, os estais em leque de cada arco até as duas bordas, os
+ * pilares na água e os arcos acesos à noite.
  */
 function ponteJk(): Model {
   const k = new Kit();
@@ -850,8 +927,8 @@ function ponteJk(): Model {
     const NS = 12;
     for (let i = 0; i < NS; i++) {
       const p0 = P(i / NS); const p1 = P((i + 1) / NS);
-      k.add(beam(p0, p1, 3.4, steel, 2.6));
-      k.light(cable([p0[0], p0[1] + 2, p0[2]], [p1[0], p1[1] + 2, p1[2]], 0.9, '#e8f0ff'));
+      k.add(beam(p0, p1, 4.6, steel, 5.6)); // ×2 na espessura: a 250 m, 4 m clareavam contra o céu
+      k.light(cable([p0[0], p0[1] + 3.2, p0[2]], [p1[0], p1[1] + 3.2, p1[2]], 1.1, '#e8f0ff'));
     }
     for (const t of [0, 1]) { const p = P(t); k.add(paint(box(9, 6, 9), '#c8c6c0', tf(p[0], 1, p[2]))); }
     // Estais: de cada ponto do arco às duas bordas do tabuleiro (cruzam, como na ponte de verdade).
@@ -953,13 +1030,14 @@ function igrejaPirenopolis(): Model {
 }
 
 /**
- * Cavalhadas de Pirenópolis: o campo de terra com os dois castelos (cristão azul, mouro vermelho), os cavaleiros
- * em carga com as lanças e os cavalos enfeitados, dois mascarados, os camarotes coloridos e as bandeirolas.
+ * Cavalhadas de Pirenópolis: o campo de terra com os dois castelos inteiros na cor do lado (cristão azul, mouro
+ * vermelho), os cavaleiros em carga com as lanças e os cavalos de caparazão da mesma cor, dois mascarados, os camarotes
+ * coloridos e as bandeirolas. De longe, os lados se leem pela cor (eram fortinhos brancos de ameias coloridas).
  */
 function cavalhada(): Model {
   const k = new Kit();
   const BLUE = '#2a56c8'; const RED = '#d02a2a'; const GOLD = '#e8c040';
-  k.add(paint(box(40, 0.2, 80), '#dcbc8a', tf(2, 0.1, 0)));
+  k.add(paint(box(44, 0.2, 94), '#dcbc8a', tf(2, 0.1, 0)));
   // Camarotes no fundo (−X): caixas de madeira sobre estacas, panos coloridos e telhado.
   const cloths = ['#d02a2a', '#2a56c8', '#f2c230', '#2a9a4a', '#f2f0e8', '#e86aa0'];
   for (let i = 0; i < 9; i++) {
@@ -969,13 +1047,14 @@ function cavalhada(): Model {
     k.add(paint(box(0.3, 1.2, 7.6), cloths[i % cloths.length], tf(-19.9, 3.2, z)));
     k.add(paint(gable(4.6, 1.6, 7.8, 0.2), cloths[(i + 3) % cloths.length], tf(-22, 5.2, z)));
   }
-  // Castelos nas cabeceiras do campo (torre com ameias e bandeira).
+  // Castelos nas cabeceiras do campo, cada um inteiro na cor do seu lado (de longe, o lado se lê pela cor): torre
+  // com ameias brancas, o portão, a faixa e a bandeira.
   for (const [s, color] of [[-1, BLUE], [1, RED]] as Array<[number, string]>) {
-    const z = s * 35;
-    k.add(paint(box(8, 9, 8), color === BLUE ? '#e8eef8' : '#f4e8e0', tf(2, 4.5, z)));
-    for (const dx of [-3.2, 0, 3.2]) for (const dz of [-3.2, 3.2]) k.add(paint(box(1.3, 1.5, 1.3), color, tf(2 + dx, 9.7, z + dz)));
-    k.add(paint(box(0.3, 3, 4), color, tf(6.1, 5.8, z)), win(6.15, 1.9, z, 2.4, 3.8, '#3a2a1a'));
-    k.add(paint(cyl(0.14, 0.14, 7, 5), '#3a3a3a', tf(2, 12.5, z)), paint(box(0.1, 2.4, 3.8), color, tf(2, 14.6, z - s * 1.9)));
+    const z = s * 41;
+    k.add(paint(box(10, 13, 10), color, tf(2, 6.5, z)));
+    for (const dx of [-4, 0, 4]) for (const dz of [-4, 4]) k.add(paint(box(1.6, 1.8, 1.6), WHITE, tf(2 + dx, 13.9, z + dz)));
+    k.add(paint(box(0.3, 1, 10.2), WHITE, tf(7.1, 10, z)), win(7.15, 2.3, z, 3, 4.6, '#3a2a1a'));
+    k.add(paint(cyl(0.16, 0.16, 7, 5), '#3a3a3a', tf(2, 16.5, z)), paint(box(0.1, 2.8, 4.4), color, tf(2, 18.6, z - s * 2.2)));
   }
   // Mastro do Divino no meio do campo: a bandeira vermelha com a pomba branca.
   k.add(paint(cyl(0.16, 0.2, 15, 6), '#e8e4da', tf(-6, 7.5, 0)));
@@ -990,7 +1069,7 @@ function cavalhada(): Model {
     const L: (a: V3, b: V3, w: number, c: string) => void = (a, b, w, c) => { k.add(beam(a, b, w * S, c)); };
     if (horsePart) k.add(horsePart.at({ back: 2.2 * S }, x, 0, z, -dir * Math.PI / 2));
     else k.add(paint(box(1, 1.1, 2.4), horse, tf(...P(0, 1.65), S, S, S)));
-    k.add(paint(box(1.15, 0.8, 2.1), color, tf(...P(0, 1.45), S, S, S)));
+    k.add(paint(box(1.25, 1.05, 2.5), color, tf(...P(0, 1.45), S, S, S)));
     k.add(paint(box(1.2, 0.18, 2.2), GOLD, tf(...P(0, 1.05), S, S, S)));
     if (!horsePart) {
       L(P(0, 2.0, 1.0), P(0, 2.9, 1.7), 0.55, horse);
@@ -1006,10 +1085,12 @@ function cavalhada(): Model {
     L(P(0.35, 2.6, -1.2), P(0.35, 3.6, 3.2), 0.08, '#d8d0c0');
     k.add(paint(box(0.04, 0.4, 0.6), color, tf(...P(0.35, 3.5, 2.8), S, S, S)));
   };
-  // Dois esquadrões de quatro em carga um contra o outro (×2,0: o cavaleiro com o cavalo passa de 7 m). Com o cavalo
-  // baixado (mais caro que o de caixas), três de cada lado: o último de cada esquadrão sai (orçamento do marco).
-  knight(4, -9, 1, BLUE, '#f2f0ea', 2); knight(11, -15, 1, BLUE, '#7a5a3a', 2); knight(-3, -17, 1, BLUE, '#f2f0ea', 2); if (!horsePart) knight(5, -25, 1, BLUE, '#3a2a22', 2);
-  knight(4, 9, -1, RED, '#3a2a22', 2); knight(11, 15, -1, RED, '#f2f0ea', 2); knight(-3, 17, -1, RED, '#7a5a3a', 2); if (!horsePart) knight(5, 25, -1, RED, '#f2f0ea', 2);
+  // Dois esquadrões de quatro em carga um contra o outro (×2,6: o cavaleiro com o cavalo passa de 9 m; o caparazão
+  // cobre o cavalo na cor do lado). Com o cavalo baixado (mais caro que o de caixas), três de cada lado: o último de
+  // cada esquadrão sai (orçamento do marco).
+  const S = 2.6;
+  knight(4, -11, 1, BLUE, '#f2f0ea', S); knight(12, -19, 1, BLUE, '#7a5a3a', S); knight(-4, -21, 1, BLUE, '#f2f0ea', S); if (!horsePart) knight(5, -30, 1, BLUE, '#3a2a22', S);
+  knight(4, 11, -1, RED, '#3a2a22', S); knight(12, 19, -1, RED, '#f2f0ea', S); knight(-4, 21, -1, RED, '#7a5a3a', S); if (!horsePart) knight(5, 30, -1, RED, '#f2f0ea', S);
   // Mascarados: roupa colorida e a máscara de boi branca com chifres e flores.
   for (const [x, z, c] of [[16, -4, '#e86aa0'], [15, 5, '#2a9a4a']] as Array<[number, number, string]>) {
     k.add(paint(cone(0.8, 1.9, 6), c, tf(x, 0.95, z)), paint(box(0.5, 0.8, 0.5), c, tf(x, 2.2, z)));
@@ -1081,8 +1162,9 @@ function parqueAquatico(): Model {
 
 /**
  * Jacarés da Estrada Parque (Pantanal): a baía com os tapetes de aguapé, a prainha de lama clara na margem de cá onde
- * o bando toma sol — os jacarés com a proporção de verdade (2,7 m) ×2,1, escuros contra a lama clara, de lado para a
- * pista e quase todos de cabeça erguida e boca aberta (o amarelo da boca lê de longe) —, dois nadando com só o dorso
+ * o bando toma sol no alto dela — os jacarés com a proporção de verdade (2,7 m) ×3,15, escuros contra a lama clara, na
+ * diagonal da pista (de lado para quem passa e para quem chega) e quase todos de cabeça erguida e boca aberta (o
+ * amarelo da boca lê de longe; ×2,1 no chão da prainha, a 170 m, sumiam) —, dois nadando com só o dorso
  * de fora, a ponte de madeira da estrada atravessando o corixo, as capivaras e a árvore seca com as garças e o biguá.
  */
 function jacare(): Model {
@@ -1090,12 +1172,15 @@ function jacare(): Model {
   // Margem de lama clara, a baía (rasa e esverdeada na borda, funda no meio) e a prainha elevada de cá.
   k.add(paint(cyl(26, 27, 0.2, 14), '#d2bc90', tf(0, 0.1, 0, 1, 1, 1.5)));
   k.add(paint(cyl(21, 21, 0.3, 14), '#5f8a6a', tf(-5, 0.18, 0, 1, 1, 1.5)), paint(cyl(15, 15, 0.36, 14), '#47705a', tf(-7, 0.2, 0, 1, 1, 1.5)));
-  k.add(hill(9, 1.6, 32, 480, '#dcc69c', null, 1, 0.08, 0.4, tf(16, 0, 0)));
-  // Placa de "cuidado, jacarés" da Estrada Parque na frente: losango amarelo com o bicho em preto (sem letras).
-  k.add(paint(box(0.22, 3.4, 0.22), '#8a8a86', tf(25, 1.7, 30)));
-  k.add(paint(box(0.12, 2.6, 2.6), '#2a2a2a', tf(25.1, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0)), paint(box(0.14, 2.3, 2.3), '#f2c42a', tf(25.15, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0)));
-  k.add(paint(box(0.16, 0.3, 1.5), '#1a1a1a', tf(25.25, 3.85, 30)), paint(box(0.16, 0.16, 0.55), '#1a1a1a', tf(25.25, 3.82, 30.95)), paint(box(0.16, 0.2, 0.6), '#1a1a1a', tf(25.25, 3.78, 29.0, 1, 1, 1, 0.3, 0, 0)));
-  for (const dz of [-0.45, 0.45]) k.add(paint(box(0.16, 0.36, 0.12), '#1a1a1a', tf(25.25, 3.6, 30 + dz)));
+  k.add(hill(12, 2.6, 46, 480, '#dcc69c', null, 1, 0.08, 0.4, tf(16, 0, 2)));
+  // Placa de "cuidado, jacarés" da Estrada Parque na frente: losango amarelo com o bicho em preto (sem letras), ×2,2
+  // (losango de 7 m a 7,5 m do chão): a 190 m é o que lê primeiro — os bichos, mesmo maiores, dão poucos pixels.
+  const SG = tf(25, 0, 30, 2.2, 2.2, 2.2).multiply(tf(-25, 0, -30));
+  const sg = (g: Geo): Geo => g.applyMatrix4(SG);
+  k.add(sg(paint(box(0.22, 3.4, 0.22), '#8a8a86', tf(25, 1.7, 30))));
+  k.add(sg(paint(box(0.12, 2.6, 2.6), '#2a2a2a', tf(25.1, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0))), sg(paint(box(0.14, 2.3, 2.3), '#f2c42a', tf(25.15, 3.9, 30, 1, 1, 1, Math.PI / 4, 0, 0))));
+  k.add(sg(paint(box(0.16, 0.3, 1.5), '#1a1a1a', tf(25.25, 3.85, 30))), sg(paint(box(0.16, 0.16, 0.55), '#1a1a1a', tf(25.25, 3.82, 30.95))), sg(paint(box(0.16, 0.2, 0.6), '#1a1a1a', tf(25.25, 3.78, 29.0, 1, 1, 1, 0.3, 0, 0))));
+  for (const dz of [-0.45, 0.45]) k.add(sg(paint(box(0.16, 0.36, 0.12), '#1a1a1a', tf(25.25, 3.6, 30 + dz))));
   for (let i = 0; i < 8; i++) {
     const x = -16 + hash2(i, 481) * 16; const z = -26 + i * 7.5;
     k.add(paint(jitter(ico(1, 0), 0.2, 482 + i), i % 2 ? '#5aa040' : '#4f9238', tf(x, 0.4, z, 3.2, 0.32, 2.6)));
@@ -1121,24 +1206,29 @@ function jacare(): Model {
     k.add(paint(box(0.2, 0.08, 0.48), back, head.clone().multiply(tf(0, open ? 0.12 : 0.04, 0.5, 1, 1, 1, open ? -0.45 : 0, 0, 0))));
     if (open) k.add(paint(box(0.17, 0.03, 0.4), '#f0d48a', head.clone().multiply(tf(0, 0.0, 0.48))));
   };
-  const S = 2.1;
-  // O bando na prainha: de lado para a pista (yaw ±π/2 ± um pouco), cabeças para a água ou para os lados.
+  // ×3,15 (era ×2,1: a 170 m, o bando somava 26 m² de frente e sumia): 8,5 m de jacaré, no alto da prainha.
+  const S = 3.15;
+  // O bando na prainha: na diagonal da pista (yaw ≈ ±π/4, ±3π/4) — de lado tanto para quem passa quanto para quem
+  // chega —, cabeças para a água ou para os lados.
+  const Q = Math.PI / 4;
   const bask: Array<[number, number, number, boolean]> = [
-    [17, -26, Math.PI / 2 + 2.6, true], [15, -18, -Math.PI / 2 - 0.5, false], [18, -9, Math.PI + 0.4, true], [14, -1, 0.3, true],
-    [18, 7, -0.25, false], [15, 15, Math.PI - 0.3, true], [18, 23, 0.4, true], [13, 29, Math.PI + 0.2, false],
-    [12, -22, 0.2, true], [20, -2, Math.PI - 0.6, true], [11, 10, Math.PI / 2 + 0.3, true],
+    [17, -36, 3 * Q, true], [14, -24, -Q, false], [19, -12, Q + 0.2, true], [13, -1, -3 * Q, true],
+    [19, 10, -Q, false], [14, 22, 3 * Q + 0.2, true], [19, 33, -Q, true], [11, 41, Q, false],
+    [9, -30, -3 * Q + 0.2, true], [22, 0, Q - 0.2, true], [9, 12, Q, true],
   ];
+  // Em cima da prainha (2,6 m no meio): de longe, o bando fica acima do capim da margem.
+  const bankY = (x: number): number => Math.max(0.5, 2.6 * (1 - ((x - 16) / 12) ** 2) - 0.35);
   // O jacaré baixado (peça `jacare`, parts.ts): 2,7 m de verdade × S, a cabeça (+X da peça) para onde a procedural
   // olha (+Z local girado `yaw`). Mais detalhado e mais caro que o procedural: 6 do bando na prainha (os da frente) e
   // os 2 nadando (só o dorso de fora) — 8 no orçamento do marco; o da margem do fundo some.
   const part = landmarkPart('jacare');
   if (part) {
     const put = (x: number, z: number, yaw: number, y0: number): void => { k.add(part.at({ length: 2.7 * S }, x, y0, z, yaw - Math.PI / 2)); };
-    for (const [x, z, yaw] of bask.slice(0, 6)) put(x, z, yaw, 0.95);
+    for (const [x, z, yaw] of bask.slice(0, 6)) put(x, z, yaw, bankY(x));
     put(-2, -6, 2.2, -0.15);
     put(2, 12, -0.6, -0.15);
   } else {
-    for (const [x, z, yaw, open] of bask) caiman(x, z, yaw, S, open);
+    for (const [x, z, yaw, open] of bask) caiman(x, z, yaw, S, open, 0.3, bankY(x));
     // Dois nadando (só o dorso e os olhos de fora) e um na margem do fundo.
     caiman(-2, -6, 2.2, S, false, 0, 0.05);
     caiman(2, 12, -0.6, S, false, 0, 0.05);
@@ -1179,106 +1269,128 @@ function jacare(): Model {
 
 /**
  * Relógio da 14 de Julho (Campo Grande): a torre art déco de base escalonada com os quatro mostradores acesos, na
- * rotatória de canteiros com ipês amarelos e roxo e os postes.
+ * rotatória de canteiros com ipês amarelos e roxo e os postes. A torre em ×1,45 (30 m, mostrador de 4,6 m): com 20 m
+ * e 3,2 m, a 150–250 m sumia entre os prédios da praça (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function monumentoCampoGrande(): Model {
   const k = new Kit();
   const cream = '#efe6d2'; const accent = '#8a5a3a';
-  k.add(paint(cyl(16, 16, 0.3, 16), '#5c9a48', tf(0, 0.15, 0)), paint(cyl(9, 9, 0.4, 16), '#c8c2b4', tf(0, 0.2, 0)));
-  for (const [w, h, y] of [[7, 0.8, 0.4], [5.6, 0.8, 1.2]] as Array<[number, number, number]>) k.add(paint(box(w, h, w), '#b8b0a0', tf(0, y + h / 2, 0)));
+  const U = tf(0, 0, 0, 1.45, 1.45, 1.45);
+  const up = (g: Geo): Geo => g.applyMatrix4(U);
+  k.add(paint(cyl(18, 18, 0.3, 16), '#5c9a48', tf(0, 0.15, 0)), paint(cyl(11, 11, 0.4, 16), '#c8c2b4', tf(0, 0.2, 0)));
+  for (const [w, h, y] of [[7, 0.8, 0.4], [5.6, 0.8, 1.2]] as Array<[number, number, number]>) k.add(up(paint(box(w, h, w), '#b8b0a0', tf(0, y + h / 2, 0))));
   // Fuste escalonado com as caneluras e a faixa de cor.
-  k.add(paint(box(3.6, 10, 3.6), cream, tf(0, 7, 0)));
-  for (const s of [-1, 1]) for (const d of [-1, 1]) k.add(paint(box(0.7, 11, 0.7), cream, tf(s * 1.8, 7.5, d * 1.8)));
-  for (const s of [-1, 1]) { k.add(paint(box(0.2, 8, 0.5), accent, tf(s * 1.85, 6.5, 0)), paint(box(0.5, 8, 0.2), accent, tf(0, 6.5, s * 1.85))); }
+  k.add(up(paint(box(3.6, 10, 3.6), cream, tf(0, 7, 0))));
+  for (const s of [-1, 1]) for (const d of [-1, 1]) k.add(up(paint(box(0.7, 11, 0.7), cream, tf(s * 1.8, 7.5, d * 1.8))));
+  for (const s of [-1, 1]) { k.add(up(paint(box(0.2, 8, 0.5), accent, tf(s * 1.85, 6.5, 0))), up(paint(box(0.5, 8, 0.2), accent, tf(0, 6.5, s * 1.85)))); }
   // Cabeça do relógio, os quatro mostradores (luz) e os ponteiros.
   const yc = 14.6;
-  k.add(paint(box(4.4, 4.4, 4.4), cream, tf(0, yc, 0)), paint(box(4.8, 0.5, 4.8), accent, tf(0, yc - 2.4, 0)), paint(box(4.8, 0.5, 4.8), accent, tf(0, yc + 2.4, 0)));
+  k.add(up(paint(box(4.4, 4.4, 4.4), cream, tf(0, yc, 0))), up(paint(box(4.8, 0.5, 4.8), accent, tf(0, yc - 2.4, 0))), up(paint(box(4.8, 0.5, 4.8), accent, tf(0, yc + 2.4, 0))));
   for (let f = 0; f < 4; f++) {
-    const ry = (f * Math.PI) / 2;
-    k.light(paint(cyl(1.6, 1.6, 0.2, 12), '#fff6d8', tf(0, 0, 0).multiply(new THREE.Matrix4().makeRotationY(ry)).multiply(tf(2.25, yc, 0, 1, 1, 1, 0, 0, Math.PI / 2))));
-    k.add(paint(box(0.12, 1.2, 0.18), '#1e1e22', tf(0, 0, 0).multiply(new THREE.Matrix4().makeRotationY(ry)).multiply(tf(2.38, yc + 0.5, 0))));
-    k.add(paint(box(0.12, 0.18, 0.9), '#1e1e22', tf(0, 0, 0).multiply(new THREE.Matrix4().makeRotationY(ry)).multiply(tf(2.38, yc, 0.4))));
+    const R = new THREE.Matrix4().makeRotationY((f * Math.PI) / 2);
+    k.light(up(paint(cyl(1.6, 1.6, 0.2, 12), '#fff6d8', R.clone().multiply(tf(2.25, yc, 0, 1, 1, 1, 0, 0, Math.PI / 2)))));
+    k.add(up(paint(box(0.12, 1.2, 0.18), '#1e1e22', R.clone().multiply(tf(2.38, yc + 0.5, 0)))));
+    k.add(up(paint(box(0.12, 0.18, 0.9), '#1e1e22', R.clone().multiply(tf(2.38, yc, 0.4)))));
   }
   // Coroamento escalonado e o mastro.
-  k.add(paint(box(3.4, 1.2, 3.4), cream, tf(0, yc + 3.2, 0)), paint(box(2.2, 1.2, 2.2), cream, tf(0, yc + 4.4, 0)), paint(box(1.2, 1, 1.2), accent, tf(0, yc + 5.5, 0)));
-  k.add(paint(cyl(0.08, 0.08, 3, 4), '#3a3a3a', tf(0, yc + 7.5, 0)));
-  // Ipês floridos e postes.
-  for (const [x, z, c] of [[-10, -9, '#f2c230'], [-9, 10, '#f2c230'], [-13, 1, '#c86ab8']] as Array<[number, number, string]>) {
-    k.add(paint(cyl(0.3, 0.45, 5, 6), '#5a4838', tf(x, 2.5, z)));
-    k.add(blob(491 + x, c, x, 6.2, z, 3.2, 2, 3.2), blob(492 + z, c, x + 1.2, 5.4, z - 1, 2.2, 1.5, 2.2));
+  k.add(up(paint(box(3.4, 1.2, 3.4), cream, tf(0, yc + 3.2, 0))), up(paint(box(2.2, 1.2, 2.2), cream, tf(0, yc + 4.4, 0))), up(paint(box(1.2, 1, 1.2), accent, tf(0, yc + 5.5, 0))));
+  k.add(up(paint(cyl(0.08, 0.08, 3, 4), '#3a3a3a', tf(0, yc + 7.5, 0))));
+  // Ipês floridos (a cidade dos ipês) e postes.
+  for (const [x, z, c] of [[-12, -11, '#f2c230'], [-11, 12, '#f2c230'], [-15, 1, '#c86ab8']] as Array<[number, number, string]>) {
+    k.add(paint(cyl(0.35, 0.55, 6, 6), '#5a4838', tf(x, 3, z)));
+    k.add(blob(491 + x, c, x, 7.6, z, 4.2, 2.6, 4.2), blob(492 + z, c, x + 1.6, 6.6, z - 1.3, 2.9, 2, 2.9));
   }
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    k.add(paint(box(0.2, 5, 0.2), '#2a2a2a', tf(Math.cos(a) * 8.5, 2.5, Math.sin(a) * 8.5)));
-    k.light(paint(sphere(0.4, 6, 4), LAMP, tf(Math.cos(a) * 8.5, 5.2, Math.sin(a) * 8.5)));
+    k.add(paint(box(0.2, 5, 0.2), '#2a2a2a', tf(Math.cos(a) * 10, 2.5, Math.sin(a) * 10)));
+    k.light(paint(sphere(0.4, 6, 4), LAMP, tf(Math.cos(a) * 10, 5.2, Math.sin(a) * 10)));
   }
-  return k.model([0, 20], 0.02, 491);
+  return k.model([0, 29], 0.02, 491);
 }
 
 /**
- * Cachoeira Véu de Noiva (Chapada dos Guimarães): o anfiteatro de arenito vermelho com o cerrado na borda, o véu fino
- * caindo em queda livre de 86 m, o poço verde e a mata do fundo.
+ * Cachoeira Véu de Noiva (Chapada dos Guimarães): o anfiteatro de arenito vermelho em estratos — o paredão do fundo e
+ * as duas abas abertas para quem chega —, o cerrado na borda da chapada, o véu de 86 m que se lança do lábio e abre
+ * em riscos brancos até a nuvem de névoa, o poço verde e a mata no pé. Era um muro de blocos retos com um fio d'água
+ * de 2 m (lia como fachada, e a aba escondia a queda de quem chega; tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function veuDeNoiva(): Model {
   const k = new Kit();
-  const C: V3 = [26, 0, 0]; const R = 70; const N = 11; const A = 1.65; const H = 92;
-  const at = (r: number, a: number): [number, number] => [C[0] - r * Math.cos(a), r * Math.sin(a)];
-  for (let i = 0; i < N; i++) {
-    const a = -A + ((i + 0.5) / N) * 2 * A;
-    const chord = 2 * R * Math.sin(A / N) + 2;
-    const [x, z] = at(R + 12, a);
-    const g = rock(501 + i, '#b5552f', tf(x, (H - 10) / 2, z, 24, H + 10, chord, 0, a, 0), [1, 4, 2], 0.05);
-    tintUp(g, '#7f8f3a', 0.7, 1);
-    k.add(g);
-    // Estratos mais escuros.
-    for (const y of [28, 58]) { const [sx, sz] = at(R - 0.6, a); k.add(paint(box(1.2, 3.5, chord), '#8a3a22', tf(sx, y + (i % 2) * 3, sz, 1, 1, 1, 0, a, 0))); }
-    const [tx, tz] = at(R + 10, a);
-    k.add(blob(520 + i, i % 2 ? '#6a7a32' : '#7a8a3a', tx, H + 2, tz, 6, 3, chord * 0.4));
+  const H = 92;
+  const base = {
+    H, strata: ['#b5552f', '#c96e3e', '#9c4328', '#d27e4a', '#ac4f2d'], layers: 6, batter: 0.05, gully: 8, gullyLen: 20,
+    ragged: 0.08, ledge: 2.4, talus: 16, talusColor: '#3a6a34', top: '#7a8f3e', ledgeTop: '#6f8a3a',
+  } as const;
+  // O paredão do fundo (o véu cai do meio dele) e as abas, abertas 0,6 rad: de quem chega, a queda fica à vista.
+  const xb = -40; const lenB = 90; const lenW = 92; const open = 0.6;
+  const back = cliff({ ...base, len: lenB, seed: 501, cols: 14, depth: 46, ends: 0, bay: 5 }, tf(xb, 0, 0));
+  k.add(back.geo);
+  for (const s of [-1, 1]) {
+    // A aba de −Z olha para +Z+X (giro −0,6): a ponta de dentro encosta na do paredão do fundo, a de fora baixa e recua.
+    const sn = Math.sin(open); const cs = Math.cos(open);
+    const cx = xb + 4 + (sn * lenW) / 2; const cz = s * (lenB / 2 + (cs * lenW) / 2);
+    const w = cliff({ ...base, H: H * 0.84, ragged: 0.1, len: lenW, seed: 502 + s, cols: 12, depth: 46, ends: s < 0 ? [0.32, 0] : [0, 0.32], bay: 6 }, tf(cx, 0, cz, 1, 1, 1, 0, s * open, 0));
+    k.add(w.geo);
+    // A ponta de fora desce em encosta de mata (o corte do paredão, visto de lado, lia como rampa).
+    k.add(hill(30, 52, 36, 509 + s, '#3a6a34', '#4f8a3c', 1, 0.12, 0.25, tf(cx + (lenW / 2) * sn - 22, 0, cz + s * ((lenW / 2) * cs - 4))));
+    // Cerrado na borda de cima das abas (um pouco atrás do lábio).
+    for (let i = 0; i < 4; i++) {
+      const along = s * (-lenW / 2 + ((i + 0.3) / 4) * lenW);
+      const lx = w.lipAt(along) - 9;
+      k.add(blob(520 + i + (s > 0 ? 10 : 0), i % 2 ? '#6a7a32' : '#7d8c3c', cx + along * s * sn + lx * cs, w.topAt(along) + 1.5, cz + along * cs - lx * s * sn, 7, 3, 7));
+    }
   }
-  // O véu: lábio saliente no alto e a queda livre fina, com a névoa embaixo.
-  const [lx, lz] = at(R - 4, 0);
-  k.add(paint(box(10, 4, 12), '#9a4a28', tf(lx, H - 2, lz)));
-  k.light(paint(box(0.6, H - 4, 4.5), WATER_FALL, tf(lx + 3, H / 2, lz)), paint(box(0.4, H - 20, 2), '#ffffff', tf(lx + 3.4, H / 2 + 6, lz)));
-  k.add(paint(jitter(ico(1, 1), 0.15, 530), '#f2f8ff', tf(lx + 6, 3, lz, 9, 5, 9)));
-  // Poço e mata do fundo do anfiteatro.
-  k.add(paint(cyl(22, 24, 0.6, 12), '#3a8a7a', tf(lx + 18, 0.3, lz)));
-  for (let i = 0; i < 9; i++) {
-    const a = -1.3 + i * 0.32;
-    if (Math.abs(a) < 0.25) continue;
-    const [fx, fz] = at(R - 14, a);
-    k.add(blob(540 + i, i % 2 ? '#2f6a33' : '#3f7a3a', fx, 4, fz, 9, 7, 9));
+  for (let i = 0; i < 4; i++) k.add(blob(530 + i, i % 2 ? '#6a7a32' : '#7d8c3c', xb + back.lipAt(-40 + i * 27) - 14, back.topAt(-40 + i * 27) + 1.5, -40 + i * 27, 8, 3, 8));
+  // O véu: lança do lábio (um ressalto de pedra) e abre em riscos até a névoa, na frente do talude de mata.
+  const lip = xb + back.lipAt(0); const top = back.topAt(0);
+  k.add(paint(box(9, 3, 12), '#9a4426', tf(lip + 1.5, top - 1.5, 0)));
+  veil(k, 505, 0, lip + 7, xb + back.footAt(0) + 18, top - 2, 4, 9, 22, 6, 3);
+  // Névoa no pé (luz: mancha clara e macia) e o poço verde.
+  const fx = xb + back.footAt(0) + 18;
+  for (let i = 0; i < 3; i++) k.light(paint(jitter(ico(1, 1), 0.14, 540 + i), MIST, tf(fx + 4 + i * 3, 6 + i * 3, (i - 1) * 11, 16 - i * 2, 11 - i, 15)));
+  k.add(paint(cyl(24, 26, 0.6, 12), '#3a8a7a', tf(fx + 16, 0.3, 0)));
+  // Mata no fundo do anfiteatro, dos dois lados do poço.
+  for (let i = 0; i < 8; i++) {
+    const z = (i < 4 ? -1 : 1) * (22 + (i % 4) * 16);
+    k.add(blob(550 + i, i % 2 ? '#2f6a33' : '#3f7a3a', fx - 4 + (i % 4) * 7, 4, z, 9, 7, 9));
   }
-  return k.model([0, H], 0.05, 501);
+  return k.model([0, H], 0.04, 501);
 }
 
 /**
  * Centro Geodésico da América do Sul (Cuiabá): o obelisco branco na base escalonada, o globo azul com o continente,
- * a praça redonda, os mastros e os postes acesos.
+ * a praça redonda, os mastros e os postes acesos. Obelisco e globo em ×1,45 (26 m e 5,5 m): com 19 m e 3,8 m, de longe
+ * lia "um poste com uma bola" (tests/landmarks-leitura-centro-sul-2.test.ts).
  */
 function centroGeodesico(): Model {
   const k = new Kit();
-  k.add(paint(cyl(15, 15, 0.3, 16), '#5c9a48', tf(0, 0.15, 0)), paint(cyl(10, 10, 0.4, 16), '#d4cebe', tf(0, 0.2, 0)));
-  for (const [w, y] of [[7, 0.4], [5.4, 1.0], [3.8, 1.6]] as Array<[number, number]>) k.add(paint(box(w, 0.6, w), '#b8b0a0', tf(0, y + 0.3, 0)));
-  k.add(paint(hip(2.6, 15, 2.6, 1.4, 1.4), '#ece8dc', tf(0, 2.2, 0)), paint(hip(1.4, 1.6, 1.4), '#d8c8a0', tf(0, 17.2, 0)));
-  k.add(paint(box(0.12, 1.4, 1.4), '#8a6a3a', tf(1.28, 4, 0))); // placa de bronze (sem letras)
+  const U = tf(0, 0, 0, 1.45, 1.45, 1.45);
+  const up = (g: Geo): Geo => g.applyMatrix4(U);
+  k.add(paint(cyl(17, 17, 0.3, 16), '#5c9a48', tf(0, 0.15, 0)), paint(cyl(12, 12, 0.4, 16), '#d4cebe', tf(0, 0.2, 0)));
+  for (const [w, y] of [[7, 0.4], [5.4, 1.0], [3.8, 1.6]] as Array<[number, number]>) k.add(up(paint(box(w, 0.6, w), '#b8b0a0', tf(0, y + 0.3, 0))));
+  k.add(up(paint(hip(2.6, 15, 2.6, 1.4, 1.4), '#ece8dc', tf(0, 2.2, 0))), up(paint(hip(1.4, 1.6, 1.4), '#d8c8a0', tf(0, 17.2, 0))));
+  k.add(up(paint(box(0.12, 1.4, 1.4), '#8a6a3a', tf(1.28, 4, 0)))); // placa de bronze (sem letras)
   // Globo com a América do Sul na frente, num pedestal.
   const gx = 6.5;
-  k.add(paint(cyl(0.9, 1.1, 1.6, 8), '#b8b0a0', tf(gx, 0.8, 0)));
-  k.add(paint(sphere(1.9, 12, 8), '#2f6fc0', tf(gx, 3.5, 0)));
-  k.add(paint(jitter(ico(1, 0), 0.15, 551), '#4f9a48', tf(gx + 1.55, 3.3, 0.1, 0.5, 1.2, 0.75, 0, 0, 0.2)));
-  k.add(paint(jitter(ico(1, 0), 0.15, 552), '#4f9a48', tf(gx + 1.35, 4.6, -0.4, 0.45, 0.6, 0.8)));
-  k.add(paint(cyl(2.2, 2.2, 0.15, 16, true), '#d8c070', tf(gx, 3.5, 0, 1, 1, 1, 0.4, 0, 0)));
+  k.add(up(paint(cyl(0.9, 1.1, 1.6, 8), '#b8b0a0', tf(gx, 0.8, 0))));
+  // O globo é o que diz "centro da América do Sul": ainda maior que o resto (raio 2,3 × 1,45).
+  const G = (m: THREE.Matrix4): THREE.Matrix4 => tf(gx, 3.9, 0, 1.21, 1.21, 1.21).multiply(m);
+  k.add(up(paint(sphere(1.9, 14, 10), '#2f6fc0', G(tf(0, 0, 0)))));
+  k.add(up(paint(jitter(ico(1, 0), 0.15, 551), '#4f9a48', G(tf(1.55, -0.2, 0.1, 0.5, 1.2, 0.75, 0, 0, 0.2)))));
+  k.add(up(paint(jitter(ico(1, 0), 0.15, 552), '#4f9a48', G(tf(1.35, 1.1, -0.4, 0.45, 0.6, 0.8)))));
+  // O anel do equador é luz: Cuiabá corre à noite, e o globo azul sumia no escuro — o anel aceso o desenha.
+  k.light(up(paint(cyl(2.3, 2.3, 0.22, 16, true), '#d8c070', G(tf(0, 0, 0)))));
   // Mastros (bandeiras lisas) atrás e os postes.
   for (const [z, c] of [[-4, '#2a9a4a'], [0, '#2a56c8'], [4, '#f2c230']] as Array<[number, string]>) {
-    k.add(paint(cyl(0.08, 0.1, 11, 5), '#d8d8d8', tf(-6, 5.5, z)), paint(box(0.06, 1.6, 2.4), c, tf(-6, 10, z + 1.25)));
+    k.add(paint(cyl(0.1, 0.12, 14, 5), '#d8d8d8', tf(-8.5, 7, z * 1.3)), paint(box(0.06, 2, 3), c, tf(-8.5, 12.8, z * 1.3 + 1.55)));
   }
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    k.add(paint(box(0.22, 5, 0.22), '#2a2a2a', tf(Math.cos(a) * 9, 2.5, Math.sin(a) * 9)));
-    k.light(paint(sphere(0.45, 6, 4), LAMP, tf(Math.cos(a) * 9, 5.2, Math.sin(a) * 9)));
+    k.add(paint(box(0.22, 5, 0.22), '#2a2a2a', tf(Math.cos(a) * 11, 2.5, Math.sin(a) * 11)));
+    k.light(paint(sphere(0.45, 6, 4), LAMP, tf(Math.cos(a) * 11, 5.2, Math.sin(a) * 11)));
   }
-  k.light(paint(box(0.3, 0.3, 3.6), '#fff0d0', tf(2.3, 2.0, 0)));
-  return k.model([0, 19], 0.02, 551);
+  k.light(paint(box(0.3, 0.3, 5.2), '#fff0d0', tf(3.4, 2.9, 0)));
+  return k.model([0, 27], 0.02, 551);
 }
 
 export const LANDMARKS_BRASIL_2_CENTRO_SUL: LandmarkRegistry = {
