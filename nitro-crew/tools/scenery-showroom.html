@@ -5,6 +5,10 @@
 import * as THREE from 'three';
 import { getModel } from '../src/render/scenery/catalog.ts';
 import { facadeTextures, panelAtlas } from '../src/render/scenery/textures.ts';
+import { loadLandmarkAssets } from '../src/render/scenery/landmarks/assets.ts';
+
+// Marcos da arte (src/assets/landmarks/<id>.glb), como no jogo; nolm=1 mostra só o procedural.
+window.landmarkAssets = new URLSearchParams(location.search).get('nolm') === '1' ? null : await loadLandmarkAssets();
 
 const q = new URLSearchParams(location.search);
 const ids = (q.get('ids') ?? '').split(',').filter(Boolean);

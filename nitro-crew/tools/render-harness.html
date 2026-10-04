@@ -7,6 +7,7 @@ import { CAR_BODIES } from '../src/core/data/cars.ts';
 import { seatColor } from '../src/core/data/drivers.ts';
 import { createRenderer } from '../src/render/renderer.ts';
 import { loadCarAssets } from '../src/render/cars/assets.ts';
+import { loadLandmarkAssets } from '../src/render/scenery/landmarks/assets.ts';
 import { setLanguage, t } from '../src/i18n/index.ts';
 import * as THREE from 'three';
 import '../src/i18n/core.ts';
@@ -106,6 +107,8 @@ const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
 // Carros da arte (src/assets/cars/*.glb), como no jogo: o que vier de arquivo aparece em window.carAssets.
 window.carAssets = await loadCarAssets();
+// Marcos da arte (src/assets/landmarks/<id>.glb), idem: o que vier de arquivo aparece em window.landmarkAssets.
+window.landmarkAssets = await loadLandmarkAssets();
 const renderer = createRenderer(canvas, hud);
 // Folha de contato: o renderizador desenha no tamanho de um quadro (5 × 3 na janela) e cada quadro é
 // copiado para a folha — 15 vezes menos pixels que desenhar a janela inteira por estilo.

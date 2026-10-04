@@ -6,6 +6,7 @@
 import { createRace, stepRace, getTrack, CARS, formatTicks } from '../src/core/index.ts';
 import { seatColor } from '../src/core/data/drivers.ts';
 import { createRenderer } from '../src/render/renderer.ts';
+import { loadLandmarkAssets } from '../src/render/scenery/landmarks/assets.ts';
 import { setLanguage, t } from '../src/i18n/index.ts';
 import * as THREE from 'three';
 import { EXTRA_BRAZIL_PLACES, TRACK_PLACES } from '../src/core/data/places.ts';
@@ -75,6 +76,8 @@ if (q.get('msg')) { for (const s of messages.keys()) { push(s, q.get('msg'), 'bi
 
 const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
+// Marcos da arte (src/assets/landmarks/<id>.glb), como no jogo: antes do renderizador.
+window.landmarkAssets = await loadLandmarkAssets();
 const renderer = createRenderer(canvas, hud);
 function resize() { renderer.resize(window.innerWidth, window.innerHeight, Number(q.get('dpr') ?? 1)); }
 window.addEventListener('resize', resize); resize();
