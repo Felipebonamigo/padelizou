@@ -1,9 +1,9 @@
 // GT: grã-turismo esportivo de motor dianteiro. Capô longo entre para-lamas que sobem sobre as rodas,
 // cabine recuada em fastback, traseira curta com "ducktail", quatro lanternas redondas, saída de ar
 // atrás da roda dianteira e rodas grandes de cinco raios.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { calipers, diffuser, exhaust, grille, lampPair, mirrors, onTop, plate, roundLampPair, splitter } from '../details';
-import { box, extrudeZY, MeshBuilder } from '../kit';
+import { box, extrudeZY, fillet, MeshBuilder, roundBar } from '../kit';
 import { finish, type CarModel } from '../model';
 import { CHROME, GLASS, GRILLE, HEAD, HEAD_HOUSING, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, STRIPE_B, TAIL, TRIM, TRIM_SOFT, UNDER } from '../paints';
 import { beam } from '../kit';
@@ -28,7 +28,7 @@ export function buildGt(): CarModel {
   });
   shape.build(b);
   // Cabine fastback.
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.58, hwb: 0.8, yb: 0.77, hwt: 0.8, yt: 0.77 },
       { z: 0.16, hwb: 0.83, yb: 0.8, hwt: 0.6, yt: 1.16, crown: 0.03 },
@@ -37,20 +37,21 @@ export function buildGt(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : GLASS),
     side: (gap) => (gap === 2 ? PAINT : GLASS),
-  });
-  // Colunas A escuras (a faixa de vidro lê como uma peça só).
-  b.mirrored(() => beam(b, [0.8, 0.78, -0.56], [0.6, 1.16, 0.16], 0.06, 0.04, TRIM_SOFT));
+  };
+  buildCabin(b, cab);
+  // Colunas A escuras (a faixa de vidro lê como uma peça só), até a borda redonda do teto.
+  b.mirrored(() => beam(b, [0.8, 0.78, -0.56], cabinGlassTop(cab, 0.12), 0.06, 0.04, TRIM_SOFT));
   // Capô comprido de motor dianteiro: duas saídas de ar e a lombada central.
   b.mirrored(() => onTop(b, shape, 0.36, -1.35, 0.16, 0.34, 0.03, TRIM));
-  onTop(b, shape, 0, -1.0, 0.18, 0.9, 0.04, PAINT, {}, 0.005); // entre as duas faixas
-  // Ducktail: lábio que sobe no fim da tampa.
-  extrudeZY(b, [[1.86, 0.87], [2.2, 0.85], [2.24, 0.93]], -0.74, 0.74, PAINT);
+  onTop(b, shape, 0, -1.0, 0.18, 0.9, 0.04, PAINT, {}, 0.005, 0.02); // entre as duas faixas
+  // Ducktail: lábio que sobe no fim da tampa (perfil arredondado).
+  extrudeZY(b, fillet([[1.86, 0.87], [2.2, 0.85], [2.24, 0.93]], [0.04, 0.02, 0.015]), -0.74, 0.74, PAINT);
   // Frente: grade escura larga com moldura cromada, faróis finos no bico, divisor.
   grille(b, 0.37, -2.21, 0.86, 0.15, CHROME, 2);
-  b.mirrored(() => box(b, [0.62, 0.3, -2.17], [0.26, 0.09, 0.08], TRIM));
-  box(b, [0, 0.24, -2.16], [0.9, 0.08, 0.08], GRILLE);
-  onTop(b, shape, 0.58, -2.12, 0.34, 0.16, 0.05, HEAD_HOUSING, { pv: HEAD });
-  onTop(b, shape, -0.58, -2.12, 0.34, 0.16, 0.05, HEAD_HOUSING, { pv: HEAD });
+  b.mirrored(() => roundBar(b, [0.62, 0.3, -2.17], [0.26, 0.09, 0.08], TRIM, { r: 0.03, axis: 'z' }));
+  roundBar(b, [0, 0.24, -2.16], [0.9, 0.08, 0.08], GRILLE, { r: 0.03, axis: 'z' });
+  onTop(b, shape, 0.58, -2.12, 0.34, 0.16, 0.05, HEAD_HOUSING, { pv: HEAD }, 0, 0.025);
+  onTop(b, shape, -0.58, -2.12, 0.34, 0.16, 0.05, HEAD_HOUSING, { pv: HEAD }, 0, 0.025);
   splitter(b, 0.17, -2.14, 1.56, 0.22);
   // Saída de ar atrás da roda dianteira.
   b.mirrored(() => box(b, [0.935, 0.5, -0.62], [0.03, 0.12, 0.34], TRIM));

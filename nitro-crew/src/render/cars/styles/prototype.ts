@@ -4,7 +4,7 @@
 // de trava central.
 import { BodyShape, buildCabin, type Axle } from '../body';
 import { calipers, diffuser, exhaust, lampPair, lightBar, mirrors, splitter, wing } from '../details';
-import { box, extrudeZY, MeshBuilder } from '../kit';
+import { extrudeZY, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { ACCENT, CARBON, GLASS, GRILLE, HEAD, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, TAIL, TRIM, WHITE } from '../paints';
 
@@ -41,15 +41,15 @@ export function buildPrototype(): CarModel {
   extrudeZY(b, [[0.25, 1.0], [2.0, 1.02], [2.0, 0.72], [1.2, 0.68]], -0.012, 0.012, ACCENT);
   // Asa de ponta a ponta com placas grandes (acento).
   wing(b, { z: 2.0, y: 0.98, span: 1.84, chord: 0.34, thick: 0.045, pitch: -0.12, brush: ACCENT, plate: ACCENT, strut: 'swan', baseY: 0.72, strutX: 0.3, strutBrush: CARBON });
-  b.mirrored(() => box(b, [0.935, 0.86, 1.96], [0.03, 0.34, 0.5], ACCENT));
+  b.mirrored(() => roundBar(b, [0.935, 0.86, 1.96], [0.03, 0.34, 0.5], ACCENT, { r: 0.07, axis: 'x' }));
   // Frente: fendas de farol na frente dos para-lamas, divisor largo, entradas escuras.
   lampPair(b, 0.66, 0.5, -1.93, 0.3, 0.06, 1.0, HEAD, true, TRIM, 0.05);
   splitter(b, 0.1, -2.12, 1.82, 0.3, CARBON);
-  b.mirrored(() => box(b, [0.5, 0.2, -2.18], [0.4, 0.1, 0.06], GRILLE));
+  b.mirrored(() => roundBar(b, [0.5, 0.2, -2.18], [0.4, 0.1, 0.06], GRILLE, { r: 0.04, axis: 'z' }));
   // Entrada lateral atrás da roda dianteira e painel de número.
   b.mirrored(() => {
-    box(b, [0.955, 0.34, -0.85], [0.02, 0.2, 0.4], GRILLE);
-    box(b, [0.955, 0.36, 0.2], [0.02, 0.28, 0.4], WHITE);
+    roundBar(b, [0.955, 0.34, -0.85], [0.02, 0.2, 0.4], GRILLE, { r: 0.06, axis: 'x' });
+    roundBar(b, [0.955, 0.36, 0.2], [0.02, 0.28, 0.4], WHITE, { r: 0.07, axis: 'x' });
   });
   mirrors(b, 0.78, 0.66, -0.62, PAINT, 0.8);
   // Traseira: faixa de lanterna, difusor grande, escape central.

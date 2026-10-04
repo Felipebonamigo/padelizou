@@ -1,9 +1,9 @@
 // Hipercarro: cunha muito baixa, bico rente ao chão entre para-lamas altos, cabine-bolha avançada,
 // tampa do motor com venezianas, entradas de ar laterais enormes, asa traseira em pescoço de cisne,
 // difusor grande, escape central duplo e rodas de trava central (traseiras maiores).
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { calipers, diffuser, exhaust, lampPair, mirrors, onTop, splitter, wing } from '../details';
-import { beam, box, cuboid, MeshBuilder } from '../kit';
+import { beam, cuboid, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { ACCENT, CARBON, GLASS, GRILLE, HEAD, HEAD_HOUSING, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, TAIL, TRIM, UNDER } from '../paints';
 
@@ -27,7 +27,7 @@ export function buildHyper(): CarModel {
   });
   shape.build(b);
   // Cabine-bolha avançada e tampa do motor em fastback.
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -1.08, hwb: 0.7, yb: 0.64, hwt: 0.7, yt: 0.64 },
       { z: -0.28, hwb: 0.8, yb: 0.68, hwt: 0.56, yt: 1.07, crown: 0.04 },
@@ -36,8 +36,9 @@ export function buildHyper(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : gap === 2 ? (region === 'stripe' ? STRIPE_A : PAINT) : GLASS),
     side: (gap) => (gap === 2 ? PAINT : GLASS),
-  });
-  b.mirrored(() => beam(b, [0.7, 0.65, -1.06], [0.56, 1.07, -0.28], 0.05, 0.035, CARBON));
+  };
+  buildCabin(b, cab);
+  b.mirrored(() => beam(b, [0.7, 0.65, -1.06], cabinGlassTop(cab, -0.32), 0.05, 0.035, CARBON));
   // Venezianas na tampa do motor.
   for (let i = 0; i < 4; i++) onTop(b, shape, 0, 1.62 + i * 0.12, 0.9, 0.05, 0.03, TRIM);
   // Entradas de ar laterais: cunha escura antes da roda traseira, com a lâmina de acento em cima.
@@ -50,8 +51,8 @@ export function buildHyper(): CarModel {
   });
   // Frente: fendas de farol nos para-lamas, entrada central, divisor largo.
   lampPair(b, 0.62, 0.46, -1.98, 0.36, 0.05, 0.95, HEAD, true, HEAD_HOUSING, 0.05);
-  box(b, [0, 0.25, -2.18], [0.9, 0.1, 0.08], GRILLE);
-  b.mirrored(() => box(b, [0.66, 0.24, -2.1], [0.34, 0.12, 0.08], GRILLE));
+  roundBar(b, [0, 0.25, -2.18], [0.9, 0.1, 0.08], GRILLE, { r: 0.04, axis: 'z' });
+  b.mirrored(() => roundBar(b, [0.66, 0.24, -2.1], [0.34, 0.12, 0.08], GRILLE, { r: 0.045, axis: 'z' }));
   splitter(b, 0.14, -2.16, 1.72, 0.26, CARBON);
   mirrors(b, 0.84, 0.8, -0.72, PAINT, 0.85);
   // Asa traseira em pescoço de cisne (acento), lanternas finas, difusor e escape central duplo.

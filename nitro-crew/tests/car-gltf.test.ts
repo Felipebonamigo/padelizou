@@ -48,8 +48,8 @@ describe('carro em glTF: o validador da convenção', () => {
     for (let i = 0; i < mat.count; i++) mat.setW(i, 0);
     expect(checkCarModel(dark).join(' | ')).toMatch(/lanterna/);
 
-    const heavy = { ...MODEL_BUILDERS.micro(), triangles: 2600 };
-    expect(checkCarModel(heavy).join(' | ')).toMatch(/2\.600 triângulos/);
+    const heavy = { ...MODEL_BUILDERS.micro(), triangles: 3600 };
+    expect(checkCarModel(heavy).join(' | ')).toMatch(/3\.600 triângulos/);
   });
 });
 

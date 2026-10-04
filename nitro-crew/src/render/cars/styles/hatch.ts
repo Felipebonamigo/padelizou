@@ -1,9 +1,9 @@
 // Hot hatch: compacto e alto, capô curto, cabine que vai até o fim do carro e cai quase vertical na
 // tampa traseira, aerofólio no teto, para-lamas alargados, grade colmeia com o friso na cor de acento,
 // faróis de canto, escape central duplo e rodas de dez raios.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { exhaust, grille, lampPair, mirrors, pitched, plate, roundLampPair, splitter } from '../details';
-import { beam, box, MeshBuilder } from '../kit';
+import { beam, box, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { ACCENT, AMBER, GLASS, GRILLE, HEAD, HEAD_HOUSING, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, TAIL, TRIM, TRIM_SOFT } from '../paints';
 
@@ -28,7 +28,7 @@ export function buildHatch(): CarModel {
   });
   shape.build(b);
   // Cabine alta que desce em curva até a tampa quase vertical.
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.95, hwb: 0.8, yb: 0.85, hwt: 0.8, yt: 0.85 },
       { z: -0.22, hwb: 0.83, yb: 0.87, hwt: 0.68, yt: 1.39, crown: 0.03 },
@@ -38,29 +38,30 @@ export function buildHatch(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : gap === 2 ? PAINT : GLASS),
     side: (gap) => (gap >= 2 ? PAINT : GLASS),
-  });
-  // Colunas escuras: A e B.
+  };
+  buildCabin(b, cab);
+  // Colunas escuras: A e B, até a borda redonda do teto.
   b.mirrored(() => {
-    beam(b, [0.8, 0.86, -0.93], [0.68, 1.41, -0.22], 0.06, 0.04, TRIM_SOFT);
-    beam(b, [0.845, 0.9, 0.5], [0.675, 1.38, 0.5], 0.08, 0.03, TRIM_SOFT);
+    beam(b, [0.8, 0.86, -0.93], cabinGlassTop(cab, -0.26), 0.06, 0.04, TRIM_SOFT);
+    beam(b, [0.845, 0.9, 0.5], cabinGlassTop(cab, 0.5), 0.08, 0.03, TRIM_SOFT);
   });
-  // Aerofólio grande no fim do teto, na cor de acento, com as abas laterais.
+  // Aerofólio grande no fim do teto, na cor de acento, com as abas laterais (cantos redondos).
   pitched(b, [0, 1.33, 1.8], 0.12, () => {
-    box(b, [0, 1.33, 1.8], [1.36, 0.05, 0.42], ACCENT);
-    b.mirrored(() => box(b, [0.66, 1.28, 1.78], [0.04, 0.12, 0.4], ACCENT));
+    roundBar(b, [0, 1.33, 1.8], [1.36, 0.05, 0.42], ACCENT, { r: 0.025 });
+    b.mirrored(() => roundBar(b, [0.66, 1.28, 1.78], [0.04, 0.12, 0.4], ACCENT, { r: 0.05, axis: 'x' }));
   });
   // Frente: grade colmeia com friso de acento, faróis de canto, entrada inferior e milha redondos.
   grille(b, 0.6, -2.09, 0.8, 0.13, null, 1, ACCENT);
   lampPair(b, 0.6, 0.6, -2.06, 0.36, 0.13, 0.35, HEAD, true);
-  box(b, [0, 0.33, -2.1], [1.2, 0.13, 0.06], GRILLE);
+  roundBar(b, [0, 0.33, -2.1], [1.2, 0.13, 0.06], GRILLE, { r: 0.05, axis: 'z' });
   splitter(b, 0.2, -2.06, 1.5, 0.16);
   roundLampPair(b, 0.66, 0.33, -2.07, 0.05, HEAD, true, TRIM, 0.04, 8);
-  b.mirrored(() => box(b, [0.84, 0.62, -1.96], [0.08, 0.05, 0.1], AMBER));
+  b.mirrored(() => box(b, [0.875, 0.62, -1.96], [0.08, 0.05, 0.1], AMBER));
   mirrors(b, 0.86, 0.95, -0.62, PAINT);
   // Traseira: lanternas nos cantos da tampa, placa, difusor e escape central duplo.
   lampPair(b, 0.64, 0.84, 2.07, 0.3, 0.17, 0, TAIL, false, HEAD_HOUSING, 0.05);
   plate(b, 0.6, 2.09);
-  box(b, [0, 0.31, 2.06], [1.3, 0.12, 0.1], TRIM);
+  roundBar(b, [0, 0.31, 2.06], [1.3, 0.12, 0.1], TRIM, { r: 0.04 });
   const exhausts = [exhaust(b, 0.1, 0.3, 2.16, 0.055), exhaust(b, -0.1, 0.3, 2.16, 0.055)];
   return finish('hatch', b, { wheel: 'multi', axles, exhausts, liveries: [LIVERY_B, LIVERY_A] });
 }

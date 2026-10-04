@@ -1,9 +1,9 @@
 // Clássico dos anos 60: capô longo e abaulado com para-lamas bojudos, cabine pequena e recuada em
 // fastback, boca oval com grade cromada, faróis redondos, para-choques cromados partidos, frisos
 // cromados, lanternas redondas pequenas, rodas de raios de arame com faixa branca.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { exhaust, grille, mirrors, roundLampPair } from '../details';
-import { beam, box, MeshBuilder } from '../kit';
+import { beam, box, MeshBuilder, roundBeam } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { AMBER, CHROME, GLASS, HEAD, LIVERY_A, PAINT, STRIPE_A, TAIL } from '../paints';
 
@@ -26,7 +26,7 @@ export function buildClassic(): CarModel {
     capFront: PAINT, capBack: PAINT,
   });
   shape.build(b);
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.34, hwb: 0.74, yb: 0.76, hwt: 0.74, yt: 0.76 },
       { z: 0.22, hwb: 0.79, yb: 0.78, hwt: 0.58, yt: 1.2, crown: 0.06 },
@@ -36,26 +36,29 @@ export function buildClassic(): CarModel {
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : GLASS),
     side: (gap) => (gap === 2 ? PAINT : GLASS),
     stripe: [0.26, 0.08],
-  });
-  // Molduras cromadas das janelas e friso cromado ao longo da cintura.
+  };
+  buildCabin(b, cab);
+  // Molduras cromadas das janelas (no alto do vidro lateral) e friso cromado ao longo da cintura.
+  const ga = cabinGlassTop(cab, 0.18); const gb = cabinGlassTop(cab, 0.78);
   b.mirrored(() => {
-    beam(b, [0.74, 0.77, -0.32], [0.58, 1.2, 0.22], 0.035, 0.03, CHROME);
-    beam(b, [0.58, 1.2, 0.22], [0.56, 1.18, 0.74], 0.035, 0.03, CHROME);
-    beam(b, [0.56, 1.18, 0.74], [0.72, 0.84, 1.6], 0.035, 0.03, CHROME);
+    beam(b, [0.74, 0.77, -0.32], ga, 0.035, 0.03, CHROME);
+    beam(b, ga, gb, 0.035, 0.03, CHROME);
+    beam(b, gb, [0.72, 0.84, 1.6], 0.035, 0.03, CHROME);
     beam(b, [0.905, 0.58, -1.9], [0.915, 0.62, 1.9], 0.018, 0.018, CHROME);
   });
   // Frente: boca oval cromada, faróis redondos nos para-lamas, para-choques partidos, piscas.
   grille(b, 0.38, -2.22, 0.5, 0.15, CHROME, 3, CHROME);
-  roundLampPair(b, 0.62, 0.55, -1.98, 0.11, HEAD, true, CHROME, 0.06, 12);
+  roundLampPair(b, 0.62, 0.55, -1.98, 0.11, HEAD, true, CHROME, 0.06, 16);
   b.mirrored(() => {
-    beam(b, [0.28, 0.34, -2.22], [0.78, 0.36, -2.08], 0.05, 0.05, CHROME, [0, 1, 0]);
-    box(b, [0.74, 0.44, -2.1], [0.08, 0.05, 0.05], AMBER);
-    beam(b, [0.3, 0.42, 2.2], [0.78, 0.44, 2.04], 0.05, 0.05, CHROME, [0, 1, 0]);
+    // Para-choques partidos de seção redonda, acompanhando o bico e a traseira redondos.
+    roundBeam(b, [0.26, 0.34, -2.235], [0.8, 0.36, -2.15], 0.05, 0.05, CHROME, 0.02);
+    box(b, [0.66, 0.43, -2.19], [0.08, 0.05, 0.05], AMBER);
+    roundBeam(b, [0.3, 0.42, 2.225], [0.8, 0.44, 2.17], 0.05, 0.05, CHROME, 0.02);
   });
   mirrors(b, 0.82, 0.86, -0.42, CHROME, 0.8);
   // Traseira: lanternas redondas pequenas (duas por lado), escapes gêmeos cromados.
-  roundLampPair(b, 0.5, 0.56, 2.18, 0.065, TAIL, false, CHROME, 0.05, 10);
-  roundLampPair(b, 0.32, 0.58, 2.18, 0.055, TAIL, false, CHROME, 0.05, 10);
+  roundLampPair(b, 0.5, 0.56, 2.18, 0.065, TAIL, false, CHROME, 0.05, 14);
+  roundLampPair(b, 0.32, 0.58, 2.18, 0.055, TAIL, false, CHROME, 0.05, 14);
   box(b, [0, 0.62, 2.205], [0.3, 0.06, 0.02], CHROME);
   const exhausts = [exhaust(b, 0.26, 0.26, 2.26, 0.05, 0.3), exhaust(b, -0.26, 0.26, 2.26, 0.05, 0.3)];
   return finish('classic', b, { wheel: 'wire', axles, exhausts, liveries: [0, LIVERY_A] });

@@ -10,7 +10,7 @@ import { LIVERY_A, LIVERY_B, liveryFor } from './paints';
 export const CAR_LIMITS = {
   halfWidth: 1.0, halfLength: 2.35, maxHeight: 1.95, minGround: 0.04,
   minLength: 4.2, minLengthMicro: 3.2, minWidth: 1.8,
-  minWheelRadius: 0.26, maxShellTriangles: 2000,
+  minWheelRadius: 0.26, maxShellTriangles: 3500,
 } as const;
 
 const m1 = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

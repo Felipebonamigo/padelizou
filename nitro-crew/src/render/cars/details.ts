@@ -1,7 +1,9 @@
-// Peças que vários estilos usam: lanternas e faróis (caixa inclinada ou redondos), grade, retrovisores,
-// escapamentos, aerofólio com suportes, placa, pinça de freio, difusor e divisor dianteiro.
+// Peças que vários estilos usam: lanternas e faróis (carcaça de cantos redondos inclinada, ou redondos),
+// grade, retrovisores, escapamentos, aerofólio com suportes, placa, pinça de freio, difusor e divisor
+// dianteiro. Onda I: carcaças, grade, retrovisor, lâmina do aerofólio e placas das pontas de cantos
+// arredondados (`roundBar`/`fillet` do kit), lâmpadas e escapes de mais lados.
 import * as THREE from 'three';
-import { AXIS_NZ, AXIS_Y, AXIS_Z, beam, box, cylinder, cuboid, lathe, type Brush, type MeshBuilder, type P3 } from './kit';
+import { AXIS_NZ, AXIS_Y, AXIS_Z, beam, box, cylinder, extrudeZY, fillet, lathe, roundBar, roundBox, type Brush, type MeshBuilder, type P2, type P3 } from './kit';
 import type { Axle, BodyShape } from './body';
 import { ACCENT, CHROME, GRILLE, HEAD_HOUSING, PLATE, TRIM, UNDER } from './paints';
 
@@ -21,52 +23,63 @@ export function yawed(b: MeshBuilder, c: P3, yaw: number, fn: () => void): void 
   b.transformed(m, fn);
 }
 
+/** Raio dos cantos de uma peça de seção w × h: uma fração da menor medida, com teto. */
+export const cornerR = (w: number, h: number, frac = 0.3, max = 0.05): number => Math.min(max, Math.min(w, h) * frac);
+
 /**
- * Lâmpada retangular (par espelhado em x): caixa fina com a lente na face da frente (`front`) ou de
- * trás; `pitch` inclina junto com a superfície do carro. `x` é o centro da lâmpada da direita.
+ * Lâmpada retangular (par espelhado em x): carcaça fina de cantos redondos com a lente na face da frente
+ * (`front`) ou de trás; `pitch` inclina junto com a superfície do carro. `x` é o centro da lâmpada da direita.
  */
 export function lampPair(b: MeshBuilder, x: number, y: number, z: number, w: number, h: number, pitch: number, lens: Brush, front: boolean, housing: Brush = HEAD_HOUSING, depth = 0.08): void {
   b.mirrored(() => pitched(b, [x, y, z], pitch, () => {
-    box(b, [x, y, z], [w, h, depth], housing, front ? { nu: lens } : { pu: lens });
+    roundBar(b, [x, y, z], [w, h, depth], housing, { r: cornerR(w, h, 0.35), axis: 'z', faces: front ? { nu: lens } : { pu: lens } });
   }));
 }
 
 /** Lâmpada redonda (par espelhado): cilindro curto no eixo z com a lente na ponta. */
-export function roundLampPair(b: MeshBuilder, x: number, y: number, z: number, r: number, lens: Brush, front: boolean, bezel: Brush = CHROME, depth = 0.08, segs = 10): void {
+export function roundLampPair(b: MeshBuilder, x: number, y: number, z: number, r: number, lens: Brush, front: boolean, bezel: Brush = CHROME, depth = 0.08, segs = 14): void {
   b.mirrored(() => {
     if (front) cylinder(b, { ...AXIS_NZ, o: [x, y, z] }, r, 0, depth, segs, bezel, bezel, lens);
     else cylinder(b, { ...AXIS_Z, o: [x, y, z] }, r, 0, depth, segs, bezel, bezel, lens);
   });
 }
 
-/** Grade: caixa escura com moldura e barras horizontais. `z` é a face da frente. */
+/**
+ * Grade: boca escura de cantos redondos e barras horizontais; a moldura é uma carcaça um pouco maior logo atrás
+ * da boca, que aparece como um aro em volta. `z` é a frente da grade (uns 1 cm à frente da lataria).
+ */
 export function grille(b: MeshBuilder, y: number, z: number, w: number, h: number, frame: Brush | null, bars: number, bar: Brush = TRIM, pitch = 0): void {
   pitched(b, [0, y, z], pitch, () => {
-    box(b, [0, y, z + 0.04], [w, h, 0.08], GRILLE);
+    // A boca sobra 1 cm à frente da moldura, que sobra 0,5 cm à frente de `z` (nunca no plano da lataria).
+    roundBar(b, [0, y, z + 0.025], [w, h, 0.08], GRILLE, { r: cornerR(w, h, 0.32, 0.06), axis: 'z' });
     for (let i = 1; i <= bars; i++) {
       const yy = y - h / 2 + (i * h) / (bars + 1);
-      box(b, [0, yy, z - 0.005], [w - 0.04, 0.022, 0.03], bar);
+      box(b, [0, yy, z - 0.02], [w - 0.04, 0.022, 0.03], bar);
     }
     if (frame) {
       const t = 0.035;
-      box(b, [0, y + h / 2, z], [w + t, t, 0.05], frame); box(b, [0, y - h / 2, z], [w + t, t, 0.05], frame);
-      b.mirrored(() => box(b, [w / 2, y, z], [t, h, 0.05], frame));
+      roundBar(b, [0, y, z + 0.02], [w + t * 2, h + t * 2, 0.05], frame, { r: cornerR(w + t * 2, h + t * 2, 0.36, 0.08), axis: 'z' });
     }
   });
 }
 
-/** Retrovisores: haste e concha, com a face de trás espelhada (cromo). */
+/** Retrovisores: haste e concha de cantos redondos, com a face de trás espelhada (cromo). */
 export function mirrors(b: MeshBuilder, x: number, y: number, z: number, shell: Brush, s = 1): void {
   b.mirrored(() => {
     beam(b, [x - 0.1 * s, y - 0.04 * s, z + 0.02], [x + 0.02 * s, y, z + 0.02], 0.03 * s, 0.03 * s, TRIM);
-    box(b, [x + 0.05 * s, y + 0.02 * s, z], [0.12 * s, 0.09 * s, 0.13 * s], shell, { pu: CHROME });
+    roundBar(b, [x + 0.05 * s, y + 0.02 * s, z], [0.12 * s, 0.09 * s, 0.13 * s], shell, { r: 0.035 * s, axis: 'z', faces: { pu: CHROME } });
   });
 }
 
 /** Ponteira de escapamento (cilindro no eixo z com o fundo escuro). Devolve a ponta, para a chama. */
 export function exhaust(b: MeshBuilder, x: number, y: number, z: number, r: number, len = 0.14, tip: Brush = CHROME): P3 {
-  cylinder(b, { ...AXIS_Z, o: [x, y, z - len] }, r, 0, len, 8, tip, tip, UNDER);
+  cylinder(b, { ...AXIS_Z, o: [x, y, z - len] }, r, 0, len, 10, tip, tip, UNDER);
   return [x, y, z + 0.02];
+}
+
+/** Perfil de asa no plano (z, y): de c0 (ataque, espessura t, bem redondo) a c1 (fuga, 0,4 t, quase vivo). */
+export function airfoil(c0: number, c1: number, y: number, t: number): P2[] {
+  return fillet([[c0, y - t / 2], [c1, y - t * 0.2], [c1, y + t * 0.2], [c0, y + t / 2]], [t * 0.5, t * 0.15, t * 0.15, t * 0.5]);
 }
 
 export interface WingSpec {
@@ -78,15 +91,12 @@ export interface WingSpec {
 export function wing(b: MeshBuilder, w: WingSpec): void {
   const t = w.thick ?? 0.05;
   pitched(b, [0, w.y, w.z], w.pitch ?? -0.12, () => {
-    // Perfil afilado: borda de ataque mais grossa que a de fuga.
+    // Perfil de asa: borda de ataque redonda e mais grossa que a de fuga (perfil (z, y) arredondado, extrudado em x).
     const hs = w.span / 2; const c0 = w.z - w.chord / 2; const c1 = w.z + w.chord / 2;
-    cuboid(b, [
-      [-hs, w.y - t / 2, c0], [hs, w.y - t / 2, c0], [hs, w.y + t / 2, c0], [-hs, w.y + t / 2, c0],
-      [-hs, w.y - t * 0.2, c1], [hs, w.y - t * 0.2, c1], [hs, w.y + t * 0.2, c1], [-hs, w.y + t * 0.2, c1],
-    ], w.brush);
+    extrudeZY(b, airfoil(c0, c1, w.y, t), -hs, hs, w.brush);
     if (w.plate !== null) {
       const pb = w.plate ?? w.brush;
-      b.mirrored(() => box(b, [hs + 0.015, w.y - 0.03, w.z + 0.02], [0.03, 0.2, w.chord + 0.1], pb));
+      b.mirrored(() => roundBar(b, [hs + 0.015, w.y - 0.03, w.z + 0.02], [0.03, 0.2, w.chord + 0.1], pb, { r: 0.05, axis: 'x' }));
     }
   });
   if (w.strut) {
@@ -130,23 +140,30 @@ export function splitter(b: MeshBuilder, y: number, z: number, w: number, depth 
 
 /** Lanterna em barra de ponta a ponta (elétrico, protótipo). */
 export function lightBar(b: MeshBuilder, y: number, z: number, w: number, h: number, lens: Brush, front: boolean, pitch = 0): void {
-  pitched(b, [0, y, z], pitch, () => box(b, [0, y, z], [w, h, 0.05], TRIM, front ? { nu: lens } : { pu: lens }));
+  pitched(b, [0, y, z], pitch, () => roundBar(b, [0, y, z], [w, h, 0.05], TRIM, { r: cornerR(w, h, 0.45), axis: 'z', faces: front ? { nu: lens } : { pu: lens } }));
 }
 
-/** Esfera facetada (capacete, farol de milha). */
-export function ball(b: MeshBuilder, c: P3, r: number, br: Brush, segs = 8, visor?: Brush): void {
-  const prof: Array<[number, number]> = [[0, -r], [r * 0.71, -r * 0.71], [r, 0], [r * 0.71, r * 0.71], [0, r]];
-  lathe(b, { ...AXIS_Y, o: c }, prof, segs, (i) => (visor && i === 2 ? visor : br));
+/** Esfera (capacete, farol de milha): 6 gomos de 30° do polo ao polo; `visor` pinta a faixa logo acima do equador. */
+export function ball(b: MeshBuilder, c: P3, r: number, br: Brush, segs = 12, visor?: Brush): void {
+  const prof: P2[] = [-90, -60, -30, 0, 30, 60, 90].map((d) => [Math.cos((d * Math.PI) / 180) * r, Math.sin((d * Math.PI) / 180) * r]);
+  prof[0] = [0, -r]; prof[6] = [0, r];
+  lathe(b, { ...AXIS_Y, o: c }, prof, segs, (i) => (visor && i === 3 ? visor : br));
 }
 
 
 /**
  * Peça deitada na superfície de cima (farol no capô, tomada de ar, grelha): caixa de `w` × `thick` ×
- * `len` com a inclinação local do capô/tampa em (x, z); `faces.pv` é a face de cima (a lente).
+ * `len` com a inclinação local do capô/tampa em (x, z); `faces.pv` é a face de cima (a lente). `round` > 0
+ * arredonda as quatro arestas ao longo de z com esse raio (`roundBar`); < 0, a caixa toda (`roundBox`).
  */
-export function onTop(b: MeshBuilder, shape: BodyShape, x: number, z: number, w: number, len: number, thick: number, br: Brush, faces: Partial<Record<'pv' | 'nu' | 'pu', Brush>> = {}, lift = 0): void {
+export function onTop(b: MeshBuilder, shape: BodyShape, x: number, z: number, w: number, len: number, thick: number, br: Brush, faces: Partial<Record<'pv' | 'nu' | 'pu', Brush>> = {}, lift = 0, round = 0): void {
   const y0 = shape.topAt(z, x);
   const dy = shape.topAt(z + 0.05, x) - shape.topAt(z - 0.05, x);
   const alpha = Math.atan2(dy, 0.1);
-  pitched(b, [x, y0, z], -alpha, () => box(b, [x, y0 + thick * 0.25 + lift, z], [w, thick, len], br, faces));
+  const c: P3 = [x, y0 + thick * 0.25 + lift, z];
+  pitched(b, [x, y0, z], -alpha, () => {
+    if (round > 0) roundBar(b, c, [w, thick, len], br, { r: round, axis: 'z', faces });
+    else if (round < 0) roundBox(b, c, [w, thick, len], br, -round, faces);
+    else box(b, c, [w, thick, len], br, faces);
+  });
 }

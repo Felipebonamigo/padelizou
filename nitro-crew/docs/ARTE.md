@@ -18,8 +18,9 @@ dono (sessão local com o Claude in Chrome), não por aqui.
    - `headlight*`, `taillight*`: acendem; força = emissivo ÷ cor (sem emissivo = 1);
    - "popup" no nome: sobe com o farol escamoteável;
    - qualquer outro nome: peça fixa com a cor, rugosidade e metal do material. **Sem textura** nos carros.
-3. **Conferir**: `npm run check-car -- arquivo.glb` (mesmo validador do jogo: pegada, rodas, luzes, escape, ≤ 2.000
-   triângulos no casco, faixas que os carros do estilo usam).
+3. **Conferir**: `npm run check-car -- arquivo.glb` (mesmo validador do jogo: pegada, rodas, luzes, escape, ≤ 3.500
+   triângulos no casco — eram 2.000 até a onda I, que arredondou os carros do jogo para 2.600–3.400 —, faixas que os
+   carros do estilo usam).
 4. **Pôr no jogo**: copiar para `src/assets/cars/<estilo>.glb`. Entra no navegador, no build e no Electron
    (embutido como data URL: `src/render/cars/assets.ts`, atalho com teto anotado). Recusado = fica procedural, motivo no console.
 

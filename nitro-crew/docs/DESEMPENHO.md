@@ -220,8 +220,9 @@ desenho de roda presente é outra. Carroceria, cabine, vidro, cromo, faróis e l
 malha e no mesmo material (antes eram 6 peças instanciadas separadas), e o freio é um bit por instância
 (antes, uma malha a mais para as lanternas acesas).
 
-**Orçamento** (travado em `tests/car-models.test.ts`): carroceria ≤ 2.000 triângulos (os 13 ficam entre
-1.420 e 1.860), roda ≤ 360 (os 9 desenhos: 278–344) e a roda simples ≤ 130 (112). A roda simples é a da
+**Orçamento** (travado em `tests/car-models.test.ts`; números da onda F — a onda I subiu, ver abaixo):
+carroceria ≤ 2.000 triângulos (os 13 ficam entre 1.420 e 1.860), roda ≤ 360 (os 9 desenhos: 278–344) e a roda
+simples ≤ 130 (112). A roda simples é a da
 qualidade baixa e a dos carros a mais de 30 m à frente do carro do viewport (roda de ~10 px na tela: o
 desenho do aro não aparece), todas numa chamada. Rodas não fazem sombra (ficam dentro da sombra da
 carroceria e da de contato). Chamadas por viewport para os carros: estilos presentes + desenhos de roda perto
@@ -256,6 +257,42 @@ dos últimos dez anos, e o que pesa no Deck (sombras, bloom, preenchimento) não
 **sem LOD da carroceria** — se os carros distantes pesarem numa máquina fraca, a saída é uma versão de
 loft grosso por estilo (menos estações nos arcos, sem faixas) para os carros a mais de ~40 m, uma chamada a
 mais por estilo presente.
+
+### Onda I: carros menos quadrados pela geometria
+
+Bico e traseira redondos, ombro em arco, arco da roda de 10 facetas, borda do teto e dobras do para-brisa
+arredondadas, peças chanfradas e pneu de 18 lados (`docs/VISUAL.md`, "Carros menos quadrados pela geometria").
+**Orçamento novo** (`CAR_LIMITS.maxShellTriangles`, `tests/car-models.test.ts`): casco ≤ **3.500** (era 2.000), roda
+≤ 480 (era 360), roda simples ≤ 150 (era 130). O validador do glTF (`npm run check-car`) usa o mesmo teto.
+
+| estilo | gt | muscle | hatch | sedan | electric | rally | hyper | classic | wedge | pickup | prototype | micro | roadster |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| antes | 1.856 | 1.640 | 1.560 | 1.612 | 1.420 | 1.708 | 1.736 | 1.780 | 1.728 | 1.556 | 1.628 | 1.512 | 1.854 |
+| depois | 3.388 | 3.196 | 3.072 | 3.024 | 2.608 | 3.284 | 3.244 | 3.160 | 2.974 | 2.797 | 3.276 | 2.748 | 3.310 |
+
+Rodas: sport5 278 → 374, mag 302 → 422, multi 308 → 404, hubcap 300 → 426, aero 312 → 438, dish 288 → 414, center
+320 → 416, wire 344 → 464, steel 300 → 426; roda simples 120 → 144. Onde foram os triângulos de casco: ~2/3 no loft da
+carroceria (anel de 22 → 26 pontos e ~30 → ~44 estações: 6 nas pontas redondas e 8 a mais nos arcos), o resto nas
+peças chanfradas (uma barra arredondada custa 48 triângulos, a caixa 12) e na cabine (borda e dobras redondas).
+
+Medido com `tools/render-harness.html` (1280×720, alta salvo indicação, quadro inteiro: todos os viewports, com sombra e
+bloom), antes (aa7b66f) e depois, os 20 carros na pista:
+
+| cena | antes | depois |
+|---|---|---|
+| Copacabana, 1 jogador | 56 chamadas, 133.263 tri | 56, 158.589 (+19%) |
+| Sampa noite, 1 jogador | 66, 153.112 | 66, 200.366 (+31%) |
+| Copacabana, 4 jogadores | 218, 568.131 | 218, 707.203 (+24%) |
+| Copacabana, 4 jogadores, baixa | 118, 280.213 | 118, 349.065 (+25%) |
+
+As **chamadas de desenho não mudam** (o casco continua uma malha por estilo, a roda uma por desenho); geometrias,
+texturas e programas também não. Sobem só os triângulos, todos nos carros: ~700 mil com 4 viewports na alta é pouco
+para qualquer placa dos últimos dez anos (o Deck faz milhões), e o que pesa nele — sombra, bloom, preenchimento — não
+mudou (os carros cobrem a mesma área da tela). O tempo do quadro no swiftshader (CPU, máquina com carga 6–8) ficou
+dentro do ruído e não serve de medida. A montagem dos 13 cascos e 10 rodas, uma vez no construtor do renderizador
+(Node, mediana de 15): ~43 → ~80 ms; a primeira, com o JIT frio, ~220 → ~300 ms. Se um dia pesar numa máquina fraca,
+a saída anotada acima continua valendo: LOD de loft grosso (sem as estações das pontas e com o arco de 6 facetas)
+para os carros a mais de ~40 m.
 
 ## 6. Pista, céu e luz (onda F)
 
@@ -486,3 +523,9 @@ longe ≤ 60, forração ≤ 40) não mudou.
 depois — dentro do ruído da máquina (o `cullInside` e o `tintUpSoft` são lineares; a normal suave já era o grosso).
 A troca de pista (layout + modelos, uma vez na largada) fica na mesma ordem: Copacabana ~550 → ~600 ms, Rochosas
 ~265 → ~315 ms, medidos com outra carga na máquina.
+
+### Onda I somada (carros redondos + cenário redondo, medido depois da mescla)
+`tools/scenery-harness.mjs`, 4 jogadores, qualidade alta: coast-day 218 chamadas / **743 mil** triângulos; tropical-day
+201 / **827 mil**; city-night 269 / **829 mil** (antes da onda I o pior caso era Paris 4p, 689 mil: +20%). Chamadas,
+geometrias, texturas e programas iguais — só triângulos sobem. Continua barato para qualquer placa recente; a medição
+no Steam Deck (roteiro acima) segue com o Felipe.

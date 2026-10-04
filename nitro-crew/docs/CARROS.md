@@ -223,7 +223,7 @@ construtor é erro (`buildModel`), e `tests/car-models.test.ts` confere que as 1
 | `rally` | carro de rali | suspensão alta, para-lamas em caixa, asa na tampa, 4 faróis de milha, painel de número, para-barros | `dish` (branca) |
 | `hyper` | hipercarro em cunha | muito baixo, cabine-bolha avançada, entradas laterais enormes, asa em pescoço de cisne, difusor | `center` |
 | `classic` | esportivo dos anos 60 | capô longo abaulado, para-lamas bojudos, boca oval cromada, para-choques cromados partidos, faixa branca no pneu | `wire` |
-| `wedge` | cunha dos anos 80 | planos retos, faróis escamoteáveis (sobem à noite), frisos nas portas, venezianas e grade preta atrás | `aero` |
+| `wedge` | cunha dos anos 80 | planos retos, para-lamas dianteiros que sobem sobre as rodas, faróis escamoteáveis (sobem à noite), frisos nas portas, venezianas e grade preta atrás | `aero` |
 | `pickup` | picape | cabine simples alta, caçamba aberta (com o interior), santantônio com faróis, grade e para-choques cromados | `steel` |
 | `prototype` | protótipo de endurance | bico rente entre para-lamas altos, cockpit-bolha, barbatana de tubarão, asa de ponta a ponta | `center` |
 | `micro` | microcarro | 3,4 m (o único mais curto), cabine alta e redonda, "olhos" redondos, teto em outra cor | `hubcap` |
@@ -236,15 +236,27 @@ com as rodas dentro da largura).
 
 - `kit.ts` — o construtor de malha (`MeshBuilder`) e as primitivas fechadas com as faces para fora:
   cuboide de 8 cantos, caixa, viga, torno, cilindro, prisma de perfil (`extrudeZY`), caixa por dentro
-  (caçamba, cockpit) e o loft de anéis. Faces planas (sombreado plano), triângulo degenerado descartado.
+  (caçamba, cockpit) e o loft de anéis; e as **chanfradas** (onda I): barra de seção arredondada
+  (`roundBar`, 48 triângulos — para-choque, carcaça de farol, retrovisor, placa da asa), caixa arredondada
+  inteira (`roundBox`, até 112 — tomadas de ar), viga arredondada (`roundBeam`) e o filete de perfil 2D
+  (`fillet` — lâmina da asa, ducktail, spoiler, corcovas). A quina de 90° vira em dois passos de 30° (e não
+  num chanfro de 45°, que fica no fio do vinco de carro): lisa à luz, sem aresta viva. Normal suave com vinco
+  (`normals.ts`), triângulo degenerado descartado.
 - `body.ts` — a carroceria por **seções-chave** (`Sec`: fundo, topo, meia largura, abaulado, ombro,
-  vinco). O loft de 22 pontos por anel já sai com os **arcos das rodas recortados** (poço escuro, arco
-  de 6 facetas), o para-lama que alarga (`flare`) e sobe (`rise`) sobre a roda, a faixa lateral (camada
-  B) no vinco e as duas faixas do capô (camada A). A cabine é outro loft (para-brisa, teto, vidro
-  traseiro). `BodyShape.topAt` responde a altura da superfície para os detalhes pousarem nela.
-- `details.ts` — peças comuns: faróis e lanternas (caixa inclinada ou redondos), grade, retrovisores,
-  escapamento, aerofólio com suportes, placa, pinça de freio, difusor, divisor, peças deitadas no capô.
-- `wheels.ts` — 9 desenhos de roda (pneu com ombro e flanco, aro, poço e o desenho), em escala unitária.
+  vinco). O loft de 26 pontos por anel (o ombro, do vinco ao capô, num quarto de elipse de 4 passos) já sai
+  com os **arcos das rodas recortados** (poço escuro, arco de 10 facetas), o para-lama que alarga (`flare`) e
+  sobe (`rise`) sobre a roda, a faixa lateral (camada B) no vinco e as duas faixas do capô (camada A). O bico
+  e a traseira arredondam sozinhos: entre as duas primeiras e as duas últimas seções a forma segue um quarto
+  de elipse (três estações a mais em cada ponta; `round` 0..1 por estilo — a cunha usa 0,5), em planta e de
+  perfil, e a tampa continua no mesmo lugar (a pegada não muda). A cabine é outro loft (para-brisa, teto,
+  vidro traseiro) com a borda do teto em arco (`edge`) e as dobras do para-brisa e do vidro de trás
+  arredondadas (`bend`); `cabinGlassTop` dá o alto do vidro, onde colunas e frisos pousam.
+  `BodyShape.topAt` responde a altura da superfície para os detalhes pousarem nela.
+- `details.ts` — peças comuns: faróis e lanternas (carcaça de cantos redondos inclinada, ou redondos de 14–16
+  lados), grade (boca e moldura de cantos redondos), retrovisores, escapamento, aerofólio de perfil de asa com
+  suportes, placa, pinça de freio, difusor, divisor, peças deitadas no capô (`onTop`, com cantos redondos).
+- `wheels.ts` — 9 desenhos de roda (pneu de 18 lados com ombro e flanco, aro, poço e o desenho), em escala
+  unitária; a roda simples (qualidade baixa e carros longe) tem 12.
 - `styles/<estilo>.ts` — um arquivo por estilo: só números (seções, eixos) e a lista de peças.
   É a porta para a arte final: trocar um arquivo por um glTF não mexe no resto.
 - `paints.ts` — os pincéis (pintura, acento, faixas, cromo, vidro, lentes, borracha) e a escolha pura
@@ -275,7 +287,7 @@ céu já monta, reforçado nas peças metálicas e no vidro e contido na pintura
 Os carros são agrupados por estilo: cada estilo presente é **uma** chamada de desenho para todos os
 carros dele, cada desenho de roda presente é outra, mais a sombra de contato e a chama (uma cada). Na
 qualidade baixa e nos carros a mais de 30 m à frente, as rodas viram a roda simples (pneu e disco liso,
-112 triângulos), todas numa chamada; rodas não fazem sombra. Orçamento e medidas antes/depois em
+144 triângulos), todas numa chamada; rodas não fazem sombra. Orçamento e medidas antes/depois em
 `docs/DESEMPENHO.md` (seção 5, "Carros com modelo por estilo").
 Giro de roda (limitado a 40% do passo do desenho por quadro, para os raios não "andarem para trás"),
 rolagem, mergulho no freio, chacoalho na derrapagem, chama do nitro (saindo dos escapes de cada modelo;

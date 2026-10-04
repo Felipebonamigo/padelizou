@@ -132,7 +132,7 @@ ela é de verdade (caixa, beiral, vinco da lataria). A geometria não mudou: mes
 | família (`CREASE`) | vinco | por quê (capturas `ondai-suave-*`) |
 |---|---|---|
 | carro (`car`) | 45° | lataria e para-lama lisos, para-brisa sem facetas; para-choque, grade, soleira, vinco de cintura e moldura do vidro vivos. 40° e 50° saíram quase iguais nas folhas de contato |
-| roda (`wheel`) | 50° | o pneu de 12 lados (30°) e o ombro ficam redondos; raios e porcas (caixas) continuam caixas |
+| roda (`wheel`) | 50° | o pneu (12 lados na época, 30°; 18 desde a onda I) e o ombro ficam redondos; raios e porcas (caixas) continuam caixas |
 | vegetação (`plant`: tree, pine, palm, cactus, bush, tuft, flowers, far redondos/cones/palmeiras) | 60° | copa de icosaedro (41,8°), tronco e cacto de 6 lados (60°) e o cone da conífera redondos; 75° não mudava nada à vista |
 | pedra (`rock`: rock, searock, stack, mesa, termite, pebbles, far:rock/boulder) | 50° | lisa, mas o dodecaedro (63,4°) e a quina da laje ainda mostram a lasca; com 65° virava seixo de rio |
 | marcos (`landmark`, `lm:*`) + regra do telhado | 45° | cúpula, torre redonda (igreja barroca), cuia e vidro da Catedral lisos; caixa, telhado e pináculo de 4 lados vivos |
@@ -152,6 +152,37 @@ arco da roda em 6 facetas, a coroa da conífera); os detalhes de carro que são 
 aerofólio, grade) e as quinas da carroceria sem chanfro. Saída: chanfro (bevel) nas quinas de lataria e para-choque,
 mais lados nas silhuetas que aparecem perto (pneu, tronco, arco), e menos `speckle` onde a forma já é lisa.
 (O cenário fez a parte dele na onda I: "Forma redonda", abaixo. Os carros continuam como estão.)
+
+### Carros menos quadrados pela geometria (onda I)
+
+O passo seguinte, nos carros (o cenário fica para outra rodada). Referência Horizon Chase Turbo: limpo, parrudo, liso,
+não realista. Capturas `ondai-carros-*-antes/depois` (folhas de contato de dia e de noite, showroom, perto de cada
+estilo e duas corridas com a câmera de perseguição).
+
+- **Quina em dois passos de 30°** (`kit.ts`): o chanfro de 45° caía no fio do vinco de carro (45°) — liso ou vivo
+  conforme o arredondamento do float32, a luz manchada. Com três dobras de 30° (lado → chanfro → chanfro → topo) a
+  quina fica lisa com folga e lê redonda, com metade dos triângulos de um arco. É o perfil da barra arredondada
+  (`roundBar`: para-choques, carcaças de farol e lanterna, grade e moldura, retrovisores, placas da asa, painéis de
+  número), da caixa arredondada (`roundBox`: tomadas de ar do capô e do teto) e da viga (`roundBeam`: para-choques
+  cromados do clássico, bigode do micro). Perfis 2D ganham filete em arco de passos ≤ 30° (`fillet`: lâmina da asa em
+  perfil de asa, ducktail, spoiler, corcovas do roadster).
+- **Carroceria** (`body.ts`): bico e traseira em quarto de elipse, em planta e de perfil (a superfície sai da tampa
+  tangente a ela; a tampa e a pegada não mudam); ombro do vinco ao capô em quarto de elipse de 4 passos (pontos
+  pela tangente, dobras de ~22°); arco da roda de 6 para 10 facetas.
+- **Cabine**: a borda do teto (vidro lateral → teto) virou um arco de três pontos; as dobras para-brisa → teto e
+  teto → vidro traseiro, um arco de três estações. Colunas e frisos pousam no alto do vidro (`cabinGlassTop`).
+- **Rodas**: pneu de 12 para 18 lados; roda simples de 10 para 12; lâmpadas redondas de 10–12 para 14–16; escapes de
+  8 para 10; capacete do roadster de 8 gomos para 12 × 6.
+- **O que não mudou**: os pincéis de farol, lanterna, escamoteável, faixa A/B e acento de cada estilo (teste com a
+  lista de antes e as áreas na mesma ordem), a pegada (mesmo validador), o modo Retrô.
+- **Defeito achado nas capturas**: o pneu dianteiro da cunha furava o capô baixo (vinha de antes). Os para-lamas da
+  frente agora sobem sobre a roda (`rise` 0,27), e o teste "o pneu não fura o capô" vale para os 13.
+
+Custo e medidas: `docs/DESEMPENHO.md`, seção 5. Testes: `tests/car-round.test.ts`.
+
+**Ainda quadrado nos carros**: as tampas do bico e da traseira são planas (o arredondado é a borda delas), os vidros são
+planos de propósito, as peças finas continuam caixas (frisos, venezianas, placas, barras da grade, difusor, para-barros)
+e a cunha e a picape guardam as quinas que são o desenho delas (caçamba, santantônio, grade traseira).
 
 Testes: `tests/render-normals.test.ts` (a conta: cilindro, caixa, icosaedro, sem costura, enrolamento trocado, telhado
 com e sem cumeeira, cor por face e determinismo; e a garantia de que carros, rodas, o carro do glTF, os modelos do

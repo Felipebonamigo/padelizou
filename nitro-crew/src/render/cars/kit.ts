@@ -261,6 +261,149 @@ export function extrudeZY(b: MeshBuilder, profile: readonly P2[], x0: number, x1
   }
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// Peças chanfradas (onda I, "menos quadrado" pela geometria). A quina de 90° vira em DOIS passos de 30° (três
+// dobras de 30°: lado → chanfro → chanfro → topo), e não num chanfro de 45°: com o vinco de carro em 45° a dobra
+// de 45° fica no fio da navalha (lisa ou viva conforme o arredondamento do float32) e a luz sai manchada. Com 30°
+// as três dobras ficam lisas com folga e a peça lê redonda à luz, com metade dos triângulos de um arco de verdade.
+// ---------------------------------------------------------------------------------------------------------
+
+/** Perfil unitário da quina de 90° (do lado ao topo, em volta do centro do raio): dobras de 30°, 30° e 30°. */
+const BEVEL: readonly P2[] = [[1, 0], [1 / (1 + Math.tan(Math.PI / 6)), 1 / (1 + Math.tan(Math.PI / 6))], [0, 1]];
+
+type FaceMap = Partial<Record<FaceKey, Brush | null>>;
+type RectFace = 'nu' | 'pu' | 'nv' | 'pv';
+/** Face de cada lado do retângulo de cantos chanfrados (12 pontos, anti-horário a partir do canto de baixo à direita). */
+const RECT_FACE: readonly RectFace[] = ['nv', 'pu', 'pu', 'pu', 'pv', 'pv', 'pv', 'nu', 'nu', 'nu', 'nv', 'nv'];
+
+/**
+ * Retângulo de meias medidas (hu, hv) com os cantos chanfrados pelo `BEVEL` de raio r (anti-horário, 12 pontos,
+ * do fundo à direita). `rho` (0..1) encolhe o chanfro para os anéis das pontas da caixa arredondada.
+ */
+function roundRect(hu: number, hv: number, r: number, rho = 1): P2[] {
+  const out: P2[] = [];
+  const corner = (su: number, sv: number, rev: boolean) => {
+    const ou = su * (hu - r); const ov = sv * (hv - r);
+    for (let k = 0; k < 3; k++) {
+      const [pu, pv] = BEVEL[rev ? 2 - k : k];
+      out.push([ou + su * r * rho * pu, ov + sv * r * rho * pv]);
+    }
+  };
+  corner(1, -1, true); corner(1, 1, false); corner(-1, 1, true); corner(-1, -1, false);
+  return out;
+}
+
+/** Eixo de uma barra: o loft corre em w; (u, v, w) → mundo por permutação cíclica (o sentido das faces fica). */
+const BAR_AXES = {
+  z: { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], keys: { nu: 'ns', pu: 'ps', nv: 'nv', pv: 'pv', nw: 'nu', pw: 'pu' } },
+  x: { m: [0, 0, 1, 1, 0, 0, 0, 1, 0], keys: { nu: 'nv', pu: 'pv', nv: 'nu', pv: 'pu', nw: 'ns', pw: 'ps' } },
+  y: { m: [0, 1, 0, 0, 0, 1, 1, 0, 0], keys: { nu: 'nu', pu: 'pu', nv: 'ns', pv: 'ps', nw: 'nv', pw: 'pv' } },
+} as const;
+
+function axisSizes(axis: 'x' | 'y' | 'z', s: P3): P3 {
+  return axis === 'z' ? [s[0], s[1], s[2]] : axis === 'x' ? [s[1], s[2], s[0]] : [s[2], s[0], s[1]];
+}
+
+function placeAxis(b: MeshBuilder, axis: 'x' | 'y' | 'z', c: P3, fn: () => void): void {
+  const [a, bb, cc, d, e, f, g, h, i] = BAR_AXES[axis].m;
+  b.transformed(new THREE.Matrix4().set(a, bb, cc, c[0], d, e, f, c[1], g, h, i, c[2], 0, 0, 0, 1), fn);
+}
+
+const pick = (faces: FaceMap, k: FaceKey, br: Brush): Brush | null => { const f = faces[k]; return f === null ? null : f ?? br; };
+
+export interface RoundBarOptions {
+  /** Raio do chanfro (limitado à metade da menor medida da seção). */
+  r: number;
+  /** Eixo ao longo do qual a barra corre (a seção redonda fica no plano dos outros dois); padrão x. */
+  axis?: 'x' | 'y' | 'z';
+  faces?: FaceMap;
+}
+
+/**
+ * Barra de seção arredondada (para-choque, lâmina, carcaça de farol, retrovisor): as quatro arestas ao longo do
+ * eixo chanfradas em dois passos de 30° (lisas no vinco de carro), as pontas planas e vivas. 48 triângulos
+ * (a caixa tem 12). Mesma caixa por fora que `box` com o mesmo centro e medidas; `faces` como em `box`.
+ */
+export function roundBar(b: MeshBuilder, center: P3, size: P3, br: Brush, o: RoundBarOptions): void {
+  const axis = o.axis ?? 'x';
+  const [su, sv, sw] = axisSizes(axis, size);
+  const r = Math.max(0, Math.min(o.r, su / 2, sv / 2));
+  const keys = BAR_AXES[axis].keys; const faces = o.faces ?? {};
+  const ring = roundRect(su / 2, sv / 2, r);
+  placeAxis(b, axis, center, () => {
+    loft(b, [ring, ring], [-sw / 2, sw / 2], (k) => pick(faces, keys[RECT_FACE[k]], br), true, pick(faces, keys.nw, br), pick(faces, keys.pw, br));
+  });
+}
+
+/** Viga de seção arredondada (w × h, cantos de raio r) de p0 a p1, como `beam`: para-choque cromado, santantônio. */
+export function roundBeam(b: MeshBuilder, p0: P3, p1: P3, w: number, h: number, br: Brush, r: number, up: P3 = [0, 1, 0]): void {
+  const d = new THREE.Vector3(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
+  const len = d.length();
+  if (len < 1e-9) return;
+  const u = d.clone().divideScalar(len);
+  const s = new THREE.Vector3().crossVectors(new THREE.Vector3(up[0], up[1], up[2]), u);
+  if (s.lengthSq() < 1e-8) s.set(1, 0, 0); else s.normalize();
+  const v = new THREE.Vector3().crossVectors(u, s);
+  const m = new THREE.Matrix4().makeBasis(s, v, u).setPosition(p0[0], p0[1], p0[2]);
+  const ring = roundRect(w / 2, h / 2, Math.max(0, Math.min(r, w / 2, h / 2)));
+  b.transformed(m, () => loft(b, [ring, ring], [0, len], () => br, true, br, br));
+}
+
+/**
+ * Caixa arredondada em todas as arestas e cantos (tomada de ar, carcaça, peça de destaque): o mesmo perfil de dois
+ * passos de 30° nas 12 arestas, sem nenhuma aresta viva. Até 112 triângulos — para poucas peças por carro; a barra
+ * (`roundBar`) é a de uso geral. Mesma caixa por fora que `box`; `faces` como em `box` (o chanfro fica com a face
+ * mais perto dele).
+ */
+export function roundBox(b: MeshBuilder, center: P3, size: P3, br: Brush, r: number, faces: FaceMap = {}): void {
+  const [hx, hy, hz] = [size[0] / 2, size[1] / 2, size[2] / 2];
+  const rr = Math.max(0, Math.min(r, hx, hy, hz));
+  // Estações em z: a ponta da frente (tampa → começo do lado), o meio, a ponta de trás.
+  const prof = BEVEL; // [ρ, τ]: ρ = quanto do chanfro o anel já abriu, τ = quanto a estação recua da face
+  const rings: P2[][] = []; const zs: number[] = [];
+  for (let k = 2; k >= 0; k--) { rings.push(roundRect(hx, hy, rr, prof[k][0])); zs.push(center[2] - (hz - rr) - rr * prof[k][1]); }
+  for (let k = 0; k <= 2; k++) { rings.push(roundRect(hx, hy, rr, prof[k][0])); zs.push(center[2] + (hz - rr) + rr * prof[k][1]); }
+  const keys = BAR_AXES.z.keys;
+  const shifted = rings.map((ring) => ring.map(([x, y]) => [x + center[0], y + center[1]] as P2));
+  loft(b, shifted, zs, (k, i) => {
+    if (i === 0) return pick(faces, 'nu', br);
+    if (i === 4) return pick(faces, 'pu', br);
+    return pick(faces, keys[RECT_FACE[k]], br);
+  }, true, pick(faces, 'nu', br), pick(faces, 'pu', br));
+}
+
+/**
+ * Perfil 2D com os cantos arredondados (filete de raio r em arco, passos de até 30°: lisos no vinco de carro). O
+ * raio encolhe onde o lado é curto (o filete usa até 45% de cada lado). `radii` dá um raio por canto.
+ */
+export function fillet(poly: readonly P2[], r: number | readonly number[], maxStep = Math.PI / 6): P2[] {
+  const n = poly.length;
+  const out: P2[] = [];
+  for (let i = 0; i < n; i++) {
+    const p = poly[(i + n - 1) % n]; const v = poly[i]; const q = poly[(i + 1) % n];
+    const ax = v[0] - p[0]; const ay = v[1] - p[1]; const bx = q[0] - v[0]; const by = q[1] - v[1];
+    const la = Math.hypot(ax, ay); const lb = Math.hypot(bx, by);
+    const ri = typeof r === 'number' ? r : r[i];
+    const turn = Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by) / (la * lb))));
+    if (ri <= 0 || la < 1e-9 || lb < 1e-9 || turn < 1e-3) { out.push(v); continue; }
+    const t = Math.min(ri * Math.tan(turn / 2), la * 0.45, lb * 0.45);
+    const steps = Math.max(1, Math.ceil(turn / maxStep));
+    const p0: P2 = [v[0] - (ax / la) * t, v[1] - (ay / la) * t];
+    const p2: P2 = [v[0] + (bx / lb) * t, v[1] + (by / lb) * t];
+    // Arco de p0 a p2 tangente aos dois lados: centro na normal de p0 para o lado de dentro da curva.
+    const cross = ax * by - ay * bx;
+    const side = cross > 0 ? 1 : -1;
+    const rad = t / Math.tan(turn / 2);
+    const cx = p0[0] - (ay / la) * rad * side; const cy = p0[1] + (ax / la) * rad * side;
+    const a0 = Math.atan2(p0[1] - cy, p0[0] - cx);
+    for (let k = 0; k <= steps; k++) {
+      const a = a0 + side * turn * (k / steps);
+      out.push(k === 0 ? p0 : k === steps ? p2 : [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]);
+    }
+  }
+  return out;
+}
+
 /** Volume assinado (positivo = faces para fora). Para testes das primitivas. */
 export function signedVolume(pos: ArrayLike<number>): number {
   let v = 0;

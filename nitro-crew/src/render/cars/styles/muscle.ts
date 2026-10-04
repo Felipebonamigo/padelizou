@@ -1,9 +1,9 @@
 // Muscle car: capô comprido e reto com tomada de ar elevada, traseira curta com spoiler, frente alta e
 // chata com a grade de ponta a ponta e faróis redondos cromados, entrada de ar na lateral traseira,
 // para-choques cromados finos, pneus traseiros maiores (postura empinada) e rodas de magnésio.
-import { BodyShape, buildCabin, type Axle } from '../body';
+import { BodyShape, buildCabin, cabinGlassTop, type Axle, type CabinSpec } from '../body';
 import { exhaust, grille, lampPair, mirrors, onTop, plate, roundLampPair } from '../details';
-import { beam, box, extrudeZY, MeshBuilder } from '../kit';
+import { beam, box, extrudeZY, fillet, MeshBuilder, roundBar } from '../kit';
 import { finish, regions, type CarModel } from '../model';
 import { CHROME, GLASS, GRILLE, HEAD, HEAD_HOUSING, LIVERY_A, LIVERY_B, PAINT, STRIPE_A, TAIL, TRIM, TRIM_SOFT } from '../paints';
 
@@ -26,7 +26,7 @@ export function buildMuscle(): CarModel {
     capFront: PAINT, capBack: PAINT,
   });
   shape.build(b);
-  buildCabin(b, {
+  const cab: CabinSpec = {
     secs: [
       { z: -0.74, hwb: 0.82, yb: 0.81, hwt: 0.82, yt: 0.81 },
       { z: -0.08, hwb: 0.85, yb: 0.83, hwt: 0.66, yt: 1.27, crown: 0.02 },
@@ -35,23 +35,24 @@ export function buildMuscle(): CarModel {
     ],
     top: (gap, region) => (gap === 1 ? (region === 'stripe' ? STRIPE_A : PAINT) : GLASS),
     side: (gap) => (gap === 2 ? PAINT : GLASS),
-  });
-  b.mirrored(() => beam(b, [0.82, 0.82, -0.72], [0.66, 1.27, -0.08], 0.06, 0.04, CHROME));
-  b.mirrored(() => beam(b, [0.85, 0.84, 0.52], [0.66, 1.26, 0.52], 0.07, 0.04, TRIM_SOFT));
-  // Tomada de ar no capô (com a boca escura) e spoiler traseiro.
-  onTop(b, shape, 0, -1.0, 0.54, 0.78, 0.16, PAINT, { nu: GRILLE }, 0.02);
-  extrudeZY(b, [[1.9, 0.92], [2.2, 0.92], [2.22, 1.02], [2.16, 1.03]], -0.8, 0.8, PAINT);
+  };
+  buildCabin(b, cab);
+  b.mirrored(() => beam(b, [0.82, 0.82, -0.72], cabinGlassTop(cab, -0.12), 0.06, 0.04, CHROME));
+  b.mirrored(() => beam(b, [0.85, 0.84, 0.52], cabinGlassTop(cab, 0.52), 0.07, 0.04, TRIM_SOFT));
+  // Tomada de ar no capô (caixa toda arredondada, com a boca escura) e spoiler traseiro de perfil redondo.
+  onTop(b, shape, 0, -1.0, 0.54, 0.78, 0.16, PAINT, { nu: GRILLE }, 0.02, -0.05);
+  extrudeZY(b, fillet([[1.9, 0.92], [2.2, 0.92], [2.22, 1.02], [2.16, 1.03]], [0.02, 0.02, 0.03, 0.02]), -0.8, 0.8, PAINT);
   // Frente: grade de ponta a ponta com dois faróis redondos cromados, para-choque cromado fino.
   grille(b, 0.52, -2.21, 1.56, 0.32, CHROME, 2, TRIM);
-  roundLampPair(b, 0.6, 0.53, -2.17, 0.115, HEAD, true, CHROME, 0.06, 12);
-  box(b, [0, 0.3, -2.24], [1.74, 0.08, 0.1], CHROME);
+  roundLampPair(b, 0.6, 0.53, -2.17, 0.115, HEAD, true, CHROME, 0.06, 16);
+  roundBar(b, [0, 0.3, -2.24], [1.74, 0.08, 0.1], CHROME, { r: 0.035 });
   // Entrada de ar na lateral traseira, antes da roda.
-  b.mirrored(() => box(b, [0.948, 0.62, 0.62], [0.03, 0.14, 0.32], GRILLE, { ps: GRILLE }));
+  b.mirrored(() => roundBar(b, [0.948, 0.62, 0.62], [0.03, 0.14, 0.32], GRILLE, { r: 0.06, axis: 'x' }));
   mirrors(b, 0.86, 0.9, -0.5, CHROME);
   // Traseira: duas lanternas largas, painel escuro entre elas, para-choque cromado, escapes gêmeos.
   lampPair(b, 0.47, 0.74, 2.21, 0.68, 0.13, 0, TAIL, false, HEAD_HOUSING, 0.05);
   box(b, [0, 0.74, 2.215], [0.26, 0.13, 0.04], TRIM);
-  box(b, [0, 0.4, 2.25], [1.76, 0.08, 0.1], CHROME);
+  roundBar(b, [0, 0.4, 2.25], [1.76, 0.08, 0.1], CHROME, { r: 0.035 });
   plate(b, 0.55, 2.215);
   const exhausts = [exhaust(b, 0.52, 0.27, 2.28, 0.065, 0.16), exhaust(b, -0.52, 0.27, 2.28, 0.065, 0.16)];
   return finish('muscle', b, { wheel: 'mag', axles, exhausts, liveries: [LIVERY_A, LIVERY_B] });
