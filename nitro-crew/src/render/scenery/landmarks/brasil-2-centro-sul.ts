@@ -346,7 +346,9 @@ function chaleEnxaimel(): Model {
 function igrejaPampulha(): Model {
   const k = new Kit();
   const shell = '#f2f1ec'; const blue = '#1f4f9e'; const blue2 = '#3a74c4'; const fx = 8;
-  k.add(paint(box(70, 0.2, 104), '#3f78a0', tf(-52, 0.1, 2))); // lagoa
+  // A lagoa atrás, do tamanho da igreja: maior (70 × 104 m), a pegada empurrava a praça para longe e a segunda igreja
+  // ficava 2,4 s à vista no traçado da igreja (tests/landmarks-enquadramento.test.ts).
+  k.add(paint(box(40, 0.2, 80), '#3f78a0', tf(-37, 0.1, 2))); // lagoa
   k.add(paint(box(22, 0.25, 84), '#5c9a48', tf(19, 0.12, 4))); // jardim
   for (let i = 0; i < 5; i++) k.add(blob(410 + i, '#3f7a36', 22 + (i % 2) * 5, 0.6, -26 + i * 13, 2.8, 0.9, 3.6)); // canteiros
   // A onda de abóbadas (o traço do lugar, ×1,5): lado a lado em Z, eixo em X, da nave às menores — o perfil de cima
