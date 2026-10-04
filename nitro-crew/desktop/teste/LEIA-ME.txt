@@ -1,0 +1,31 @@
+NITRO CREW — versão de teste para amigos (0.1.0, build de 04/10/2026)
+
+Corrida arcade em 3D com co-op local de até 4 jogadores em tela dividida. Esta é uma versão de TESTE:
+pode ter bugs, e o nome, a arte e o equilíbrio ainda vão mudar. Obrigado por testar!
+
+COMO ABRIR
+- Windows: descompacte o .zip numa pasta e abra "Nitro Crew.exe".
+  O Windows vai avisar "O Windows protegeu o computador / editor desconhecido": o jogo ainda não tem
+  assinatura digital. Clique em "Mais informações" e depois em "Executar assim mesmo".
+- Linux: descompacte o .tar.gz e rode ./nitro-crew dentro da pasta.
+- Mac: ainda não tem versão (precisa de um Mac e da conta paga da Apple para gerar).
+
+CONTROLES (dá para trocar em Opções › Controles)
+              Jogador 1 (teclado)   Jogador 2 (teclado)   Controle (Xbox/PS)
+  Acelerar    ↑                     W                     A / RT
+  Frear       ↓                     S                     X / B / LT
+  Virar       ← →                   A D                   D-pad / analógico
+  Nitro       Espaço                F                     RB
+  Marchas     M (sobe) N (desce)    E / Q                 Y / LB
+  Menus: setas + Enter, Esc volta.
+
+O QUE TESTAR
+- Modo Carreira: a Expedição Brasil (27 estados, 3 pistas cada) e depois o Mundial.
+- Corrida rápida e tela dividida com 2 a 4 jogadores (teclado + controles).
+- O passaporte (carimbos e cartão-postal de cada estado).
+- O online ainda NÃO funciona nesta versão (falta o servidor no ar). Joguem juntos na mesma máquina.
+
+ACHOU UM PROBLEMA?
+- Mande para o Felipe: o que estava fazendo, o que esperava e o que aconteceu (print ajuda muito).
+- Se travou ou deu erro: Opções › "Copiar relatório de erros" e cole na mensagem.
+- Se o jogo nem abrir e falar de WebGL/placa de vídeo: a própria tela tem um botão para copiar o relatório.
