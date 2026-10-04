@@ -59,7 +59,8 @@ tamanho do HUD das opções (80–150%). Com 2 jogadores a 1280×800 cada viewpo
 Regra (fim de `src/render/hud.css`): **números** (posição, "/20", volta, tempo, últimas voltas,
 velocidade, marcha) com `max(12px, …)`; **rótulos** (nome, COMBUSTÍVEL, KM/H, companheiros) com
 `max(10px, …)`. Acima do piso a escala segue igual; o 3D não muda. O roteiro mede 2P e 4P a 1280×800,
-2P a 1280×720 e 4P a 1024×640 com HUD 80%, e confere que os painéis de um viewport não se sobrepõem.
+2P a 1280×720 e 4P a 1024×640 com HUD 80%, e confere que os painéis de um viewport não se sobrepõem — com a legenda
+dos marcos (docs/VISUAL.md, "Legenda dos marcos") na tela, com o nome e o lugar mais compridos, no pé do viewport.
 
 | HUD, 2P a 1280×800 | antes | depois |
 |---|---|---|

@@ -97,6 +97,9 @@ O teste exige ΔE ≥ 30 entre jogadores e ≥ 20 até o cinza da IA na visão a
 
 - **Tamanho do HUD** 80–150% (passos de 10%): `--hud-scale` no `#hud`; o `--s` de cada viewport vira
   `calc(<escala do viewport> * var(--hud-scale))`.
+- **Legenda dos marcos** (liga/desliga, ligada por padrão): o nome do ponto turístico e onde fica, no pé do viewport,
+  quando ele entra bem à vista (docs/VISUAL.md, "Legenda dos marcos"). Mora nesta tela, ao lado do tamanho do HUD,
+  porque as duas colunas das Opções já têm as dez linhas que cabem; com "Reduzir efeitos" ela só aparece e some.
 - **Texto grande** nos menus: `--text-scale` 1,2 no `#ui` (redefine `--fs`, `--fs-sm`, `--fs-md`, `--fs-lg`).
 - **Reduzir efeitos**: sem tremor de câmera e sem faíscas de batida (pelo `RenderOptions.reduceEffects`), sem
   linhas de velocidade e sem piscadas no HUD (classe `reduce-fx` no `#hud`), animações dos menus instantâneas.

@@ -658,6 +658,70 @@ Ver: `node tools/scenery-showroom.mjs <porta> saida.png lm:cristo_redentor,lm:ma
 (ids com o prefixo `lm:`; `fog` e `ground` novos no showroom, para modelos grandes) e
 `tools/render-harness.html?track=copacabana&seg=60` (o carro vai para o segmento `seg`).
 
+### Legenda dos marcos
+
+O dono correu em Foz do Iguaçu e "não achou as referências das cataratas": o marco estava lá, mas nada dizia o que
+era. Agora, quando um marco entra **bem à vista** da câmera de um jogador, o HUD daquele viewport mostra um cartão-postal
+no pé da tela — o selo creme com o alfinete na cor do jogador, o nome do marco e, embaixo, onde fica: "Cataratas do
+Iguaçu" / "FOZ DO IGUAÇU · PR", "Torre Eiffel" / "PARIS · FRANÇA". Código em `src/render/caption/` (`caption.ts` puro,
+`names.ts`, `strings.ts`, `caption.css`); o HUD desenha (`hud.ts`, `LandmarkCaption`), o renderizador 3D decide
+(`renderer.ts`). Testes em `tests/landmark-caption.test.ts`.
+
+- **Bem à vista** (`spotShare`) é a conta do enquadramento (`sight.ts`, a mesma que escolhe o lugar do marco), num
+  instante só, com a câmera **daquele jogador**: onde o carro está, a lateral dele (a câmera segue o x do carro), o FOV
+  do momento (abre com a velocidade e o nitro) e a proporção do viewport (2 jogadores: 32:9, vê mais de lado). Um dos 7
+  pontos de amostra nos 80% do meio da largura, à frente, sem prédio, arquibancada, box ou outdoor na visada (a grade de
+  alturas do layout, `Layout.sight`), e na janela que o runtime desenha na qualidade atual. Com a câmera de
+  referência do `sight.ts`, o tempo em que o marco conta como à vista é o do `sightSeconds` (o teste confere, ±0,2 s,
+  em marcos sintéticos e nos de Copacabana, Foz e Sampa).
+- **Mais nítido que o enquadramento**: a névoa da legenda é de **35%** (`CAPTION_FOG`; ~345 m de dia, ~270 m à noite,
+  ~630 m no horizonte), não os 60% do `sight.ts`. Com 60% as cataratas eram anunciadas a 540 m, um vulto claro atrás dos
+  coqueiros. E **grande o bastante**: o pedaço da caixa do marco que está no quadro (as 12 arestas cortadas pela
+  pirâmide da câmera) ocupa ≥ **5%** da altura ou da largura do viewport (`CAPTION_MIN_SHARE`; 36 px em 720p). Os
+  grandes passam disso de longe e quem manda é a névoa; os pequenos de perto (placa da Rota 66, shisas, girafas) só
+  perto — com 8% entravam já saindo do quadro. Contar só os cantos à frente da câmera media a ponte de Palmas (720 m) pelas
+  duas pontas de longe: 6–7% da tela com o vão inteiro passando do lado.
+- **Uma vez por marco por volta** (a primeira instância que aparecer: o "já anunciado" é por id, com a volta do carro),
+  **~3 s** (`CAPTION_SECONDS`), **uma de cada vez**: com outro marco esperando a vez, a legenda sai aos 2 s
+  (`CAPTION_MIN_SECONDS`) — o segundo marco de muitas pistas fica 64 segmentos depois do primeiro e, com 3 s cheios, a
+  Serra do Mar perdia a estufa e a Rota 66 o diner —, 0,5 s de intervalo (`CAPTION_GAP`) e então a seguinte, se ainda
+  estiver à vista. Entre dois prontos, vem primeiro **o que sai do quadro antes** (`lastSeen`, medido uma vez por pista
+  com a câmera de referência: a ponte comprida fica na tela até o fim dela); no empate, o maior.
+- **Resultado** (câmera de referência na linha central a 96 m/s, da linha de chegada, a volta 1): os **161 marcos** das
+  **109 pistas** (177 pares pista × marco) são anunciados — o teste trava. Cataratas do Iguaçu no segmento 87 (a ~420 m,
+  ainda 3,1 s na tela), Ponte da Amizade no 293; Cristo no 66 (a ~670 m) e Pão de Açúcar no 192; MASP no 82; Torre Eiffel
+  no 56. Os de menor folga entram a 0,2–0,6 s de sair do quadro (a pirâmide do Luxor, que tem a caixa até o facho no céu;
+  shisas, prédios de Camboriú, girafas, ponte de Palmas) e ficam os 3 s na tela.
+- **Quando não aparece**: na contagem regressiva, depois de o jogador cruzar a chegada, na pausa (o HUD esconde; o
+  relógio da legenda é o da corrida, os ticks, e para junto) e com a opção desligada. **No contra-relógio aparece**
+  (com ou sem fantasma): é turismo, e o tempo de volta não depende dela. **No modo Retrô não**: o pseudo-3D não põe
+  marcos (só os sprites do núcleo), e o renderizador dele não passa legenda para o HUD.
+- **Tela dividida**: cada viewport tem a sua, da câmera do seu jogador, no pé dele, no meio, entre o combustível/nitro e o
+  velocímetro (ali só passa o asfalto logo atrás do carro; o marco, dos lados ou no horizonte, fica livre). Largura
+  máxima de `100% − 2 × max(240 px × --s, 156 px)`: nunca embaixo dos painéis dos cantos, nem com o piso de 12/10 px das
+  letras; nome comprido quebra em duas linhas. O `scripts/playtest-layout.mjs` põe a legenda com o nome e o lugar mais
+  compridos ("Passarela nas copas do Daintree" / "Território do Norte · Austrália") nas medições de 2P e 4P (1280×800,
+  1280×720 e 1024×640 com HUD em 80%) e acusa sobreposição com os painéis.
+- **Opção**: Opções › Acessibilidade › **Legenda dos marcos** (ao lado do tamanho do HUD: as duas colunas das Opções já
+  têm as dez linhas que cabem), ligada por padrão; a config gravada antes dela (sem o campo) liga
+  (`sanitizeSettings`, `tests/ui.test.ts`). Desligada, o renderizador nem monta a cena.
+- **Textos**: o nome dos marcos do Brasil é o do passaporte (`passport.landmark.*`); os 44 do Mundial e onde fica cada
+  pista estão em `caption/strings.ts` — no Brasil a cidade (ou a região, quando a pista não é de uma cidade só: Serra do
+  Mar, Chapada dos Veadeiros, Jalapão) com a UF do `places.ts`; no Mundial, lugar · país. O teste exige nome em PT e EN
+  para todo marco de `places.ts` e o lugar de toda pista: marco ou pista nova entra lá.
+- **Custo**: a conferência roda a 5 Hz por viewport (`CAPTION_CHECK`) e custa 1–23 µs (Maragogi e Maceió, com 10
+  instâncias, e Copacabana, com a visada contra os prédios; medido com a máquina carregada); nada alocado por quadro
+  (tabelas por pista em Float64Array, o texto do HUD montado só quando o marco muda). A cena é montada uma vez por pista,
+  no primeiro quadro, a partir do layout que o cenário já desenha (`Scenery.currentLayout`) e da pista da conta que o
+  layout já montou para escolher o lugar dos marcos (`Layout.sight`, a grade de alturas dos sprites; o runtime pede com
+  `sceneryLayout(…, keepSight)` e guarda só a da pista atual, ~0,7 MB — os testes de layout não pedem): ~1% do layout
+  (0,4–29 ms contra 98–1.350 ms do layout, nas mesmas condições). Refazer a grade (`landmarkSightRoad`) custava 10–70%.
+- **Limites**: a mata e o relevo não entram na visada (como no `sight.ts`); a câmera da conta é a de perseguição sem o
+  atraso lateral nem o chacoalho; a névoa é a da qualidade alta (na baixa, mais densa, a legenda pode entrar com o marco um
+  pouco mais apagado); a ordem da vez usa a câmera de referência.
+
+Ver: `tools/render-harness.html?track=foz_do_iguacu&seg=90` (a legenda das cataratas), `&humans=2` / `&humans=4`.
+
 ### Como ver
 
 Com `npm run dev` no ar: `node tools/scenery-harness.mjs 5174 scratch/cen [cenas] [1,4]` tira as capturas por

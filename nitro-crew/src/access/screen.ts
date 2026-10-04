@@ -1,5 +1,6 @@
-// Tela de Acessibilidade (Opções › Acessibilidade): cores dos jogadores, tamanho do HUD, texto
+// Tela de Acessibilidade (Opções › Acessibilidade): cores dos jogadores, tamanho do HUD, legenda dos marcos, texto
 // grande, reduzir efeitos, tremor de tela e a direção assistida de cada assento, com a explicação do item em foco.
+// A legenda dos marcos mora aqui, ao lado do tamanho do HUD: as duas colunas das Opções já têm as dez linhas que cabem.
 // Tela própria porque a de Opções já ocupa 1280×720 inteira: uma terceira coluna lá cortava os rótulos.
 import { COLOR_PALETTES, seatColor } from '../core/data/drivers';
 import { ASSIST_LEVELS } from '../core/sim/assist';
@@ -7,6 +8,7 @@ import { HUD_SCALE_MAX, HUD_SCALE_MIN } from '../game/settings';
 import { t } from '../i18n';
 import { button, createFocusList, h, listNav, onOff, screenFrame, selector, type FocusItem, type ScreenApi, type ScreenInstance, type Selector } from '../ui/screens/common';
 import { commitSettings, percent } from '../ui/screens/options';
+import '../render/caption/strings';
 import './access.css';
 import './strings';
 
@@ -40,6 +42,7 @@ export function accessScreen(api: ScreenApi): ScreenInstance {
   const vision: Array<{ item: Selector; desc: () => string }> = [
     { item: selector(t('access.options.palette'), () => t(`access.palette.${s.colorPalette}`), (d) => { s.colorPalette = cycle(COLOR_PALETTES, s.colorPalette, d); commit(); paint(); }, { sfx }), desc: () => t(`access.desc.palette.${s.colorPalette}`) },
     { item: selector(t('access.options.hudScale'), () => percent(s.hudScale), (d) => { s.hudScale = Math.round(Math.min(HUD_SCALE_MAX, Math.max(HUD_SCALE_MIN, s.hudScale + d * 0.1)) * 10) / 10; commit(); }, { sfx }), desc: () => t('access.desc.hudScale') },
+    { item: selector(t('caption.option'), () => onOff(s.landmarkCaptions), () => { s.landmarkCaptions = !s.landmarkCaptions; commit(); }, { sfx }), desc: () => t('caption.desc') },
     { item: selector(t('access.options.largeText'), () => onOff(s.largeText), () => { s.largeText = !s.largeText; commit(); }, { sfx }), desc: () => t('access.desc.largeText') },
     { item: selector(t('access.options.reduceEffects'), () => onOff(s.reduceEffects), () => { s.reduceEffects = !s.reduceEffects; commit(); }, { sfx }), desc: () => t('access.desc.reduceEffects') },
     { item: selector(t('ui.options.shake'), () => onOff(s.screenShake), () => { s.screenShake = !s.screenShake; commit(); }, { sfx }), desc: () => t('access.desc.shake') },

@@ -99,6 +99,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     hudScale: Math.round(pickNumber(r.hudScale, HUD_SCALE_MIN, HUD_SCALE_MAX, d.hudScale) * 10) / 10,
     largeText: pickBool(r.largeText, d.largeText),
     reduceEffects: pickBool(r.reduceEffects, d.reduceEffects),
+    // Config de antes da legenda (sem o campo) liga: ela é o padrão.
+    landmarkCaptions: pickBool(r.landmarkCaptions, d.landmarkCaptions),
   };
 }
 

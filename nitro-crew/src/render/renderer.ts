@@ -9,10 +9,12 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { TICK_RATE } from '../core/constants';
 import { segmentAt } from '../core/track/builder';
 import type { Track } from '../core/types';
 import type { Quality, RenderFrame, Renderer } from '../game/contracts';
 import { ChaseCamera, IdleCamera } from './camera';
+import { CaptionDirector, captionScene, captionSpots, type CaptionScene, type CaptionView } from './caption/caption';
 import { Cars } from './cars';
 import { Effects, type Shake } from './effects';
 import { Hud } from './hud';
@@ -21,6 +23,7 @@ import { palette } from './palette';
 import { Road } from './road';
 import { absoluteHeading, buildRoadFrame, FRAME_AHEAD, FRAME_BEHIND, type RoadFrame } from './roadframe';
 import { Scenery } from './scenery';
+import type { Layout } from './scenery/layout';
 import { Sky } from './sky';
 import { Terrain } from './terrain';
 
@@ -60,6 +63,12 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   const cameras = [new ChaseCamera(), new ChaseCamera(), new ChaseCamera(), new ChaseCamera()];
   const idleCamera = new IdleCamera();
   const shake: Shake = { x: 0, y: 0, roll: 0 };
+  // Legenda dos marcos turísticos (caption/caption.ts): uma por viewport, sobre as instâncias do layout que o cenário
+  // desenha; a cena é montada uma vez por pista (o layout novo) e a câmera de cada jogador é conferida a 5 Hz.
+  const captions = [new CaptionDirector(), new CaptionDirector(), new CaptionDirector(), new CaptionDirector()];
+  const captionView: CaptionView = { z: 0, x: 0, fov: 62, aspect: 16 / 9, ahead: AHEAD.high };
+  let captionLayout: Layout | null = null;
+  let captionTrack: CaptionScene | null = null;
 
   let width = 1; let height = 1; let dpr = 1;
   let quality: Quality | null = null;
@@ -158,6 +167,17 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     scenery.update(rf, track, time);
   }
 
+  /** A cena da legenda da pista atual (null antes do cenário montar o layout dela). */
+  function captionSceneFor(track: Track): CaptionScene | null {
+    const layout = scenery.currentLayout;
+    if (layout !== captionLayout) {
+      captionLayout = layout;
+      // A pista da conta vem do layout (a grade de alturas que ele já montou); sem marco, nem cena.
+      captionTrack = layout?.sight ? captionScene(track, captionSpots(layout), layout.sight) : null;
+    }
+    return captionTrack;
+  }
+
   function render(frame: RenderFrame): void {
     if (disposed) return;
     const t0 = performance.now();
@@ -186,11 +206,19 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
       effects.shake(vp.seat, frame.time, frame.options.screenShake && !frame.options.reduceEffects, shake);
       cam.update(rf, car.x, car.speed / car.stats.topSpeed, seg.curve, car.nitroTicks > 0, frame.time, shake);
       effects.pose(rf, track, (rect.h * dpr) / (2 * Math.tan((cam.camera.fov * Math.PI / 180) / 2)));
+      // Legenda dos marcos: só correndo (nem na contagem, nem depois da chegada); desligada nas opções, sem cena (nada
+      // montado, e a que estava na tela some). O relógio é o da corrida: parado na pausa (o HUD esconde a legenda), e
+      // volta a zero numa corrida nova.
+      const captionsOn = frame.options.landmarkCaptions !== false;
+      captionView.z = car.z; captionView.x = car.x; captionView.fov = cam.camera.fov;
+      captionView.aspect = rect.w / Math.max(1, rect.h); captionView.ahead = AHEAD[q];
+      captions[i].update(captionsOn ? captionSceneFor(track) : null, captionView, Math.max(1, car.lap), frame.state.tick / TICK_RATE,
+        frame.state.phase === 'racing' && !car.finished);
       setViewport(rect);
       if (q === 'high') postFor(i, rect, cam.camera).composer.render();
       else renderer.render(scene, cam.camera);
     }
-    if (frame.showHud) hud.update(frame, width, height); else hud.hide();
+    if (frame.showHud) hud.update(frame, width, height, captions); else hud.hide();
     debug.calls = renderer.info.render.calls;
     debug.triangles = renderer.info.render.triangles;
     debug.frameMs = performance.now() - t0;
