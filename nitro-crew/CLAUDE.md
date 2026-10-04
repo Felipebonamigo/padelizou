@@ -84,7 +84,9 @@ não use nada de fora desta pasta.
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
   renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
-  "Nitro Crew" é nome provisório (Fase 2.1 decide).
+  "Nitro Crew" é nome provisório (Fase 2.1 decide). Geração de 3D por IA (Meshy): **não neste jogo** (dono, 04/10/2026)
+  — o estilo é low-poly e fica em código; IA de 3D fica para jogos realistas. O caminho glTF (carros) continua para
+  arte feita à mão, se vier.
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks,
   direção assistida completa (hoje vence a IA profissional em 70% das corridas e conta para recordes: teto de
   velocidade medido em `docs/ASSISTENCIAS.md`, ou tirar dos recordes), ordem das pistas nas copas (Great Ocean e

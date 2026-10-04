@@ -2,6 +2,11 @@
 
 Briefing de arte (direção, paleta, carros, cenário, especificação, lotes): https://claude.ai/code/artifact/049e138a-cb57-4adb-baef-d3084b4f0d03
 
+**Decisão (04/10/2026): sem IA de 3D (Meshy) neste jogo.** O estilo é low-poly (referência Horizon Chase Turbo) e o
+código dá conta dele — prédios, pontes, torres, relevo. A IA de 3D brilha em formas orgânicas e realistas, que não são
+o alvo aqui; fica para jogos com realismo. Estimativa feita na conversa, para referência: o jogo inteiro sairia
+~15–20 mil créditos, só as ~30 peças orgânicas (Cristo, estátuas, bichos, carros) ~3–4 mil.
+
 ## Carros — pronto
 1. **Modelo-base**: `art/templates/cars/<estilo>.glb` (13), o carro atual do jogo na convenção. `npm run car-templates` regera.
 2. **Redesenhar no Blender** mantendo a convenção: metros, +Y para cima, frente em +Z; nós `body`, `wheel_fl`,
