@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqa7lj7jnsnra"
-path="res://.godot/imported/licenca.png-77eccff95e98c9d24f0770fe1f72cc88.ctex"
+uid="uid://k75fiqyny47w"
+path="res://.godot/imported/licenca-feminina.png-33a07b982d2e1913c2e798a425b80d91.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://modelos/jogador/licenca.png"
-dest_files=["res://.godot/imported/licenca.png-77eccff95e98c9d24f0770fe1f72cc88.ctex"]
+source_file="res://modelos/jogador/licenca-feminina.png"
+dest_files=["res://.godot/imported/licenca-feminina.png-33a07b982d2e1913c2e798a425b80d91.ctex"]
 
 [params]
 

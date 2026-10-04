@@ -41,10 +41,13 @@ Godot extrai as texturas para `.jpg` ao lado do GLB, o que duplicava 4 MB no his
 | Raquete | `raquete/raquete-furada.glb` | Padel Racket Charm | jgmunoz00 | https://www.meshy.ai/3d-models/Padel-Racket-Charm-01975f85-063a-7356-a632-e61f6da3e3f8 | CC0 1.0 | 04/10/2026 | 9.998 → 7.896 | 0,64 | 1,99 de comprimento → 45,5 cm (× 0,2284) | não |
 | Bola | `bola/bola-feltro.glb` | Tennis Ball | Yoana | https://www.meshy.ai/3d-models/Tennis-Ball-019b9270-fe26-7ef6-9567-cb999a794325 | CC0 1.0 | 04/10/2026 | 382.996 → 1.940 | 0,38 | Ø 1,89 → Ø 6,7 cm (× 0,0354) | não |
 | Jogador (feminino) | `jogador/atleta-feminina.glb` | Young Athlete | levass.alex | https://www.meshy.ai/3d-models/Young-Athlete-019e358e-31c0-7a5e-a266-cf5255bca5a5 | CC0 1.0 | 04/10/2026 | 164.384 → 38.799 | 2,01 | 1,90 de altura → 1,70 m (× 0,8952) | não (T-pose) |
+| Jogador (masculino) | `jogador/atleta-masculino.glb` | Fitness Pose | samagic2000 | https://www.meshy.ai/3d-models/Fitness-Pose-019c2749-e1e2-7c62-a082-1df60811ae0a | CC0 1.0 | 04/10/2026 | 239.830 → 38.799 | 2,63 | 1,97 de altura → 1,85 m (× 0,9391) | não (T-pose) |
 | Banco dos jogadores | `banco/banco-de-praca.glb` | park bench | Smuttheir | https://www.meshy.ai/3d-models/park-bench-0199c9cf-7698-796a-a4c2-01e6988b1d65 | CC0 1.0 | 04/10/2026 | 217.687 → 14.548 | 2,25 | 1,90 de comprimento → 2,0 m (× 1,0504) | não |
 | Torre de luz | `torre-de-luz/refletor-quadruplo.glb` | Quad-Panel Modular Floodlight Concept | doganayalty | https://www.meshy.ai/3d-models/QuadPanel-Modular-Floodlight-Concept-01a02a58-0f47-7567-ad23-f98ce19394bd | CC0 1.0 | 04/10/2026 | 904.656 → 14.548 | 1,30 | 1,90 de altura → 10 m (× 5,263) | não |
 
-Total no repositório: **6,58 MB** (limite: 15 MB por arquivo, 120 MB no total).
+O print de licença dos dois jogadores está em `jogador/licenca-feminina.png` e `jogador/licenca-masculino.png`.
+
+Total no repositório: **9,22 MB** (limite: 15 MB por arquivo, 120 MB no total).
 
 ## Alternativas (não baixadas, ou baixadas e recusadas)
 
@@ -65,14 +68,13 @@ de novo para conferir.
 
 ## Não encontrados
 
-- **Jogador masculino:** nenhum realista, sem marca e de roupa esportiva. As buscas "athlete" e "tennis" só trazem
-  anime ou cartoon, homem sem camisa, ou modelos com logo.
-- **Rigado:** nenhum jogador realista rigado. A atleta feminina vem em T-pose, sem esqueleto.
+- **Rigado:** nenhum jogador realista rigado. Os dois atletas vêm em T-pose, sem esqueleto. O masculino saiu da
+  busca "fitness" na segunda rodada. Em "athlete" e "tennis" só havia anime, cartoon ou modelo com logo.
 - **Cadeira do árbitro:** não há (ver Alternativas).
 - **Placar LED:** a busca "scoreboard" só traz placar cartoon ou de Roblox.
 - **Arquibancada:** "bleachers", "bleacher" e "grandstand" voltaram vazias em 4 tentativas, e "stadium" só traz
   estádios inteiros.
-- **Miudezas:** não procuradas. O orçamento de MB sobrou (6,58 de 120), mas o tempo foi para os itens 1 a 9.
+- **Miudezas:** não procuradas. O orçamento de MB sobrou (9,22 de 120), mas o tempo foi para os itens 1 a 9.
 
 A busca da comunidade da Meshy é instável: a mesma palavra às vezes volta vazia e na tentativa seguinte traz
 resultado. Busca com duas palavras ("tennis ball", "tennis player") nunca trouxe nada, então use uma palavra só.
