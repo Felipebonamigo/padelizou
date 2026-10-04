@@ -70,10 +70,14 @@ de novo para conferir.
 
 - **Rigado:** nenhum jogador realista rigado. Os dois atletas vêm em T-pose, sem esqueleto. O masculino saiu da
   busca "fitness" na segunda rodada. Em "athlete" e "tennis" só havia anime, cartoon ou modelo com logo.
-- **Cadeira do árbitro:** não há (ver Alternativas).
+- **Cadeira do árbitro:** não há (ver Alternativas). A segunda rodada, também em 04/10/2026, não achou nenhuma:
+  "referee" traz só árbitros (pessoas), "highchair" traz cadeirão de bebê e as páginas 1 a 3 de "tennis" não
+  têm cadeira de árbitro.
 - **Placar LED:** a busca "scoreboard" só traz placar cartoon ou de Roblox.
 - **Arquibancada:** "bleachers", "bleacher" e "grandstand" voltaram vazias em 4 tentativas, e "stadium" só traz
-  estádios inteiros.
+  estádios inteiros. Na segunda rodada (04/10/2026), "bleachers" voltou vazia de novo, "grandstand" e
+  "seating" ficaram carregando sem fim e "stands" e "audience" voltaram vazias. "tribune" e "spectators" trazem
+  coisas sem relação. "seats" só traz assentos soltos (de ônibus, carro e cadeira), nenhuma fileira de estádio.
 - **Miudezas:** não procuradas. O orçamento de MB sobrou (9,22 de 120), mas o tempo foi para os itens 1 a 9.
 
 A busca da comunidade da Meshy é instável: a mesma palavra às vezes volta vazia e na tentativa seguinte traz
