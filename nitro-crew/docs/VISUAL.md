@@ -68,8 +68,11 @@ Regras que os testes travam (`tests/render-ground.test.ts`):
   somem com a distância (sem cintilar). **Espuma** na linha d'água (onde o chão cruza o nível do mar, calculado por
   ponto) que vai e volta, com uma faixa rasa turquesa mar adentro.
 - **Horizonte em três planos** (470, 660 e 920 m) sem névoa de shader: cada plano já traz a névoa na cor (o de longe
-  mais claro, a base de todos dentro da névoa), com faces planas que o sol acende conforme o bioma; neve só nos
-  picos da montanha; mesas no deserto; ilhas e cabos no litoral; skyline instanciada na cidade. Um material só para
+  mais claro, a base de todos dentro da névoa), com **encostas lisas** (normal suave do vértice, 300 pontos por volta;
+  até 04/10 eram faces planas pela derivada, e a serra saía facetada) que o sol acende conforme o bioma; **morro largo
+  de crista redonda** (20–40 ondulações por volta, 16–22 no alpino com |r| suave — eram 64–256 e picos em agulha;
+  `tests/horizonte-suave.test.ts` trava a dobra do contorno abaixo de 60°, menos as mesas do deserto); neve pela
+  altura de cada vértice (faixa de 50–85%; decidida por coluna, fazia faixas verticais na encosta lisa); mesas no deserto; ilhas e cabos no litoral; skyline instanciada na cidade. Um material só para
   os três (antes era um material novo a cada pista).
 
 ### Céu e luz (`sky.ts`, `renderer.ts`)
@@ -80,7 +83,8 @@ Regras que os testes travam (`tests/render-ground.test.ts`):
   variados, mais densas perto do horizonte.
 - **Nuvens** estilizadas numa malha só (1 chamada de desenho em vez de 7): cúmulos de barriga reta e faixas finas
   e baixas no horizonte, dois tons pelo sol, borda acesa no entardecer, derretendo na cor do horizonte. Na alta as
-  bolhas são arredondadas; na média e na baixa, facetadas (¼ dos triângulos, a mesma silhueta de longe).
+  bolhas são lisas (normal suave do vértice, icosaedro de 320 faces; na média e na baixa, de 80 — a mesma silhueta de
+  longe). Até 04/10 a normal vinha da face e a nuvem saía facetada.
 - **Luz**: direcional com a cor do período + hemisférica cujo céu é azul-claro (dia), roxo (entardecer) ou
   azul-noite: é ela que pinta as sombras (coloridas, não pretas); `shadow.intensity` 0,9 (0,7 à noite).
 - **Tone mapping ACES** (mantido: os carros foram calibrados com ele) com a exposição da paleta (0,98 dia, 1,0

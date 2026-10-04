@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { TimeOfDay } from '../core/types';
 import type { Quality } from '../game/contracts';
 import { hash2 } from './noise';
+import { smoothNormals } from './normals';
 import type { Palette } from './palette';
 
 const SKY_RADIUS = 1400;
@@ -67,20 +68,21 @@ void main() {
 }`;
 
 const CLOUD_VERT = /* glsl */ `
-varying vec3 vW;
+varying vec3 vW; varying vec3 vN;
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vW = wp.xyz;
+  vN = normalize(mat3(modelMatrix) * normal);
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
-// Nuvem estilizada: faces planas (normal pelas derivadas), dois tons pelo sol, barriga mais
-// escura, borda acesa pelo sol baixo e, perto do horizonte, derretendo na cor do horizonte.
-const CLOUD_FRAG = /* glsl */ `
+// Nuvem estilizada: bolhas lisas (normal suave do vértice — antes era a da face e a nuvem saía facetada), dois tons
+// pelo sol, barriga mais escura, borda acesa pelo sol baixo e, perto do horizonte, derretendo na cor do horizonte.
+export const CLOUD_FRAG = /* glsl */ `
 uniform vec3 uLit; uniform vec3 uShade; uniform vec3 uRim; uniform vec3 uHorizon; uniform vec3 uSunDir;
-varying vec3 vW;
+varying vec3 vW; varying vec3 vN;
 void main() {
-  vec3 n = normalize(cross(dFdx(vW), dFdy(vW)));
+  vec3 n = normalize(vN);
   float l = dot(n, uSunDir) * 0.5 + 0.5;
   vec3 c = mix(uShade, uLit, smoothstep(0.35, 0.8, l));
   c = mix(c, uShade, smoothstep(0.1, -0.7, n.y) * 0.45);
@@ -134,16 +136,19 @@ function buildStars(): THREE.Points {
   return pts;
 }
 
+/** Vinco das bolhas de nuvem: a bolha inteira lisa; a barriga reta (dobra de ~90°) continua com quina. */
+const CLOUD_CREASE = 75;
+
 /**
- * Um cúmulo: bolhas de icosaedro achatadas por baixo; `streak` = faixa comprida e fina. `detail` 1
- * (alta) arredonda as bolhas; 0 (média/baixa) tem um quarto dos triângulos e a mesma silhueta de longe.
+ * Um cúmulo: bolhas de icosaedro achatadas por baixo, com normal suave; `streak` = faixa comprida e fina. `detail` 1
+ * (alta) usa icosaedro de 320 faces; 0 (média/baixa), de 80 — a mesma silhueta de longe, lisa nos dois.
  */
 function cloudPuffs(seed: number, streak: boolean, detail: number, m: THREE.Matrix4, out: THREE.BufferGeometry[]): void {
   const blobs = streak ? 9 : 4 + Math.floor(hash2(seed, 1) * 4);
   for (let k = 0; k < blobs; k++) {
     const r = (streak ? 10 : 12) + hash2(seed, 10 + k) * (streak ? 6 : 14);
     const taper = streak ? 1 - Math.abs((k / (blobs - 1)) - 0.5) * 1.2 : 1;
-    const g = new THREE.IcosahedronGeometry(r * taper, streak ? 0 : detail);
+    const g = new THREE.IcosahedronGeometry(r * taper, streak ? 1 : detail + 1);
     const sx = streak ? 2.6 : 1.6; const sy = streak ? 0.22 : 0.8; const sz = streak ? 0.9 : 1.15;
     // Faixa: puffs ao longo de x, afinando nas pontas; cúmulo: aglomerado.
     const along = streak ? (k / (blobs - 1) - 0.5) : 0;
@@ -155,12 +160,13 @@ function cloudPuffs(seed: number, streak: boolean, detail: number, m: THREE.Matr
     const p = g.attributes.position as THREE.BufferAttribute;
     const floor = -r * sy * 0.35;
     for (let i = 0; i < p.count; i++) if (p.getY(i) < floor) p.setY(i, floor);
+    smoothNormals(g, CLOUD_CREASE);
     g.applyMatrix4(m);
     out.push(g);
   }
 }
 
-function buildClouds(detail: number): THREE.BufferGeometry {
+export function buildClouds(detail: number): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
   const place = (a: number, r: number, y: number, yaw: number, s: number) =>
     new THREE.Matrix4().compose(new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(s, s, s));

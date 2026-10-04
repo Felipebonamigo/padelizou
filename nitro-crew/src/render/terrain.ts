@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import type { SceneryId, Track } from '../core/types';
 import { fbm, hash2, hash3, valueNoise } from './noise';
+import { smoothNormals } from './normals';
 import { type Palette } from './palette';
 import type { RoadFrame } from './roadframe';
 import { inClearing } from './scenery/clearings';
@@ -49,7 +50,7 @@ const RELIEF: Record<SceneryId, BiomeRelief> = {
   tropical: { amp: 40, freq: 0.035, drop: 0.8, snowLine: Infinity, layers: [62, 120, 205], facet: 0.35 },
   desert: { amp: 26, freq: 0.016, drop: 0.85, snowLine: Infinity, layers: [48, 96, 150], facet: 0.5 },
   city_night: { amp: 0, freq: 0.03, drop: 0, snowLine: Infinity, layers: [30, 60, 120], facet: 0.2 },
-  alpine: { amp: 64, freq: 0.03, drop: 1, snowLine: 60, layers: [70, 150, 265], facet: 0.6 },
+  alpine: { amp: 64, freq: 0.03, drop: 1, snowLine: 60, layers: [70, 150, 265], facet: 0.35 },
   coast: { amp: 34, freq: 0.03, drop: 0.7, snowLine: Infinity, layers: [34, 70, 110], facet: 0.3 },
   savanna: { amp: 11, freq: 0.028, drop: 0.5, snowLine: Infinity, layers: [26, 52, 80], facet: 0.3 },
 };
@@ -114,8 +115,8 @@ export function columnDistance(curve: number, side: number, c: number): number {
 
 const PERIODIC = 64;
 /** Ruído periódico ao redor do anel (t em voltas: 0..1 fecha sem emenda). */
-function ringNoise(seed: number, t: number, octaves: number): number {
-  let sum = 0; let amp = 1; let norm = 0; let period = PERIODIC;
+function ringNoise(seed: number, t: number, octaves: number, base = PERIODIC): number {
+  let sum = 0; let amp = 1; let norm = 0; let period = base;
   for (let o = 0; o < octaves; o++) {
     const x = t * period;
     const i = Math.floor(x); const f = x - i; const s = f * f * (3 - 2 * f);
@@ -127,14 +128,22 @@ function ringNoise(seed: number, t: number, octaves: number): number {
   return sum / norm;
 }
 
+/** Quanto a crista alpina arredonda (no |r| suave do perfil): maior = pico mais redondo. */
+const RIDGE_SOFT = 0.2;
+
 /** Perfil (0..1) de um plano do horizonte no ângulo t (voltas), por bioma. */
 export function ringProfile(biome: SceneryId, layer: number, t: number): number {
   const seed = 11 + layer * 37;
-  const n = ringNoise(seed, t, 3) * 0.5 + 0.5;
+  // 20 e 40 ondulações por volta (eram 64, 128 e 256): morro largo e redondo em vez de serrote.
+  const n = ringNoise(seed, t, 2, 20) * 0.5 + 0.5;
   switch (biome) {
     case 'alpine': {
-      const ridge = 1 - Math.abs(ringNoise(seed + 3, t, 3));
-      return Math.min(1, 0.18 + 0.5 * ridge * ridge + 0.45 * n * n);
+      // Serra de crista redonda (pedido do dono, 04/10: "suavizar as montanhas"): 16 e 22 ondulações por volta
+      // em vez de 64 (pico a cada ~90 m com 265 m de altura = agulha) e |r| suave (√(r² + k²) − k) em vez de 1 − |r|.
+      const r = ringNoise(seed + 3, t, 2, 16); const k = RIDGE_SOFT;
+      const ridge = 1 - (Math.sqrt(r * r + k * k) - k);
+      const na = ringNoise(seed, t, 2, 22) * 0.5 + 0.5;
+      return Math.min(1, 0.16 + 0.56 * ridge * ridge + 0.38 * na * na);
     }
     case 'desert': {
       // Mesas: topo reto e paredes íngremes (degrau suavizado), com planícies baixas entre elas.
@@ -145,29 +154,31 @@ export function ringProfile(biome: SceneryId, layer: number, t: number): number 
     case 'coast': return layer === 0 ? Math.max(0, n - 0.42) * 1.9 : Math.max(0.04, n - 0.25) * 1.35;
     case 'city_night': return 0.25 + 0.45 * n;
     case 'savanna': {
-      const m = ringNoise(seed + 9, t, 2);
-      return 0.2 + 0.25 * n + 0.45 * smooth01(0.1, 0.25, m);
+      // Morros-ilha de encosta mansa (degrau largo e poucas ondulações): o degrau curto de antes era um serrote.
+      const m = ringNoise(seed + 9, t, 2, 16);
+      return 0.2 + 0.25 * n + 0.45 * smooth01(0.0, 0.4, m);
     }
     default: return 0.25 + 0.75 * n;
   }
 }
 
 const RING_VERT = /* glsl */ `
-varying vec3 vColor; varying vec3 vW;
+varying vec3 vColor; varying vec3 vW; varying vec3 vN;
 void main() {
   vColor = color;
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vW = wp.xyz;
+  vN = normalize(mat3(modelMatrix) * normal);
   gl_Position = projectionMatrix * viewMatrix * wp;
 }`;
 
-// Planos do horizonte: sem névoa (a névoa já está na cor de cada vértice), faces planas que o
-// sol acende conforme o facetamento do bioma.
-const RING_FRAG = /* glsl */ `
+// Planos do horizonte: sem névoa (a névoa já está na cor de cada vértice); encostas lisas (normal suave do vértice —
+// antes era a da face e a serra saía facetada) que o sol acende conforme `facet` do bioma.
+export const RING_FRAG = /* glsl */ `
 uniform vec3 uSunDir; uniform float uFacet;
-varying vec3 vColor; varying vec3 vW;
+varying vec3 vColor; varying vec3 vW; varying vec3 vN;
 void main() {
-  vec3 n = normalize(cross(dFdx(vW), dFdy(vW)));
+  vec3 n = normalize(vN);
   float l = max(dot(n, uSunDir), 0.0);
   vec3 c = vColor * (1.0 - uFacet + uFacet * (0.62 + 0.7 * l));
   gl_FragColor = vec4(c, 1.0);
@@ -302,8 +313,11 @@ class Strip {
 }
 
 /** Plano do horizonte: base (dentro da névoa), meio e topo, com neve nos picos se houver. */
-function buildRing(biome: SceneryId, layer: number, radius: number, height: number, top: THREE.Color, fog: THREE.Color, haze: number, snow: THREE.Color | null): THREE.BufferGeometry {
-  const N = 150;
+/** Vinco das encostas do horizonte: tudo liso — no vale em V a dobra passava dos 70° e virava costura vertical. */
+const RING_CREASE = 120;
+
+export function buildRing(biome: SceneryId, layer: number, radius: number, height: number, top: THREE.Color, fog: THREE.Color, haze: number, snow: THREE.Color | null): THREE.BufferGeometry {
+  const N = 300; // pontos por volta: com 150 o contorno da serra saía em degraus
   const pos: number[] = []; const col: number[] = [];
   const cTop = top.clone().lerp(fog, haze);
   const cMid = top.clone().lerp(fog, Math.min(1, haze + 0.22));
@@ -312,9 +326,11 @@ function buildRing(biome: SceneryId, layer: number, radius: number, height: numb
   const tmp = new THREE.Color();
   const push = (x: number, y: number, z: number, c: THREE.Color) => { pos.push(x, y, z); col.push(c.r, c.g, c.b); };
   const heightAt = (i: number): number => height * ringProfile(biome, layer, (i % N) / N);
+  // Neve pela altura do próprio vértice, numa faixa larga: decidida por coluna (pico acima de 66–78%), a coluna
+  // vizinha saía cinza e a encosta inteira virava faixa vertical — com a serra lisa isso aparecia.
   const topColor = (h: number): THREE.Color => {
     if (!cSnow) return cTop;
-    const s = smooth01(0.66, 0.78, h / height);
+    const s = smooth01(0.5, 0.85, h / height);
     return tmp.copy(cTop).lerp(cSnow, s);
   };
   const B = -70;
@@ -329,14 +345,14 @@ function buildRing(biome: SceneryId, layer: number, radius: number, height: numb
     push(x0 * ro, B, z0 * ro, cBase); push(x1 * ro, B, z1 * ro, cBase); push(x0 * ro, m0, z0 * ro, cMid);
     push(x1 * ro, B, z1 * ro, cBase); push(x1 * ro, m1, z1 * ro, cMid); push(x0 * ro, m0, z0 * ro, cMid);
     const t0 = topColor(h0).clone(); const t1 = topColor(h1).clone();
-    const mc0 = cMid.clone().lerp(t0, 0.35); const mc1 = cMid.clone().lerp(t1, 0.35);
+    const mc0 = cMid.clone().lerp(cTop, 0.35); const mc1 = cMid.clone().lerp(cTop, 0.35);
     push(x0 * ro, m0, z0 * ro, mc0); push(x1 * ro, m1, z1 * ro, mc1); push(x0 * ri, h0, z0 * ri, t0);
     push(x1 * ro, m1, z1 * ro, mc1); push(x1 * ri, h1, z1 * ri, t1); push(x0 * ri, h0, z0 * ri, t0);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  return g;
+  return smoothNormals(g, RING_CREASE);
 }
 
 /** Caixa com UV em metros (janelas de 3 m de passo, sem esticar). */
