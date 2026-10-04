@@ -19,10 +19,12 @@ import { getTrack } from '../src/core/track';
 import { fmodFast, maxCurveAhead, segmentAt } from '../src/core/track/builder';
 import { PHYSICS_REVISION } from '../src/game/content-version';
 
+// Pistas com desenho (04/10, docs/PISTAS.md): Copacabana (o Cristo) e Noite em Sampa (o MASP) ganharam traçado novo —
+// só as duas corridas delas mudaram; as outras seis deram o mesmo bit.
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
-  'solo-sem-assistencias': { fingerprint: '57b0b304', ticks: 8306 },
+  'solo-sem-assistencias': { fingerprint: '5553cf13', ticks: 7887 },
   'coop4-tudo': { fingerprint: '4aebaa41', ticks: 7860 },
-  'versus-cambio-manual': { fingerprint: '6f8073b3', ticks: 8950 },
+  'versus-cambio-manual': { fingerprint: '1fbd037d', ticks: 9483 },
   escolta: { fingerprint: 'a44eeff9', ticks: 8491 },
   revezamento: { fingerprint: 'ca459552', ticks: 11597 },
   'tomada-pela-ia': { fingerprint: 'a7cca80f', ticks: 8910 },
