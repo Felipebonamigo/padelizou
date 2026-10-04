@@ -10,8 +10,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cleanName } from '../../cars/gltf';
-import type { MatKey, Model, ModelPart } from '../geom';
-import { checkLandmarkModel, LANDMARK_MATS } from './check';
+import type { Geo, MatKey, Model, ModelPart } from '../geom';
+import { checkLandmarkModel, checkLandmarkPart, LANDMARK_MATS } from './check';
 import type { LandmarkDef } from './types';
 
 const FACADES: readonly MatKey[] = ['office', 'apartment', 'classic', 'house'];
@@ -32,6 +32,12 @@ export interface GltfLandmark { model: Model | null; problems: string[]; warning
  * os problemas de medida (escala, orçamento, base, origem) vêm do validador comum, para o lugar do marco.
  */
 export function landmarkModelFromGltf(root: THREE.Object3D, place: LandmarkDef['place']): GltfLandmark {
+  const r = readLandmarkGltf(root);
+  return r.model ? { ...r, problems: checkLandmarkModel(r.model, place) } : r;
+}
+
+/** Só a leitura (malhas → partes por material), sem as medidas: o marco e a peça têm validadores diferentes. */
+function readLandmarkGltf(root: THREE.Object3D): GltfLandmark {
   root.updateMatrixWorld(true);
   const groups = new Map<MatKey, Acc>();
   const structural: string[] = [];
@@ -95,7 +101,7 @@ export function landmarkModelFromGltf(root: THREE.Object3D, place: LandmarkDef['
     parts.push({ geometry: g, mat });
   }
   const model: Model = { parts, blob: 0 };
-  return { model, problems: checkLandmarkModel(model, place), warnings: [...new Set(warnings)] };
+  return { model, problems: [], warnings: [...new Set(warnings)] };
 }
 
 /** Lê um .glb (ArrayBuffer) e devolve o modelo do jogo e os problemas, para o lugar do marco. */
@@ -105,5 +111,31 @@ export async function parseLandmarkGlb(place: LandmarkDef['place'], data: ArrayB
     return landmarkModelFromGltf(gltf.scene, place);
   } catch (e) {
     return { model: null, problems: [`o arquivo não abre como glTF: ${e instanceof Error ? e.message : String(e)}`], warnings: [] };
+  }
+}
+
+export interface GltfPart { geometry: Geo | null; problems: string[]; warnings: string[] }
+
+/**
+ * Peça baixada (parts.ts) a partir da cena de um .glb: uma parte lisa só (`flat`) — luz, baliza ou fachada numa peça
+ * é recusada (o conversor no modo --part põe tudo na parte lisa) —, conferida pelo validador da peça.
+ */
+export function landmarkPartFromGltf(root: THREE.Object3D, name: string): GltfPart {
+  const r = readLandmarkGltf(root);
+  if (!r.model) return { geometry: null, problems: r.problems, warnings: r.warnings };
+  const problems = r.model.parts.filter((p) => p.mat !== 'flat').map((p) => `material "${p.mat}" numa peça: a peça é uma parte lisa só ("flat"; o conversor no modo --part junta tudo nela)`);
+  const flat = r.model.parts.find((p) => p.mat === 'flat');
+  if (!flat) problems.push('nenhuma malha lisa ("flat") na peça');
+  else problems.push(...checkLandmarkPart(flat.geometry, name));
+  return { geometry: problems.length === 0 && flat ? flat.geometry : null, problems, warnings: r.warnings };
+}
+
+/** Lê o .glb de uma peça (ArrayBuffer): a geometria e os problemas. */
+export async function parseLandmarkPartGlb(name: string, data: ArrayBuffer): Promise<GltfPart> {
+  try {
+    const gltf = await new GLTFLoader().parseAsync(data, '');
+    return landmarkPartFromGltf(gltf.scene, name);
+  } catch (e) {
+    return { geometry: null, problems: [`o arquivo não abre como glTF: ${e instanceof Error ? e.message : String(e)}`], warnings: [] };
   }
 }

@@ -5,13 +5,13 @@ import { dropOldestGhost } from './game/ghost-store';
 import { createSaveNotice } from './game/save-notice';
 import { createSession, type Session } from './game/session';
 import { loadCarAssets, type CarAssetReport } from './render/cars/assets';
-import { loadLandmarkAssets, type LandmarkAssetReport } from './render/scenery/landmarks/assets';
+import { loadLandmarkAssets, loadLandmarkParts, type LandmarkAssetReport } from './render/scenery/landmarks/assets';
 import { saveHealth, setSpaceFreers } from './game/storage';
 import { showFatal } from './errors/fatal';
 import { createErrorToast, createSaveToast } from './errors/toast';
 
 // API de depuração/playtest: window.nc.session, window.nc.startQuick(...)
-declare global { interface Window { nc: { session: Session; carAssets?: CarAssetReport; landmarkAssets?: LandmarkAssetReport } } }
+declare global { interface Window { nc: { session: Session; carAssets?: CarAssetReport; landmarkAssets?: LandmarkAssetReport; landmarkParts?: LandmarkAssetReport } } }
 
 function localStore(): Storage | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
@@ -53,6 +53,11 @@ async function boot(): Promise<void> {
   const carAssets = await loadCarAssets();
   for (const r of carAssets.rejected) console.warn(`[carros] ${r.file} recusado: ${r.problems.join('; ')}`);
   for (const w of carAssets.warnings) console.warn(`[carros] ${w}`);
+  // Peças baixadas (src/assets/landmarks/parts/<peça>.glb: o bicho, a estátua), idem: entram nos marcos procedurais
+  // que as usam (landmarks/parts.ts) no lugar do bicho procedural.
+  const landmarkParts = await loadLandmarkParts();
+  for (const r of landmarkParts.rejected) console.warn(`[peças] ${r.file} recusada: ${r.problems.join('; ')}`);
+  for (const w of landmarkParts.warnings) console.warn(`[peças] ${w}`);
   // Marcos da arte (src/assets/landmarks/<id>.glb), idem: substituem a geometria do marco procedural do mesmo id.
   const landmarkAssets = await loadLandmarkAssets();
   for (const r of landmarkAssets.rejected) console.warn(`[marcos] ${r.file} recusado: ${r.problems.join('; ')}`);
@@ -72,7 +77,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pointerdown', unlock);
 
   s.start();
-  window.nc = { session: s, carAssets, landmarkAssets };
+  window.nc = { session: s, carAssets, landmarkAssets, landmarkParts };
 
   // Gravação que não ficou em lugar nenhum: aviso no canto, no menu principal ou no resultado (save-notice.ts).
   const saveToast = createSaveToast(document.body);

@@ -25,6 +25,9 @@ não use nada de fora desta pasta.
   captura de 4 jogadores passa dos 30 s padrão: rode uma cópia com `page.setDefaultTimeout(240000)`.
 - Arte: `npm run car-templates` (modelos-base em `art/templates/cars/`) · `npm run check-car -- x.glb` · carro em `src/assets/cars/<estilo>.glb` substitui o procedural (`docs/ARTE.md`).
   Marco baixado: `node tools/convert-landmark.mjs art/raw/x.glb --id <marco>` (low-poly de cor chapada, validado) · marco em `src/assets/landmarks/<id>.glb` substitui a geometria do procedural (`docs/ARTE.md`, "Marcos baixados").
+  Peça baixada (o bicho ou a estátua DENTRO de um marco procedural: tuiuiú, jacaré, búfalo, garça, girafa, rena, cavalo, troll, shisa, garimpeiro):
+  `… --part <peça> --height <m> [--paint 'y>0.62:#1b1b1b'] [--palette … --by-light] --install` → `src/assets/landmarks/parts/<peça>.glb`;
+  sem o arquivo, a cena usa o bicho procedural (`landmarks/parts.ts`; os comandos por peça em `docs/ARTE.md`, "Peças baixadas").
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
 - ⚠️ Para matar um relay órfão, filtre pelo processo `node` (`ps -eo pid,comm,args`); `pkill -f relay.mjs` casa com o próprio shell.
 
@@ -76,7 +79,7 @@ não use nada de fora desta pasta.
   Onda G (03/10/2026): Expedição Brasil — 81 pistas (3 por estado, a do RS em forma de cuia), 27 copas de estado por
   região, passaporte com carimbos e cartão-postal, Mundial (7 copas) depois; 161 marcos turísticos procedurais
   (`src/render/scenery/landmarks/`, `placeOf()` em `core/data/places.ts`), praças nas pistas de cidade e mirantes no litoral para o marco
-  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1478 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
+  aparecer (`core/track/plazas.ts`). 109 pistas, 34 copas, 1507 testes. Planetas: etapa futura (`docs/PISTAS-TURISMO.md`). Documentos por área:
   `docs/PISTAS.md`, `CARREIRA.md`, `CONTROLES.md`, `ONLINE.md`, `ESTATISTICAS.md`, `RIVAIS.md`, `ASSISTENCIAS.md`,
   `MODOS.md`, `TUTORIAL.md`, `FANTASMA.md`, `TELAS.md`, `RETRO.md`, `ARTE.md`, `CARROS.md`, `FISICA.md`, `VISUAL.md`, `DESEMPENHO.md`, `SAVE.md`, `LOJA.md`, `QA.md`, `IMPRENSA.md`, `legal/`. Próximo: jogar com
   gente de verdade e trazer a lista de problemas; na Fase 2, a direção de arte (2.1) e a arte final em glTF (2.2–2.4).
