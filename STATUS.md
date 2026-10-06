@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **06/10/2026** — 📲 **"CAIU O DINHEIRO": O ORGANIZADOR PASSA A SABER, PELO APP.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do celular cheio de SMS e e-mail do Asaas: *"quero que essas notificações venha apenas 1 email de quando for pago e também no aplicativo q eu tenho do sistema"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+> Última atualização: **06/10/2026** — 📲 **"CAIU O DINHEIRO": O ORGANIZADOR PASSA A SABER, PELO APP.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do celular cheio de SMS e e-mail do Asaas: *"quero que essas notificações venha apenas 1 email de quando for pago e também no aplicativo q eu tenho do sistema"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1517-5f18891`** (deploy runs **425** e **426**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #361.
 >
 > 🧭 **METADE DO PEDIDO NÃO É CÓDIGO NOSSO, e isso precisa estar escrito:** *"seu cliente abriu a fatura"* (SMS) e *"cobrança visualizada"* (e-mail) são avisos **da conta Asaas pro dono dela**. Nenhuma linha daqui dispara aquilo, e nenhuma linha daqui desliga: é no painel do Asaas, nas configurações de notificação da conta. Desligando "cobrança visualizada" e mantendo "pagamento confirmado", sobra **1 e-mail por pagamento** — que é o que foi pedido.
 >
