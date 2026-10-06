@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **06/10/2026** — 💸 **"PAGUEI SÓ O MEU" — E O SISTEMA MARCAVA A DUPLA INTEIRA COMO PAGA.** ✅ **SEM MIGRATION.** 🗣️ Lucas Almeida, organizador do NATA PADEL TOUR, pelo WhatsApp: *"eu me inscrevi sozinho... aí eu paguei... fiquei como pago. Quando eu puxei o Greg como minha dupla, já ficou marcado como pago a dupla"* — *"tenho absoluta certeza de que paguei só o meu"*. **Ele estava certo.** ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+> Última atualização: **06/10/2026** — 💸 **"PAGUEI SÓ O MEU" — E O SISTEMA MARCAVA A DUPLA INTEIRA COMO PAGA.** ✅ **SEM MIGRATION.** 🗣️ Lucas Almeida, organizador do NATA PADEL TOUR, pelo WhatsApp: *"eu me inscrevi sozinho... aí eu paguei... fiquei como pago. Quando eu puxei o Greg como minha dupla, já ficou marcado como pago a dupla"* — *"tenho absoluta certeza de que paguei só o meu"*. **Ele estava certo.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1513-34c06ed`** (deploy runs **423** e **424**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #359.
 >
 > 🧾 **A PROVA ESTAVA NO PRÓPRIO FINANCEIRO:** a comissão daquela inscrição foi de **R$ 12,50**, que é 10% de **R$ 125** — a conta de UMA pessoa. Desde 08/08/2026 a inscrição sozinha custa uma pessoa, e a resposta que ele recebeu no WhatsApp (*"tu paga a dupla e não solteiro"*) estava errada.
 >
@@ -18,6 +18,8 @@
 > 🔁 **E O REAPROVEITAMENTO DE FATURA PASSOU A COMPARAR O VALOR:** a mesma inscrição pode ter uma fatura de R$ 250 aberta e alguém pedindo R$ 125. Devolver a de 250 cobraria o dobro de quem escolheu metade, calado.
 >
 > 🧪 **7.593 testes verdes** (18 novos) e **13 conferidores JS**. Vistos vermelhos antes por *"não existe"* e depois **por mutação**, por resultado errado: tirar o conserto do caminho do parceiro e deixar o webhook quitar sempre dão `Expected: False, Actual: True` (a dupla paga devendo metade); devolver o `!d.Pago` ao filtro da faixa some com a inscrição parcial; ignorar a escolha cobra a dupla inteira de quem pediu a própria parte. ⚠️ De quebra, o teste do webhook pegou um erro MEU de helper: ele criava o pagamento como "Pendente", e o webhook de verdade grava "Confirmado" ANTES de efetivar — a régua somaria zero e o teste mediria um caminho que não existe.
+>
+> ✅ **CONFERIDO POR FORA, depois do deploy:** `/healthz` **200** nos dois (corpo `ok` no de produção), home de produção **200** e a tela de um torneio de verdade (`/Torneios/Details/22`) em **200** — é a tela que ganhou a faixa nova.
 >
 > 👀 **NÃO CONFERIDO EM NAVEGADOR** (esta sessão não tem browser). **O que olhar:** na tela do torneio, a inscrição que deve metade mostrando o selo *"já pago R$ 125,00"*; os dois botões aparecendo só quando há o que dividir; e, no Financeiro do organizador, o selo âmbar *"pagou X — falta Y"* na linha da dupla do Lucas.
 
