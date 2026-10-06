@@ -41,6 +41,7 @@ import { trackOutline } from '../src/render/minimap';
 import { getModel } from '../src/render/scenery/catalog';
 import { sceneryLayout } from '../src/render/scenery/layout';
 import { modelTriangles } from '../src/render/scenery/vegetation';
+import { ART, type Art } from './track-art';
 import { SHAPES, type Shape } from './track-shapes';
 
 type V = [number, number];
@@ -287,6 +288,163 @@ export function solveShape(id: string, shape: Shape): { plan: Plan; ops: TrackOp
   return { plan, ops: emitOps(plan, auto.hills, auto.curveHills), radiusScale: rs, cmax: shape.cmax, curve, slope };
 }
 
+/** Pistas com desenho em curva que não estão em SHAPES (a cuia), e ajustes do traço em curva (cmax, sigma). */
+export const ART_CFG: Record<string, { segments: number; cmax: number; index: number; sigma?: number }> = {};
+
+// ───────────────────────── do traço em curva (scripts/track-art.ts) aos ops ─────────────────────────
+//
+// O traço é reamostrado em um ponto por segmento (a volta inteira), e o giro de cada passo vira a curva daquele
+// segmento — a curvatura do desenho, ponto a ponto, não só nas quinas. Uma janela gaussiana de `sigma` segmentos
+// arredonda as quinas vivas (o traço de cartum já é redondo). A curva é escalada para a mais forte valer `cmax` (a
+// dificuldade; o desenho não muda, ver o cabeçalho) e codificada em `cv` com a mesma integral por trecho: trechos de
+// curva parecida viram um `cv` comprido, os que mudam viram `cv` curtos, e o erro de arredondamento de cada um passa
+// para o seguinte — o rumo nas emendas fica exato. Os 40 primeiros segmentos são o box (reta).
+
+export interface ArtFit { ops: TrackOp[]; start: V; scale: number; curves: number[]; warnings: string[]; cmax: number }
+
+/** O traço fechado reamostrado em `n` pontos por igual, a partir do ponto mais perto de `start`. */
+export function resampleLoop(pts: V[], start: V, n: number): { q: V[]; perim: number } {
+  const m = pts.length; const cum = [0];
+  for (let i = 1; i <= m; i++) { const a = pts[i - 1]; const b = pts[i % m]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+  const perim = cum[m];
+  let best = 0; let bd = Infinity;
+  for (let i = 0; i < m; i++) { const d = Math.hypot(pts[i][0] - start[0], pts[i][1] - start[1]); if (d < bd) { bd = d; best = i; } }
+  const q: V[] = []; let j = 0;
+  for (let i = 0; i < n; i++) {
+    const s = (cum[best] + (perim * i) / n) % perim;
+    if (s < cum[j]) j = 0;
+    while (cum[j + 1] < s) j++;
+    const t = (s - cum[j]) / (cum[j + 1] - cum[j] || 1);
+    const a = pts[j]; const b = pts[(j + 1) % m];
+    q.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+  }
+  return { q, perim };
+}
+
+/** Giro de cada segmento (rad), já suavizado: o 0 é o giro da volta de fechamento para o rumo da largada. */
+export function loopTurns(q: V[], sigma: number): number[] {
+  const n = q.length;
+  const h = q.map((p, i) => { const b = q[(i + 1) % n]; return Math.atan2(b[1] - p[1], b[0] - p[0]); });
+  const raw = h.map((x, i) => wrap(x - h[(i - 1 + n) % n]));
+  if (sigma <= 0) return raw;
+  const R = Math.ceil(3 * sigma); const w: number[] = [];
+  for (let d = -R; d <= R; d++) w.push(Math.exp(-(d * d) / (2 * sigma * sigma)));
+  const W = w.reduce((a, b) => a + b, 0);
+  return raw.map((_, i) => { let s = 0; for (let d = -R; d <= R; d++) s += raw[(i + d + n) % n] * w[d + R]; return s / W; });
+}
+
+/** Os `cv`/`st` de uma sequência de curvas por segmento (depois do box), com a integral de cada trecho preservada. */
+function encodeCurves(c: number[], from: number, cap: number): { ops: TrackOp[]; peak: number } {
+  const ops: TrackOp[] = []; let carry = 0; let peak = 0;
+  const pushStraight = (len: number) => {
+    const last = ops[ops.length - 1];
+    if (last && last.op === 'straight') last.length += len; else ops.push({ op: 'straight', length: len });
+  };
+  const n = c.length; let i = from;
+  while (i < n) {
+    // Trecho: cresce enquanto a curva fica parecida com a do começo (±20% e ±0,08) e no mesmo sentido; 4 a 240.
+    const c0 = c[i]; let L = 1;
+    const quiet = (x: number) => Math.abs(x) < 0.03;
+    while (i + L < n && L < 240) {
+      const x = c[i + L];
+      if (quiet(c0) !== quiet(x)) break;
+      if (!quiet(c0) && (Math.sign(x) !== Math.sign(c0) || Math.abs(x - c0) > 0.2 * Math.abs(c0) + 0.08)) break;
+      L++;
+    }
+    if (L < 4) L = Math.min(4, n - i);
+    let area = carry; for (let k = i; k < i + L; k++) area += c[k];
+    const eff = curveProfile(L, 1).reduce((a, b) => a + b, 0);
+    const cc = Math.round((area / eff) * 100) / 100;
+    if (L < 4 || cc === 0) { pushStraight(L); carry = area; } else {
+      ops.push({ op: 'curve', length: L, curve: cc });
+      carry = area - cc * eff; peak = Math.max(peak, Math.abs(cc));
+    }
+    i += L;
+  }
+  void cap;
+  return { ops, peak };
+}
+
+/** Do desenho à pista: a curva escalada para o pico dos `cv` valer `cmax`. */
+export function fitArt(art: Art, segments: number, cmax: number, sigma: number): ArtFit {
+  const warnings: string[] = [];
+  const { q, perim } = resampleLoop(art.pts as V[], art.start as V, segments);
+  const turns = loopTurns(q, sigma);
+  // O box: os 40 primeiros segmentos são reta; o giro que caísse ali (deve ser quase nada) vai para logo depois.
+  const pitTurn = turns.slice(0, 40).reduce((a, b) => a + Math.abs(b), 0);
+  if (pitTurn > 0.02) warnings.push(`o trecho do box não é reto no desenho (gira ${(pitTurn * 180 / Math.PI).toFixed(1)}°): mude a largada`);
+  const moved = turns.slice(0, 40).reduce((a, b) => a + b, 0);
+  for (let i = 0; i < 40; i++) turns[i] = 0;
+  turns[40] += moved;
+  const up = Math.atan2(q[1][1] - q[0][1], q[1][0] - q[0][0]);
+  if (Math.abs(wrap(up + Math.PI / 2)) > 0.05) warnings.push(`a largada não sobe na vertical (${(wrap(up + Math.PI / 2) * 180 / Math.PI).toFixed(1)}°)`);
+  // Escala: o pico dos `cv` (que fica acima da média do trecho por causa da entrada e da saída) vale `cmax`.
+  const maxTurn = Math.max(...turns.map(Math.abs));
+  let g = cmax / maxTurn; let enc = encodeCurves(turns.map((t) => t * g), 40, cmax);
+  for (let it = 0; it < 6 && Math.abs(enc.peak - cmax) > 0.02; it++) { g *= cmax / enc.peak; enc = encodeCurves(turns.map((t) => t * g), 40, cmax); }
+  const ops: TrackOp[] = [{ op: 'pit', length: 40 }, ...enc.ops];
+  const total = ops.reduce((a, o) => a + o.length, 0);
+  if (total !== segments) warnings.push(`a volta deu ${total} segmentos (pedido ${segments})`);
+  return { ops, start: q[0], scale: segments / perim, curves: turns.map((t) => t * g), warnings, cmax: enc.peak };
+}
+
+/**
+ * Morros para o índice técnico pedido (o que a curva não dá): `hl` nas retas mais longas (até 120, altura ≤ 0,45 do
+ * comprimento) e, faltando, desnível dentro dos `cv` mais longos, em pares (sobe num, desce no seguinte; ≤ 0,4 do
+ * comprimento). Altura não muda o desenho nem a IA.
+ */
+export function artHills(ops: TrackOp[], segments: number, slopeIndex: number): { ops: TrackOp[]; missing: number } {
+  // Σ|desnível| pedido: o índice de inclinação é 20 × Σ|Δy| ÷ volta; `hl` soma 2 × altura, `cv` soma |hill|.
+  let need = Math.round((slopeIndex * segments) / 20);
+  const out = ops.map((o) => ({ ...o })) as TrackOp[];
+  const straights = out.map((o, i) => [o, i] as const).filter(([o, i]) => o.op === 'straight' && o.length >= 24 && i > 0)
+    .sort((a, b) => b[0].length - a[0].length);
+  const hillAt = new Map<number, TrackOp[]>();
+  for (const [o, i] of straights) {
+    if (need <= 1) break;
+    const k = Math.min(3, Math.max(1, Math.floor((o.length - 6) / 126)));
+    const l = Math.min(120, Math.floor((o.length - 6) / k)) & ~1;
+    const list: TrackOp[] = [];
+    for (let j = 0; j < k && need > 1; j++) {
+      const h = Math.min(Math.floor(0.45 * l), Math.ceil(need / 2));
+      if (h <= 0) break;
+      list.push({ op: 'hill', length: l, height: h }); need -= 2 * h;
+    }
+    if (list.length) hillAt.set(i, list);
+  }
+  const curves = out.map((o, i) => [o, i] as const).filter(([o]) => o.op === 'curve' && o.length >= 8).sort((a, b) => b[0].length - a[0].length);
+  for (let j = 0; j + 1 < curves.length && need > 1; j += 2) {
+    const h = Math.min(Math.floor(0.4 * curves[j][0].length), Math.floor(0.4 * curves[j + 1][0].length), Math.ceil(need / 2));
+    if (h <= 0) break;
+    (curves[j][0] as Extract<TrackOp, { op: 'curve' }>).hill = h;
+    (curves[j + 1][0] as Extract<TrackOp, { op: 'curve' }>).hill = -h;
+    need -= 2 * h;
+  }
+  // Monta: cada reta com morros vira reta–morro–reta… do mesmo comprimento.
+  const final: TrackOp[] = [];
+  out.forEach((o, i) => {
+    const list = hillAt.get(i);
+    if (!list || o.op !== 'straight') { final.push(o); return; }
+    const hl = list.reduce((a, x) => a + x.length, 0);
+    const gap = Math.floor((o.length - hl) / (list.length + 1));
+    let used = 0;
+    for (const x of list) { if (gap > 0) final.push({ op: 'straight', length: gap }); final.push(x); used += gap + x.length; }
+    if (o.length - used > 0) final.push({ op: 'straight', length: o.length - used });
+  });
+  return { ops: final, missing: Math.max(0, need) };
+}
+
+/** O desenho com a dificuldade e o índice da pista (`segments`, `cmax`, `index` de SHAPES ou ART_CFG). */
+export function solveArt(id: string, art: Art, cfg: { segments: number; cmax: number; index: number; sigma?: number }) {
+  const fit = fitArt(art, cfg.segments, cfg.cmax, cfg.sigma ?? 6);
+  const curve = technicalIndex({ ...trackDef(id), ops: fit.ops }).curve;
+  const slope = Math.max(0, cfg.index - curve);
+  if (curve > cfg.index + 0.05) fit.warnings.push(`só a curva já dá ${curve.toFixed(2)} de índice (o pedido é ${cfg.index})`);
+  const h = slope > 0.005 ? artHills(fit.ops, cfg.segments, slope) : { ops: fit.ops, missing: 0 };
+  if (h.missing > 2) fit.warnings.push(`faltam ${h.missing} de desnível para o índice pedido`);
+  return { ...fit, ops: h.ops, curve, slope };
+}
+
 // ───────────────────────── medidas ─────────────────────────
 
 /** Índice técnico (o mesmo de tests/track.test.ts), separado em curva e inclinação. */
@@ -478,7 +636,7 @@ function main(): void {
   const args = process.argv.slice(2);
   const opt = (name: string) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : undefined; };
   if (args.includes('--sheet')) { sheet(opt('--sheet') ?? 'desenhos.svg'); return; }
-  const valued = new Set(['--svg', '--overlay', '--sheet']);
+  const valued = new Set(['--svg', '--overlay', '--sheet', '--cmax', '--sigma']);
   const ids = args.filter((a, i) => !a.startsWith('--') && !valued.has(args[i - 1] ?? ''));
   if (ids.length === 0) { console.log(`pistas com desenho: ${Object.keys(SHAPES).join(', ')}`); return; }
   const quiet = args.includes('--quiet') || ids.length > 1;
@@ -489,6 +647,27 @@ function main(): void {
       const r = report(before);
       printReport(id, r, quiet);
       tiles.push(svgOf(r.outline, null, id));
+      continue;
+    }
+    if (ART[id]) {
+      const art = ART[id]();
+      const base = SHAPES[id] ?? ART_CFG[id];
+      if (!base) throw new Error(`sem segmentos/cmax/índice para ${id} (SHAPES ou ART_CFG)`);
+      const cfg = { segments: base.segments, cmax: Number(opt('--cmax') ?? ART_CFG[id]?.cmax ?? base.cmax), index: base.index, sigma: Number(opt('--sigma') ?? ART_CFG[id]?.sigma ?? 6) };
+      const fit = solveArt(id, art, cfg);
+      const def: TrackDef = { ...before, ops: fit.ops };
+      const r = report(def, { poly: art.pts as V[], start: fit.start, scale: fit.scale });
+      printReport(id, r, quiet);
+      const was = technicalIndex(before);
+      console.log(`  em tracks.ts: ${buildTrack(before).segments.length} segmentos · índice ${was.total.toFixed(2)} (curvas ${was.curve.toFixed(2)} + morros ${was.slope.toFixed(2)})`);
+      console.log(`  traço: curva de pico ${fit.cmax.toFixed(2)} · ${fit.ops.filter((o) => o.op === 'curve').length} cv · índice pedido ${cfg.index}: curva ${fit.curve.toFixed(2)} + morros ${fit.slope.toFixed(2)}`);
+      const cost = sceneryCost(r.track);
+      console.log(`  cenário: ${cost.toFixed(0)} triângulos por segmento (teto ${SCENERY_BUDGET})`);
+      if (cost > SCENERY_BUDGET) fit.warnings.push(`o cenário passa do orçamento (${cost.toFixed(0)} > ${SCENERY_BUDGET} por segmento)`);
+      for (const w of fit.warnings) console.log(`  AVISO: ${w}`);
+      if (!quiet) console.log(`ops: [${formatOps(fit.ops)}],`);
+      tiles.push(svgOf(r.outline, r.poly, id));
+      if (args.includes('--apply')) { applyOps(id, fit.ops); console.log(`  gravado em tracks.ts (${id})`); }
       continue;
     }
     const shape = SHAPES[id];
