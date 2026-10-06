@@ -127,6 +127,13 @@ public class CobrancaPorForaVM
     public string PrimeiroNome { get; set; } = "";
 
     public decimal Valor { get; set; }
+
+    // ⚠️ O QUE JÁ ENTROU nesta inscrição (06/10/2026). Desde que dá pra pagar só a própria
+    // parte, `Pago` sozinho esconde a dupla que quitou metade — e é desta lista que o
+    // organizador decide de quem cobrar. Zero não quer dizer "não pagou": pode ter sido
+    // acertado por fora e marcado na mão, e aí `Pago` é a palavra dele.
+    public decimal JaPago { get; set; }
+
     public bool Pago { get; set; }
     public DateTime? PagoEm { get; set; }
     public bool EmListaDeEspera { get; set; }

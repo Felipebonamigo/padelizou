@@ -778,13 +778,23 @@ namespace Padelizou.Controllers
             // arranjo não tinha como pagar pelo app em lugar nenhum.
             if (jogadorLogadoId.HasValue && _pagamentos.PodeCobrar(torneio, recebedorTorneio))
             {
+                // ⚠️ O `!d.Pago` SAIU DO FILTRO em 06/10/2026: desde que a inscrição pode ser
+                // paga em partes, "pago" não é mais sinônimo de "não deve nada". A inscrição
+                // do Lucas é o caso — ele pagou sozinho, puxou o parceiro, e ela ficou marcada
+                // como paga devendo metade. Quem decide quem aparece é o DINHEIRO, logo abaixo.
                 var minhasDuplas = await _context.Duplas
                     .Include(d => d.Categoria)
                     .Include(d => d.Jogador1)
                     .Include(d => d.Jogador2)
-                    .Where(d => d.Categoria.TorneioId == id && !d.Pago && d.NomeTime == null
+                    .Where(d => d.Categoria.TorneioId == id && d.NomeTime == null
                              && (d.Jogador1Id == jogadorLogadoId.Value || d.Jogador2Id == jogadorLogadoId.Value))
                     .ToListAsync();
+
+                var idsDasMinhas = minhasDuplas.Select(d => d.Id).ToList();
+                var jaPagoPorDupla = (await CobrancaDaDupla.ConfirmadosDe(_context, idsDasMinhas).ToListAsync())
+                    .GroupBy(p => p.ReferenciaId!.Value)
+                    .ToDictionary(g => g.Key, QuitacaoDaInscricao.JaPago);
+
 
                 // ⚠️ O VALOR É O GRAVADO NA INSCRIÇÃO, NUNCA RECALCULADO — é o mesmo número que
                 // o checkout vai cobrar (PagamentoInscricaoService.ValorJaCombinadoAsync). Até
@@ -792,19 +802,42 @@ namespace Padelizou.Controllers
                 // e mostrava R$ 250 pra quem ia pagar R$ 125 sozinho, ou pra quem tinha desconto
                 // de 2ª categoria. É a armadilha que Services/PrecoDaInscricao já avisava em
                 // letras maiúsculas; esta tela tinha ficado de fora da varredura de 08/08.
-                var naoPagas = minhasDuplas
-                    .OrderBy(d => d.Categoria.Nome)
-                    .Select(d => new InscricaoNaoPagaVM(
-                        d.Id, null, d.Categoria.Nome, d.NomeCurto,
-                        PrecoDaInscricao.DaDupla(torneio, d),
+                var naoPagas = new List<InscricaoNaoPagaVM>();
+                foreach (var d in minhasDuplas.OrderBy(d => d.Categoria.Nome))
+                {
+                    var devido = PrecoDaInscricao.DaDupla(torneio, d);
+                    var jaPago = jaPagoPorDupla.GetValueOrDefault(d.Id);
+                    var falta = QuitacaoDaInscricao.Falta(devido, jaPago);
+
+                    if (falta <= 0m) continue;
+
+                    // Marcada na mão pelo organizador, sem dinheiro no gateway: a palavra dele
+                    // vale, e cobrar de novo quem já acertou por fora seria o pior dos erros.
+                    if (d.Pago && jaPago <= 0m) continue;
+
+                    // ⚠️ "Eu repito no torneio?" é perguntado IGNORANDO esta inscrição — senão
+                    // ela me colocaria "já no torneio" por causa de mim mesmo, e a minha parte
+                    // sairia com o desconto de 2ª categoria na PRIMEIRA. É a mesma ordem que a
+                    // inscrição usa pra gravar o valor (ver DuplasController).
+                    var euRepito = await QuemJaEstaNoTorneio.EstaAsync(
+                        _context, id, jogadorLogadoId.Value, new[] { d.Id });
+
+                    naoPagas.Add(new InscricaoNaoPagaVM(
+                        d.Id, null, d.Categoria.Nome, d.NomeCurto, devido,
                         ContaDaInscricao.Frase(
                             torneio,
                             pessoas: d.Jogador2Id != null ? 2 : 1,
                             impedimentos: (d.ImpedimentoSextaNoite ? 1 : 0)
                                         + (d.ImpedimentoSabadoManha ? 1 : 0)
                                         + (d.ImpedimentoSabadoTarde ? 1 : 0),
-                            valorGravado: PrecoDaInscricao.DaDupla(torneio, d))))
-                    .ToList();
+                            valorGravado: devido),
+                        JaPago: jaPago,
+                        Falta: falta,
+                        PodeEscolherMinhaParte: QuitacaoDaInscricao.DaPraEscolher(
+                            torneio, inscricaoDeDupla: d.Jogador2Id != null, euRepito, falta),
+                        MinhaParte: QuitacaoDaInscricao.ValorDaEscolha(
+                            torneio, QuitacaoDaInscricao.MinhaParte, euRepito, falta)));
+                }
 
                 // O Americano inscreve pessoa a pessoa, em outra tabela — e quem joga os dois
                 // formatos no mesmo torneio deve os dois.
@@ -815,6 +848,7 @@ namespace Padelizou.Controllers
                              && i.JogadorId == jogadorLogadoId.Value)
                     .ToListAsync();
 
+                // O Americano é de UMA pessoa: não há parte a dividir, e o que falta é tudo.
                 naoPagas.AddRange(minhasAmericanas
                     .OrderBy(i => i.Categoria.Nome)
                     .Select(i => new InscricaoNaoPagaVM(
@@ -823,7 +857,8 @@ namespace Padelizou.Controllers
                         PrecoDaInscricao.DaInscricaoAmericana(torneio, i),
                         ContaDaInscricao.Frase(
                             torneio, pessoas: 1, impedimentos: 0,
-                            valorGravado: PrecoDaInscricao.DaInscricaoAmericana(torneio, i)))));
+                            valorGravado: PrecoDaInscricao.DaInscricaoAmericana(torneio, i)),
+                        Falta: PrecoDaInscricao.DaInscricaoAmericana(torneio, i))));
 
                 ViewBag.MinhasInscricoesNaoPagas = naoPagas;
             }

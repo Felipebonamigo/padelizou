@@ -88,9 +88,12 @@ public interface IPagamentoInscricaoService
 
     // "Pagar agora" de uma inscrição que JÁ existe e está como não paga — o par que faltava
     // pro torneio que garante a vaga primeiro e cobra depois. Devolve a URL da fatura.
+    // `valorAPagar` cobra só uma PARTE da inscrição ("pago só a minha metade", 06/10/2026).
+    // ⚠️ Ele vem calculado pelo servidor (Services/QuitacaoDaInscricao.ValorDaEscolha) — valor
+    // vindo do formulário seria o jogador dizendo quanto quer pagar. Nulo = a inscrição toda.
     Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor, Jogador pagador,
         bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados,
-        string? formaEscolhida = null);
+        string? formaEscolhida = null, decimal? valorAPagar = null);
     Task<string?> IniciarCobrancaAulaAsync(JogoAula jogo, Jogador professor, Jogador pagador,
         DadosInscricaoAula dados, string? formaEscolhida = null);
 
@@ -267,7 +270,7 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // ficaria inscrita duas vezes.
     public async Task<string?> IniciarCobrancaDeInscricaoAsync(Torneio torneio, Jogador recebedor,
         Jogador pagador, bool inscricaoDeDupla, int impedimentos, DadosPagamentoDeInscricao dados,
-        string? formaEscolhida = null)
+        string? formaEscolhida = null, decimal? valorAPagar = null)
     {
         var cobranca = CobrancaDoTorneio.Montar(torneio, formaEscolhida, _taxas);
 
@@ -281,16 +284,22 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         //
         // A mesma regra já existia pra taxa do "por fora", assinatura e Pix direto; a
         // inscrição era a que faltava.
-        if (await CobrancaPendenteDaInscricaoAsync(dados) is { } jaAberta)
+        // ⚠️ O valor entra na comparação desde 06/10/2026: com o "pagar só a minha parte", a
+        // mesma inscrição pode ter uma fatura de R$ 250 aberta e alguém pedindo R$ 125.
+        // Devolver a de 250 cobraria o dobro de quem escolheu metade, calado.
+        var valorDesteCheckout = valorAPagar
+            ?? await ValorJaCombinadoAsync(torneio, inscricaoDeDupla, impedimentos, dados);
+
+        if (await CobrancaPendenteDaInscricaoAsync(dados, valorDesteCheckout) is { } jaAberta)
             return jaAberta;
 
         return await CriarCobrancaAsync(
             recebedor, pagador,
-            // ⚠️ Aqui o valor NÃO se recalcula: quem já está inscrito tem o preço gravado na
-            // própria inscrição, e é ele que se cobra. Recalcular faria o "pagar agora" pedir
-            // um valor diferente do que a pessoa viu quando entrou — bastaria o organizador
-            // ter mexido no preço no meio do caminho.
-            await ValorJaCombinadoAsync(torneio, inscricaoDeDupla, impedimentos, dados),
+            // ⚠️ O valor NÃO se recalcula aqui: quem já está inscrito tem o preço gravado na
+            // própria inscrição, e é ele que se cobra (ou a parte dele que o servidor calculou).
+            // Recalcular faria o "pagar agora" pedir um valor diferente do que a pessoa viu
+            // quando entrou — bastaria o organizador ter mexido no preço no meio do caminho.
+            valorDesteCheckout,
             "Torneio", "TorneioPagarDepois",
             $"Inscrição — {torneio.Nome}", dados,
             torneioId: torneio.Id, jogoAulaId: null, modoComissao: torneio.ModoComissao,
@@ -347,7 +356,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     //
     // Por isso o filtro fino é feito em memória, sobre o JSON: são pouquíssimas linhas (as
     // pendentes daquela pessoa naquele torneio), e o `DadosInscricao` não é consultável em SQL.
-    private async Task<string?> CobrancaPendenteDaInscricaoAsync(DadosPagamentoDeInscricao dados)
+    private async Task<string?> CobrancaPendenteDaInscricaoAsync(
+        DadosPagamentoDeInscricao dados, decimal valor)
     {
         var candidatas = await _context.Pagamentos
             .Where(p => p.Tipo == "TorneioPagarDepois"
@@ -362,7 +372,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
             if (alvo == null) continue;
 
             if (alvo.DuplaId == dados.DuplaId
-                && alvo.InscricaoAmericanaId == dados.InscricaoAmericanaId)
+                && alvo.InscricaoAmericanaId == dados.InscricaoAmericanaId
+                && pagamento.Valor == valor)
             {
                 return LinkDoPagamento.Para(pagamento);
             }
@@ -1184,8 +1195,29 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
                 return;
             }
 
-            dupla.Pago = true;
-            dupla.PagoEm = DateTime.Now;
+            // ⚠️ SÓ QUITA QUANDO O DINHEIRO ALCANÇA O VALOR DA INSCRIÇÃO (06/10/2026). Antes,
+            // QUALQUER pagamento confirmado marcava a dupla inteira como paga — com o "pagar só
+            // a minha parte" isso tiraria o parceiro da lista de cobrança pra sempre, que é o
+            // defeito do relato do Lucas entrando pela porta da frente.
+            //
+            // O pagamento ATUAL ainda não tem `ReferenciaId` (ele é gravado logo abaixo), então
+            // entra na conta à parte — e a consulta exclui o próprio id pra ser idempotente:
+            // webhook repetido não pode somar duas vezes.
+            //
+            // ⚠️ NUNCA DESMARCA aqui, só marca: inscrição que o organizador acertou por fora e
+            // marcou na mão não pode ser desquitada por uma metade que entrou depois.
+            var outrosDaDupla = await CobrancaDaDupla.ConfirmadosDe(_context, dupla.Id)
+                .Where(p => p.Id != pagamento.Id)
+                .SumAsync(p => p.Valor);
+
+            // Inscrição antiga, sem valor gravado: a régua de sempre — confirmou, quitou.
+            if (dupla.ValorInscricao is not decimal devidoDaDupla
+                || QuitacaoDaInscricao.Quitada(devidoDaDupla, outrosDaDupla + pagamento.Valor))
+            {
+                dupla.Pago = true;
+                dupla.PagoEm = DateTime.Now;
+            }
+
             pagamento.ReferenciaId = dupla.Id;
         }
         else if (dados.InscricaoAmericanaId is int inscricaoId)

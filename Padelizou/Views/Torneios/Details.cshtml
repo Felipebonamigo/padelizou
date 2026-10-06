@@ -773,12 +773,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         <div class="small text-muted">@inscricao.Quem</div>
                     </div>
                     <div class="text-end">
-                        <div class="fw-bold fs-5">@inscricao.Valor.ToString("C")</div>
-                        @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
-                           parcial, ajuste na mão). Aí o valor vai sozinho: conta que não fecha
-                           ao lado do número ensina o jogador a desconfiar dos dois. *@
-                        @if (inscricao.Conta is { } conta)
+                        <div class="fw-bold fs-5">@inscricao.Falta.ToString("C")</div>
+                        @* O que JÁ ENTROU aparece junto desde 06/10/2026: sem isto, quem pagou
+                           a própria metade vê um valor menor que o anunciado e acha que o
+                           sistema errou. O total continua na tela, que é o número que a pessoa
+                           reconhece do anúncio do torneio. *@
+                        @if (inscricao.JaPago > 0m)
                         {
+                            <div class="small">
+                                <span class="badge bg-success-subtle text-success-emphasis">
+                                    já pago @inscricao.JaPago.ToString("C")
+                                </span>
+                            </div>
+                            <div class="small text-muted">de @inscricao.Valor.ToString("C") no total</div>
+                        }
+                        else if (inscricao.Conta is { } conta)
+                        {
+                            @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
+                               parcial, ajuste na mão). Aí o valor vai sozinho: conta que não
+                               fecha ao lado do número ensina o jogador a desconfiar dos dois. *@
                             <div class="small text-muted">@conta</div>
                         }
                     </div>
@@ -808,9 +821,37 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         ViewData["SufixoDaForma"] = null;
                     }
 
-                    <button type="submit" class="btn btn-padel rounded-pill">
-                        <i class="bi bi-credit-card me-1"></i> Pagar agora
-                    </button>
+                    @* 🗣️ "faz a opção de pagar somente o seu ou o da dupla" (Felipe,
+                       06/10/2026). Os dois botões mandam a MESMA ação, mudando só a escolha —
+                       o valor é calculado no servidor (Services/QuitacaoDaInscricao). Só
+                       aparecem os dois quando há o que dividir: faltando a parte de uma
+                       pessoa, dois botões com o mesmo valor seriam uma escolha falsa. *@
+                    @if (inscricao.PodeEscolherMinhaParte)
+                    {
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" name="oQuePagar"
+                                    value="@Padelizou.Services.QuitacaoDaInscricao.MinhaParte"
+                                    class="btn btn-outline-primary rounded-pill">
+                                <i class="bi bi-person me-1"></i>
+                                Pagar só a minha parte (@inscricao.MinhaParte.ToString("C"))
+                            </button>
+                            <button type="submit" name="oQuePagar"
+                                    value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                    class="btn btn-padel rounded-pill">
+                                <i class="bi bi-people me-1"></i>
+                                Pagar a dupla (@inscricao.Falta.ToString("C"))
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="submit" name="oQuePagar"
+                                value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                class="btn btn-padel rounded-pill">
+                            <i class="bi bi-credit-card me-1"></i>
+                            Pagar @inscricao.Falta.ToString("C")
+                        </button>
+                    }
                 </form>
             </div>
         }

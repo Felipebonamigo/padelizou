@@ -270,9 +270,24 @@
                             {
                                 @* Pago ou não, em palavra: é o que o ajudante precisa ver pra
                                    marcar, e nenhuma quantia sai da tela dele. *@
-                                <span class="badge rounded-pill text-nowrap @(c.Pago ? "bg-success" : "bg-secondary")">
-                                    @(c.Pago ? "pago" : "em aberto")
-                                </span>
+                                @* ⚠️ "PAGOU METADE" É UM TERCEIRO ESTADO (06/10/2026), e é desta lista
+                                   que o organizador decide de quem cobrar. Sem ele, a dupla que
+                                   quitou só uma parte saía da cobrança como se não devesse nada —
+                                   foi o que o Lucas relatou no NATA PADEL TOUR. *@
+                                var faltaNaLinha = Padelizou.Services.QuitacaoDaInscricao.Falta(c.Valor, c.JaPago);
+                                var parcial = Padelizou.Services.QuitacaoDaInscricao.Parcial(c.Valor, c.JaPago);
+                                @if (parcial)
+                                {
+                                    <span class="badge rounded-pill text-nowrap bg-warning text-dark">
+                                        pagou @c.JaPago.ToString("C") — falta @faltaNaLinha.ToString("C")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill text-nowrap @(c.Pago ? "bg-success" : "bg-secondary")">
+                                        @(c.Pago ? "pago" : "em aberto")
+                                    </span>
+                                }
                             }
 
                             @* Cobrar é o que o organizador faz mais: a mensagem já vai pronta,
