@@ -133,6 +133,14 @@ namespace Padelizou.Controllers
                     .Where(i => i.Categoria.TorneioId == id)
                     .ToListAsync();
 
+                // Quanto já entrou em cada inscrição: é o que separa "pago" de "pagou metade"
+                // desde que a inscrição pode ser quitada em partes (Services/QuitacaoDaInscricao).
+                var jaPagoPorDupla = (await CobrancaDaDupla
+                        .ConfirmadosDe(_context, duplasDoTorneio.Select(d => d.Id).ToList())
+                        .ToListAsync())
+                    .GroupBy(p => p.ReferenciaId!.Value)
+                    .ToDictionary(g => g.Key, QuitacaoDaInscricao.JaPago);
+
                 vm.CobrancaPorFora = duplasDoTorneio
                     .Select(d => new CobrancaPorForaVM
                     {
@@ -147,6 +155,7 @@ namespace Padelizou.Controllers
                         // A dupla paga por DUAS pessoas; a inscrição sem parceiro também
                         // ocupa uma vaga de dupla, mas quem está lá é uma pessoa só.
                         Valor = PrecoDaInscricao.DaDupla(torneio, d),
+                        JaPago = jaPagoPorDupla.GetValueOrDefault(d.Id),
                         Pago = d.Pago,
                         PagoEm = d.PagoEm,
                         EmListaDeEspera = d.EmListaDeEspera,

@@ -923,6 +923,8 @@ namespace Padelizou.Controllers
             {
                 dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
                     torneio, valorAntes, segundoRepete, ImpedimentosDa(dupla));
+
+                await DeixaDeEstarQuitadaSePrecisarAsync(dupla);
             }
 
             if (absorvidas.Count > 0)
@@ -971,6 +973,30 @@ namespace Padelizou.Controllers
                 ? $"Parceiro definido: {novo.Nome}. Sua dupla está completa!"
                 : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.") + juntou;
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
+        }
+
+        // A INSCRIÇÃO ACABOU DE FICAR MAIS CARA: O QUE ENTROU AINDA COBRE?
+        //
+        // 🗣️ Lucas Almeida, organizador do NATA PADEL TOUR (06/10/2026): *"eu me inscrevi
+        // sozinho... paguei... quando eu puxei o Greg como minha dupla, já ficou marcado como
+        // pago a dupla"*. Ele tinha pago por UMA pessoa (desde 08/08 é o que a inscrição
+        // sozinha custa) e a dupla seguiu `Pago` devendo metade — o parceiro sumia da lista de
+        // cobrança do organizador, e a tela dizia que estava tudo certo.
+        //
+        // ⚠️ SEM PAGAMENTO NENHUM NO GATEWAY, NÃO MEXE: ali "pago" é a palavra do organizador,
+        // que acertou por fora e sabe o que o sistema não sabe. Desmarcar seria contradizer
+        // quem tem a informação.
+        private async Task DeixaDeEstarQuitadaSePrecisarAsync(Dupla dupla)
+        {
+            if (!dupla.Pago || dupla.ValorInscricao is not decimal devido) return;
+
+            var jaPago = await CobrancaDaDupla.ConfirmadosDe(_context, dupla.Id).SumAsync(p => p.Valor);
+            if (jaPago <= 0m) return;
+
+            if (QuitacaoDaInscricao.Quitada(devido, jaPago)) return;
+
+            dupla.Pago = false;
+            dupla.PagoEm = null;
         }
 
         // As regras que impedem alguém de entrar nesta dupla, num lugar só: valem tanto pra
@@ -1289,6 +1315,8 @@ namespace Padelizou.Controllers
             {
                 dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
                     torneio, valorAntes, repete, ImpedimentosDa(dupla));
+
+                await DeixaDeEstarQuitadaSePrecisarAsync(dupla);
             }
 
             // Token usado não volta a valer: sem isto, o mesmo link fecharia a dupla de novo
