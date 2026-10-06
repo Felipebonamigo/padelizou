@@ -173,3 +173,32 @@ Termine com DONE / DONE_WITH_CONCERNS / BLOCKED.
 - Visual: compare sempre com as capturas de referência do cartão e com `docs/DIRECAO-DE-ARTE.md`; se não parecer
   "jogo cartunesco de última geração", não está pronto.
 - Ao ficar em dúvida entre duas leituras do pedido, pergunte ao dono com as duas opções e a recomendação.
+
+---
+
+## 8. Como escrever o cartão de uma onda (`docs/ondas/<onda>.md`)
+
+O cronograma (`docs/CRONOGRAMA.md`) diz O QUE cada onda entrega; o cartão diz COMO, com o código daquele momento.
+Escreva o cartão logo antes de abrir a onda (não antes: os arquivos mudam). O da onda K foi feito assim e serve de
+exemplo (`docs/ondas/K.md`).
+
+1. **Uma frente por vez**, mais a "K0" (o trabalho do orquestrador: decisões que bloqueiam, contratos a commitar antes,
+   documentos, fecho). Para cada frente, preencha o formato abaixo **lendo e buscando no código** (`grep -rn`), nunca de
+   memória: todo caminho, símbolo e número de linha conferido.
+2. **Checagem do "modelo econômico"**: releia o cartão como quem vai executar sem esta conversa e marque cada ponto onde
+   teria de adivinhar, cada afirmação que não bate com o código, o que falta para o "pronto" e cada arquivo que duas
+   frentes tocam. Corrija tudo (com agentes: um rascunha, outro checa, um terceiro corrige — o `Workflow` do cartão K).
+3. **Abertura do arquivo**: bloqueios, ordem (o que é sequencial e o que paraleliza; máx. 5 agentes, máx. 3 capturando),
+   tabela de dono de cada arquivo, ordem de mescla e o checklist de fecho com comandos.
+
+Formato de cada frente:
+
+1. **Objetivo** (2–3 frases, do cronograma).
+2. **Depende de / bloqueia** (contratos, decisões do dono, outras frentes).
+3. **Arquivos desta frente** — tabela arquivo · símbolo e linha · o que muda; e **NÃO tocar** (os das outras frentes).
+4. **Testes a escrever ANTES** — arquivo, nome, o que afirma, por que falha hoje, como rodar só ele.
+5. **Passo a passo** — numerado, pequeno, com o arquivo e o comando de cada passo.
+6. **Pronto quando** — verificável, com comandos e números.
+7. **Capturas / evidência para o dono** — com o comando exato.
+8. **Armadilhas** — do §5 e do que o código mostrar.
+9. **Instrução pronta para o agente** — o modelo do §4 preenchido (branch `nc/<onda>-<frente>`, porta própria).
