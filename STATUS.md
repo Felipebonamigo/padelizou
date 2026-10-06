@@ -1,6 +1,28 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **06/10/2026** — 📲 **"CAIU O DINHEIRO": O ORGANIZADOR PASSA A SABER, PELO APP.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do celular cheio de SMS e e-mail do Asaas: *"quero que essas notificações venha apenas 1 email de quando for pago e também no aplicativo q eu tenho do sistema"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+>
+> 🧭 **METADE DO PEDIDO NÃO É CÓDIGO NOSSO, e isso precisa estar escrito:** *"seu cliente abriu a fatura"* (SMS) e *"cobrança visualizada"* (e-mail) são avisos **da conta Asaas pro dono dela**. Nenhuma linha daqui dispara aquilo, e nenhuma linha daqui desliga: é no painel do Asaas, nas configurações de notificação da conta. Desligando "cobrança visualizada" e mantendo "pagamento confirmado", sobra **1 e-mail por pagamento** — que é o que foi pedido.
+>
+> 🔇 **O QUE FALTAVA DESTE LADO ERA SILÊNCIO TOTAL: o Padelizou não avisava NINGUÉM quando um pagamento de inscrição confirmava.** O único aviso que existia era o de inscrição nova (*"Apitouuuu!"*), que vai pra quem **segue** o torneio e não fala de dinheiro. Entra `Services/AvisoDeInscricaoPaga`.
+>
+> 📧 **SEM E-MAIL NOSSO, por decisão do Felipe** (*"mantém o email do asaas"*): o alcance é `AppSemEmail`, que é exatamente o que a régua de 09/08/2026 criou pra este caso. Mandar o nosso junto trocaria dois e-mails por dois outros — e e-mail é o único canal que alcança quem não instalou o app.
+>
+> 💰 **SÓ QUEM VÊ O CAIXA RECEBE.** O ajudante faz tudo no torneio menos abrir o dinheiro (`AcessoAoDinheiroDoTorneio`) — mandar a ele quanto entrou seria furar essa régua **pela porta que ninguém audita**, que é a notificação. E **quem pagou não recebe o aviso do próprio pagamento**: ele acabou de sair do checkout, e avisá-lo é o tipo de recado que ensina a ignorar o canal (mesma lição do `recemInscritos` no apito).
+>
+> 🪝 **O GANCHO É NOS DOIS CAMINHOS, e é por isso que o aviso é um SERVIÇO.** Uma inscrição vira paga de dois jeitos: a que já existia (*"pagar depois"*) e a que **nasce do dinheiro** (torneio que cobra na inscrição). Ter o gancho só num deles deixaria metade dos pagamentos em silêncio no celular do organizador — e regra de torneio duplicada é a causa histórica dos defeitos graves daqui.
+>
+> 🧾 **O AVISO CARREGA O QUE FALTA**, porque desde 06/10 a inscrição pode ser paga em partes: *"Lucas Almeida pagou R$ 125,00, falta R$ 125,00. Na categoria 4ª Masculina."* Dizer só "pagou" faria o organizador riscar a dupla da lista de cobrança — o mesmo defeito do relato dele, agora por escrito numa notificação.
+>
+> 🛡️ **O aviso NUNCA derruba o pagamento:** quando ele roda, o dinheiro já entrou e a inscrição já está paga. Uma falha de push não pode desfazer nada nem devolver erro pro webhook, que faria o Asaas reenviar o evento — por isso ele vive dentro de um `try` que só loga.
+>
+> 🚫 **SEM INTERRUPTOR, e é escolha:** uma preferência nova (`NotificarInscricaoPaga`) seria coluna, logo **migration**, logo `architectural` — pra um aviso que só o dono do caixa recebe, sobre o caixa dele. Se alguém pedir pra desligar, aí vira trabalho; antes disso é especulação (degrau 1 da escada).
+>
+> 🧪 **7.600 testes verdes** (7 novos) e **13 conferidores JS**. Vistos vermelhos antes por *"não existe"* e depois **por mutação**: tirar o gancho dos dois caminhos cala três testes de uma vez, e tirar a trava de quem vê dinheiro faz o ajudante receber o caixa.
+>
+> 👀 **NÃO CONFERIDO EM NAVEGADOR nem em celular** (esta sessão não tem browser). **O que olhar no primeiro pagamento real:** o organizador recebendo *"Caiu o dinheiro 💰"* com o nome de quem pagou e o valor, abrindo o Financeiro do torneio; e, num pagamento parcial, o "falta R$ X" na mesma linha.
+
 > Última atualização: **06/10/2026** — 💸 **"PAGUEI SÓ O MEU" — E O SISTEMA MARCAVA A DUPLA INTEIRA COMO PAGA.** ✅ **SEM MIGRATION.** 🗣️ Lucas Almeida, organizador do NATA PADEL TOUR, pelo WhatsApp: *"eu me inscrevi sozinho... aí eu paguei... fiquei como pago. Quando eu puxei o Greg como minha dupla, já ficou marcado como pago a dupla"* — *"tenho absoluta certeza de que paguei só o meu"*. **Ele estava certo.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1513-34c06ed`** (deploy runs **423** e **424**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #359.
 >
 > 🧾 **A PROVA ESTAVA NO PRÓPRIO FINANCEIRO:** a comissão daquela inscrição foi de **R$ 12,50**, que é 10% de **R$ 125** — a conta de UMA pessoa. Desde 08/08/2026 a inscrição sozinha custa uma pessoa, e a resposta que ele recebeu no WhatsApp (*"tu paga a dupla e não solteiro"*) estava errada.
