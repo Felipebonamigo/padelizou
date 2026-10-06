@@ -1243,6 +1243,55 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
 
         await _context.SaveChangesAsync();
         _logger.LogInformation("Pagamento {Id} confirmado — inscrição marcada como paga.", pagamento.Id);
+
+        await AvisarQueODinheiroCaiuAsync(pagamento);
+    }
+
+    // CAIU O DINHEIRO: avisa quem recebe o caixa do torneio (Services/AvisoDeInscricaoPaga).
+    //
+    // ⚠️ NUNCA DERRUBA O PAGAMENTO. O dinheiro já entrou e a inscrição já está paga quando
+    // isto roda — uma falha de push aqui não pode desfazer nada nem devolver erro pro webhook,
+    // que faria o Asaas reenviar o evento. Mesmo contrato do resto dos avisos daqui.
+    private async Task AvisarQueODinheiroCaiuAsync(Pagamento pagamento)
+    {
+        try
+        {
+            if (pagamento.TorneioId is not int torneioId) return;
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return;
+
+            var quemPagou = await _context.Jogadores.FindAsync(pagamento.JogadorId);
+
+            // Quanto ainda falta nesta inscrição — é parte da notícia desde que dá pra pagar
+            // só a própria parte: "pagou" sem o resto faz o organizador riscar a dupla da
+            // lista de cobrança.
+            decimal falta = 0m;
+            string categoria = "";
+
+            if (pagamento.ReferenciaId is int referencia && pagamento.Tipo != "TorneioAmericano")
+            {
+                var dupla = await _context.Duplas
+                    .Include(d => d.Categoria)
+                    .FirstOrDefaultAsync(d => d.Id == referencia);
+
+                if (dupla != null)
+                {
+                    categoria = dupla.Categoria.Nome;
+                    var jaPago = await CobrancaDaDupla.ConfirmadosDe(_context, dupla.Id).SumAsync(p => p.Valor);
+                    falta = QuitacaoDaInscricao.Falta(PrecoDaInscricao.DaDupla(torneio, dupla), jaPago);
+                }
+            }
+
+            await new AvisoDeInscricaoPaga(_context, _push).NotificarAsync(
+                torneioId, pagamento.JogadorId, quemPagou?.Nome ?? "Alguém",
+                pagamento.Valor, falta, categoria,
+                LinkDoPagamento.DoFinanceiroDoTorneio(torneioId));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao avisar que a inscrição do pagamento {Id} foi paga.", pagamento.Id);
+        }
     }
 
     // O dinheiro da assinatura entrou: estende a partir de onde ela estiver — 1 mês no ciclo
@@ -1493,6 +1542,12 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         await _context.SaveChangesAsync();
         _logger.LogInformation("Pagamento {Id} efetivado — inscrição de torneio {Ref} criada.",
             pagamento.Id, pagamento.ReferenciaId);
+
+        // ⚠️ O MESMO AVISO DO OUTRO CAMINHO. São DOIS os jeitos de uma inscrição ser paga — a
+        // que já existia ("pagar depois") e esta, que nasce do dinheiro —, e ter o gancho só
+        // num deles deixaria metade dos pagamentos em silêncio no celular do organizador. É a
+        // razão de o aviso ser um serviço, e não um trecho solto aqui dentro.
+        await AvisarQueODinheiroCaiuAsync(pagamento);
 
         // A inscrição paga só existe quando o dinheiro entra — este é o momento em que o
         // jogador precisa saber que está dentro (ou na lista de espera).

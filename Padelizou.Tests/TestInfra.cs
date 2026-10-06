@@ -393,7 +393,8 @@ public static class TestInfra
     // Um pagamento de inscrição que CONFIRMA de verdade — passa pelo mesmo caminho do webhook
     // (PagamentoInscricaoService.EfetivarAsync), que é onde mora a régua de quitação.
     public static async Task ConfirmarPagamentoDeInscricaoAsync(
-        DbPadelContext ctx, Torneio torneio, Jogador quemPaga, int duplaId, decimal valor)
+        DbPadelContext ctx, Torneio torneio, Jogador quemPaga, int duplaId, decimal valor,
+        IPushNotificationService? push = null)
     {
         var pagamento = new Padelizou.Models.Pagamento
         {
@@ -413,17 +414,20 @@ public static class TestInfra
         ctx.Pagamentos.Add(pagamento);
         await ctx.SaveChangesAsync();
 
-        var servico = new PagamentoInscricaoService(
-            ctx,
+        await ServicoDePagamentos(ctx, push).EfetivarAsync(pagamento);
+    }
+
+    // O serviço de pagamentos de verdade — é nele que mora a régua de quitação e o aviso de
+    // "caiu o dinheiro", então teste que mede esses dois não pode usar dublê.
+    public static PagamentoInscricaoService ServicoDePagamentos(
+        DbPadelContext ctx, IPushNotificationService? push = null) =>
+        new(ctx,
             Substitute.For<IAsaasService>(),
             Microsoft.Extensions.Options.Options.Create(new AsaasSettings()),
             NullLogger<PagamentoInscricaoService>.Instance,
-            Substitute.For<IPushNotificationService>(),
+            push ?? Substitute.For<IPushNotificationService>(),
             Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
             Microsoft.Extensions.Options.Options.Create(new PlanoProfessorSettings()));
-
-        await servico.EfetivarAsync(pagamento);
-    }
 
     public static DesafiosController NovoDesafiosController(DbPadelContext ctx, int usuarioLogadoId,
         bool habilitado = true, IPushNotificationService? push = null)
