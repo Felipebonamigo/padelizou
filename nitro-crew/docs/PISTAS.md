@@ -138,6 +138,93 @@ abaixo): pontas finas e lados quase retos não têm curva longa, e só as pontas
 tudo o que dava, ficava em 920–960 triângulos por segmento, acima do teto de 900. A copa de tufos da gameleira tem curva
 em volta inteira.
 
+### Desenhos em cartum (em andamento, 06/10/2026)
+
+**O dono achou os 27 desenhos mal feitos** ("tipo do Cristo Redentor, pode ser cartoonado, mas visualmente bonito, e o
+mesmo para os demais"). A causa: o alvo de cada um é um **polígono** com as quinas arredondadas (`scripts/track-shapes.ts`),
+então tudo sai reto e anguloso — o Cristo era um boneco de palito. O redesenho troca o alvo por **silhuetas de cartum em
+traço contínuo** (Bézier e arcos), como um ícone ilustrado, e a pista passa a seguir a curvatura do traço inteiro.
+
+**Estado (06/10/2026):** parado a pedido do dono (montar o cronograma antes). Já commitado: `scripts/track-art.ts` (caneta
+`Pen` com `L`/`C`/`Q`/`arc`, `sym` para desenho simétrico; só o **Cristo** desenhado e aprovado no visual), o modo de
+traço em curva em `scripts/shape-to-track.ts` (`fitArt`, `solveArt`, `artHills`, `ART_CFG`; a CLI usa o desenho de
+`ART` quando existe) e `scripts/art-sheet.ts` (folha dos alvos). **Nenhuma pista mudou ainda.**
+
+**O que o primeiro teste mostrou (e o próximo passo técnico):** codificar a curvatura do traço em `cv` não funciona
+bem — cada `cv` entra e sai da curva a partir do zero (rampas quadráticas de 1/4 do comprimento, `builder.ts`), então
+um trecho de curva constante vira uma série de pulsos: o Cristo saiu com desvio de fechamento 68 e erro médio 2,4 (em
+100), e dirigindo a curva "ondularia". A solução planejada:
+
+1. **Trecho novo no DSL: `bend` — curva constante, sem rampa.** Em `src/core/types.ts`:
+   `| { op: 'bend'; length: number; curve: number; hill?: number }`; em `src/core/track/builder.ts`, no `applyOp`:
+   `case 'bend': addRoad(b, 0, op.length, 0, op.curve, op.hill ?? 0); break;`; em `src/core/track/tracks.ts`, o atalho
+   `const bd = (length, curve, hill?) => ({ op: 'bend', length, curve, hill })`; em `scripts/shape-to-track.ts`,
+   `formatOps` com `bd(...)`. Nenhuma pista existente muda (o `sim-golden` não muda até alguma pista usar `bend`).
+   Testes antes: um `bend` de comprimento L e curva c gera L segmentos de curva exatamente c; o tutorial e o resto
+   que fazem `switch` em `op.op` continuam compilando.
+2. **Codificar em `bend`** (`encodeCurves` em `scripts/shape-to-track.ts`): agrupar segmentos seguidos cuja curva fica
+   a no máximo `max(0,05; 6% × |c|)` da do começo do grupo, e emitir `bd(L, média)` preservando a integral do grupo
+   com o resto passado para o seguinte (o rumo nas emendas fica exato). Sem rampa não há pico acima da média: a escala
+   é direta (`g = cmax ÷ maior giro`). Curva arredondada para 0,00 vira reta (`st`).
+3. **Desenhar os outros 26** em `scripts/track-art.ts` (e a cuia, que também é redesenhada). Estilo: ícone de cartum —
+   formas cheias e redondas, proporções de brinquedo, traço liso, simetria quando o objeto é simétrico, nada de
+   pescoço fino demais (dois trechos da pista não podem encostar no minimapa). A largada (`start`) num trecho RETO que
+   SOBE na vertical, com folga de uns 3% do perímetro (o box são 40 segmentos retos). Notas por desenho:
+   - **RS cuia**: bojo redondo, cintura, boca com lábio largo e a **bomba** saindo em diagonal (é ela que diz
+     "chimarrão"); pé reto para a largada.
+   - **RJ Cristo** (feito): cabeça redonda, braços retos com mãos redondas, mangas caindo em curva até a cintura, manto
+     abrindo até o pedestal; largada na lateral esquerda do pedestal.
+   - **SP MASP**: a caixa larga suspensa nos dois pórticos (Π), vão livre embaixo; cantos levemente arredondados.
+   - **MG Pampulha**: perfil de lado — a abóbada parabólica grande e três menores em onda, a torre em trapézio
+     invertido ligada pela marquise; base reta.
+   - **ES Convento da Penha**: morro em domo com o paredão íngreme de um lado e o convento (caixa + torre com ponta)
+     no topo.
+   - **SC Hercílio Luz**: tabuleiro, duas torres com capitel, a corrente que sobe às torres e desce até tocar o
+     tabuleiro no meio (o "M" da ponte), ancoragens nas pontas.
+   - **DF avião**: avião de cartum visto de cima, nariz redondo, asas enflechadas com pontas redondas, cauda; largada
+     na lateral reta da fuselagem.
+   - **PR araucária**: tronco reto e a copa em taça (candelabro) com tufos redondos no alto e a borda levemente
+     côncava; um par de galhos menores mais embaixo.
+   - **GO gota**: gota d'água elegante (ponta curva no alto, fundo redondo).
+   - **MS peixe**: corpo oval, cauda bifurcada, barbatana dorsal e anal, boca; peixe de desenho animado.
+   - **MT jacaré**: visto de cima, de pé (cabeça para cima): focinho comprido e redondo, quatro patas curtas dobradas,
+     cauda que afina em S; largada no flanco reto do corpo.
+   - **BA caravela**: casco em sorriso com castelo de popa, três mastros com velas bojudas (redondas) ligadas por
+     mastros finos, flâmula no alto; largada na popa.
+   - **SE caranguejo**: corpo oval largo, olhos nas hastes, duas garras grandes abertas para cima, três patas de cada
+     lado na parte de baixo; flanco reto entre a garra e as patas para a largada.
+   - **AL jangada**: vela triangular bojuda no mastro, jangada de toras embaixo, flâmula; largada no mastro.
+   - **PE sombrinha de frevo**: cúpula com a borda em 6 recortes redondos, ponteira no alto, cabo com o gancho em J.
+   - **PB balão junino**: balão de topo redondo afinando até a boca, com a bucha embaixo.
+   - **RN**: o **caju** (fruta em sino + castanha em feijão, com uma folha no talo) — tentar de novo em curva, que é
+     onde o polígono falhou; se não ler, fica o cajueiro (copa larga e baixa de tufos).
+   - **CE lua crescente**: crescente gordo com pontas finas e curvas.
+   - **PI capivara**: de perfil, barril redondo, focinho largo e rombudo, orelha pequena, quatro patinhas curtas;
+     largada na traseira.
+   - **MA boi**: cabeça de frente — chifres largos em curva para cima, orelhas para os lados, focinho arredondado.
+   - **PA Ver-o-Peso**: o Mercado de Ferro com as quatro torres de ponta cônica e o corpo entre elas.
+   - **AM Teatro Amazonas**: o prédio com a cúpula em sino, o tambor e a lanterna no alto, frontão no meio.
+   - **AP Fortaleza de São José**: planta estrelada — quadrado com quatro baluartes em ponta de flecha, regular.
+   - **RR tepui**: mesa de topo achatado (borda levemente irregular), paredões, talude largo na base.
+   - **RO locomotiva**: maria-fumaça de perfil — cabine, caldeira redonda, chaminé em funil (com uma nuvem de fumaça
+     de cartum), limpa-trilhos, três rodas grandes em arco.
+   - **AC gameleira**: copa de nuvem com tufos redondos, tronco grosso com raízes abertas.
+   - **TO sol**: disco com 12 raios de ponta arredondada (um raio com o lado vertical para a largada).
+4. **Para cada pista**: `npx tsx scripts/shape-to-track.ts <pista>` e conferir no relatório — erro médio ≤ 0,8 e
+   máximo ≤ 2,5 (em 100) contra o desenho, cruzamentos 0, menor vão ≥ 1,2, cenário ≤ 900 triângulos por segmento,
+   índice técnico dentro da faixa da copa (o `index` de `SHAPES`/`ART_CFG`). Folha dos alvos com `scripts/art-sheet.ts`
+   e a dos contornos com `--sheet`; só depois `--apply`.
+5. **Dificuldade**: medir a velocidade média da IA (`npm run balance -- corrida profissional 11|12|13 <pista>`) e
+   acertar o `cmax` em `ART_CFG` para voltar à dificuldade **de antes dos desenhos** (coluna "Medido" antes da onda
+   G desta seção; Caldas Novas e Canoa Quebrada ficaram fáceis demais com os desenhos de polígono: 3,9 → 1,9 e
+   4,0 → 2,1).
+6. **Testes**: trocar os blocos por estado de `tests/track.test.ts` por um teste de **fidelidade ao desenho** (o
+   contorno do minimapa fica a no máximo X do traço de `ART`, normalizado como em `report`) mais as propriedades
+   genéricas (sem cruzar, folga, proporção, |curva| ≤ 6) — escrever antes do `--apply` e ver falhar no traçado de
+   hoje. Rodar `tests/landmarks*.test.ts` (o traçado muda onde os marcos ficam: a Pampulha já caiu abaixo da meta uma
+   vez) e `tests/scenery-forma.test.ts`. `sim-golden`: copacabana e sampa_noite estão lá (atualizar `EXPECTED`).
+7. **Mostrar ao dono** a folha dos 27 (alvo e contorno) antes de dar por pronto: o critério é ele achar bonito.
+
 ### Como uma pista vira desenho
 
 - **O desenho** está em `scripts/track-shapes.ts`: um polígono horário por pista, num quadro de ~100, começando no pé

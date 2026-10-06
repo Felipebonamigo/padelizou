@@ -1,0 +1,75 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>folha dos marcos</title>
+<style>html,body{margin:0;background:#000;overflow:hidden;font:12px system-ui,sans-serif}canvas{display:block}
+.lb{position:absolute;color:#fff;background:rgba(0,0,0,.55);padding:2px 6px;border-radius:3px}</style>
+</head><body>
+<script type="module">
+// Folha de contato de QUALQUER marco do registro LANDMARKS (todos os arquivos de landmarks/): cada modelo na sua célula, visto a 3/4 da frente (+X),
+// de dia ou de noite. Query: ids=a,b (padrão: todos), night=1, cols=N, cw/ch = tamanho da célula, az/el = ângulo (rad).
+import * as THREE from 'three';
+import { LANDMARKS as LANDMARKS_MUNDO } from '../src/render/scenery/landmarks/index.ts';
+import { smoothModel } from '../src/render/scenery/smooth.ts';
+
+const q = new URLSearchParams(location.search);
+const ids = (q.get('ids') ?? Object.keys(LANDMARKS_MUNDO).join(',')).split(',').filter(Boolean);
+const night = q.get('night') === '1';
+const cols = Number(q.get('cols') ?? Math.min(6, ids.length));
+const cw = Number(q.get('cw') ?? 330); const ch = Number(q.get('ch') ?? 250);
+const rows = Math.ceil(ids.length / cols);
+const W = cols * cw; const H = rows * ch;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.setScissorTest(true);
+document.body.appendChild(renderer.domElement);
+const mats = {
+  flat: new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: false, roughness: 0.86, side: THREE.DoubleSide }),
+  glow: new THREE.MeshBasicMaterial({ vertexColors: true, color: new THREE.Color().setScalar(night ? 2.0 : 0.95) }),
+  beacon: new THREE.MeshBasicMaterial({ vertexColors: true }),
+  cone: new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, visible: night }),
+};
+const groundMat = new THREE.MeshStandardMaterial({ color: night ? '#2a4a2a' : '#6aa850', roughness: 1 });
+ids.forEach((id, i) => {
+  const def = LANDMARKS_MUNDO[id];
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(night ? '#0b1440' : '#8fc8f0');
+  const m = smoothModel(`lm:${id}`, def.build()); // a mesma normal suave do jogo (catalog.ts)
+  const box = new THREE.Box3();
+  for (const p of m.parts) {
+    const mesh = new THREE.Mesh(p.geometry, mats[p.mat]);
+    mesh.castShadow = !!p.shadow; mesh.receiveShadow = p.mat === 'flat';
+    scene.add(mesh);
+    if (p.mat !== 'cone') { p.geometry.computeBoundingBox(); box.union(p.geometry.boundingBox); }
+  }
+  const size = box.getSize(new THREE.Vector3()); const c = box.getCenter(new THREE.Vector3());
+  const r = size.length() / 2;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(r * 12, r * 12), groundMat);
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; ground.receiveShadow = true; scene.add(ground);
+  scene.fog = new THREE.Fog(night ? '#25336b' : '#bfe6ff', r * 3, r * 9);
+  scene.add(new THREE.HemisphereLight(night ? '#6f86c8' : '#9fd0ff', '#3a6a2a', night ? 1.1 : 0.8));
+  const sun = new THREE.DirectionalLight(night ? '#9fb0ff' : '#fff3d8', night ? 0.5 : 2.8);
+  sun.position.set(c.x + r * 1.2, c.y + r * 2, c.z + r * 0.8); sun.target.position.copy(c); scene.add(sun, sun.target);
+  sun.castShadow = true;
+  const sc = sun.shadow.camera; sc.left = -r * 1.5; sc.right = r * 1.5; sc.top = r * 1.5; sc.bottom = -r * 1.5; sc.near = 0.1; sc.far = r * 6; sc.updateProjectionMatrix();
+  sun.shadow.mapSize.set(1024, 1024); sun.shadow.normalBias = 0.005 * r;
+  const cam = new THREE.PerspectiveCamera(40, cw / ch, Math.max(0.1, r * 0.02), r * 20);
+  const az = Number(q.get('az') ?? 0.6);
+  const el = Number(q.get('el') ?? (def.place === 'skyline' ? 0.08 : def.place === 'far' ? 0.14 : 0.18));
+  const dist = (r / Math.sin((40 * Math.PI) / 360)) * Number(q.get('zoom') ?? 0.85);
+  const look = new THREE.Vector3(c.x, box.min.y + size.y * 0.42, c.z);
+  cam.position.set(look.x + Math.cos(az) * Math.cos(el) * dist, Math.max(1.6, look.y + Math.sin(el) * dist), look.z + Math.sin(az) * Math.cos(el) * dist);
+  cam.lookAt(look);
+  const col = i % cols; const row = Math.floor(i / cols);
+  const x = col * cw; const y = H - (row + 1) * ch;
+  renderer.setViewport(x, y, cw, ch); renderer.setScissor(x, y, cw, ch);
+  renderer.render(scene, cam);
+  const tri = m.parts.reduce((t, p) => t + p.geometry.attributes.position.count / 3, 0);
+  const lb = document.createElement('div'); lb.className = 'lb';
+  lb.textContent = `${id} · ${def.place} · ${tri}△`;
+  lb.style.left = `${x + 4}px`; lb.style.top = `${row * ch + 4}px`;
+  document.body.appendChild(lb);
+});
+window.sheetSize = [W, H];
+window.ready = true;
+</script></body></html>

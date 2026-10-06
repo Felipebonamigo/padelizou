@@ -1,11 +1,20 @@
 # Nitro Crew — guia para agentes
 
-Corrida arcade (estilo Top Gear) com visual 3D low-poly estilizado e co-op local de até 4 em tela dividida, em
-TypeScript + Three.js (WebGL), empacotável com Electron para a Steam. **O dono pediu gráficos atuais e bonitos** —
-referência Horizon Chase Turbo. O pseudo-3D de 16 bits existe só como **modo Retrô opcional** (Opções › Visual,
+Corrida arcade (estilo Top Gear) em 3D e co-op local de até 4 em tela dividida, em
+TypeScript + Three.js (WebGL), empacotável com Electron para a Steam. **Alvo visual (dono, 06/10/2026): parecer um jogo de
+última geração, cartunesco** (Mario Kart 8, Crash Team Racing Nitro-Fueled; `docs/DIRECAO-DE-ARTE.md`) — o low-poly
+estilizado de hoje e a antiga referência Horizon Chase Turbo ficam abaixo desse alvo. O pseudo-3D de 16 bits existe só como **modo Retrô opcional** (Opções › Visual,
 `src/render-pseudo3d/`, `docs/RETRO.md`); o 3D é o padrão e o foco do trabalho visual. Interface e comentários em português (Brasil); código em inglês.
 Este projeto mora numa subpasta do repositório `padelizou` por enquanto; **tudo aqui é independente dele** —
 não use nada de fora desta pasta.
+
+## Antes de qualquer trabalho (qualquer modelo)
+1. **`docs/PLAYBOOK.md`** — o manual de execução: comandos, ferramentas de ver/medir, como rodar uma onda com agentes,
+   o modelo de instrução para cada agente, o checklist de mescla e as armadilhas que já custaram retrabalho. Feito para
+   que um modo mais econômico faça igual (pedido do dono, 06/10/2026).
+2. **`docs/CRONOGRAMA.md`** — as ondas a fazer, em ordem; o cartão de cada onda em `docs/ondas/`.
+3. **`docs/DIRECAO-DE-ARTE.md`** — **diretriz do dono: parecer um jogo de ÚLTIMA GERAÇÃO, CARTUNESCO** (referências
+   Mario Kart 8, Crash Team Racing Nitro-Fueled), não low-poly chapado; critérios verificáveis de "pronto" no visual.
 
 ## Comandos
 - `npm run dev` (porta 5174) · `npm run build` (typecheck + `dist/`) · `npm run preview` (porta 4174)
@@ -29,6 +38,7 @@ não use nada de fora desta pasta.
   `… --part <peça> --height <m> [--paint 'y>0.62:#1b1b1b'] [--palette … --by-light] --install` → `src/assets/landmarks/parts/<peça>.glb`;
   sem o arquivo, a cena usa o bicho procedural (`landmarks/parts.ts`; os comandos por peça em `docs/ARTE.md`, "Peças baixadas").
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
+- Ver e medir (com o vite no ar): `PORT=<porta> node tools/capture.mjs "nome::track=<pista>&seg=<n>&hud=0"` (captura na corrida) · `node tools/landmark-sheet.mjs <porta> x.png "ids=a,b"` (folha de marcos) · `npx tsx tools/landmark-sight.ts <pista>` (onde fica cada marco e quantos segundos aparece) · `npx tsx tools/front-view-measure.ts <marco>` · `node tools/tile.mjs` · `node tools/svg2png.mjs` (detalhes no `docs/PLAYBOOK.md`).
 - ⚠️ Para matar um relay órfão, filtre pelo processo `node` (`ps -eo pid,comm,args`); `pkill -f relay.mjs` casa com o próprio shell.
 
 ## Regras do núcleo (`src/core`)
@@ -88,11 +98,15 @@ não use nada de fora desta pasta.
   `?carview=side|rear34|front34` e `?showroom=1` para os carros) e `npm run playtest` (fluxo inteiro).
 - **Decisões**: TypeScript + Three.js + Electron (não Unity/Godot) para o agente construir e verificar tudo
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
-  renderização para lockstep/replays; visual low-poly estilizado procedural como base, arte final em glTF;
+  renderização para lockstep/replays; visual procedural em código como base (hoje low-poly; o alvo agora é cartunesco de última
+  geração), arte final em glTF;
   "Nitro Crew" é nome provisório (Fase 2.1 decide). Gerar 3D por IA (Meshy): **não neste jogo** (dono, 04/10/2026)
-  — o estilo é low-poly e fica em código. Mas as peças orgânicas (bichos, estátuas) vêm de **modelos prontos baixados
+  — o estilo fica em código e em arte pronta/contratada. Mas as peças orgânicas (bichos, estátuas) vêm de **modelos prontos baixados
   da galeria da comunidade do Meshy (CC0)**, convertidos para o estilo por `tools/convert-landmark.mjs` (`docs/ARTE.md`).
   Não gerar nada pela API: gasta créditos do dono.
+  Direção de arte (dono, 06/10/2026): **jogo de última geração, cartunesco** — pode refazer a direção de arte e o pipeline
+  gráfico inteiros para chegar lá (`docs/DIRECAO-DE-ARTE.md`); os desenhos do minimapa viram ícones de cartum em curva
+  (em andamento: `docs/PISTAS.md`, "Desenhos em cartum").
 - **Pendências que dependem do dono**: horas semanais, orçamento de arte e música, nome definitivo, conta Steamworks,
   direção assistida completa (hoje vence a IA profissional em 70% das corridas e conta para recordes: teto de
   velocidade medido em `docs/ASSISTENCIAS.md`, ou tirar dos recordes), ordem das pistas nas copas (Great Ocean e
