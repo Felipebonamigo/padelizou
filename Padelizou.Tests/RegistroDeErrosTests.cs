@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -279,5 +281,90 @@ public class RegistroDeErrosTests
         var erro = Assert.Single(ctx.ErrosDoSistema);
         Assert.Equal(1000, erro.Mensagem.Length);
         Assert.Equal(VigiaDeErros.TamanhoMaximoDoDetalhe, erro.Detalhe.Length);
+    }
+
+    // ── O REGISTRO NÃO PODE HERDAR O CONTEXTO SUJO DA REQUISIÇÃO QUE QUEBROU ──────────────
+    //
+    // 🗣️ Felipe, 07/10/2026: chegou o push "DbUpdateException em POST /Auth/Cadastro", e no
+    // /Admin/Erros a lista seguia parada nos mesmos 15 registros, o último de 12/09.
+    //
+    // O `RegistroDeErros` é resolvido do RequestServices — o MESMO `DbPadelContext` da
+    // requisição que acabou de estourar. Quando o que estourou foi um `SaveChanges` (o caso do
+    // cadastro: CPF/login/e-mail duplicado numa corrida), o `Jogador` novo continua `Added` no
+    // ChangeTracker. O `SaveChangesAsync` do registro então tenta gravar o jogador DE NOVO junto
+    // com a linha do erro, falha pelo mesmo motivo, e a linha nunca entra. O push sai ANTES do
+    // `SaveChanges` — por isso o aviso chega e o registro não existe, e a causa não aparece em
+    // lugar nenhum.
+    //
+    // E o avesso também: com o contexto sujo, registrar o erro GRAVAVA o que a requisição tinha
+    // deixado pela metade (uma entidade alterada antes de estourar). O vigia não pode ter
+    // efeito colateral no dado.
+
+    // Recusa o INSERT de um jogador com o CPF marcado, como o índice único do banco recusaria.
+    // InMemory não valida índice — por isso a recusa é posta à mão, e aponta pro CPF 999… só.
+    private sealed class RecusaOJogadorDoCpfDuplicado : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            var temOJogadorRecusado = eventData.Context?.ChangeTracker.Entries<Jogador>()
+                .Any(e => e.State == EntityState.Added && e.Entity.Cpf == "99999999999") ?? false;
+
+            if (temOJogadorRecusado)
+                throw new DbUpdateException("duplicate key value violates unique constraint \"UQ__Jogador__C1F897318C6002EF\"");
+
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
+    private static DbContextOptions<DbPadelContext> OpcoesDoBancoDaRequisicao() =>
+        new DbContextOptionsBuilder<DbPadelContext>()
+            .UseInMemoryDatabase("padelizou_erros_" + Guid.NewGuid())
+            .AddInterceptors(new RecusaOJogadorDoCpfDuplicado())
+            .Options;
+
+    [Fact]
+    public async Task Erro_de_gravacao_da_requisicao_nao_impede_o_registro_de_ser_gravado()
+    {
+        var opcoes = OpcoesDoBancoDaRequisicao();
+        using var requisicao = new DbPadelContext(opcoes);
+
+        // A requisição: monta o cadastro e o SaveChanges estoura. O jogador fica pendente.
+        requisicao.Jogadores.Add(new Jogador { Nome = "Novo", Cpf = "99999999999" });
+        var estouro = await Assert.ThrowsAsync<DbUpdateException>(() => requisicao.SaveChangesAsync());
+
+        // O registro roda no MESMO contexto, como no RequestServices.
+        var registro = NovoRegistro(requisicao);
+        var falhaDoRegistro = await Record.ExceptionAsync(() =>
+            registro.RegistrarAsync(estouro, "/Auth/Cadastro", "POST", jogadorId: null));
+
+        Assert.Null(falhaDoRegistro);
+
+        using var leitura = new DbPadelContext(opcoes);
+        var erro = Assert.Single(await leitura.ErrosDoSistema.ToListAsync());
+        Assert.Equal("DbUpdateException", erro.Tipo);
+        Assert.Equal("/Auth/Cadastro", erro.Caminho);
+    }
+
+    [Fact]
+    public async Task Registrar_o_erro_nao_grava_o_que_a_requisicao_deixou_pela_metade()
+    {
+        var opcoes = OpcoesDoBancoDaRequisicao();
+        using var requisicao = new DbPadelContext(opcoes);
+
+        var jogador = new Jogador { Nome = "Original", Cpf = "11111111111" };
+        requisicao.Jogadores.Add(jogador);
+        await requisicao.SaveChangesAsync();
+
+        // A requisição alterou o jogador e estourou ANTES do SaveChanges.
+        jogador.Nome = "Meio-feito";
+
+        await NovoRegistro(requisicao).RegistrarAsync(
+            new InvalidOperationException("estourou no meio"), "/Torneios/Algo", "POST", jogadorId: null);
+
+        using var leitura = new DbPadelContext(opcoes);
+        Assert.Equal("Original", (await leitura.Jogadores.FindAsync(jogador.Id))!.Nome);
+        Assert.Single(await leitura.ErrosDoSistema.ToListAsync());
     }
 }

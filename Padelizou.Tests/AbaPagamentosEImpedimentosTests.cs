@@ -78,8 +78,17 @@ public class AbaPagamentosEImpedimentosTests
         var form = fonte.IndexOf("asp-action=\"AlterarConcentracaoOrganizador\"", StringComparison.Ordinal);
         Assert.True(form >= 0, "Não achei o formulário de concentração.");
 
+        // Desde 07/10/2026 as <option> não são mais escritas à mão: o formulário lê a lista de
+        // `TurnosDoTorneio.OferecidosParaConcentrar`, que some com o turno que o calendário do
+        // torneio não tem. A intenção deste teste — os três turnos existem pra escolher — passa a
+        // ser provada em duas pontas: o formulário LÊ o serviço, e o serviço OFERECE o turno num
+        // torneio que começa na quinta (o único que enxerga os três dias).
         var fim = fonte.IndexOf("</form>", form, StringComparison.Ordinal);
-        Assert.Contains($"TurnoDeConcentracao.{turno}", fonte[form..fim]);
+        Assert.Contains("TurnosDoTorneio.OferecidosParaConcentrar(", fonte[form..fim]);
+
+        var torneio = new Padelizou.Models.Torneio { DataInicio = new DateTime(2026, 10, 8) };
+        var esperado = Enum.Parse<Padelizou.Services.TurnoDeConcentracao>(turno);
+        Assert.Contains(esperado, Padelizou.Services.TurnosDoTorneio.OferecidosParaConcentrar(torneio));
     }
 
     // ⚠️ OS DOIS FORMULÁRIOS SÃO SEPARADOS, e é isso que faz as duas coisas conviverem: um POST

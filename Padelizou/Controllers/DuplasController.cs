@@ -262,6 +262,35 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // ⚠️ TURNO QUE O TORNEIO NÃO TEM NÃO ENTRA, e aqui é onde isso custa dinheiro: o
+            // `ValorInscricao` é congelado logo abaixo somando `TaxaPorImpedimento` por turno
+            // marcado, e `JanelasDeImpedimento.Da` não produz janela nenhuma pra um dia que não
+            // é dia deste torneio — a dupla pagaria pela sexta de um torneio que começa no
+            // sábado e seria escalada nela do mesmo jeito. A tela já não oferece (ver
+            // Services/TurnosDoTorneio), mas aba velha e o aplicativo instalado com o
+            // JavaScript da abertura anterior continuam mandando o que ela oferecia ontem.
+            //
+            // Fica DEPOIS do `ImpedimentoUnico.Apenas` lá em cima de propósito: aquele escolhe
+            // UM entre os marcados, este decide se esse um existe. Invertido, "quinta + sábado"
+            // num torneio de sábado perderia o sábado pra uma quinta que seria descartada em
+            // seguida — e a dupla ficaria sem o impedimento que podia ter.
+            impQuintaNoite &= TurnosDoTorneio.Tem(torneio, TurnoDoImpedimento.QuintaNoite);
+            impSextaNoite &= TurnosDoTorneio.Tem(torneio, TurnoDoImpedimento.SextaNoite);
+            impSabadoManha &= TurnosDoTorneio.Tem(torneio, TurnoDoImpedimento.SabadoManha);
+            impSabadoTarde &= TurnosDoTorneio.Tem(torneio, TurnoDoImpedimento.SabadoTarde);
+
+            // Quantos sobraram — hoje 0 ou 1 (ver ImpedimentoUnico), e a soma dos QUATRO.
+            //
+            // ⚠️ A QUINTA FALTAVA NESTA CONTA até 07/10/2026, nos dois lugares em que ela era
+            // escrita à mão (o `ValorInscricao` e a cobrança do "pagar agora"). Quem marcava
+            // "Quinta à noite" levava a janela de graça — e, como as outras três contas do
+            // sistema (`ImpedimentosDa`, `ContarImpedimentos`, `QuantoMudaOValor`) sempre
+            // contaram as quatro, tirar o impedimento depois DERRUBAVA o valor devido abaixo do
+            // preço da inscrição. Uma variável só, usada nos dois pontos: é assim que as duas
+            // não voltam a divergir.
+            int impedimentosMarcados = (impQuintaNoite ? 1 : 0) + (impSextaNoite ? 1 : 0)
+                + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0);
+
             if (torneio.Restrito && !string.Equals(chaveAcesso?.Trim(), torneio.ChaveAcesso, StringComparison.OrdinalIgnoreCase))
             {
                 TempData["Erro"] = "Chave de acesso inválida. Confira com o organizador do torneio.";
@@ -532,9 +561,7 @@ namespace Padelizou.Controllers
                 EmListaDeEspera = emListaDeEspera,
                 // Quanto ESTA inscrição custa, gravado agora: é o número que os somatórios de
                 // dinheiro leem depois, e o único que sabe quem pagou o preço de segunda.
-                ValorInscricao = PrecoDaInscricao.Total(
-                    torneio, quemPaga,
-                    (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0)),
+                ValorInscricao = PrecoDaInscricao.Total(torneio, quemPaga, impedimentosMarcados),
             };
 
             _context.Duplas.Add(dupla);
@@ -615,7 +642,7 @@ namespace Padelizou.Controllers
             {
                 var checkoutAgora = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
                     torneio, recebedor!, jogador1, inscricaoDeDupla: true,
-                    impedimentos: (impSextaNoite ? 1 : 0) + (impSabadoManha ? 1 : 0) + (impSabadoTarde ? 1 : 0),
+                    impedimentos: impedimentosMarcados,
                     new DadosPagamentoDeInscricao(torneioId, dupla.Id, null),
                     formaPagamentoEscolhida);
 

@@ -86,6 +86,20 @@ public static class AlteracaoDeImpedimento
         // devolução, e devolução aqui é o botão de estorno do organizador, na mão (ESTORNO.md).
         // Fingir que a tela resolve isso sozinha é como o dinheiro fica pendurado sem ninguém
         // saber.
+        // ⚠️ O TURNO PRECISA EXISTIR NESTE TORNEIO, e a tela não basta pra isso: página velha
+        // em cache, POST feito à mão e o aplicativo instalado (que guarda o JavaScript por mais
+        // uma abertura) continuam mandando o turno que a lista deixou de oferecer. Aceitar aqui
+        // é voltar a cobrar `TaxaPorImpedimento` por uma janela que o sorteio ignora. Ver
+        // Services/TurnosDoTorneio.
+        //
+        // `Nenhum` nunca cai aqui (TurnosDoTorneio.Tem o devolve sempre), e é o que deixa quem
+        // já está preso num turno inexistente conseguir sair dele.
+        if (novo is { } pedido && !TurnosDoTorneio.Tem(torneio, pedido))
+        {
+            return $"Este torneio não tem \"{Rotulo(pedido)}\" — ele começa em "
+                 + $"{torneio.DataInicio:dd/MM} e só vai até o fim de semana.";
+        }
+
         if (novo is { } turno && dupla.Pago && QuantoMudaOValor(dupla, torneio, turno) != 0)
         {
             return "Essa inscrição já está paga: mudar isso mexeria no valor. "
@@ -104,7 +118,8 @@ public static class AlteracaoDeImpedimento
     // numa dupla já paga — a tela mostra quanto isso muda (`QuantoMudaOValor`), mas o ajuste
     // do dinheiro em si continua manual, do lado dele (marcar/desmarcar pago, ou o estorno na
     // mão de ESTORNO.md). Nada é cobrado nem estornado sozinho por esta função.
-    public static string? MotivoParaOrganizadorNaoAlterar(Dupla? dupla, Torneio? torneio, bool jaSorteou)
+    public static string? MotivoParaOrganizadorNaoAlterar(Dupla? dupla, Torneio? torneio, bool jaSorteou,
+        TurnoDoImpedimento? novo = null)
     {
         if (dupla == null || torneio == null) return "Não encontrei essa inscrição.";
 
@@ -119,6 +134,11 @@ public static class AlteracaoDeImpedimento
         // disto (ele revisa DEPOIS de fechar, antes de sortear).
         if (jaSorteou)
             return "As chaves já foram sorteadas — mudar o impedimento agora bagunçaria a grade já montada.";
+
+        // A MESMA trava de turno inexistente do jogador, e pelo mesmo motivo: o painel é uma
+        // tela só, e `<option>` some do HTML sem sumir do POST que já estava aberto.
+        if (novo is { } pedido && !TurnosDoTorneio.Tem(torneio, pedido))
+            return $"Este torneio não tem \"{Rotulo(pedido)}\".";
 
         return null;
     }
