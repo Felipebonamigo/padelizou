@@ -26,6 +26,12 @@ public class MetricasAdminVM
 
     // Tráfego (Services/MetricasDeAcesso) — só site público, dev e admin ficam de fora.
     public int AcessosHoje { get; set; }
+
+    // Quanto o patrocínio rende em visita — total e nos últimos 30 dias, por marca.
+    // Patrocinador em cartaz sem clique vem com zero de propósito: "não aparece" e
+    // "teve zero clique" são conclusões opostas (ver Services/CliquesDoPatrocinio).
+    public IReadOnlyList<Padelizou.Services.ContagemDeCliques> CliquesNoPatrocinio { get; set; }
+        = Array.Empty<Padelizou.Services.ContagemDeCliques>();
     // ⚠️ NÃO é presença ("gente online agora"): é o minuto mais cheio do dia, sem WebSocket
     // pra saber quantas abas estão abertas. Ver o porquê em MetricasDeAcesso.
     public int PicoDeAcessosNoMinuto { get; set; }

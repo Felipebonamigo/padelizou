@@ -551,7 +551,22 @@
                                de ranqueamento. *@
                             @if (!string.IsNullOrWhiteSpace(patrocinador.Link))
                             {
-                                <a href="@patrocinador.Link" target="_blank" rel="sponsored noopener"
+                                @* ⚠️ PASSA PELO NOSSO SALTO (29/09/2026) pra o clique poder ser
+                                   contado: apontando direto pro site da marca, ele nunca tocava
+                                   o servidor. O `rel="sponsored"` CONTINUA — é o rótulo que o
+                                   Google exige em link pago, e perdê-lo no meio da mudança
+                                   transformaria patrocínio em compra de link.
+                                   O destino sai da NOSSA lista pelo nome (ver
+                                   PatrocinadoresController.Ir): URL vinda do pedido seria open
+                                   redirect saindo do domínio em que as pessoas confiam.
+
+                                   ⚠️ E SAI DO HOST quando o layout é renderizado DENTRO do
+                                   painel: `/ir` não está entre os prefixos que
+                                   admin.padelizou.com.br serve, então o relativo morria em 404
+                                   ali — o clique que o patrocinador comprou não chegava nele
+                                   nem era contado. Achado em 29/09/2026, pelo print do erro. *@
+                                <a href="@AdminHostMiddleware.UrlNoSitePublico(ViewContext.HttpContext, ehDesenvolvimento, $"/ir/patrocinador/{Uri.EscapeDataString(patrocinador.Nome)}")"
+                                   target="_blank" rel="sponsored noopener"
                                    title="Visitar o site do @patrocinador.Nome">
                                     @{ await LogoDoPatrocinador(patrocinador); }
                                 </a>

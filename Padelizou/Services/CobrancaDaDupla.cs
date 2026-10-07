@@ -21,6 +21,21 @@ public static class CobrancaDaDupla
             && (p.Tipo == "TorneioDupla" || p.Tipo == "TorneioPagarDepois")
             && (p.Status == "Confirmado" || p.Status == "Pendente" || p.Status == "AguardandoEstorno"));
 
+    // O que JÁ ENTROU nesta inscrição. Mesmo par de tipos do `AtivaDe`, só que apertado nos
+    // confirmados: é a base de "falta quanto" (Services/QuitacaoDaInscricao) desde 06/10/2026,
+    // quando se descobriu que meia inscrição paga marcava a dupla inteira como quitada.
+    public static IQueryable<Pagamento> ConfirmadosDe(DbPadelContext ctx, int duplaId) =>
+        ctx.Pagamentos.Where(p => p.ReferenciaId == duplaId
+            && (p.Tipo == "TorneioDupla" || p.Tipo == "TorneioPagarDepois")
+            && p.Status == "Confirmado");
+
+    // O mesmo, para VÁRIAS inscrições de uma vez — a faixa da tela do torneio precisa saber
+    // quanto entrou em cada uma das minhas.
+    public static IQueryable<Pagamento> ConfirmadosDe(DbPadelContext ctx, IReadOnlyCollection<int> duplaIds) =>
+        ctx.Pagamentos.Where(p => p.ReferenciaId != null && duplaIds.Contains(p.ReferenciaId.Value)
+            && (p.Tipo == "TorneioDupla" || p.Tipo == "TorneioPagarDepois")
+            && p.Status == "Confirmado");
+
     // As cobranças do "pagar depois" que continuam ABERTAS neste torneio.
     //
     // ⚠️ ESTAS O `AtivaDe` NUNCA ACHA, e é de propósito: `ReferenciaId` só é gravado quando o

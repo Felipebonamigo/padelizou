@@ -667,7 +667,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
 
             bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
-            if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou) is { } motivo)
+            if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou, turno) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
@@ -742,7 +742,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
 
             bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
-            if (ConcentracaoDeJogos.MotivoParaOrganizadorNaoConcentrar(dupla, torneio, jaSorteou) is { } motivo)
+            if (ConcentracaoDeJogos.MotivoParaOrganizadorNaoConcentrar(dupla, torneio, jaSorteou, turno) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
@@ -1350,7 +1350,11 @@ namespace Padelizou.Controllers
         [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PagarInscricao(
-            int torneioId, int? duplaId, int? inscricaoAmericanaId, string? formaPagamentoEscolhida = null)
+            int torneioId, int? duplaId, int? inscricaoAmericanaId, string? formaPagamentoEscolhida = null,
+            // "a minha parte" ou "a dupla" (Services/QuitacaoDaInscricao). ⚠️ Viaja a ESCOLHA,
+            // nunca o valor: valor vindo do formulário seria o jogador dizendo quanto quer
+            // pagar. Quem calcula é o servidor, logo abaixo.
+            string? oQuePagar = null)
         {
             var torneio = await _context.Torneios.FindAsync(torneioId);
             if (torneio == null) return NotFound();
@@ -1375,6 +1379,7 @@ namespace Padelizou.Controllers
             bool inscricaoDeDupla;
             int impedimentos;
             DadosPagamentoDeInscricao dados;
+            decimal? valorAPagar = null;
 
             if (ehDupla)
             {
@@ -1388,7 +1393,24 @@ namespace Padelizou.Controllers
                 if (dupla.Jogador1Id != jogadorId && dupla.Jogador2Id != jogadorId)
                     return Recusar("Só quem está nesta inscrição pode pagá-la.");
 
-                if (dupla.Pago) return Recusar("Esta inscrição já está paga.");
+                // ⚠️ A TRAVA É SOBRE O DINHEIRO, NÃO SOBRE A FLAG (06/10/2026). Desde que a
+                // inscrição pode ser paga em partes, `Pago` não quer dizer "não deve nada": a
+                // do Lucas estava marcada como paga devendo metade, e recusar por aqui deixaria
+                // o parceiro sem conseguir quitar pelo app.
+                var jaPago = await CobrancaDaDupla.ConfirmadosDe(_context, dupla.Id).SumAsync(p => p.Valor);
+                var devido = PrecoDaInscricao.DaDupla(torneio, dupla);
+                var falta = QuitacaoDaInscricao.Falta(devido, jaPago);
+
+                if (falta <= 0m) return Recusar("Esta inscrição já está paga.");
+                if (dupla.Pago && jaPago <= 0m)
+                    return Recusar("Esta inscrição já foi acertada com o organizador.");
+
+                // Eu repito no torneio? Ignorando ESTA inscrição, senão ela me colocaria "já no
+                // torneio" por causa de mim mesmo — ver DuplasController.
+                var euRepito = await QuemJaEstaNoTorneio.EstaAsync(
+                    _context, torneioId, jogadorId, new[] { dupla.Id });
+
+                valorAPagar = QuitacaoDaInscricao.ValorDaEscolha(torneio, oQuePagar, euRepito, falta);
 
                 inscricaoDeDupla = true;
                 impedimentos = (dupla.ImpedimentoSextaNoite ? 1 : 0)
@@ -1424,7 +1446,7 @@ namespace Padelizou.Controllers
 
             var checkout = await _pagamentos.IniciarCobrancaDeInscricaoAsync(
                 torneio, recebedor!, pagador, inscricaoDeDupla, impedimentos, dados,
-                formaPagamentoEscolhida);
+                formaPagamentoEscolhida, valorAPagar);
 
             if (checkout != null) return Redirect(checkout);
 

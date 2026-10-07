@@ -58,6 +58,17 @@ public static class ConcentracaoDeJogos
         _ => "Sem concentração",
     };
 
+    // O MESMO turno, dito curto. O seletor do painel já vem embaixo do rótulo "Pôr os 2 jogos
+    // em", então repetir "Os 2 jogos" dentro de cada opção é ler a mesma frase duas vezes. Mora
+    // aqui, ao lado do `Rotulo`, pra que os dois textos do mesmo turno nasçam juntos.
+    public static string RotuloCurto(TurnoDeConcentracao turno) => turno switch
+    {
+        TurnoDeConcentracao.SextaNoite => "Sexta à noite",
+        TurnoDeConcentracao.SabadoManha => "Sábado de manhã",
+        TurnoDeConcentracao.SabadoTarde => "Sábado à tarde",
+        _ => "Onde couber",
+    };
+
     // A janela EM QUE A DUPLA PODE JOGAR — o turno escolhido, no calendário deste torneio.
     // Null quando o turno não existe no torneio (pedir "só sexta" num torneio de sábado a
     // domingo), e é essa nulidade que impede o caso catastrófico logo abaixo.
@@ -136,8 +147,25 @@ public static class ConcentracaoDeJogos
     // A recusa do lado do organizador. É a MESMA régua do impedimento — sem checagem de dono (ele
     // mexe no de outra pessoa, de propósito) e janela até o sorteio —, e por isso é delegada em
     // vez de copiada: duas cópias divergem, e aí a tela aceita o que o servidor recusa.
-    public static string? MotivoParaOrganizadorNaoConcentrar(Dupla? dupla, Torneio? torneio, bool jaSorteou) =>
-        AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou);
+    //
+    // ⚠️ `novo` entra pela MESMA razão que entrou do lado do impedimento (07/10/2026): o turno
+    // precisa existir no calendário deste torneio. "Os 2 jogos na sexta" num torneio que começa
+    // no sábado é gravado, avisa os dois jogadores e `JanelaDoTurno` devolve null — o favor
+    // nunca acontece, e o silêncio é o pior pedaço. Ver Services/TurnosDoTorneio.
+    public static string? MotivoParaOrganizadorNaoConcentrar(Dupla? dupla, Torneio? torneio, bool jaSorteou,
+        TurnoDeConcentracao? novo = null)
+    {
+        if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou) is { } motivo)
+            return motivo;
+
+        if (torneio != null && novo is { } pedido && pedido != TurnoDeConcentracao.Nenhuma
+            && torneio.DataInicio != null && JanelaDoTurno(torneio, pedido) == null)
+        {
+            return $"Este torneio não tem \"{Rotulo(pedido)}\" — ele começa em {torneio.DataInicio:dd/MM}.";
+        }
+
+        return null;
+    }
 
     // ⚠️ ATÉ QUANDO A GRADE PRECISA IR pra que a concentração aconteça de verdade. Null quando
     // ninguém está concentrado — e aí nada muda pra torneio nenhum.

@@ -733,22 +733,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
    A escolha da forma vai junto (ForcarEscolhaDeForma) porque sem ela a cobrança nasce em
    "UNDEFINED" e o organizador paga a taxa CHEIA em vez da de Pix/boleto. *@
 @{
-    var minhaDuplaNaoPaga = ViewBag.MinhaInscricaoNaoPagaDuplaId as int?;
-    var minhaAmericanaNaoPaga = ViewBag.MinhaInscricaoNaoPagaAmericanaId as int?;
-    var valorDaMinhaInscricao = ViewBag.MinhaInscricaoNaoPagaValor as decimal?;
+    var minhasNaoPagas = ViewBag.MinhasInscricoesNaoPagas as List<Padelizou.ViewModels.InscricaoNaoPagaVM>
+        ?? new List<Padelizou.ViewModels.InscricaoNaoPagaVM>();
     @* Quem está olhando a tela. A lista de inscritos usa isto pra saber o que é recado
        pessoal (o prazo de pagamento) e o que é informação do torneio (o selo). *@
     var meuJogadorId = ViewBag.MeuJogadorId as int?;
 }
-@if (minhaDuplaNaoPaga != null || minhaAmericanaNaoPaga != null)
+@if (minhasNaoPagas.Count > 0)
 {
     <div class="alert alert-warning border-0 shadow-sm">
-        <p class="fw-bold mb-1"><i class="bi bi-cash-coin"></i> Sua inscrição está sem pagamento</p>
+        <p class="fw-bold mb-1">
+            <i class="bi bi-cash-coin"></i>
+            @(minhasNaoPagas.Count == 1
+                ? "Sua inscrição está sem pagamento"
+                : $"Suas {minhasNaoPagas.Count} inscrições estão sem pagamento")
+        </p>
         <p class="small mb-3">
-            A vaga já é sua — o pagamento é o que falta.
-            @if (valorDaMinhaInscricao is decimal valor)
+            @(minhasNaoPagas.Count == 1 ? "A vaga já é sua" : "As vagas já são suas") —
+            o pagamento é o que falta.
+            @if (minhasNaoPagas.Count > 1)
             {
-                <text>São <strong>@valor.ToString("C")</strong>.</text>
+                @* 🗣️ O PEDIDO QUE ORIGINOU ISTO (29/09/2026), de quem estava em duas
+                   categorias e leu o total de UMA delas como o das duas: "eu imagino que
+                   esses 250 é para as duas categorias... as vezes é preciso dizer o óbvio". *@
+                <text><strong>São cobranças separadas, uma por categoria.</strong></text>
             }
             @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
             {
@@ -756,29 +764,97 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             }
         </p>
 
-        <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
-            <input type="hidden" name="torneioId" value="@Model.Id" />
-            @if (minhaDuplaNaoPaga is int duplaPagar)
-            {
-                <input type="hidden" name="duplaId" value="@duplaPagar" />
-            }
-            else
-            {
-                <input type="hidden" name="inscricaoAmericanaId" value="@minhaAmericanaNaoPaga" />
-            }
+        @foreach (var inscricao in minhasNaoPagas)
+        {
+            <div class="bg-white rounded-3 p-3 mb-2">
+                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
+                    <div>
+                        <div class="fw-bold">@inscricao.Categoria</div>
+                        <div class="small text-muted">@inscricao.Quem</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold fs-5">@inscricao.Falta.ToString("C")</div>
+                        @* O que JÁ ENTROU aparece junto desde 06/10/2026: sem isto, quem pagou
+                           a própria metade vê um valor menor que o anunciado e acha que o
+                           sistema errou. O total continua na tela, que é o número que a pessoa
+                           reconhece do anúncio do torneio. *@
+                        @if (inscricao.JaPago > 0m)
+                        {
+                            <div class="small">
+                                <span class="badge bg-success-subtle text-success-emphasis">
+                                    já pago @inscricao.JaPago.ToString("C")
+                                </span>
+                            </div>
+                            <div class="small text-muted">de @inscricao.Valor.ToString("C") no total</div>
+                        }
+                        else if (inscricao.Conta is { } conta)
+                        {
+                            @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
+                               parcial, ajuste na mão). Aí o valor vai sozinho: conta que não
+                               fecha ao lado do número ensina o jogador a desconfiar dos dois. *@
+                            <div class="small text-muted">@conta</div>
+                        }
+                    </div>
+                </div>
 
-            @{
-                ViewData["ForcarEscolhaDeForma"] = true;
-            }
-            <partial name="_EscolhaFormaPagamento" model="Model" />
-            @{
-                ViewData["ForcarEscolhaDeForma"] = null;
-            }
+                <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
+                    <input type="hidden" name="torneioId" value="@Model.Id" />
+                    @if (inscricao.DuplaId is int duplaPagar)
+                    {
+                        <input type="hidden" name="duplaId" value="@duplaPagar" />
+                    }
+                    else
+                    {
+                        <input type="hidden" name="inscricaoAmericanaId" value="@inscricao.InscricaoAmericanaId" />
+                    }
 
-            <button type="submit" class="btn btn-padel rounded-pill">
-                <i class="bi bi-credit-card me-1"></i> Pagar agora
-            </button>
-        </form>
+                    @{
+                        ViewData["ForcarEscolhaDeForma"] = true;
+                        @* Sem sufixo próprio, o label da SEGUNDA inscrição marcaria o rádio da
+                           primeira — ids iguais no mesmo documento. Ver _EscolhaFormaPagamento. *@
+                        ViewData["SufixoDaForma"] =
+                            $"insc{inscricao.DuplaId ?? inscricao.InscricaoAmericanaId}";
+                    }
+                    <partial name="_EscolhaFormaPagamento" model="Model" />
+                    @{
+                        ViewData["ForcarEscolhaDeForma"] = null;
+                        ViewData["SufixoDaForma"] = null;
+                    }
+
+                    @* 🗣️ "faz a opção de pagar somente o seu ou o da dupla" (Felipe,
+                       06/10/2026). Os dois botões mandam a MESMA ação, mudando só a escolha —
+                       o valor é calculado no servidor (Services/QuitacaoDaInscricao). Só
+                       aparecem os dois quando há o que dividir: faltando a parte de uma
+                       pessoa, dois botões com o mesmo valor seriam uma escolha falsa. *@
+                    @if (inscricao.PodeEscolherMinhaParte)
+                    {
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" name="oQuePagar"
+                                    value="@Padelizou.Services.QuitacaoDaInscricao.MinhaParte"
+                                    class="btn btn-outline-primary rounded-pill">
+                                <i class="bi bi-person me-1"></i>
+                                Pagar só a minha parte (@inscricao.MinhaParte.ToString("C"))
+                            </button>
+                            <button type="submit" name="oQuePagar"
+                                    value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                    class="btn btn-padel rounded-pill">
+                                <i class="bi bi-people me-1"></i>
+                                Pagar a dupla (@inscricao.Falta.ToString("C"))
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="submit" name="oQuePagar"
+                                value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                class="btn btn-padel rounded-pill">
+                            <i class="bi bi-credit-card me-1"></i>
+                            Pagar @inscricao.Falta.ToString("C")
+                        </button>
+                    }
+                </form>
+            </div>
+        }
     </div>
 }
 
@@ -1729,25 +1805,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            taxa, e a tela diz isso ANTES de gravar. *@
                                         // (bloco de codigo: ja estamos dentro de um @if)
                                             var turnoAtual = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(dupla);
-                                            var turnosOferecidos = new List<(Padelizou.Services.TurnoDoImpedimento Turno, bool Cabe)>
-                                            {
-                                                (Padelizou.Services.TurnoDoImpedimento.Nenhum, true),
-                                                (Padelizou.Services.TurnoDoImpedimento.QuintaNoite, Model.QuintaEhDiaDoTorneio && Model.PermiteImpedimentoQuintaNoite),
-                                                (Padelizou.Services.TurnoDoImpedimento.SextaNoite, Model.PermiteImpedimentoSextaNoite),
-                                                (Padelizou.Services.TurnoDoImpedimento.SabadoManha, Model.PermiteImpedimentoSabadoManha),
-                                                (Padelizou.Services.TurnoDoImpedimento.SabadoTarde, Model.PermiteImpedimentoSabadoTarde),
-                                            };
-                                        @if (Model.PermiteImpedimentos && turnosOferecidos.Count(t => t.Cabe) > 1)
+                                            @* ⚠️ A LISTA VEM DO SERVIÇO (07/10/2026), e não mais montada aqui:
+                                               um turno só entra se o torneio PERMITE e se o dia dele é dia
+                                               deste torneio. A régua antiga (`QuintaEhDiaDoTorneio &&
+                                               PermiteImpedimentoQuintaNoite`) não segurava nada — a
+                                               propriedade é `é quinta || PermiteQuinta`, e `A && (B || A)`
+                                               é `A`. A sexta nunca teve checagem de dia nenhuma, e era ela
+                                               que aparecia no torneio de sábado. Ver Services/TurnosDoTorneio. *@
+                                            var turnosOferecidos = Padelizou.Services.TurnosDoTorneio.Oferecidos(Model, turnoAtual);
+                                        @if (Model.PermiteImpedimentos && turnosOferecidos.Count > 1)
                                         {
                                             <form asp-controller="Torneios" asp-action="AlterarImpedimento" method="post" class="mt-2">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <label class="form-label small fw-bold mb-1">Impedimento de horário</label>
                                                 <div class="input-group input-group-sm" style="max-width: 26rem;">
                                                     <select name="turno" class="form-select">
-                                                        @foreach (var opcao in turnosOferecidos.Where(t => t.Cabe))
+                                                        @foreach (var opcao in turnosOferecidos)
                                                         {
-                                                            <option value="@opcao.Turno" selected="@(opcao.Turno == turnoAtual)">
-                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao.Turno)
+                                                            <option value="@opcao" selected="@(opcao == turnoAtual)">
+                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao)
                                                             </option>
                                                         }
                                                     </select>
@@ -2192,7 +2268,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </div>
 
             <!-- Regras de Impedimento Dinâmicas -->
-            @if (Model.PermiteImpedimentos)
+            @* ⚠️ `turnosDaInscricao` e não os quatro `PermiteImpedimentoX` soltos (07/10/2026):
+               o interruptor da criação diz o que o organizador QUER oferecer, e o calendário diz
+               o que existe. Este formulário é onde o turno inexistente custa dinheiro de verdade
+               — o `ValorInscricao` nasce aqui somando `TaxaPorImpedimento` por turno marcado, e
+               a sexta de um torneio que começa no sábado não tira jogo nenhum da grade.
+               Ver Services/TurnosDoTorneio; o servidor descarta de novo no DuplasController.Create. *@
+            @{
+                var turnosDaInscricao = Padelizou.Services.TurnosDoTorneio.Oferecidos(Model);
+            }
+            @if (Model.PermiteImpedimentos && turnosDaInscricao.Count > 1)
             {
                 <div class="alert alert-warning mt-2 border-warning">
                     <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
@@ -2214,28 +2299,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         </p>
                     }
 
-                    @if (Model.PermiteImpedimentoQuintaNoite)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.QuintaNoite))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impQuintaNoite" value="true" id="impQuinta">
                             <label class="form-check-label" for="impQuinta">Não podemos jogar na <strong>Quinta à noite</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSextaNoite)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SextaNoite))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSextaNoite" value="true" id="impSexta">
                             <label class="form-check-label" for="impSexta">Não podemos jogar na <strong>Sexta à noite</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSabadoManha)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SabadoManha))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSabadoManha" value="true" id="impSabManha">
                             <label class="form-check-label" for="impSabManha">Não podemos jogar no <strong>Sábado de manhã</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSabadoTarde)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SabadoTarde))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSabadoTarde" value="true" id="impSabTarde">
@@ -5666,12 +5751,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
                                                       class="d-flex gap-2 align-items-center flex-wrap">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    @* ⚠️ OS CINCO ERAM ESCRITOS À MÃO AQUI (07/10/2026), sem olhar
+                                                       nem os interruptores da criação nem o calendário: o painel do
+                                                       torneio que começa no SÁBADO oferecia "Quinta à noite" e
+                                                       "Sexta à noite" — e marcá-las não tira jogo nenhum da grade,
+                                                       porque `JanelasDeImpedimento.Da` não acha esses dias. Agora
+                                                       sai da MESMA lista que a tela do jogador usa.
+                                                       `turnoAtual` vai junto: o turno já marcado continua na lista
+                                                       mesmo que o torneio não o tenha, senão o organizador não teria
+                                                       como TIRAR a sexta de quem a marcou antes desta regra. *@
                                                     <select name="turno" class="form-select form-select-sm" style="width: auto;">
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.Nenhum" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)">Sem impedimento</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.QuintaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.QuintaNoite)">Quinta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
+                                                        @foreach (var opcao in Padelizou.Services.TurnosDoTorneio.Oferecidos(Model, turnoAtual))
+                                                        {
+                                                            <option value="@opcao" selected="@(opcao == turnoAtual)">
+                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao)
+                                                            </option>
+                                                        }
                                                     </select>
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">
                                                         <i class="bi bi-check-lg"></i> Salvar
@@ -5693,11 +5788,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <form asp-controller="Torneios" asp-action="AlterarConcentracaoOrganizador" method="post"
                                                       class="d-flex gap-2 align-items-center flex-wrap">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    @* O seletor vizinho tinha o MESMO problema e ele é ainda mais
+                                                       calado: "Os 2 jogos na sexta" num torneio de sábado é gravado,
+                                                       avisa os dois jogadores — e `ConcentracaoDeJogos.JanelaDoTurno`
+                                                       devolve null, então o favor nunca acontece. *@
                                                     <select name="turno" class="form-select form-select-sm" style="width: auto;">
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.Nenhuma" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.Nenhuma)">Onde couber</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SextaNoite" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SextaNoite)">Sexta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoManha" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoManha)">Sábado de manhã</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoTarde" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoTarde)">Sábado à tarde</option>
+                                                        @foreach (var opcao in Padelizou.Services.TurnosDoTorneio.OferecidosParaConcentrar(Model, concentracao))
+                                                        {
+                                                            <option value="@opcao" selected="@(opcao == concentracao)">
+                                                                @Padelizou.Services.ConcentracaoDeJogos.RotuloCurto(opcao)
+                                                            </option>
+                                                        }
                                                     </select>
                                                     <button type="submit" class="btn btn-sm btn-padel">
                                                         <i class="bi bi-check-lg"></i> Salvar

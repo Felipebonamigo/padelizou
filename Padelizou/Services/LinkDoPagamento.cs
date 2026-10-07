@@ -26,4 +26,8 @@ public static class LinkDoPagamento
     public static string Para(int pagamentoId) => $"/Pagamentos/Fatura/{pagamentoId}";
 
     public static string Para(Pagamento pagamento) => Para(pagamento.Id);
+
+    // Pra onde o aviso de "caiu o dinheiro" leva (06/10/2026): o caixa do torneio, que é a
+    // tela que o organizador abre pra conferir quem pagou e de quem ainda falta cobrar.
+    public static string DoFinanceiroDoTorneio(int torneioId) => $"/Torneios/Financeiro/{torneioId}";
 }

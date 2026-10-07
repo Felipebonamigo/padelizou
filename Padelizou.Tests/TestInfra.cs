@@ -358,6 +358,77 @@ public static class TestInfra
     // produção ele nasce FALSE (módulo em construção, só admin entra), e por isso o padrão
     // aqui é true — a maioria dos testes quer exercitar a regra, não a porta. Quem testa a
     // porta passa false de propósito.
+    // DuplasController pronto pra uso — inscrição, troca de parceiro, convite.
+    public static DuplasController NovoDuplasController(DbPadelContext ctx, int usuarioLogadoId,
+        IPagamentoInscricaoService? pagamentos = null, IPushNotificationService? push = null)
+    {
+        push ??= Substitute.For<IPushNotificationService>();
+
+        var controller = new DuplasController(
+            ctx,
+            new EstatisticasService(ctx),
+            push,
+            pagamentos ?? Substitute.For<IPagamentoInscricaoService>(),
+            // Ranking RS sem chave: `Configurado` nasce false no substituto, então a validação
+            // deixa passar — quem testa a trava do ranking monta a dela.
+            new ValidacaoPeloRankingRs(ctx, Substitute.For<IRankingRsService>(),
+                NullLogger<ValidacaoPeloRankingRs>.Instance),
+            new AvisoDeInscricaoNoTorneio(ctx, push),
+            NullLogger<DuplasController>.Instance);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim(ClaimTypes.NameIdentifier, usuarioLogadoId.ToString()) }, "Teste")),
+            },
+        };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.HttpContext, Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
+        controller.Url = UrlDeTeste();
+        return controller;
+    }
+
+    // Um pagamento de inscrição que CONFIRMA de verdade — passa pelo mesmo caminho do webhook
+    // (PagamentoInscricaoService.EfetivarAsync), que é onde mora a régua de quitação.
+    public static async Task ConfirmarPagamentoDeInscricaoAsync(
+        DbPadelContext ctx, Torneio torneio, Jogador quemPaga, int duplaId, decimal valor,
+        IPushNotificationService? push = null)
+    {
+        var pagamento = new Padelizou.Models.Pagamento
+        {
+            Tipo = "TorneioPagarDepois",
+            TorneioId = torneio.Id,
+            JogadorId = quemPaga.Id,
+            Valor = valor,
+            // ⚠️ "Confirmado" ANTES de efetivar, como o webhook faz (PagamentosController):
+            // lá o status é gravado e só então a inscrição é liberada. Deixar "Pendente" aqui
+            // faria o teste medir um caminho que não existe — e a régua de quitação, que soma
+            // os CONFIRMADOS, enxergaria zero.
+            Status = "Confirmado",
+            ConfirmadoEm = DateTime.Now,
+            DadosInscricao = System.Text.Json.JsonSerializer.Serialize(
+                new DadosPagamentoDeInscricao(torneio.Id, duplaId, null)),
+        };
+        ctx.Pagamentos.Add(pagamento);
+        await ctx.SaveChangesAsync();
+
+        await ServicoDePagamentos(ctx, push).EfetivarAsync(pagamento);
+    }
+
+    // O serviço de pagamentos de verdade — é nele que mora a régua de quitação e o aviso de
+    // "caiu o dinheiro", então teste que mede esses dois não pode usar dublê.
+    public static PagamentoInscricaoService ServicoDePagamentos(
+        DbPadelContext ctx, IPushNotificationService? push = null) =>
+        new(ctx,
+            Substitute.For<IAsaasService>(),
+            Microsoft.Extensions.Options.Options.Create(new AsaasSettings()),
+            NullLogger<PagamentoInscricaoService>.Instance,
+            push ?? Substitute.For<IPushNotificationService>(),
+            Microsoft.Extensions.Options.Options.Create(new TaxasExibicao()),
+            Microsoft.Extensions.Options.Options.Create(new PlanoProfessorSettings()));
+
     public static DesafiosController NovoDesafiosController(DbPadelContext ctx, int usuarioLogadoId,
         bool habilitado = true, IPushNotificationService? push = null)
     {
