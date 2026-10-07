@@ -264,24 +264,18 @@
                 <span class="pdz-jl-durou">@duracao</span>
             }
 
-            @* O QUE O SORTEIO TINHA PROMETIDO, quando a realidade saiu diferente (14/09/2026).
-               🗣️ Felipe: "temos que seguir a grade prevista, por que o usuario se baseia [...]
-               talvez devamos criar campos separados (Horario chaveamento, Horario atualizado)".
+            @* O "PREVISTO 10/10 19:00" RISCADO SAIU DAQUI (07/10/2026). 🗣️ Felipe, com o print de
+               dois jogos do NATA: *"não precisa ter esse previsto para o público, nem pra mim"*.
+               Ele mesmo o pedira em 14/09 (depois do 2ª Etapa do ER); desfez: o horário que vale é
+               o de cima, e uma segunda hora riscada embaixo polui mais do que informa.
 
-               ⚠️ SÓ QUANDO DIFEREM. No caso normal — torneio no horário — os dois são a mesma
-               coisa, e repetir o mesmo horário duas vezes seria poluir o cartão sem dizer nada.
-               Nulo é jogo de antes desta mudança: some, como sempre foi.
-
-               É esta linha que responde a pergunta do jogador que se programou pelas 14:40 e
-               chegou às 16:20: mudou, e mudou a partir do quê. *@
-            @if (jogo.HorarioDoSorteio is DateTime prometido
-                 && jogo.HorarioPrevisto is DateTime agora
-                 && prometido != agora)
-            {
-                <span class="pdz-jl-prometido" title="Horário do sorteio">
-                    previsto @prometido.ToString("dd/MM HH:mm")
-                </span>
-            }
+               ⚠️ SÓ A TELA. O horário que o sorteio prometeu segue sendo gravado no nascimento do
+               jogo (DbPadelContext, método que carimba a promessa) — apagar a coluna seria
+               migration, que ninguém pediu, e o dado fica pra o dia em que ela voltar a aparecer.
+               A regra de CSS da etiqueta riscada ficou ÓRFÃ no site.css de propósito: mexer nele
+               exige subir a versão do cache em wwwroot/sw.js (ele está na lista de arquivos
+               guardados), e isso não vale uma regra morta. Sai junto do próximo bump.
+               Quem trava a ausência é OPrevistoRiscadoNaoApareceParaNinguemTests. *@
         </span>
 
         <span class="pdz-jl-etiquetas">
