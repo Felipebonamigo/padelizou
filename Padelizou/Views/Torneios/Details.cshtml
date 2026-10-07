@@ -6329,35 +6329,87 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
         <!-- ABA: PONTOS POR TIME (neste torneio) — nunca no Americano, ver a aba lá em cima -->
         <div class="tab-pane fade @(Padelizou.Services.FormatoDoTorneio.EhAmericano(Model.Formato) ? "d-none" : "")" id="timesTorneio" role="tabpanel">
-            <h4 class="mb-1 fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Pontos por time</h4>
-            <p class="text-muted small mb-3">Quanto cada time somou neste torneio — os pontos das duplas vão para o time que cada jogador representa.</p>
-            @if (!pontosTimes.Any())
+            @{
+                var campanhasDosTimes = ViewBag.CampanhaDosTimes as IReadOnlyDictionary<int, Padelizou.Services.CampanhaDosTimes.Campanha>
+                    ?? new Dictionary<int, Padelizou.Services.CampanhaDosTimes.Campanha>();
+                var linhasDosTimes = Padelizou.Services.CampanhaDosTimes.Tabela(campanhasDosTimes, pontosTimes);
+                var comCampanha = new ViewDataDictionary(ViewData) { ["TorneioId"] = Model.Id };
+                bool torneioPontua = pontosTimes.Any();
+            }
+
+            @* O CARD DO MEU TIME (Felipe, 28/09/2026): quem joga por um time abre a aba querendo
+               saber como o SEU time está — não o 7º lugar da tabela. Só aparece quando o time
+               tem dupla neste torneio; os outros times abrem o mesmo card tocando na linha. *@
+            @if (ViewBag.MeuTimeId is int meuTimeId && campanhasDosTimes.TryGetValue(meuTimeId, out var campanhaDoMeuTime))
             {
-                <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhum jogador com time pontuou neste torneio ainda.</p>
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--pdz-lime) !important;">
+                    <div class="card-body">
+                        <div class="small fw-bold text-uppercase mb-2" style="color: var(--pdz-lime-600); letter-spacing:.04em;">
+                            <i class="bi bi-person-check-fill"></i> Campanha do seu time
+                        </div>
+                        <partial name="_CampanhaDoTime" model="campanhaDoMeuTime" view-data="comCampanha" />
+                    </div>
+                </div>
+            }
+
+            <h4 class="mb-1 fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-shield-fill"></i> Times no torneio</h4>
+            <p class="text-muted small mb-3">
+                A campanha soma as duplas que têm alguém do time@(torneioPontua ? " — e os pontos delas vão pro time que cada jogador representa" : "").
+                Toque num time pra ver o resumo dele.
+            </p>
+            @if (!linhasDosTimes.Any())
+            {
+                <p class="text-muted"><i class="bi bi-info-circle"></i> Nenhuma dupla deste torneio joga por um time cadastrado.</p>
             }
             else
             {
                 <div class="card shadow-sm border-0"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-                    <thead><tr><th class="text-center" style="width:56px;">#</th><th>Time</th><th class="text-center">Jogadores</th><th class="text-end pe-3">Pontos</th></tr></thead>
+                    <thead><tr>
+                        <th class="text-center" style="width:48px;">#</th>
+                        <th>Time</th>
+                        <th class="text-center">V–D</th>
+                        <th class="text-center">Saldo</th>
+                        @if (torneioPontua)
+                        {
+                            <th class="text-end pe-3">Pontos</th>
+                        }
+                    </tr></thead>
                     <tbody>
                         @{ var posTt = 1; }
-                        @foreach (var pt in pontosTimes)
+                        @foreach (var linha in linhasDosTimes)
                         {
-                            <tr>
+                            var ct = linha.Campanha;
+                            var alvo = $"campanhaDoTime-{ct.TimeId}";
+                            @* O clique em qualquer ponto da linha abre (o `<tr>`); o TECLADO chega
+                               pelo botão do nome, que já responde a Enter e Espaço. O Bootstrap
+                               dispara só o gatilho mais de dentro, então os dois não se anulam. *@
+                            <tr style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#@alvo">
                                 <td class="text-center fw-bold text-muted">@(posTt)º</td>
                                 <td class="fw-bold" style="color: var(--pdz-ink);">
-                                    @if (!string.IsNullOrEmpty(pt.Logo))
+                                    @if (!string.IsNullOrEmpty(ct.Logo))
                                     {
-                                        <img src="@pt.Logo" alt="" class="rounded me-1" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;" />
+                                        <img src="@ct.Logo" alt="" class="rounded me-1" style="width:24px;height:24px;object-fit:contain;vertical-align:middle;" />
                                     }
                                     else
                                     {
                                         <i class="bi bi-shield-fill text-secondary me-1"></i>
                                     }
-                                    @pt.Time
+                                    <button type="button" class="btn btn-link p-0 fw-bold text-decoration-none align-baseline"
+                                            style="color: var(--pdz-ink);" data-bs-toggle="collapse" data-bs-target="#@alvo"
+                                            aria-expanded="false" aria-controls="@alvo">@ct.Time</button>
+                                    <span class="small text-muted fw-normal">· @ct.Duplas</span>
                                 </td>
-                                <td class="text-center text-muted">@pt.Jogadores</td>
-                                <td class="text-end pe-3 fw-bold" style="color: var(--pdz-ink);">@pt.Pontos</td>
+                                <td class="text-center text-muted">@ct.Vitorias–@ct.Derrotas</td>
+                                <td class="text-center fw-semibold @(ct.Saldo > 0 ? "text-success" : ct.Saldo < 0 ? "text-danger" : "text-muted")">@(ct.Saldo > 0 ? "+" : "")@ct.Saldo</td>
+                                @if (torneioPontua)
+                                {
+                                    <td class="text-end pe-3 fw-bold" style="color: var(--pdz-ink);">@(linha.Pontos?.ToString() ?? "—")</td>
+                                }
+                            </tr>
+                            <tr class="collapse" id="@alvo">
+                                <td colspan="@(torneioPontua ? 5 : 4)" style="background: var(--pdz-surface-alt);">
+                                    <partial name="_CampanhaDoTime" model="ct" view-data="comCampanha" />
+                                </td>
                             </tr>
                             posTt++;
                         }

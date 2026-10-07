@@ -1,0 +1,104 @@
+@model Padelizou.Services.CampanhaDosTimes.Campanha
+@*
+    A campanha de UM time no torneio (Services/CampanhaDosTimes) — pedido do Felipe, 28/09/2026.
+
+    Parcial porque a aba Times desenha o MESMO card em dois lugares: no topo, pro time de quem
+    olha, e dentro de cada linha da tabela, quando alguém toca no time. Duas cópias do HTML
+    seriam duas respostas pra "quantas duplas o time tem" — e a segunda envelhece calada.
+
+    ViewData["TorneioId"]: pro link "ver os jogos do time", que reusa o filtro por time da
+    tela de Jogos em vez de listar os jogos de novo aqui.
+*@
+@{
+    var c = Model;
+    var torneioId = ViewData["TorneioId"] as int? ?? 0;
+    var saldoCor = c.Saldo > 0 ? "text-success" : c.Saldo < 0 ? "text-danger" : "";
+    var proximo = c.ProximoJogo;
+}
+<div class="pdz-campanha">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        @if (!string.IsNullOrEmpty(c.Logo))
+        {
+            <img src="@c.Logo" alt="" class="rounded" style="width:40px;height:40px;object-fit:contain;" loading="lazy" />
+        }
+        else
+        {
+            <i class="bi bi-shield-fill text-secondary" style="font-size:2rem;line-height:1;"></i>
+        }
+        <div style="min-width:0;">
+            <div class="fw-bold text-truncate" style="color: var(--pdz-ink);">@c.Time</div>
+            <div class="small text-muted">
+                @c.Duplas @(c.Duplas == 1 ? "dupla" : "duplas") no torneio
+                @if (c.DuplasComJogoMarcado > 0)
+                {
+                    <span>· @c.DuplasComJogoMarcado com jogo pela frente</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (c.Jogos == 0)
+    {
+        <p class="small text-muted mb-2"><i class="bi bi-hourglass-split"></i> Nenhum jogo do time terminou ainda.</p>
+    }
+    else
+    {
+        @* Quatro números, do que se lê primeiro ao detalhe: quanto jogou, quanto venceu, o
+           aproveitamento (o que compara time grande com time pequeno) e o saldo de games. *@
+        <div class="row g-2 text-center mb-2">
+            <div class="col-3">
+                <div class="small text-muted text-uppercase" style="font-size:.7rem;">Jogos</div>
+                <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@c.Jogos</div>
+            </div>
+            <div class="col-3">
+                <div class="small text-muted text-uppercase" style="font-size:.7rem;">V – D</div>
+                <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@c.Vitorias–@c.Derrotas</div>
+            </div>
+            <div class="col-3">
+                <div class="small text-muted text-uppercase" style="font-size:.7rem;">Aproveit.</div>
+                <div class="fw-bold fs-5" style="color: var(--pdz-ink);">@(c.Aproveitamento is int a ? $"{a}%" : "—")</div>
+            </div>
+            <div class="col-3">
+                <div class="small text-muted text-uppercase" style="font-size:.7rem;">Saldo</div>
+                <div class="fw-bold fs-5 @saldoCor">@(c.Saldo > 0 ? "+" : "")@c.Saldo</div>
+            </div>
+        </div>
+        <p class="small text-muted text-center mb-2">Games: @c.GamesPro feitos · @c.GamesContra sofridos</p>
+    }
+
+    @if (proximo != null)
+    {
+        <div class="small border-top pt-2 mb-1">
+            @if (proximo.Status == "AoVivo")
+            {
+                <span class="fw-bold text-danger"><i class="bi bi-broadcast"></i> Em quadra agora</span>
+            }
+            else
+            {
+                <span class="fw-bold" style="color: var(--pdz-ink);"><i class="bi bi-clock"></i> Próximo jogo</span>
+                @if (proximo.HorarioPrevisto is DateTime quando)
+                {
+                    <span class="text-muted">· @quando.ToString("dd/MM 'às' HH:mm")</span>
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(proximo.NomeQuadra))
+            {
+                <span class="text-muted">· @proximo.NomeQuadra</span>
+            }
+            <div class="text-muted text-truncate">
+                @if (proximo.Categoria != null)
+                {
+                    <span>@Padelizou.Services.CategoriaNaTela.Curto(proximo.Categoria.Nome) ·</span>
+                }
+                @proximo.Dupla1?.NomeCurto × @proximo.Dupla2?.NomeCurto
+            </div>
+        </div>
+    }
+
+    @if (torneioId > 0)
+    {
+        <a asp-action="Jogos" asp-route-id="@torneioId" asp-route-timeFiltroId="@c.TimeId" class="small fw-bold">
+            <i class="bi bi-list-ul"></i> Ver os jogos do time
+        </a>
+    }
+</div>

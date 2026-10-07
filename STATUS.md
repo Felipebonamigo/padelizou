@@ -157,6 +157,20 @@
 >
 > **7.555 testes verdes** (8 novos; a trava do open redirect vista VERMELHA), 12 conferidores JS verdes, `has-pending-model-changes` limpo.
 
+> Última atualização: **28/09/2026** — 🛡️ **A CAMPANHA DO TIME NO TORNEIO.** ⏳ **NA BRANCH `claude/serene-pascal-bt7xpi`, AINDA NÃO PUBLICADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print de um concorrente: *"Interessante esse resumo por times no torneio — nao podemos fazer igual, pq isso é de um concorrente, mas podemos fazer algo parecido"*.
+>
+> 🧮 **A ABA TIMES SÓ DIZIA PONTOS.** Agora ela abre com o card **"Campanha do seu time"** (o time do jogador logado, quando ele tem dupla no torneio), e a tabela passou a ter **V–D e saldo** além dos pontos. Tocar numa linha abre o **mesmo card** daquele time: duplas, jogos, V–D, aproveitamento, games feitos/sofridos, saldo, **quantas duplas ainda têm jogo pela frente** e o **próximo jogo** (ou "em quadra agora"), com um link pro filtro por time que a tela de Jogos já tinha.
+>
+> 📏 **A régua mora em `Services/CampanhaDosTimes`** e é a mesma dos pontos: a dupla é do time se qualquer um dos dois joga por ele (a mista conta pros dois); dupla-TIME, lista de espera e dupla sem parceiro ficam fora; a vitória sai de `QuemVenceu`. O **confronto interno** conta uma vitória e uma derrota do time — são duas duplas jogando.
+>
+> 🔒 **O PORTÃO DA CHAVE NÃO APROVADA VALE AQUI**: `CarregarViewBagJogosAsync` passou a **devolver** a grade que ele já passa pelo portão, e a campanha come dela. Sem isso, o "próximo jogo" mostraria a grade antes de ser publicada. Há teste pra esse caso, com o organizador como contraprova.
+>
+> 🏷️ **Torneio que não pontua** (restrito, interno de time): antes a aba dizia "nenhum time pontuou", e agora mostra a campanha **sem a coluna de pontos**. A tabela não inventa um zero.
+>
+> ⌨️ **TECLADO**: a linha era `<tr role="button" tabindex="0">`, que recebia o foco mas não abria com Enter (o Bootstrap só escuta clique). O nome do time virou um `<button>` de verdade, sem JS. O clique no resto da linha continua abrindo, porque o Bootstrap 5.3.3 dispara só o gatilho mais de dentro.
+>
+> **7.559 testes verdes** (12 novos; todos vistos VERMELHOS antes; o filtro da dupla-TIME foi falsificado), 12 conferidores JS verdes. ⚠️ **Não visto no navegador** — vale um print da aba Times em `dev`.
+
 > Última atualização: **27/09/2026** — 🔔 **CADA MARCO DO LEMBRETE DE AULA GANHA O SEU INTERRUPTOR.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1495-2536ad3`** (deploy runs **413** e **414**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #350. ⚠️ **COM MIGRATION** (uma coluna `bool` + backfill). 🗣️ *"muda as notificações das aulas lá só pra avisa 1h antes, n quero q me avise um dia antes tbm, ou deixa separado pra escolher qual o cara quer ou não, acho q fica melhor"*.
 >
 > ♻️ **O INTERRUPTOR JÁ EXISTIA — `NotificarLembreteDeAula` —, só que valia pelos DOIS marcos.** Quem achava a véspera demais só podia desligar os dois, e perdia junto o de **1h**, que é o único que ninguém quer perder ("sai de casa"). Por isso a saída não foi tirar o de 24h da base inteira: foi **separar**. `QuerEsteMarco` mora em `LembreteDaAula` porque são **quatro destinatários** (aluno e professor da aula, e os dois do jogo-aula) — régua escrita quatro vezes é como uma cópia acaba lendo a preferência errada.
