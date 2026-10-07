@@ -667,7 +667,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
 
             bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
-            if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou) is { } motivo)
+            if (AlteracaoDeImpedimento.MotivoParaOrganizadorNaoAlterar(dupla, torneio, jaSorteou, turno) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
@@ -742,7 +742,7 @@ namespace Padelizou.Controllers
             if (torneio == null) return NotFound();
 
             bool jaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId);
-            if (ConcentracaoDeJogos.MotivoParaOrganizadorNaoConcentrar(dupla, torneio, jaSorteou) is { } motivo)
+            if (ConcentracaoDeJogos.MotivoParaOrganizadorNaoConcentrar(dupla, torneio, jaSorteou, turno) is { } motivo)
             {
                 TempData["Erro"] = motivo;
                 return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");

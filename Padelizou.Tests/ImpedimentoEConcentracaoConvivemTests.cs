@@ -32,6 +32,12 @@ public class ImpedimentoEConcentracaoConvivemTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 1, status: "Inscrições Abertas");
+        // O torneio-fixture de TestInfra começa numa QUARTA (01/07/2026) e só enxerga quarta,
+        // quinta e sexta — sem sábado nenhum. Desde 07/10/2026 o servidor recusa concentrar num
+        // turno que o calendário não tem (Services/TurnosDoTorneio), e o assunto DESTE teste é
+        // outro; então o torneio começa numa sexta, como os de verdade, e vê sexta e sábado.
+        torneio.DataInicio = new DateTime(2026, 10, 9);
+        await ctx.SaveChangesAsync();
         var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
         dupla.ImpedimentoSextaNoite = true;
         await ctx.SaveChangesAsync();
@@ -145,6 +151,12 @@ public class ImpedimentoEConcentracaoConvivemTests
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 1, status: "Inscrições Abertas");
+        // O torneio-fixture de TestInfra começa numa QUARTA (01/07/2026) e só enxerga quarta,
+        // quinta e sexta — sem sábado nenhum. Desde 07/10/2026 o servidor recusa concentrar num
+        // turno que o calendário não tem (Services/TurnosDoTorneio), e o assunto DESTE teste é
+        // outro; então o torneio começa numa sexta, como os de verdade, e vê sexta e sábado.
+        torneio.DataInicio = new DateTime(2026, 10, 9);
+        await ctx.SaveChangesAsync();
         var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
         var push = Substitute.For<IPushNotificationService>();
 

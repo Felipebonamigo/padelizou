@@ -1805,25 +1805,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                            taxa, e a tela diz isso ANTES de gravar. *@
                                         // (bloco de codigo: ja estamos dentro de um @if)
                                             var turnoAtual = Padelizou.Services.AlteracaoDeImpedimento.TurnoAtual(dupla);
-                                            var turnosOferecidos = new List<(Padelizou.Services.TurnoDoImpedimento Turno, bool Cabe)>
-                                            {
-                                                (Padelizou.Services.TurnoDoImpedimento.Nenhum, true),
-                                                (Padelizou.Services.TurnoDoImpedimento.QuintaNoite, Model.QuintaEhDiaDoTorneio && Model.PermiteImpedimentoQuintaNoite),
-                                                (Padelizou.Services.TurnoDoImpedimento.SextaNoite, Model.PermiteImpedimentoSextaNoite),
-                                                (Padelizou.Services.TurnoDoImpedimento.SabadoManha, Model.PermiteImpedimentoSabadoManha),
-                                                (Padelizou.Services.TurnoDoImpedimento.SabadoTarde, Model.PermiteImpedimentoSabadoTarde),
-                                            };
-                                        @if (Model.PermiteImpedimentos && turnosOferecidos.Count(t => t.Cabe) > 1)
+                                            @* ⚠️ A LISTA VEM DO SERVIÇO (07/10/2026), e não mais montada aqui:
+                                               um turno só entra se o torneio PERMITE e se o dia dele é dia
+                                               deste torneio. A régua antiga (`QuintaEhDiaDoTorneio &&
+                                               PermiteImpedimentoQuintaNoite`) não segurava nada — a
+                                               propriedade é `é quinta || PermiteQuinta`, e `A && (B || A)`
+                                               é `A`. A sexta nunca teve checagem de dia nenhuma, e era ela
+                                               que aparecia no torneio de sábado. Ver Services/TurnosDoTorneio. *@
+                                            var turnosOferecidos = Padelizou.Services.TurnosDoTorneio.Oferecidos(Model, turnoAtual);
+                                        @if (Model.PermiteImpedimentos && turnosOferecidos.Count > 1)
                                         {
                                             <form asp-controller="Torneios" asp-action="AlterarImpedimento" method="post" class="mt-2">
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <label class="form-label small fw-bold mb-1">Impedimento de horário</label>
                                                 <div class="input-group input-group-sm" style="max-width: 26rem;">
                                                     <select name="turno" class="form-select">
-                                                        @foreach (var opcao in turnosOferecidos.Where(t => t.Cabe))
+                                                        @foreach (var opcao in turnosOferecidos)
                                                         {
-                                                            <option value="@opcao.Turno" selected="@(opcao.Turno == turnoAtual)">
-                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao.Turno)
+                                                            <option value="@opcao" selected="@(opcao == turnoAtual)">
+                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao)
                                                             </option>
                                                         }
                                                     </select>
@@ -2268,7 +2268,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             </div>
 
             <!-- Regras de Impedimento Dinâmicas -->
-            @if (Model.PermiteImpedimentos)
+            @* ⚠️ `turnosDaInscricao` e não os quatro `PermiteImpedimentoX` soltos (07/10/2026):
+               o interruptor da criação diz o que o organizador QUER oferecer, e o calendário diz
+               o que existe. Este formulário é onde o turno inexistente custa dinheiro de verdade
+               — o `ValorInscricao` nasce aqui somando `TaxaPorImpedimento` por turno marcado, e
+               a sexta de um torneio que começa no sábado não tira jogo nenhum da grade.
+               Ver Services/TurnosDoTorneio; o servidor descarta de novo no DuplasController.Create. *@
+            @{
+                var turnosDaInscricao = Padelizou.Services.TurnosDoTorneio.Oferecidos(Model);
+            }
+            @if (Model.PermiteImpedimentos && turnosDaInscricao.Count > 1)
             {
                 <div class="alert alert-warning mt-2 border-warning">
                     <h5 class="alert-heading fw-bold"><i class="bi bi-clock-history"></i> Restrições de Horário (Impedimentos)</h5>
@@ -2290,28 +2299,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         </p>
                     }
 
-                    @if (Model.PermiteImpedimentoQuintaNoite)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.QuintaNoite))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impQuintaNoite" value="true" id="impQuinta">
                             <label class="form-check-label" for="impQuinta">Não podemos jogar na <strong>Quinta à noite</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSextaNoite)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SextaNoite))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSextaNoite" value="true" id="impSexta">
                             <label class="form-check-label" for="impSexta">Não podemos jogar na <strong>Sexta à noite</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSabadoManha)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SabadoManha))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSabadoManha" value="true" id="impSabManha">
                             <label class="form-check-label" for="impSabManha">Não podemos jogar no <strong>Sábado de manhã</strong></label>
                         </div>
                     }
-                    @if (Model.PermiteImpedimentoSabadoTarde)
+                    @if (turnosDaInscricao.Contains(Padelizou.Services.TurnoDoImpedimento.SabadoTarde))
                     {
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="impSabadoTarde" value="true" id="impSabTarde">
@@ -5742,12 +5751,22 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
                                                       class="d-flex gap-2 align-items-center flex-wrap">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    @* ⚠️ OS CINCO ERAM ESCRITOS À MÃO AQUI (07/10/2026), sem olhar
+                                                       nem os interruptores da criação nem o calendário: o painel do
+                                                       torneio que começa no SÁBADO oferecia "Quinta à noite" e
+                                                       "Sexta à noite" — e marcá-las não tira jogo nenhum da grade,
+                                                       porque `JanelasDeImpedimento.Da` não acha esses dias. Agora
+                                                       sai da MESMA lista que a tela do jogador usa.
+                                                       `turnoAtual` vai junto: o turno já marcado continua na lista
+                                                       mesmo que o torneio não o tenha, senão o organizador não teria
+                                                       como TIRAR a sexta de quem a marcou antes desta regra. *@
                                                     <select name="turno" class="form-select form-select-sm" style="width: auto;">
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.Nenhum" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.Nenhum)">Sem impedimento</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.QuintaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.QuintaNoite)">Quinta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SextaNoite" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SextaNoite)">Sexta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoManha" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoManha)">Sábado de manhã</option>
-                                                        <option value="@Padelizou.Services.TurnoDoImpedimento.SabadoTarde" selected="@(turnoAtual == Padelizou.Services.TurnoDoImpedimento.SabadoTarde)">Sábado à tarde</option>
+                                                        @foreach (var opcao in Padelizou.Services.TurnosDoTorneio.Oferecidos(Model, turnoAtual))
+                                                        {
+                                                            <option value="@opcao" selected="@(opcao == turnoAtual)">
+                                                                @Padelizou.Services.AlteracaoDeImpedimento.Rotulo(opcao)
+                                                            </option>
+                                                        }
                                                     </select>
                                                     <button type="submit" class="btn btn-sm btn-outline-primary">
                                                         <i class="bi bi-check-lg"></i> Salvar
@@ -5769,11 +5788,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <form asp-controller="Torneios" asp-action="AlterarConcentracaoOrganizador" method="post"
                                                       class="d-flex gap-2 align-items-center flex-wrap">
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    @* O seletor vizinho tinha o MESMO problema e ele é ainda mais
+                                                       calado: "Os 2 jogos na sexta" num torneio de sábado é gravado,
+                                                       avisa os dois jogadores — e `ConcentracaoDeJogos.JanelaDoTurno`
+                                                       devolve null, então o favor nunca acontece. *@
                                                     <select name="turno" class="form-select form-select-sm" style="width: auto;">
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.Nenhuma" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.Nenhuma)">Onde couber</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SextaNoite" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SextaNoite)">Sexta à noite</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoManha" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoManha)">Sábado de manhã</option>
-                                                        <option value="@Padelizou.Services.TurnoDeConcentracao.SabadoTarde" selected="@(concentracao == Padelizou.Services.TurnoDeConcentracao.SabadoTarde)">Sábado à tarde</option>
+                                                        @foreach (var opcao in Padelizou.Services.TurnosDoTorneio.OferecidosParaConcentrar(Model, concentracao))
+                                                        {
+                                                            <option value="@opcao" selected="@(opcao == concentracao)">
+                                                                @Padelizou.Services.ConcentracaoDeJogos.RotuloCurto(opcao)
+                                                            </option>
+                                                        }
                                                     </select>
                                                     <button type="submit" class="btn btn-sm btn-padel">
                                                         <i class="bi bi-check-lg"></i> Salvar

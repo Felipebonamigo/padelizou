@@ -94,4 +94,26 @@ public class ImpedimentoNaTelaTests
         // E existe UM formulário de troca, não uma segunda cópia solta em outro canto da tela.
         Assert.Equal(1, Regex.Matches(fonte, @"asp-action=""AlterarImpedimento""").Count);
     }
+
+    [Fact]
+    public void AS_TRES_TELAS_leem_a_MESMA_lista_de_turnos()
+    {
+        // 🗣️ Felipe, 07/10/2026: *"aqui está marcando quinta e sexta, mas o torneio só inicia
+        // no sábado"*. Eram TRÊS listas independentes — inscrição, troca do jogador e painel do
+        // organizador —, e só a primeira delas tinha a aparência de uma checagem de dia (que não
+        // segurava nada: `A && (B || A)` é `A`). Oferecer um turno que `JanelasDeImpedimento.Da`
+        // não transforma em janela é cobrar `TaxaPorImpedimento` por nada.
+        //
+        // A prova é a AUSÊNCIA de opção escrita à mão: enquanto as cinco linhas de `<option>`
+        // existirem em algum canto do arquivo, a quarta tela nasce copiando dali.
+        var fonte = Fonte();
+
+        Assert.Equal(3, Regex.Matches(fonte, @"TurnosDoTorneio\.Oferecidos\(").Count);
+        Assert.Contains("TurnosDoTorneio.OferecidosParaConcentrar(", fonte);
+
+        Assert.DoesNotMatch(new Regex(@"<option value=""@Padelizou\.Services\.TurnoDoImpedimento\."),
+            fonte);
+        Assert.DoesNotMatch(new Regex(@"<option value=""@Padelizou\.Services\.TurnoDeConcentracao\."),
+            fonte);
+    }
 }
