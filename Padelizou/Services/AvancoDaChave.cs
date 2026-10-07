@@ -110,8 +110,8 @@ public static class AvancoDaChave
         // O bye é coisa da PRIMEIRA rodada do mata-mata: quem folgou entra na SEGUNDA fase e
         // pronto. Somá-lo em qualquer outra ressuscitaria gente a cada rodada.
         if (faseConcluida == PrimeiraFaseDeMataMata(fasesDaCategoria))
-            vagas.AddRange((await ByesDaCategoriaAsync(context, categoriaId, buscarPontos))
-                .Select(id => (int?)id));
+            vagas = ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada(vagas,
+                (await ByesDaCategoriaAsync(context, categoriaId, buscarPontos)).Select(id => (int?)id));
 
         return vagas;
     }
