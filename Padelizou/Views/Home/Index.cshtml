@@ -320,7 +320,11 @@ else
             <div class="row g-3 mb-5">
                 @foreach (var m in Model.MeusTorneios)
                 {
-                    bool rolando = m.Torneio.Status != "Inscrições Abertas";
+                    @* "Rolando" é o que já tem chave PÚBLICA. Inscrição fechada e chave esperando
+                       aprovação são estados de ANTES do jogo: selo vermelho de ao vivo e "Acompanhar"
+                       ali prometiam um torneio que ainda não começou (07/10/2026). *@
+                    bool aindaNaoComecou = Padelizou.Services.StatusDoTorneioNaTela.AindaNaoComecou(m.Torneio.Status);
+                    bool rolando = !aindaNaoComecou && m.Torneio.Status != Padelizou.Services.PortaDaInscricao.Aberta;
                     @* O selo fica ABAIXO do título, na linha dos detalhes: ao lado dele (como
                        era), no celular o título sobrava truncado em "Torneio d..." — o selo e
                        o botão comiam a largura de quem a tela existe pra mostrar. *@
@@ -330,9 +334,13 @@ else
                                 <strong class="pdz-cartao-linha-titulo">@m.Torneio.Nome</strong>
                                 <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
                                     <span class="badge rounded-pill @(rolando ? "bg-danger" : "bg-success")">
-                                        @(rolando ? Padelizou.Services.StatusDoTorneioNaTela.Nome(m.Torneio.Status) : "Inscrito")
+                                        @(rolando ? Padelizou.Services.StatusDoTorneioNaTela.NomePublico(m.Torneio.Status) : "Inscrito")
                                     </span>
                                     <small class="text-muted">@m.Categoria</small>
+                                    @if (aindaNaoComecou)
+                                    {
+                                        <small class="text-muted">· @Padelizou.Services.StatusDoTorneioNaTela.NomePublico(m.Torneio.Status)</small>
+                                    }
                                     @if (m.ListaDeEspera)
                                     {
                                         <span class="badge text-bg-warning">lista de espera</span>
@@ -348,19 +356,34 @@ else
         }
     }
 
-    @* Torneio rolando agora (dos outros — os meus já apareceram acima). *@
-    @if (Model.EmAndamento.Any())
+    @* Torneio dos outros (os meus já apareceram acima), em DUAS seções — e a divisão não é
+       enfeite (07/10/2026).
+
+       🗣️ Felipe, com o print da Home: "nao pode ter isso, tem q ficar apenas inscrições
+       encerradas". O NATA PADEL TOUR aparecia em "Acontecendo agora", com selo vermelho de
+       transmissão e o texto cru "Chaves em Aprovação" — um passo INTERNO do organizador.
+
+       "Acontecendo agora" é só o que já tem chave PÚBLICA. O que ainda não começou (inscrição
+       fechada esperando o sorteio, chave esperando aprovação) mostra só que as inscrições
+       encerraram, sem o vermelho de ao vivo e sem prometer "Acompanhar". A régua é
+       `AindaNaoComecou`, uma lista explícita: a negação "tudo que não é Inscrições Abertas" foi o
+       que misturou os dois. *@
+    @{
+        var jaRolando = Model.EmAndamento.Where(t => !Padelizou.Services.StatusDoTorneioNaTela.AindaNaoComecou(t.Status)).ToList();
+        var inscricoesEncerradas = Model.EmAndamento.Where(t => Padelizou.Services.StatusDoTorneioNaTela.AindaNaoComecou(t.Status)).ToList();
+    }
+    @if (jaRolando.Any())
     {
         <h3 class="pdz-section-title mb-4"><i class="bi bi-broadcast text-danger me-1"></i> Acontecendo agora</h3>
         <div class="row g-3 mb-5">
-            @foreach (var t in Model.EmAndamento)
+            @foreach (var t in jaRolando)
             {
                 <div class="col-12 col-md-6">
                     <div class="card border-0 shadow-sm p-3 h-100 pdz-cartao-linha">
                         <div class="flex-grow-1 pdz-cartao-linha-texto">
                             <strong class="pdz-cartao-linha-titulo">@t.Nome</strong>
                             <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-                                <span class="badge rounded-pill bg-danger"><i class="bi bi-record-circle"></i> @Padelizou.Services.StatusDoTorneioNaTela.Nome(t.Status)</span>
+                                <span class="badge rounded-pill bg-danger"><i class="bi bi-record-circle"></i> @Padelizou.Services.StatusDoTorneioNaTela.NomePublico(t.Status)</span>
                                 @if (!string.IsNullOrEmpty(t.LocalTorneio))
                                 {
                                     <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>
@@ -369,6 +392,32 @@ else
                         </div>
                         <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
                            class="btn btn-sm btn-padel rounded-pill px-3 pdz-cartao-linha-acao">Acompanhar</a>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (inscricoesEncerradas.Any())
+    {
+        <h3 class="pdz-section-title mb-4">Inscrições encerradas</h3>
+        <div class="row g-3 mb-5">
+            @foreach (var t in inscricoesEncerradas)
+            {
+                <div class="col-12 col-md-6">
+                    <div class="card border-0 shadow-sm p-3 h-100 pdz-cartao-linha">
+                        <div class="flex-grow-1 pdz-cartao-linha-texto">
+                            <strong class="pdz-cartao-linha-titulo">@t.Nome</strong>
+                            <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                                <span class="badge rounded-pill bg-secondary"><i class="bi bi-lock-fill"></i> @Padelizou.Services.StatusDoTorneioNaTela.NomePublico(t.Status)</span>
+                                @if (!string.IsNullOrEmpty(t.LocalTorneio))
+                                {
+                                    <small class="text-muted"><i class="bi bi-geo-alt"></i> @t.LocalTorneio</small>
+                                }
+                            </div>
+                        </div>
+                        <a asp-controller="Torneios" asp-action="Details" asp-route-id="@t.Id"
+                           class="btn btn-sm btn-outline-secondary rounded-pill px-3 pdz-cartao-linha-acao">Ver</a>
                     </div>
                 </div>
             }
