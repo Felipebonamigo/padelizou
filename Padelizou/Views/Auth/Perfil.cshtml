@@ -404,7 +404,7 @@
                                     <div class="text-muted" style="font-size: 0.75rem;">@dupla.Categoria.Nome · @dupla.Categoria.Torneio.DataInicio?.ToString("dd/MM/yyyy")</div>
                                 </div>
                                 <span class="badge rounded-pill @(dupla.UltimaFase == "Campeao" ? "bg-warning text-dark" : "bg-light text-dark border")">
-                                    @Padelizou.Services.EstatisticasService.RotuloFase(dupla.UltimaFase)
+                                    @Padelizou.Services.EstatisticasService.RotuloFase(dupla.UltimaFase, dupla.Categoria.Torneio.Status)
                                 </span>
                             </div>
                         }

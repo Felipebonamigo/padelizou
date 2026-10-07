@@ -17,7 +17,7 @@
                     <div class="text-muted mt-1" style="font-size:0.72rem;">Dupla que mais jogou junto</div>
                     @if (Model.MaisJogouJunto != null)
                     {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisJogouJunto.Parceiro.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisJogouJunto.Parceiro.Nome.Split(' ')[0]</a>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisJogouJunto.Parceiro.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisJogouJunto.Parceiro.Nome)</a>
                         <div class="small text-muted">@Model.MaisJogouJunto.Jogos jogo(s) juntos</div>
                     }
                     else
@@ -33,7 +33,7 @@
                     <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais enfrentou</div>
                     @if (Model.MaisEnfrentou != null)
                     {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisEnfrentou.Oponente.Nome.Split(' ')[0]</a>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisEnfrentou.Oponente.Nome)</a>
                         <div class="small text-muted">@Model.MaisEnfrentou.Jogos confronto(s)</div>
                     }
                     else
@@ -49,7 +49,7 @@
                     <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais te venceu</div>
                     @if (Model.MaisTeVenceu != null)
                     {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.MaisTeVenceu.Oponente.Nome.Split(' ')[0]</a>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisTeVenceu.Oponente.Nome)</a>
                         <div class="small text-danger">@Model.MaisTeVenceu.Derrotas derrota(s) sua(s)</div>
                     }
                     else
@@ -65,7 +65,7 @@
                     <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais perdeu pra você</div>
                     @if (Model.VoceMaisVenceu != null)
                     {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Model.VoceMaisVenceu.Oponente.Nome.Split(' ')[0]</a>
+                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.VoceMaisVenceu.Oponente.Nome)</a>
                         <div class="small text-success">@Model.VoceMaisVenceu.Vitorias vitória(s) sua(s)</div>
                     }
                     else

@@ -1,6 +1,16 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **07/10/2026** — 🏷️ **O PERFIL DIZIA "FASE DE GRUPOS" DE TORNEIO QUE NEM COMEÇOU, E OS DESTAQUES SÓ TINHAM O PRIMEIRO NOME.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do próprio perfil: *"aqui tem q por pelo menos o ultimo sobrenome do adversarios, e o histórico dos torneios tem torneio q nem começou dizendo (fase de grupo) deveria ter algo dizendo que esta inscrito"*. No print, o THE LAST DANCE de 12/11/2026 com a pílula "Fase de Grupos".
+>
+> 🕳️ **`Dupla.UltimaFase` NASCE "Grupos", e isso quer dizer "ainda não passou de fase" — não distingue "caiu nos grupos" de "nem jogou ainda".** O rótulo lia só a dupla; quem sabe se o torneio começou é o TORNEIO. `EstatisticasService.RotuloFase` agora recebe o status do torneio: inscrições abertas ou fechadas (antes do sorteio) = **"Inscrito"**; cancelado = **"Cancelado"** (senão ficaria "Inscrito" pra sempre esperando um jogo que não vai acontecer); campeão/vice/semi/quartas não mudam — fato consumado que um status atrasado não apaga. ⚠️ **Sem coluna nova:** "Chaves em Sorteio" já é inscrição fechada (`PortaDaInscricao`); uma flag `JaComecou` seria a segunda resposta pra mesma pergunta.
+>
+> 🔎 **O PERFIL PÚBLICO ESCREVIA O VALOR CRU DO BANCO** (`Final`, `Campeao`, `Grupos`) — nunca foi rótulo de tela. Passou a usar o mesmo `RotuloFase` do próprio perfil.
+>
+> 👤 **Destaques: de `Nome.Split(' ')[0]` pra `NomeBonito.Curto`** — primeiro e último nome, sem os do meio, com partícula e sufixo tratados (`Otávio Wunsch Junior` → `Otávio Wunsch`). Numa panelinha com dois Lucas, "quem mais te venceu" não dizia qual.
+>
+> 🧪 **7.632 testes verdes** (8 novos). Os dois de tela foram **conferidos por sabotagem**: com as views antigas de volta, os dois ficam vermelhos. ⚠️ **Não conferido em navegador** — a sessão não sobe o app com banco.
+
 > Última atualização: **07/10/2026** — 🗓️ **O IMPEDIMENTO OFERECIA QUINTA E SEXTA NUM TORNEIO QUE COMEÇA NO SÁBADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do painel do NATA PADEL TOUR: *"aqui está marcando quinta e sexta, mas o torneio só inicia no sábado"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita — e mexe em dinheiro (ver abaixo), então espera o OK dele.
 >
 > 🕳️ **NÃO ERA SÓ A TELA: marcar a sexta num torneio de sábado COBRAVA `TaxaPorImpedimento` por uma janela que não existe.** `JanelasDeImpedimento.Da` só devolve janela quando o dia está nos 3 dias que seguem o início; pra "sexta" num torneio de sábado devolve vazio — a dupla paga e o sorteio ignora. Eram **TRÊS listas** de turnos independentes (inscrição, troca do jogador, painel do organizador) e a régua antiga (`QuintaEhDiaDoTorneio && PermiteImpedimentoQuintaNoite`) era um no-op: a propriedade é `é quinta || PermiteQuinta`, e `A && (B || A)` é `A`. Entra `Services/TurnosDoTorneio.Oferecidos` / `OferecidosParaConcentrar` — as telas leem dali, e o servidor RECUSA o turno inexistente (jogador, organizador e concentração) e o descarta na inscrição. O turno **já marcado** continua na lista, senão quem o marcou antes fica preso nele.
