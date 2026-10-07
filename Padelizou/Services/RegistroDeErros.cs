@@ -28,6 +28,23 @@ public class RegistroDeErros
 
     public async Task RegistrarAsync(Exception ex, string caminho, string metodo, int? jogadorId)
     {
+        // ⚠️ ESTE CONTEXTO É O DA REQUISIÇÃO QUE ACABOU DE ESTOURAR (o CapturaDeErro resolve o
+        // serviço do RequestServices), e o que ele ainda tem rastreado é lixo de uma operação
+        // que não deu certo. Dois estragos, achados em 07/10/2026 com o push "DbUpdateException
+        // em POST /Auth/Cadastro" e o /Admin/Erros parado em 12/09:
+        //
+        //  1. Quando o que estourou foi um `SaveChanges`, a entidade que ele recusou continua
+        //     `Added`. O `SaveChangesAsync` lá embaixo tenta gravá-la DE NOVO junto com a linha
+        //     do erro, falha pelo mesmo motivo, e o registro NUNCA entra — o push sai antes
+        //     (por isso o aviso chega e o motivo não aparece em lugar nenhum), e sem a linha a
+        //     janela de silêncio não enxerga o aviso anterior e o mesmo erro avisa a cada vez.
+        //  2. Pior: com o contexto sujo, registrar o erro gravava o que a requisição deixou
+        //     pela metade. O vigia não pode ter efeito colateral no dado.
+        //
+        // A requisição já está perdida — quem a atendia não vai gravar mais nada —, então
+        // soltar tudo aqui não custa nada ao que vem depois (a tela de erro lê do banco).
+        _context.ChangeTracker.Clear();
+
         var agora = DateTime.Now;
         var erro = new ErroDoSistema
         {
