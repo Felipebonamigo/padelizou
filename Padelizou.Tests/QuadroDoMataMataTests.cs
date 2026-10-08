@@ -68,7 +68,8 @@ public class QuadroDoMataMataTests
     public void Bye_entra_nomeado_na_fase_seguinte_na_ordem_do_pareamento()
     {
         // 2 jogos de abertura + 2 byes = 6 duplas numa chave de 8. Entrantes da fase
-        // seguinte: [vencedor 1, vencedor 2, bye melhor, bye pior] → primeiro x último.
+        // seguinte: [vencedor 1, vencedor 2, bye pior, bye melhor] → primeiro x último — o
+        // melhor bye na semifinal de CIMA (07/10/2026, CabecaDeChaveNoTopoDaChaveTests).
         var jogos = new List<Partida>
         {
             Jogo("Quartas de Final", DuplaQualquer(), DuplaQualquer()),
@@ -80,8 +81,8 @@ public class QuadroDoMataMataTests
         var fases = QuadroDoMataMata.Montar(jogos, [byeMelhor, byePior], meuJogadorId: null);
 
         var semis = fases[1].Vagas;
-        Assert.Equal(byePior.Id, semis[0].Lado2!.DuplaDeBye!.Id);
-        Assert.Equal(byeMelhor.Id, semis[1].Lado2!.DuplaDeBye!.Id);
+        Assert.Equal(byeMelhor.Id, semis[0].Lado2!.DuplaDeBye!.Id);
+        Assert.Equal(byePior.Id, semis[1].Lado2!.DuplaDeBye!.Id);
         Assert.Equal(1, semis[0].Lado1!.VemDoJogo);
         Assert.Equal(2, semis[1].Lado1!.VemDoJogo);
     }
@@ -128,8 +129,9 @@ public class QuadroDoMataMataTests
         var meuBye = DuplaCom(Eu, 101);
         var outroBye = DuplaQualquer();
 
-        // Entrantes: [V1, V2, outroBye, meuBye] → semi 1 = V1 x meuBye, semi 2 = V2 x outroBye.
-        var fases = QuadroDoMataMata.Montar(jogos, [outroBye, meuBye], Eu);
+        // Byes do melhor pro pior: [meuBye, outroBye]. Entrantes: [V1, V2, outroBye, meuBye]
+        // → semi 1 = V1 x meuBye, semi 2 = V2 x outroBye.
+        var fases = QuadroDoMataMata.Montar(jogos, [meuBye, outroBye], Eu);
 
         Assert.Equal([true, false], fases[1].Vagas.Select(v => v.EhMinha));
         Assert.True(fases[2].Vagas.Single().EhMinha);
