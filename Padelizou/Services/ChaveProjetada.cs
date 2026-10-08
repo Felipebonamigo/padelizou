@@ -124,9 +124,10 @@ public static class ChaveProjetada
 
         // Quem entra na próxima rodada: os vencedores e, uma única vez, os byes. O vencedor
         // carrega o NÚMERO do jogo de onde vem; o bye não vem de jogo nenhum.
-        var entrantes = ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada(
-            jogos.Select(j => (Rotulo: $"Vencedor do jogo {j.Numero}", VemDoJogo: (int?)j.Numero)),
-            byes.Select(b => (Rotulo: $"{b.Rotulo} (passou direto)", VemDoJogo: (int?)null)));
+        var entrantes = jogos
+            .Select(j => (Rotulo: $"Vencedor do jogo {j.Numero}", VemDoJogo: (int?)j.Numero))
+            .ToList();
+        entrantes.AddRange(byes.Select(b => (Rotulo: $"{b.Rotulo} (passou direto)", VemDoJogo: (int?)null)));
 
         while (entrantes.Count > 1)
         {

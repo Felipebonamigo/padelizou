@@ -213,8 +213,7 @@ public static class CruzamentoDoMataMata
             metadePorVaga[mapa.Confrontos[i].Lado2.ToString()] = lado;
         }
         for (int b = 0; b < mapa.Byes.Count; b++)
-            metadePorVaga[mapa.Byes[b].ToString()] = ChaveamentoMataMata.LadoDaVaga(vagas,
-                ChaveamentoMataMata.VagaDoBye(mapa.Confrontos.Count, mapa.Byes.Count, b));
+            metadePorVaga[mapa.Byes[b].ToString()] = ChaveamentoMataMata.LadoDaVaga(vagas, mapa.Confrontos.Count + b);
 
         foreach (var doGrupo in todas.GroupBy(v => v.Grupo).Where(g => g.Count() > 1))
         {

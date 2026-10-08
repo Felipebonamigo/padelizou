@@ -105,9 +105,7 @@ public class ProximasFasesDaChaveTests
     public void Quem_passou_direto_aparece_pelo_NOME_e_entra_no_fim_da_fila()
     {
         // Bye não é candidato: já se sabe quem é. E ele entra depois dos vencedores, igual
-        // ao AvancoDaChave — é o que faz cada vencedor pegar uma dupla descansada. Os byes vêm
-        // do melhor pro pior, e o melhor cruza com o vencedor do jogo 1: a semifinal de cima
-        // (07/10/2026, CabecaDeChaveNoTopoDaChaveTests).
+        // ao AvancoDaChave — é o que faz cada vencedor pegar uma dupla descansada.
         var primeira = new[]
         {
             Jogo(1, "Primeira Rodada", "A1/A2", "B1/B2", "19:00"),
@@ -119,7 +117,7 @@ public class ProximasFasesDaChaveTests
 
         Assert.Equal(2, proxima.Count);
         Assert.Equal("Vencedor Primeira Rodada 1", proxima[0].Lado1.Rotulo);
-        Assert.Equal("Cabeça1", proxima[0].Lado2.Rotulo);
+        Assert.Equal("Cabeça2", proxima[0].Lado2.Rotulo);
         // Bye tem NOME, não procedência: ele não veio de jogo nenhum.
     }
 

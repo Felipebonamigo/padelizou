@@ -158,8 +158,7 @@ public static class QuadroDoMataMata
             // sozinha assim que a segunda fase nascia. Ela não se esvazia mais — é estável de
             // propósito, pra sobreviver ao avanço parcial (ver AvancoDaChave) —, então quem
             // filtra é aqui: sem isto, a Final sairia com quatro entrantes.
-            if (i == primeira)
-                proximos = ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada(proximos, byes.Select(b => new Lado(null, b)));
+            if (i == primeira) proximos.AddRange(byes.Select(b => new Lado(null, b)));
             entrantes = proximos;
 
             fases.Add(new Fase(nomeDaFase, vagas));

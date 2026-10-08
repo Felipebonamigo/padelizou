@@ -143,9 +143,10 @@ public static class ProximasFasesDaChave
 
         // Cada jogo da primeira fase entrega um vencedor — citado pelo NÚMERO dele naquela
         // fase; cada bye entrega a própria dupla, que já tem nome.
-        var lados = ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada(
-            daFase.Select((_, i) => new Lado($"Vencedor {primeiraFase} {i + 1}", primeiraFase, i + 1)),
-            byes.Select(b => new Lado(b)));
+        var lados = daFase
+            .Select((_, i) => new Lado($"Vencedor {primeiraFase} {i + 1}", primeiraFase, i + 1))
+            .Concat(byes.Select(b => new Lado(b)))
+            .ToList();
 
         // Quantos jogos cada fase JÁ TEM de verdade: a projeção não repete o que existe.
         var jaSaoReais = partidasDeMataMata
@@ -205,12 +206,13 @@ public static class ProximasFasesDaChave
             // mesmo pra que a fase inteira fale a mesma língua.
             Enumerable.Range(jaReais + 1, confrontos.Count - jaReais).ToList());
 
-        // Quem folga a primeira rodada entra na mesma ordem do avanço de verdade — é o que
-        // faz cada vencedor cruzar com uma vaga que passou direto. Aqui o bye ainda não tem
-        // nome: é a colocação ("2º do Grupo C").
-        var proximos = ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada(
-            confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1)),
-            byes.Select(VagaDeGrupo));
+        var proximos = confrontos
+            .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
+            // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do
+            // avanço de verdade — é o que faz cada vencedor cruzar com uma vaga que passou
+            // direto. Aqui o bye ainda não tem nome: é a colocação ("2º do Grupo C").
+            .Concat(byes.Select(VagaDeGrupo))
+            .ToList();
 
         var rodadas = new List<RodadaQueVem>();
         if (primeira.Confrontos.Count > 0) rodadas.Add(primeira);

@@ -84,10 +84,9 @@ public class AvancoParcialDaChaveTests
         var semis = await SemifinaisAsync(ctx, categoria.Id);
         Assert.Single(semis);
 
-        // A Semifinal 1 é a vaga 0 × a vaga 3 da lista [venc(Q1), venc(Q2), bye pior, bye
-        // melhor]: o vencedor da Quartas 1 contra o MELHOR bye — o cabeça 1 no topo da chave
-        // (07/10/2026, CabecaDeChaveNoTopoDaChaveTests).
-        Assert.Equal(new HashSet<int> { quartas[0].VencedorId!.Value, byes[0] },
+        // A Semifinal 1 é a vaga 0 × a vaga 3 da lista [venc(Q1), venc(Q2), bye1, bye2]:
+        // o vencedor da Quartas 1 contra o ÚLTIMO bye.
+        Assert.Equal(new HashSet<int> { quartas[0].VencedorId!.Value, byes[1] },
                      new HashSet<int> { semis[0].Dupla1Id, semis[0].Dupla2Id });
 
         // E a Quartas 2 continua de pé, sem ninguém tê-la ressuscitado nem antecipado.
@@ -110,9 +109,9 @@ public class AvancoParcialDaChaveTests
         var semis = await SemifinaisAsync(ctx, categoria.Id);
         Assert.Equal(2, semis.Count);
 
-        Assert.Equal(new HashSet<int> { quartas[0].VencedorId!.Value, byes[0] },
+        Assert.Equal(new HashSet<int> { quartas[0].VencedorId!.Value, byes[1] },
                      new HashSet<int> { semis[0].Dupla1Id, semis[0].Dupla2Id });
-        Assert.Equal(new HashSet<int> { quartas[1].VencedorId!.Value, byes[1] },
+        Assert.Equal(new HashSet<int> { quartas[1].VencedorId!.Value, byes[0] },
                      new HashSet<int> { semis[1].Dupla1Id, semis[1].Dupla2Id });
     }
 
@@ -141,7 +140,7 @@ public class AvancoParcialDaChaveTests
         // Antes: `Assert.Empty`. Agora ela nasce — as duas vagas dela têm dono.
         var soAsegunda = await SemifinaisAsync(ctx, categoria.Id);
         var criada = Assert.Single(soAsegunda);
-        Assert.Equal(new HashSet<int> { quartas[1].VencedorId!.Value, byes[1] },
+        Assert.Equal(new HashSet<int> { quartas[1].VencedorId!.Value, byes[0] },
                      new HashSet<int> { criada.Dupla1Id, criada.Dupla2Id });
 
         // ⚠️ E O NOME DELA É O QUE A TRAVA EXISTIA PRA PROTEGER.
