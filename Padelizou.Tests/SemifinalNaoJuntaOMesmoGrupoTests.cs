@@ -60,11 +60,11 @@ public class SemifinalNaoJuntaOMesmoGrupoTests
         var grupoDe = classificados.ToDictionary(c => c.DuplaId, c => c.Grupo);
 
         // Seja quem for que vença cada jogo das Quartas, a semifinal que o robô monta —
-        // vencedores na ordem dos jogos + byes (EntrantesDepoisDaPrimeiraRodada), primeiro ×
-        // último (ParearVencedores) — nunca pode juntar duas duplas do mesmo grupo.
+        // vencedores na ordem dos jogos + byes, primeiro × último (AvancoDaChave +
+        // ParearVencedores) — nunca pode juntar duas duplas do mesmo grupo.
         foreach (var vencedores in TodosOsResultados(quartas))
         {
-            var semis = ParearVencedores(EntrantesDepoisDaPrimeiraRodada(vencedores, byes));
+            var semis = ParearVencedores(vencedores.Concat(byes).ToList());
 
             Assert.All(semis, s => Assert.False(grupoDe[s.Dupla1Id] == grupoDe[s.Dupla2Id],
                 $"{categoria}: a semifinal {s.Dupla1Id} × {s.Dupla2Id} reúne duas duplas do {grupoDe[s.Dupla1Id]} " +
@@ -109,7 +109,7 @@ public class SemifinalNaoJuntaOMesmoGrupoTests
             var (_, jogos, byes) = MontarPrimeiraFase(classificados);
 
             // A vaga de cada dupla na rodada seguinte: quem joga herda a do jogo, quem descansa
-            // vem depois dos vencedores, onde a régua única manda (VagaDoBye — a de AvancoDaChave).
+            // vem depois dos vencedores, na ordem dos byes (a ordem de AvancoDaChave).
             var lado = LadoDeCadaVaga(jogos.Count + byes.Count);
             var ladoDe = new Dictionary<int, int>();
             for (int k = 0; k < jogos.Count; k++)
@@ -117,7 +117,7 @@ public class SemifinalNaoJuntaOMesmoGrupoTests
                 ladoDe[jogos[k].Dupla1Id] = lado[k];
                 ladoDe[jogos[k].Dupla2Id] = lado[k];
             }
-            for (int b = 0; b < byes.Count; b++) ladoDe[byes[b]] = lado[VagaDoBye(jogos.Count, byes.Count, b)];
+            for (int b = 0; b < byes.Count; b++) ladoDe[byes[b]] = lado[jogos.Count + b];
 
             foreach (var grupo in classificados.GroupBy(c => c.Grupo))
             {

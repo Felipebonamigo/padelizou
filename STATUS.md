@@ -1,6 +1,10 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **08/10/2026** — ↩️ **"O CABEÇA 1 NO TOPO DA CHAVE" FOI REVERTIDO SEM PUBLICAR.** 🗣️ Felipe: *"esquece isso, deixa como esta"*. O PR #367 entrou na `main` (gerou o `build-1531-edbb849`, que **nunca foi instalado** em `dev` nem `prod`) e foi desfeito pelo revert pra não pegar carona no próximo deploy. **Não instale o `build-1531`.**
+>
+> 📌 **O diagnóstico fica de referência no PR #367**: o melhor bye cai na semifinal de BAIXO em toda chave com bye, porque a rodada seguinte é `[vencedores, byes do melhor pro pior]` cruzada primeiro × último. A ordem está escrita em seis lugares (`AvancoDaChave`, `Semear`, `ChaveProjetada`, `ProximasFasesDaChave` ×2, `QuadroDoMataMata`, `CruzamentoDoMataMata`). Se um dia voltar: reverter este revert e publicar num dia sem categoria entre a 1ª rodada do mata-mata e as semis.
+
 > Última atualização: **07/10/2026** — 🧹 **O "PREVISTO 19:00" RISCADO SAIU DO CARD DO JOGO, PRA TODO MUNDO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print de dois jogos do NATA PADEL TOUR (19:50 com *"previsto 10/10 19:00"* riscado embaixo; 20:40 com *"previsto 11/10 10:40"*): *"não precisa ter esse previsto para o público, nem pra mim"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
 >
 > 📌 **O QUE ERA:** `Partida.HorarioDoSorteio` (a promessa do sorteio, carimbada UMA vez no nascimento do jogo) aparecia riscada sob o horário atual sempre que os dois diferiam — ou seja, em todo jogo remanejado depois do sorteio. Ele mesmo pedira em 14/09 (*"temos que seguir a grade prevista, por que o usuário se baseia"*) e agora desfez. Era desenhada em UM lugar só (`_JogoEmLinha.cshtml`), sem JS que dependesse dela.
@@ -11,22 +15,6 @@
 >
 > ✅ 7.658 testes verdes (com a `main` integrada) e 13 conferidores JS. Teste novo: `OPrevistoRiscadoNaoApareceParaNinguemTests` (varre TODAS as views e o JS por `HorarioDoSorteio`; visto vermelho antes).
 >
-
-> Última atualização: **07/10/2026** — 🏆 **O CABEÇA 1 VOLTA PRO TOPO DA CHAVE.** ⏳ **NA BRANCH `claude/semifinal-cabeca-1-em-cima`, AINDA NÃO PUBLICADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da prévia de 3 grupos: *"aqui esta errado, deveria ser o 1a em cima"*.
->
-> 🕳️ **NÃO ERA A PRÉVIA, ERA O MOTOR.** A rodada depois da primeira é a lista `[vencedores, byes do melhor pro pior]`, cruzada primeiro × último. Assim o **melhor bye sempre cruzava com o último vencedor**: o 1º do A caía na semifinal de baixo, em toda chave com bye. A prévia só repetia o que o sábado faria.
->
-> ✅ **Os byes entram do pior pro melhor.** O melhor cruza com o vencedor do jogo 1 (topo) e o segundo cai na outra metade. Na chave de 3 grupos: **Semi 3 = venc. jogo 1 (1ºC × 2ºB) × 1ºA**; **Semi 4 = venc. jogo 2 (2ºA × 2ºC) × 1ºB**. Os mesmos jogos de antes, com as metades trocadas.
->
-> 🧱 **A ordem estava escrita em SEIS lugares**: o avanço de verdade (`AvancoDaChave`), a semeadura (`Semear`), a prévia (`ChaveProjetada`), a projeção (`ProximasFasesDaChave`, duas vezes), o desenho (`QuadroDoMataMata`) e o aviso do cruzamento à mão (`CruzamentoDoMataMata`). Agora todos chamam `ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada` / `VagaDoBye`. A extração foi feita **antes** da virada, com a suíte verde, e só depois a régua mudou.
->
-> 🔒 **Dois do mesmo grupo continuam só na final**: `SemifinalNaoJuntaOMesmoGrupoTests` (40 campanhas aleatórias × 2 a 8 grupos, mais as duas categorias do Er) passa com a geometria nova. Ele recalculava a ordem antiga à mão; agora usa a função única.
->
-> 🔁 **5 testes antigos travavam a régua velha por escrito** ("o vencedor da Quartas 1 contra o ÚLTIMO bye"). Foram atualizados, não apagados: o que eles protegem (avanço parcial, bye nomeado, caminho pintado) continua igual.
->
-> 🚨 **PUBLICAR NUM DIA SEM CATEGORIA ENTRE A 1ª RODADA DO MATA-MATA E AS SEMIS** (decisão do Felipe). Categoria com a 1ª rodada já criada pela régua antiga trocaria de régua no meio, e dois do mesmo grupo poderiam se cruzar na semi. Torneio encerrado não muda: o desenho dele sai dos jogos reais. **Vale também pra chave direta com bye**: lá o bye de menor Id passa a cruzar com o vencedor do jogo 1.
->
-> **7.655 testes verdes** (10 novos; os 6 que testam a régua vistos VERMELHOS antes), 13 conferidores JS verdes.
 
 > Última atualização: **07/10/2026** — 📺 **A HOME CHAMAVA DE "ACONTECENDO AGORA" UM TORNEIO QUE AINDA ESPERAVA APROVAÇÃO DAS CHAVES.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print: *"nao pode ter isso, tem q ficar apenas inscrições encerradas"*. No print, o NATA PADEL TOUR em "Acontecendo agora", com selo vermelho de transmissão ao vivo escrito **"Chaves em Aprovação"** e o botão "Acompanhar".
 >

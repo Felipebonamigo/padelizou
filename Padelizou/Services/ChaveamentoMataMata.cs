@@ -172,7 +172,7 @@ public static class ChaveamentoMataMata
 
         var gruposDosByes = new[] { new HashSet<string>(), new HashSet<string>() };
         for (int b = 0; b < byes.Count; b++)
-            gruposDosByes[LadoDaVaga(vagas, VagaDoBye(jogos, byes.Count, b))].Add(byes[b].Grupo);
+            gruposDosByes[LadoDaVaga(vagas, jogos + b)].Add(byes[b].Grupo);
 
         // A semeadura de sempre: os melhores abrem os jogos, na ordem, cada um contra o pior
         // que cabe no lado dele. Quando ela cumpre a promessa, é ela que vale — a chave cheia
@@ -417,29 +417,6 @@ public static class ChaveamentoMataMata
 
     // Pareia os vencedores de uma fase concluída para a próxima (1º x último da lista).
     //
-    // QUEM ENTRA NA RODADA DEPOIS DA PRIMEIRA, E EM QUE ORDEM: os vencedores, na ordem dos
-    // jogos, e depois quem folgou — do PIOR pro MELHOR. É ESTA ordem, cruzada primeiro × último
-    // (ParearVencedores), que decide em que metade da chave cada bye cai, e ela estava escrita
-    // em seis lugares (o avanço de verdade, a semeadura, a prévia, a projeção, o desenho e o
-    // aviso do cruzamento à mão). Mora aqui pra que os seis não possam discordar.
-    //
-    // ⚠️ DO PIOR PRO MELHOR (07/10/2026). 🗣️ Felipe, com a prévia de 3 grupos na tela: *"aqui
-    // esta errado, deveria ser o 1a em cima"*. Com os byes do melhor pro pior, o primeiro ×
-    // último cruzava o MELHOR bye com o ÚLTIMO vencedor: o 1º do Grupo A ia pra semifinal de
-    // baixo, em toda chave com bye. Invertidos, o melhor cruza com o vencedor do jogo 1 — o
-    // topo do quadro — e o segundo melhor cai na outra metade, que é a régua de toda chave.
-    // A semeadura (Semear) lê o lado de cada bye por VagaDoBye, então os dois do mesmo grupo
-    // continuam em metades opostas (CabecaDeChaveNoTopoDaChaveTests).
-    //
-    // `byesDoMelhorProPior` na ordem de OrdemDosByes — quem chama não inverte nada.
-    public static List<T> EntrantesDepoisDaPrimeiraRodada<T>(
-        IEnumerable<T> vencedores, IEnumerable<T> byesDoMelhorProPior) =>
-        vencedores.Concat(byesDoMelhorProPior.Reverse()).ToList();
-
-    // A posição do b-ésimo bye (0 = o melhor) na lista acima — pra quem precisa do LADO dele
-    // antes de existir vencedor nenhum (a semeadura e o aviso do cruzamento).
-    public static int VagaDoBye(int jogos, int byes, int b) => jogos + (byes - 1 - b);
-
     // ⚠️ É esta regra, repetida rodada após rodada, que define a metade da chave em que cada
     // vaga cai — a semeadura da primeira fase (Semear/LadoDaVaga) conta com ela pra pôr os
     // dois classificados de um grupo em lados opostos. Mudar o cruzamento aqui muda os
