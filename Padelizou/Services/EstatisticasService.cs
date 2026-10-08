@@ -120,14 +120,29 @@ public class EstatisticasService : IEstatisticasService
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.Americano
              && d.Categoria.Torneio.Formato != FormatoDoTorneio.AmericanoDeDuplas;
 
-    public static string RotuloFase(string? fase) => fase switch
+    // ⚠️ RECEBE O STATUS DO TORNEIO, e é ele que decide o rótulo mais comum. `Dupla.UltimaFase`
+    // nasce "Grupos" e esse valor quer dizer "ainda não passou de fase" — não distingue "caiu
+    // nos grupos" de "nem jogou ainda". Até 07/10/2026 o perfil escrevia "Fase de Grupos" pra
+    // um torneio de 12/11 que ainda estava com inscrição aberta. Quem sabe se o torneio
+    // começou é o TORNEIO: antes do sorteio, a verdade sobre a dupla é "Inscrito".
+    //
+    // Cancelado ganha de tudo (um jogo que não vai acontecer não pode convidar a esperar) e
+    // título/vice/semi/quartas são fato consumado, que um status atrasado não apaga.
+    public static string RotuloFase(string? fase, string? statusDoTorneio)
     {
-        "Campeao" => "Campeão",
-        "Final" => "Vice",
-        "Semifinal" => "Semifinal",
-        "Quartas de Final" => "Quartas",
-        _ => "Fase de Grupos"
-    };
+        if (CancelamentoDoTorneio.EstaCancelado(statusDoTorneio)) return "Cancelado";
+
+        return fase switch
+        {
+            "Campeao" => "Campeão",
+            "Final" => "Vice",
+            "Semifinal" => "Semifinal",
+            "Quartas de Final" => "Quartas",
+            _ => statusDoTorneio is PortaDaInscricao.Aberta or PortaDaInscricao.Fechada
+                ? "Inscrito"
+                : "Fase de Grupos",
+        };
+    }
 
     // Decide o "material" do troféu só pelo texto do nome da categoria (mesma convenção do
     // catálogo padrão em Program.cs — "2ª Categoria Masculina/Feminina", "Categoria Open ...", etc).

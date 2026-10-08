@@ -9,8 +9,45 @@
 >
 > 👀 **O QUE OS DOIS PRINTS MOSTRAVAM (e que merece um olhar do Felipe, independente da linha):** na 6ª Feminina Grupo B o jogo saiu de **dom 11/10 10:40** para **sáb 10/10 20:40** (14h mais cedo, um dia antes) — antes de o torneio começar, então não é atraso de quadra; foi remanejamento ou "recalcular horários" depois do sorteio. Daqui não dá pra dizer qual: o sistema guarda só a promessa, e **não achei no código registro de quem mexeu em `HorarioPrevisto` nem quando**.
 >
-> ✅ 7.627 testes verdes e 13 conferidores JS. Teste novo: `OPrevistoRiscadoNaoApareceParaNinguemTests` (varre TODAS as views e o JS por `HorarioDoSorteio`; visto vermelho antes).
+> ✅ 7.658 testes verdes (com a `main` integrada) e 13 conferidores JS. Teste novo: `OPrevistoRiscadoNaoApareceParaNinguemTests` (varre TODAS as views e o JS por `HorarioDoSorteio`; visto vermelho antes).
 >
+
+> Última atualização: **07/10/2026** — 🏆 **O CABEÇA 1 VOLTA PRO TOPO DA CHAVE.** ⏳ **NA BRANCH `claude/semifinal-cabeca-1-em-cima`, AINDA NÃO PUBLICADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da prévia de 3 grupos: *"aqui esta errado, deveria ser o 1a em cima"*.
+>
+> 🕳️ **NÃO ERA A PRÉVIA, ERA O MOTOR.** A rodada depois da primeira é a lista `[vencedores, byes do melhor pro pior]`, cruzada primeiro × último. Assim o **melhor bye sempre cruzava com o último vencedor**: o 1º do A caía na semifinal de baixo, em toda chave com bye. A prévia só repetia o que o sábado faria.
+>
+> ✅ **Os byes entram do pior pro melhor.** O melhor cruza com o vencedor do jogo 1 (topo) e o segundo cai na outra metade. Na chave de 3 grupos: **Semi 3 = venc. jogo 1 (1ºC × 2ºB) × 1ºA**; **Semi 4 = venc. jogo 2 (2ºA × 2ºC) × 1ºB**. Os mesmos jogos de antes, com as metades trocadas.
+>
+> 🧱 **A ordem estava escrita em SEIS lugares**: o avanço de verdade (`AvancoDaChave`), a semeadura (`Semear`), a prévia (`ChaveProjetada`), a projeção (`ProximasFasesDaChave`, duas vezes), o desenho (`QuadroDoMataMata`) e o aviso do cruzamento à mão (`CruzamentoDoMataMata`). Agora todos chamam `ChaveamentoMataMata.EntrantesDepoisDaPrimeiraRodada` / `VagaDoBye`. A extração foi feita **antes** da virada, com a suíte verde, e só depois a régua mudou.
+>
+> 🔒 **Dois do mesmo grupo continuam só na final**: `SemifinalNaoJuntaOMesmoGrupoTests` (40 campanhas aleatórias × 2 a 8 grupos, mais as duas categorias do Er) passa com a geometria nova. Ele recalculava a ordem antiga à mão; agora usa a função única.
+>
+> 🔁 **5 testes antigos travavam a régua velha por escrito** ("o vencedor da Quartas 1 contra o ÚLTIMO bye"). Foram atualizados, não apagados: o que eles protegem (avanço parcial, bye nomeado, caminho pintado) continua igual.
+>
+> 🚨 **PUBLICAR NUM DIA SEM CATEGORIA ENTRE A 1ª RODADA DO MATA-MATA E AS SEMIS** (decisão do Felipe). Categoria com a 1ª rodada já criada pela régua antiga trocaria de régua no meio, e dois do mesmo grupo poderiam se cruzar na semi. Torneio encerrado não muda: o desenho dele sai dos jogos reais. **Vale também pra chave direta com bye**: lá o bye de menor Id passa a cruzar com o vencedor do jogo 1.
+>
+> **7.655 testes verdes** (10 novos; os 6 que testam a régua vistos VERMELHOS antes), 13 conferidores JS verdes.
+
+> Última atualização: **07/10/2026** — 📺 **A HOME CHAMAVA DE "ACONTECENDO AGORA" UM TORNEIO QUE AINDA ESPERAVA APROVAÇÃO DAS CHAVES.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print: *"nao pode ter isso, tem q ficar apenas inscrições encerradas"*. No print, o NATA PADEL TOUR em "Acontecendo agora", com selo vermelho de transmissão ao vivo escrito **"Chaves em Aprovação"** e o botão "Acompanhar".
+>
+> 🕳️ **"EM ANDAMENTO" ERA A NEGAÇÃO "TUDO QUE NÃO É INSCRIÇÕES ABERTAS"** (`HomeController`), e isso inclui os dois estados de ANTES do jogo: inscrição fechada esperando o sorteio e chave sorteada esperando aprovação. A tela os tratava como torneio rolando — título, vermelho de ao vivo, "Acompanhar" — e ainda vazava crua a string **"Chaves em Aprovação"**, que é passo INTERNO do organizador (a chave só é pública depois de aprovada).
+>
+> ✅ **O CONSERTO É EM TRÊS PEÇAS, todas em `StatusDoTorneioNaTela`:** `AindaNaoComecou` (lista **explícita**: `Chaves em Sorteio` e `Chaves em Aprovação`; status novo cai no lado "rolando", que é o menos grave de errar), `NomePublico` (→ **"Inscrições Encerradas"**) e a Home dividida em duas seções — **"Acontecendo agora"** só com o que já tem chave pública, e **"Inscrições encerradas"** com selo cinza e botão "Ver". No bloco "Seus torneios", quem está inscrito num torneio assim lê **"Inscrito · Inscrições Encerradas"** em vez do vermelho.
+>
+> ⚠️ **`NomePublico` É UMA FUNÇÃO À PARTE, e a `Nome` ficou como estava:** a tela de gestão do torneio (Details) também usa a `Nome`, e lá quem aprova a chave PRECISA ler "Chaves em Aprovação". Cada tela lê o nome do seu público.
+>
+> 🧪 **7.645 testes verdes** (13 novos). O de tela foi **conferido por sabotagem**: com a Home antiga de volta, ele fica vermelho. ⚠️ **Não conferido em navegador.** 👀 **Fica de fora, por decisão:** a listagem `/Torneios` ainda tem a seção "Em Andamento" com esses mesmos torneios — o card compartilhado não escreve o status cru nem o vermelho, então o defeito não aparece lá, mas o título da seção tem o mesmo problema de fundo. Se o Felipe quiser, é o próximo.
+
+> Última atualização: **07/10/2026** — 🏷️ **O PERFIL DIZIA "FASE DE GRUPOS" DE TORNEIO QUE NEM COMEÇOU, E OS DESTAQUES SÓ TINHAM O PRIMEIRO NOME.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do próprio perfil: *"aqui tem q por pelo menos o ultimo sobrenome do adversarios, e o histórico dos torneios tem torneio q nem começou dizendo (fase de grupo) deveria ter algo dizendo que esta inscrito"*. No print, o THE LAST DANCE de 12/11/2026 com a pílula "Fase de Grupos".
+>
+> 🕳️ **`Dupla.UltimaFase` NASCE "Grupos", e isso quer dizer "ainda não passou de fase" — não distingue "caiu nos grupos" de "nem jogou ainda".** O rótulo lia só a dupla; quem sabe se o torneio começou é o TORNEIO. `EstatisticasService.RotuloFase` agora recebe o status do torneio: inscrições abertas ou fechadas (antes do sorteio) = **"Inscrito"**; cancelado = **"Cancelado"** (senão ficaria "Inscrito" pra sempre esperando um jogo que não vai acontecer); campeão/vice/semi/quartas não mudam — fato consumado que um status atrasado não apaga. ⚠️ **Sem coluna nova:** "Chaves em Sorteio" já é inscrição fechada (`PortaDaInscricao`); uma flag `JaComecou` seria a segunda resposta pra mesma pergunta.
+>
+> 🔎 **O PERFIL PÚBLICO ESCREVIA O VALOR CRU DO BANCO** (`Final`, `Campeao`, `Grupos`) — nunca foi rótulo de tela. Passou a usar o mesmo `RotuloFase` do próprio perfil.
+>
+> 👤 **Destaques: de `Nome.Split(' ')[0]` pra `NomeBonito.Curto`** — primeiro e último nome, sem os do meio, com partícula e sufixo tratados (`Otávio Wunsch Junior` → `Otávio Wunsch`). Numa panelinha com dois Lucas, "quem mais te venceu" não dizia qual.
+>
+> 🧪 **7.632 testes verdes** (8 novos). Os dois de tela foram **conferidos por sabotagem**: com as views antigas de volta, os dois ficam vermelhos. ⚠️ **Não conferido em navegador** — a sessão não sobe o app com banco.
+
 > Última atualização: **07/10/2026** — 🗓️ **O IMPEDIMENTO OFERECIA QUINTA E SEXTA NUM TORNEIO QUE COMEÇA NO SÁBADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do painel do NATA PADEL TOUR: *"aqui está marcando quinta e sexta, mas o torneio só inicia no sábado"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1521-3a6517d`** (deploy runs **427** e **428**), **o mesmo artefato nos dois**, com a tag fixada no disparo. PR #363. O OK dele pra mudança de dinheiro (a quinta passa a contar na taxa) veio com o *"sim"* ao "posso publicar nos dois (quinta incluída)?".
 >
 > 🕳️ **NÃO ERA SÓ A TELA: marcar a sexta num torneio de sábado COBRAVA `TaxaPorImpedimento` por uma janela que não existe.** `JanelasDeImpedimento.Da` só devolve janela quando o dia está nos 3 dias que seguem o início; pra "sexta" num torneio de sábado devolve vazio — a dupla paga e o sorteio ignora. Eram **TRÊS listas** de turnos independentes (inscrição, troca do jogador, painel do organizador) e a régua antiga (`QuintaEhDiaDoTorneio && PermiteImpedimentoQuintaNoite`) era um no-op: a propriedade é `é quinta || PermiteQuinta`, e `A && (B || A)` é `A`. Entra `Services/TurnosDoTorneio.Oferecidos` / `OferecidosParaConcentrar` — as telas leem dali, e o servidor RECUSA o turno inexistente (jogador, organizador e concentração) e o descarta na inscrição. O turno **já marcado** continua na lista, senão quem o marcou antes fica preso nele.

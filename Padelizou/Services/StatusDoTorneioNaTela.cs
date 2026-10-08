@@ -21,4 +21,23 @@ public static class StatusDoTorneioNaTela
         PortaDaInscricao.Fechada => "Inscrições Fechadas",
         _ => status ?? "",
     };
+
+    // O JOGO AINDA NÃO COMEÇOU? — os dois estados de ANTES da chave ser pública: inscrição
+    // fechada esperando o sorteio, e chave sorteada esperando aprovação.
+    //
+    // ⚠️ Lista EXPLÍCITA, e não "tudo que não é Inscrições Abertas": foi essa negação que, até
+    // 07/10/2026, pôs o NATA PADEL TOUR em "Acontecendo agora" com selo vermelho de ao vivo
+    // enquanto a chave ainda esperava aprovação. Status novo cai no lado "rolando" por padrão,
+    // e é o lado menos grave de errar.
+    public static bool AindaNaoComecou(string? status) =>
+        status is PortaDaInscricao.Fechada or AprovacaoDeChaves.Pendente;
+
+    // O nome pra quem olha de FORA (a vitrine da Home). Antes do jogo a pessoa só precisa saber
+    // que não dá mais pra se inscrever: "Chaves em Aprovação" é passo interno do organizador —
+    // a chave só é pública depois de aprovada — e vazava crua pra visitante.
+    //
+    // ⚠️ É uma função À PARTE, e não a `Nome` mexida: a tela de gestão do torneio também usa a
+    // `Nome`, e lá quem aprova a chave PRECISA ler "Chaves em Aprovação".
+    public static string NomePublico(string? status) =>
+        AindaNaoComecou(status) ? "Inscrições Encerradas" : status ?? "";
 }
