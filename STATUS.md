@@ -1,6 +1,17 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **07/10/2026** — 🧹 **O "PREVISTO 19:00" RISCADO SAIU DO CARD DO JOGO, PRA TODO MUNDO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print de dois jogos do NATA PADEL TOUR (19:50 com *"previsto 10/10 19:00"* riscado embaixo; 20:40 com *"previsto 11/10 10:40"*): *"não precisa ter esse previsto para o público, nem pra mim"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+>
+> 📌 **O QUE ERA:** `Partida.HorarioDoSorteio` (a promessa do sorteio, carimbada UMA vez no nascimento do jogo) aparecia riscada sob o horário atual sempre que os dois diferiam — ou seja, em todo jogo remanejado depois do sorteio. Ele mesmo pedira em 14/09 (*"temos que seguir a grade prevista, por que o usuário se baseia"*) e agora desfez. Era desenhada em UM lugar só (`_JogoEmLinha.cshtml`), sem JS que dependesse dela.
+>
+> ⚠️ **SÓ A TELA.** O campo segue gravado (`DbPadelContext.CarimbarOHorarioDoSorteio`) e os testes dele seguem valendo — tirar a coluna seria migration, que ninguém pediu. A regra `.pdz-jl-prometido` do `site.css` ficou ÓRFÃ DE PROPÓSITO: mexer no `site.css` exige subir o cache do `sw.js` (v38 hoje), e isso não paga uma regra morta — **sai junto do próximo bump**. Consequência assumida: sem a linha, o jogador que se programou pelo horário do sorteio não vê mais, no card, que o jogo mudou. O horário que vale continua sendo o de cima.
+>
+> 👀 **O QUE OS DOIS PRINTS MOSTRAVAM (e que merece um olhar do Felipe, independente da linha):** na 6ª Feminina Grupo B o jogo saiu de **dom 11/10 10:40** para **sáb 10/10 20:40** (14h mais cedo, um dia antes) — antes de o torneio começar, então não é atraso de quadra; foi remanejamento ou "recalcular horários" depois do sorteio. Daqui não dá pra dizer qual: o sistema guarda só a promessa, e **não achei no código registro de quem mexeu em `HorarioPrevisto` nem quando**.
+>
+> ✅ 7.658 testes verdes (com a `main` integrada) e 13 conferidores JS. Teste novo: `OPrevistoRiscadoNaoApareceParaNinguemTests` (varre TODAS as views e o JS por `HorarioDoSorteio`; visto vermelho antes).
+>
+
 > Última atualização: **07/10/2026** — 🏆 **O CABEÇA 1 VOLTA PRO TOPO DA CHAVE.** ⏳ **NA BRANCH `claude/semifinal-cabeca-1-em-cima`, AINDA NÃO PUBLICADO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print da prévia de 3 grupos: *"aqui esta errado, deveria ser o 1a em cima"*.
 >
 > 🕳️ **NÃO ERA A PRÉVIA, ERA O MOTOR.** A rodada depois da primeira é a lista `[vencedores, byes do melhor pro pior]`, cruzada primeiro × último. Assim o **melhor bye sempre cruzava com o último vencedor**: o 1º do A caía na semifinal de baixo, em toda chave com bye. A prévia só repetia o que o sábado faria.
