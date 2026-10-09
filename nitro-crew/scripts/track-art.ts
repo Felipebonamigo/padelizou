@@ -143,8 +143,25 @@ function pampulha(): Art {
   return { state: 'MG', what: 'Igreja da Pampulha', pts: r.pts, start: [3, 68] };
 }
 
+/**
+ * ES · Convento da Penha: o morro em domo (encosta suave à esquerda, paredão íngreme do lado direito) e, no topo, o
+ * convento: a caixa baixa da igreja com a torre de ponta. Largada na reta do pé esquerdo do morro.
+ */
+function penha(): Art {
+  const r = new Pen(2, 86).L(2, 70)
+    .C(2, 52, 14, 39, 31, 37) // a encosta
+    .L(33, 37).L(33, 26).L(51, 26) // a parede da igreja e o telhado
+    .L(51, 14).L(57, 3).L(63, 14) // a torre, com a ponta
+    .L(63, 26).L(69, 26).L(69, 37) // o telhado até a ponta direita
+    .L(71, 37).C(80, 37, 85, 47, 88, 62) // o topo do paredão
+    .C(90, 72, 91, 80, 93, 86) // o paredão
+    .Q(93, 90, 89, 90).L(6, 90).Q(2, 90, 2, 86); // o pé
+  return { state: 'ES', what: 'Convento da Penha', pts: r.pts, start: [2, 82] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
   pampulha,
+  convento_penha: penha,
 };
