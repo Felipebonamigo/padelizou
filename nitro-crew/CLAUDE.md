@@ -16,6 +16,7 @@ não use nada de fora desta pasta.
 **Onde paramos (09/10/2026):** cronograma aprovado para seguir; cartão da onda K pronto (`docs/ondas/K.md` + `docs/ondas/K/K0–K5.md`).
 A K **não abre** até o repositório próprio `Felipebonamigo/nitro-crew` (privado) existir — o dono cria; a extração do histórico
 está descrita no topo de `docs/ondas/K.md`. Decisões ainda abertas: horas semanais, Steamworks, retorno dos amigos, rampa da IA (A/B).
+Os 13 ajustes anotados pelo dono (09/10) estão mapeados em `docs/CRONOGRAMA.md` ("Ajustes anotados pelo dono"): frentes K6, M6 e N6; decisões nº 23–26.
 
 3. **`docs/DIRECAO-DE-ARTE.md`** — **diretriz do dono: parecer um jogo de ÚLTIMA GERAÇÃO, CARTUNESCO** (referências
    Mario Kart 8, Crash Team Racing Nitro-Fueled), não low-poly chapado; critérios verificáveis de "pronto" no visual.

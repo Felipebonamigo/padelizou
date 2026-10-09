@@ -6,6 +6,12 @@
 >
 > Todo comando roda de `/home/user/padelizou/nitro-crew`, salvo quando o passo indica outra pasta.
 
+> **K6 (acrescentada em 09/10/2026, depois desta abertura).** Os ajustes anotados pelo dono viraram a frente K6 em
+> `docs/CRONOGRAMA.md` (onda K e a tabela "Ajustes anotados pelo dono"). Ainda **não tem cartão**: o K0 escreve
+> `docs/ondas/K/K6.md` na fase A, no mesmo formato dos outros (arquivos, testes antes, passos), e a encaixa na
+> tabela de donos desta abertura — `src/ui/input.ts` e o laço do quadro de `src/game/session.ts` cruzam com a K1;
+> a K6 entra depois da mescla da K1, ou a K1 cede essas linhas.
+
 > **Repositório próprio (decisão do dono, 08/10/2026).** O jogo vai para `Felipebonamigo/nitro-crew`, privado — isso
 > responde a decisão nº 2 (repositório público). O repositório ainda não existe (o dono cria; a sessão não tem permissão).
 > Quando existir: o histórico vai com `git subtree split --prefix=nitro-crew`, e nos cartões troque
