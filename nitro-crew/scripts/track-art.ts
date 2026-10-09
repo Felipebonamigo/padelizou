@@ -257,6 +257,24 @@ function gota(): Art {
   return { state: 'GO', what: 'gota d\'água', pts: r.pts, start: [18, 68] };
 }
 
+/**
+ * MS · A piraputanga nadando para a direita: a cauda bifurcada (a largada fica na borda de trás do lobo de baixo), o corpo
+ * oval, a barbatana dorsal redonda, a boca aberta e as barbatanas de baixo (a anal e a pélvica). Curvas longas de
+ * propósito: pista de mata, e sem elas o cenário passa do orçamento (docs/PISTAS.md, "Pistas com desenho").
+ */
+function peixe(): Art {
+  const r = new Pen(13, 83).Q(5, 83, 5, 77).L(5, 61) // o lobo de baixo da cauda: a borda de trás é a reta da largada
+    .C(5, 58, 14, 54, 24, 53).arc(24, 49, 4, 90, -90).C(14, 44, 5, 40, 5, 37).L(5, 25).Q(5, 18, 12, 19) // a forquilha e o lobo de cima
+    .C(20, 21, 26, 30, 32, 37) // a cauda até o pedúnculo
+    .C(38, 33, 40, 27, 46, 24).C(46, 14, 52, 9, 60, 9).C(68, 9, 70, 20, 74, 26) // as costas e a dorsal
+    .C(86, 26, 96, 34, 98, 48).L(93, 51.5).L(98.5, 55.5) // a cabeça e a boca aberta
+    .C(97, 62, 88, 68, 74, 69) // o queixo e a barriga
+    .C(70, 72, 66, 82, 58, 82).C(57, 78, 55, 73, 51, 70) // a anal
+    .C(48, 76, 44, 79, 40, 77).C(40, 73, 42, 70, 40, 68) // a pélvica
+    .C(36, 66, 33, 63, 32, 60).C(26, 66, 20, 74, 13, 83); // o pedúnculo e o lobo de baixo, por baixo
+  return { state: 'MS', what: 'peixe (piraputanga)', pts: r.pts, start: [5, 72.5] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
@@ -267,4 +285,5 @@ export const ART: Readonly<Record<string, () => Art>> = {
   curitiba: araucaria,
   brasilia: aviao,
   caldas_novas: gota,
+  bonito: peixe,
 };
