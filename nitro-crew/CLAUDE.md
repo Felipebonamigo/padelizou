@@ -13,8 +13,9 @@ não use nada de fora desta pasta.
    o modelo de instrução para cada agente, o checklist de mescla e as armadilhas que já custaram retrabalho. Feito para
    que um modo mais econômico faça igual (pedido do dono, 06/10/2026).
 2. **`docs/CRONOGRAMA.md`** — as ondas a fazer, em ordem; o cartão de cada onda em `docs/ondas/`.
-**Onde paramos (06/10/2026):** cronograma pronto e aguardando o dono (decisões 1–4 da seção 7). Próximo passo: escrever
-`docs/ondas/K.md` (PLAYBOOK §8; o rascunho por agentes foi interrompido para economizar) e abrir a onda K.
+**Onde paramos (09/10/2026):** cronograma aprovado para seguir; cartão da onda K pronto (`docs/ondas/K.md` + `docs/ondas/K/K0–K5.md`).
+A K **não abre** até o repositório próprio `Felipebonamigo/nitro-crew` (privado) existir — o dono cria; a extração do histórico
+está descrita no topo de `docs/ondas/K.md`. Decisões ainda abertas: horas semanais, Steamworks, retorno dos amigos, rampa da IA (A/B).
 
 3. **`docs/DIRECAO-DE-ARTE.md`** — **diretriz do dono: parecer um jogo de ÚLTIMA GERAÇÃO, CARTUNESCO** (referências
    Mario Kart 8, Crash Team Racing Nitro-Fueled), não low-poly chapado; critérios verificáveis de "pronto" no visual.
