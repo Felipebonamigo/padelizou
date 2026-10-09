@@ -191,6 +191,45 @@ function cuia(): Art {
   return { state: 'RS', what: 'cuia de chimarrão', pts: r.pts, start: [11, 70] };
 }
 
+/** Ponto de cima (menor y) em que dois círculos [cx, cy, r] se cortam. */
+function upperCut(a: [number, number, number], b: [number, number, number]): P {
+  const dx = b[0] - a[0]; const dy = b[1] - a[1]; const d = Math.hypot(dx, dy);
+  const t = (a[2] * a[2] - b[2] * b[2] + d * d) / (2 * d); const h = Math.sqrt(a[2] * a[2] - t * t);
+  const mx = a[0] + (dx * t) / d; const my = a[1] + (dy * t) / d;
+  const p1: P = [mx - (dy * h) / d, my + (dx * h) / d]; const p2: P = [mx + (dy * h) / d, my - (dx * h) / d];
+  return p1[1] < p2[1] ? p1 : p2;
+}
+
+/**
+ * Tufos: o contorno de cima de círculos que se sobrepõem, da esquerda para a direita (horário), com a quina em cada
+ * encontro. O primeiro arco começa em `from` (graus) e o último termina em `to`.
+ */
+function scallop(pen: Pen, circles: Array<[number, number, number]>, from: number, to: number): Pen {
+  const ang = (c: [number, number, number], p: P) => (Math.atan2(p[1] - c[1], p[0] - c[0]) * 180) / Math.PI;
+  let a0 = from;
+  circles.forEach((c, i) => {
+    let a1 = to;
+    if (i < circles.length - 1) a1 = ang(c, upperCut(c, circles[i + 1]));
+    while (a1 <= a0) a1 += 360;
+    pen.arc(c[0], c[1], c[2], a0, a1);
+    if (i < circles.length - 1) a0 = ang(circles[i + 1], upperCut(c, circles[i + 1]));
+  });
+  return pen;
+}
+
+/**
+ * PR · Araucária: o tronco reto, a copa em taça aberta (candelabro) com a borda de tufos redondos e a face de baixo
+ * levemente côncava, e um galho menor, de tufo na ponta, mais embaixo. Simétrica: desenhada a metade da direita, do alto do eixo ao pé
+ * do tronco. Largada no tronco, do lado esquerdo, perto do chão.
+ */
+function araucaria(): Art {
+  const r = scallop(new Pen(50, 5), [[50, 14, 9], [65, 16, 8.5], [80, 21, 8]], -90, 50)
+    .C(76, 32, 64, 40, 55, 47) // a face de baixo da copa, levemente côncava
+    .L(55, 61).C(59, 61, 61, 57, 62.8, 53).arc(68, 56, 6, -150, 110).C(62, 67, 59, 70, 55, 70) // o galho, com o tufo na ponta
+    .L(55, 96).L(50, 96); // o tronco
+  return { state: 'PR', what: 'araucária', pts: sym(r.pts), start: [45, 90] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
@@ -198,4 +237,5 @@ export const ART: Readonly<Record<string, () => Art>> = {
   convento_penha: penha,
   floripa: hercilio,
   cuia_gaucha: cuia,
+  curitiba: araucaria,
 };
