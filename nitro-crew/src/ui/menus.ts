@@ -15,7 +15,9 @@ import { passportScreen } from './screens/passport';
 import { resultsScreen, standingsScreen } from './screens/results';
 import { cupsScreen, tracksScreen } from './screens/select';
 import { creditsScreen, loadingScreen, mainScreen, pauseScreen, titleScreen } from './screens/simple';
+import { surveyScreen } from './screens/survey';
 import { tutorialDoneScreen, tutorialScreen } from './screens/tutorial';
+import { getActivePlaylog } from '../game/playlog';
 import './strings';
 
 /** Tecla física → borda de navegação e o "dispositivo" de teclado a que pertence. */
@@ -75,6 +77,7 @@ const FACTORIES: Readonly<Record<MenuScreen, ScreenFactory>> = {
   tutorial: tutorialScreen,
   tutorialDone: tutorialDoneScreen,
   passport: passportScreen,
+  survey: surveyScreen,
 };
 
 export function createMenus(ctx: MenuContext): Menus {
@@ -136,10 +139,11 @@ export function createMenus(ctx: MenuContext): Menus {
     }
     const nav = keyNav(e.code, e.repeat);
     if (!nav) return;
+    getActivePlaylog()?.input();
     e.preventDefault();
     instance.nav(nav);
   };
-  const onPointerDown = () => { ctx.audio.unlock(); };
+  const onPointerDown = () => { getActivePlaylog()?.input(); ctx.audio.unlock(); };
   document.addEventListener('keydown', onKeyDown);
   root.addEventListener('pointerdown', onPointerDown);
 
@@ -160,6 +164,7 @@ export function createMenus(ctx: MenuContext): Menus {
     navigate(nav: MenuNav) {
       // O teclado já chegou pelo keydown; aqui só o que o DOM não vê (gamepads).
       if (!instance || !nav.device || isKeyboard(nav.device) || !hasEdge(nav)) return;
+      getActivePlaylog()?.input();
       instance.nav(nav);
     },
     update(dt: number) {

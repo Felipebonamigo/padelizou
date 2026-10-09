@@ -60,7 +60,7 @@
 .options-footer .sel-label { white-space: normal; line-height: 1.15; }
 .options-footer .sel-value { min-width: calc(96 * var(--u)); }
 
-/* "Copiar relatório de erros" é uma linha de ação (sem as setas ‹ › dos seletores). */
+/* "Copiar relatório" é uma linha de ação (sem as setas ‹ › dos seletores). */
 .sel.sel-action { cursor: pointer; }
 .sel.sel-action .sel-value { color: var(--muted); font-weight: 600; }
 .sel.sel-action.focus .sel-value { color: var(--text); }

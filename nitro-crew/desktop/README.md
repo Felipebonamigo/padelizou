@@ -123,7 +123,7 @@ xvfb-run -a npm run e2e          # numa máquina com tela: npm run e2e
 
 Abre o **executável empacotado** pelo Playwright da raiz do jogo, com o userData numa pasta temporária, e
 confere: `app/index.html` carregado de dentro do asar, preload, pasta "Nitro Crew", erro → aviso no canto e
-`logs/errors.log`, "Copiar relatório de erros" → área de transferência, telemetria → `saves/*.json`, save
+`logs/errors.log`, "Copiar relatório" → área de transferência, telemetria → `saves/*.json`, save
 trocado em disco (como a nuvem faria) vencendo um `localStorage` **diferente** na volta (conflito de verdade),
 o mesmo erro repetido na 2ª abertura voltando ao log, e a tela de erro fatal sem WebGL — com a opção
 `--ignore-gpu-blocklist` num `<code>` e os dois botões operados por um controle simulado.
@@ -263,7 +263,7 @@ exige trocar os caminhos acima — o nome definitivo do jogo (Fase 2.1) **não**
 
 `src/game/errors.ts` guarda os últimos 50 erros no `localStorage` e, no Electron, em `logs/errors.log`; o
 `main.cjs` acrescenta ao mesmo log a queda do processo da página (`render-process-gone`, com um recarregamento
-automático) e da GPU. O jogador copia tudo em Opções › "Copiar relatório de erros". Caminhos de arquivo e nomes
+automático) e da GPU. O jogador copia tudo em Opções › "Copiar relatório". Caminhos de arquivo e nomes
 de pasta pessoal saem do texto. Política: `docs/legal/PRIVACIDADE.md`.
 
 - Erro repetido (mesma pilha; números da mensagem não contam) é **uma** entrada com contador: guarda a 1ª vez e
@@ -385,7 +385,7 @@ mesma API cair na Fullscreen API quando `window.desktop` não existe.
 
 ## Teste manual do Felipe (Windows e Steam Deck)
 
-O que o agente não consegue provar daqui. Anote a versão (Opções › Copiar relatório de erros, linha `version:`)
+O que o agente não consegue provar daqui. Anote a versão (Opções › Copiar relatório, linha `version:`)
 e o resultado de cada item na tabela de `docs/QA.md`.
 
 ### Windows (máquina sem Node nem ferramentas de desenvolvedor — itens M-1 a M-3 da matriz)
@@ -403,7 +403,7 @@ compactar a pasta gerada no Linux (`cd release && zip -qr nitro-crew-win.zip win
       qualidade usada e se fica a 60 fps (Opções › Qualidade).
 - [ ] `%APPDATA%\Nitro Crew\saves` tem `nitro-crew.settings.json` e, depois da corrida, `nitro-crew.save.json`.
       Fechar e abrir: progresso e opções mantidos.
-- [ ] Opções › "Copiar relatório de erros" e colar no Bloco de Notas: `desktop: yes`, versão 0.1.0, nenhum
+- [ ] Opções › "Copiar relatório" e colar no Bloco de Notas: `desktop: yes`, versão 0.1.0, nenhum
       `C:\Users\<seu nome>`.
 - [ ] "Sair" no menu fecha tudo (Gerenciador de Tarefas sem "Nitro Crew"); um segundo clique no atalho com o
       jogo aberto só traz a janela para a frente.

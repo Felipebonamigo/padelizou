@@ -3,7 +3,7 @@
 //   xvfb-run -a node e2e.mjs [prefixo-das-capturas]      (sem Xvfb, numa máquina com tela: node e2e.mjs)
 // userData isolado numa pasta temporária (XDG_CONFIG_HOME) — nunca toca o ~/.config de verdade.
 // Confere: app/index.html de dentro do asar, preload, pasta "Nitro Crew", erro → aviso + log em arquivo,
-// "Copiar relatório de erros" → área de transferência, telemetria → saves/*.json, arquivo trocado "pela nuvem"
+// "Copiar relatório" → área de transferência, telemetria → saves/*.json, arquivo trocado "pela nuvem"
 // vencendo um localStorage DIFERENTE na volta (conflito de verdade), o mesmo erro na 2ª abertura voltando ao log,
 // e a tela de erro fatal quando o WebGL não existe — com a opção num <code> e operada por um controle simulado.
 import { _electron as electron } from 'playwright';
@@ -65,7 +65,7 @@ const toastShown = await page.evaluate(() => document.querySelector('.nc-error-t
 check(toastShown, 'aviso discreto aparece no canto');
 await shot('02-toast-options');
 
-// Desce até "Copiar relatório de erros" (rodapé, depois das colunas Geral e Corrida) e copia com Enter.
+// Desce até "Copiar relatório" (rodapé, depois das colunas Geral e Corrida) e copia com Enter.
 const focusedItem = () => page.evaluate(() => document.querySelector('.options-footer .focus, .focus[data-item]')?.getAttribute('data-item') ?? null);
 for (let i = 0; i < 30 && (await focusedItem()) !== 'error-report'; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(80); }
 const focused = await focusedItem();

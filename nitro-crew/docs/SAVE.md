@@ -13,6 +13,7 @@ armazenamento cheio (risco "Save no navegador cheio" do roteiro, corrigido na on
 | `nitro-crew.settings` | Opções | sim | **nunca** |
 | `nitro-crew.ghosts` | Fantasmas do contra-relógio (teto de 160 000 caracteres, `docs/FANTASMA.md`) | sim | sim, o gravado há mais tempo primeiro |
 | `nitro-crew.errors` | Relatório de erros (últimos 50) | não (o Electron tem `logs/errors.log`) | sim, primeiro |
+| `nitro-crew.playlog` | Diário de jogo (funil, até 150 corridas, 100 sessões e 50 respostas do questionário; só números, ids e datas, sem nomes). Vai para o arquivo (`saves/nitro-crew.playlog.json`) e para a Steam Cloud. Teto de 250 000 caracteres (pior caso medido: 241 052) | sim | **nunca**: se não couber, a gravação se perde e o jogo avisa; o diário jamais descarta o log de erros nem o fantasma para caber (guardas em `errors.ts` e `ghost-store.ts`) |
 | `nitro-crew.__pending` | Chaves cuja última gravação não chegou ao arquivo | não | não |
 
 ## Os três lugares de uma gravação

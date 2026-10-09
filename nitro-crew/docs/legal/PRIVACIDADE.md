@@ -37,6 +37,7 @@ O jogo grava estes dados **localmente**. Nós não temos acesso a eles.
 |---|---|---|
 | **Opções** | idioma, volumes, qualidade de imagem, dificuldade, se a telemetria está ligada (e em qual versão destes termos você a ligou) | `nitro-crew.settings` |
 | **Progresso** | copas concluídas, recordes de volta e de corrida por pista, conquistas, número de corridas e vitórias | `nitro-crew.save` |
+| **Diário de jogo** | a data e a hora (UTC) de cada sessão, o tempo e as entradas do título até a 1ª corrida e, por corrida, o modo, a pista, a copa, a posição, a duração, se abandonou ou foi eliminado, a assistência usada, batidas e box, o termômetro de emoção (ultrapassagens, disputa, nitro, raspões) e as respostas do questionário. **Nunca guarda nome de jogador.** Nada é enviado | `nitro-crew.playlog` |
 | **Nomes dos jogadores** | os nomes que você digita para cada assento (P1–P4) e o carro de cada um, e o nome gravado junto de cada recorde | dentro do progresso |
 | **Registro de erros** | até 50 erros: versão do jogo, data e hora (da primeira e da última vez), quantas vezes aconteceu, tipo do erro, mensagem técnica, trecho do código onde aconteceu, modo de jogo, pista e tela abertas na última vez | `nitro-crew.errors` e, na versão para computador, o arquivo `logs/errors.log` |
 
@@ -59,7 +60,7 @@ do site). Apagar a pasta também apaga o progresso.
 
 Se você joga pela Steam com a Steam Cloud ativada, a Steam copia os arquivos `saves/*.json` da pasta de dados
 (**opções e progresso, incluindo os nomes dos jogadores digitados no jogo**) para os servidores da Valve e para
-os seus outros computadores. O registro de erros **não** é copiado.
+os seus outros computadores. O diário de jogo é uma chave de save comum e vai junto. O registro de erros **não** é copiado.
 
 A Steam também informa ao jogo o seu **nome de perfil da Steam** (usado só na tela do jogo, nunca enviado a
 nós), recebe as **conquistas** que você desbloqueia e mostra aos seus amigos o que você está fazendo no jogo
@@ -128,10 +129,10 @@ revogável a qualquer momento (art. 8º, § 5º). Confirmar se o resumo, sem IP 
 
 ## 6. Relatório de erros que você nos manda
 
-Em **Opções › Copiar relatório de erros** (e na tela "O jogo não conseguiu iniciar"), o jogo copia para a área
+Em **Opções › Copiar relatório** (e na tela "O jogo não conseguiu iniciar"), o jogo copia para a área
 de transferência um texto com: a versão do jogo, a data, o sistema e o navegador/versão do Electron
 (identificação técnica, sem pastas pessoais), idioma, qualidade de imagem, se a telemetria está ligada e os
-erros registrados (seção 2). **Você vê o texto antes de mandar**, e só nos manda se quiser, pelo canal que
+erros registrados (seção 2) e, logo abaixo, o diário de jogo (sem nomes). **Você vê o texto antes de mandar**, e só nos manda se quiser, pelo canal que
 escolher (e-mail, fórum da Steam, Discord).
 
 Usamos o relatório apenas para corrigir o erro. [Prazo de guarda: proposta de 1 ano a partir do recebimento.]

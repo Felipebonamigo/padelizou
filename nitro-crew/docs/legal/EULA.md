@@ -69,7 +69,7 @@ instalá-las automaticamente. Faremos o possível para manter o seu progresso sa
 
 Fazemos o Jogo com cuidado e testes, mas nenhum software é livre de erros. Se o Jogo não funcionar no seu
 computador, use o reembolso da loja (na Steam, as regras de reembolso dela) e, se quiser, nos mande o relatório
-de erros (Opções › Copiar relatório de erros) para tentarmos corrigir.
+de erros (Opções › Copiar relatório) para tentarmos corrigir.
 
 Na medida permitida pela lei, não respondemos por perdas indiretas (como lucros cessantes) decorrentes do uso do
 Jogo. **Nada neste contrato tira direitos que o Código de Defesa do Consumidor garante a você.**

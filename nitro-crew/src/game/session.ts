@@ -38,6 +38,8 @@ import { createOnlineController, type OnlineController } from './online-session'
 import { createPartySession, isPartyRaceMode } from './party-session';
 import { racePaints, withoutPaint } from './paints';
 import { carIndexOfSeat } from '../core/modes';
+import { createFeelTracker, observeFeel, type FeelTracker } from './race-feel';
+import { getActivePlaylog, playlogRace } from './playlog';
 import { settleRace, stepObserved, type RaceOutcome } from './raceEnd';
 import { newRumbleMemory, rumbleCues } from './rumble';
 import { isCupUnlocked, loadSave, saveSave } from './save';
@@ -74,6 +76,9 @@ interface ActiveRace {
   /** Bordas (nitro, marchas) lidas num quadro de tela em que não coube nenhum passo da física; valem no próximo passo. */
   /** Cópia só de exibição que segue andando depois da bandeirada (o estado real fica parado); some com a corrida. */
   afterFlag?: AfterFlag;
+  /** Termômetro de emoção por carro humano local (race-feel.ts) e se a corrida já foi para o diário (playlog.ts). */
+  feel: Record<number, FeelTracker>;
+  logged: boolean;
   heldEdges?: Array<Pick<PlayerInput, 'nitro' | 'gearUp' | 'gearDown'> | undefined>;
 }
 
@@ -144,7 +149,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     settings, save, input,
     startRace: (config, localSeats, driver, state, humans) => beginRace(config, 'quick', humans ?? config.humans, { driver, localSeats, state }),
     raceState: () => session.race?.state ?? null,
-    clearRace: () => { session.race = null; session.paused = false; },
+    clearRace: () => { if (session.race) logRace(session.race); session.race = null; session.paused = false; },
     showScreen: () => menus.show('online'),
     hideScreen: () => menus.hide(),
     menuOpen: () => menus.current() !== null,
@@ -220,6 +225,8 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     renderer.resize(window.innerWidth, window.innerHeight, Math.min(2, window.devicePixelRatio || 1));
   }
   window.addEventListener('resize', resize);
+  // Fechar a aba ou a janela no meio da corrida a registra como abandonada (o localStorage é síncrono).
+  window.addEventListener('pagehide', () => { if (session.race) logRace(session.race); });
   resize();
 
   // ───────────────────────────── Corrida ─────────────────────────────
@@ -235,6 +242,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   function beginRace(config: RaceConfig, mode: RaceMode, humans: HumanEntry[], net?: { driver: RaceDriver; localSeats: number[]; state?: RaceState }): void {
     // Os modos de festa são só locais: uma corrida em rede nunca nasce com eles (docs/MODOS.md).
     if (net && (isPartyRaceMode(mode) || config.mode)) { net.driver.dispose(); console.warn(t('party.onlineRefused')); toMain(); return; }
+    if (session.race) logRace(session.race);
     const track = getTrack(config.trackId);
     const state = net?.state ?? createRace(config, track);
     const localSeats = net ? net.localSeats : humans.map((h) => h.seat);
@@ -244,7 +252,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     session.race = {
       state, track, mode, humans, messages, telemetry: newTelemetry(), overFor: 0, seed: config.seed, outcome: null, driver: net?.driver ?? null, localSeats, ghost,
       paints: racePaints(state.cars, humans),
+      feel: Object.fromEntries(localSeats.map((s) => carIndexOfSeat(state, s)).filter((c) => c >= 0).map((c) => [c, createFeelTracker(c)])), logged: false,
     };
+    getActivePlaylog()?.raceStarted({ mode, trackId: config.trackId, humans: localSeats.length });
     session.paused = false;
     accumulator = 0;
     menus.hide();
@@ -305,6 +315,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
 
   /** Sai da corrida para os menus (fundo animado e música de menu), sem mexer nos assentos; fecha o online se houver. */
   function toIdle(): void {
+    if (session.race) logRace(session.race);
     const driver = session.race?.driver;
     session.race = null;
     driver?.dispose();
@@ -410,8 +421,16 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
     });
   }
 
+  /** Registra a corrida no diário uma vez só; o que não chegou ao race_over entra como abandonada. */
+  function logRace(r: ActiveRace): void {
+    if (r.logged) return;
+    r.logged = true;
+    getActivePlaylog()?.raceEnded(playlogRace(r, { abandoned: r.state.phase !== 'finished', champ }));
+  }
+
   function finishRace(r: ActiveRace): void {
     const { newRecords, achievements, newStamp } = settle(r);
+    logRace(r);
     const data = { mode: r.mode, trackDef: r.track.def, results: r.state.results ?? [], humans: withRaceAssists(r.humans, r.state.config.humans), champ, newRecords, achievements, party: party.raceFinished(r.mode, r.state), newStamp: newStamp ?? null };
     if (r.driver) r.driver.finished(data);
     else menus.show('results', data);
@@ -427,7 +446,9 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function stepOnce(r: ActiveRace, inputs: PlayerInput[]): void {
-    for (const e of stepObserved(r, inputs)) handleEvent(r, e); // observa antes: o tick que fecha a corrida já conta
+    const events = stepObserved(r, inputs); // observa antes: o tick que fecha a corrida já conta
+    for (const f of Object.values(r.feel)) observeFeel(f, r.state);
+    for (const e of events) handleEvent(r, e);
     r.ghost?.afterTick(r.state);
     for (const c of rumbleCues(r.state, rumbleMemory)) input.rumble(c.seat, c.strength, c.ms);
   }
@@ -556,6 +577,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
   }
 
   function handleMenuEvent(e: MenuEvent): void {
+    if (getActivePlaylog()?.askSurveyBefore(e, session.race !== null && session.race.state.phase !== 'finished')) { menus.show('survey'); return; }
     switch (e.type) {
       case 'startCup': startCup(e.cupId, e.humans); break;
       case 'startQuick': startQuick(e.trackId, e.laps, e.humans); break;

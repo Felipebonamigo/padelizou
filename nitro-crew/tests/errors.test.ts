@@ -9,12 +9,14 @@ import {
 import { createFatalPadNav, fatalPadAction, isWebGlFailure, LAUNCH_FLAG, splitLaunchFlag, type PadLike } from '../src/errors/fatal';
 import { errorCountText, optionsFooter } from '../src/errors/options';
 import { DEFAULT_SETTINGS, type Settings } from '../src/game/contracts';
+import { createPlaylog, setActivePlaylog } from '../src/game/playlog';
 import { sanitizeSettings } from '../src/game/settings';
 import { setLanguage, t } from '../src/i18n';
 import { mapGamepad, NEUTRAL_RAW } from '../src/ui/input';
 import type { FocusItem, ScreenApi } from '../src/ui/screens/common';
 import { optionsScreen } from '../src/ui/screens/options';
 import pkg from '../package.json';
+import { fakeDeps } from './playlog-fixtures';
 
 function memoryStorage(): StorageLike & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -54,6 +56,7 @@ function harness(over: Partial<ReporterDeps> = {}, storage = memoryStorage()): H
 afterEach(() => {
   setTelemetryEndpoint(null);
   setActiveReporter(null);
+  setActivePlaylog(null);
   setLanguage('pt');
   vi.unstubAllGlobals();
 });
@@ -562,6 +565,24 @@ describe('Opções: itens do relatório de erros', () => {
     expect(settings.telemetryConsent).toBe(0);
     expect(commits).toBe(2);
     footer.destroy();
+  });
+
+  it('Copiar relatório leva o relatório de erros e o diário de jogo', async () => {
+    installFakeDocument();
+    setActiveReporter(harness().reporter);
+    const log = createPlaylog(fakeDeps().deps);
+    log.sessionStart();
+    setActivePlaylog(log);
+    let copied = '';
+    vi.stubGlobal('navigator', { userAgent: 'test', clipboard: { writeText: async (text: string) => { copied = text; } } });
+    const back: FocusItem = { el: new FakeEl('button') as unknown as HTMLElement, activate: () => undefined };
+    const footer = optionsFooter(fakeScreenApi(structuredClone(DEFAULT_SETTINGS) as Settings), () => undefined, back);
+    footer.items[0].activate?.();
+    await vi.waitFor(() => expect(copied).not.toBe(''));
+    expect(copied).toContain('Nitro Crew — error report');
+    expect(copied).toContain('Nitro Crew — play log');
+    footer.destroy();
+    setActivePlaylog(null);
   });
 });
 

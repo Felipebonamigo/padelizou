@@ -336,7 +336,7 @@ export interface RaceDriver {
 
 export type MenuScreen = 'title' | 'main' | 'lobby' | 'cups' | 'tracks' | 'results' | 'standings' | 'pause' | 'options' | 'controls' | 'records' | 'credits' | 'loading' | 'career' | 'garage' | 'online'
   | 'party' | 'tournament' | 'handoff' | 'tournamentTable' | 'access'
-  | 'tutorial' | 'tutorialDone' | 'passport';
+  | 'tutorial' | 'tutorialDone' | 'passport' | 'survey';
 
 /** Modos de festa, só locais (docs/MODOS.md; src/game/party-session.ts). */
 export type PartyMode = 'tournament' | 'escort' | 'relay';

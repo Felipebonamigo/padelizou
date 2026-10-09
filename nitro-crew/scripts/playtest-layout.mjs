@@ -142,6 +142,7 @@ const SCREENS = [
   }],
   ['tournament-table', () => window.nc.session.menus.show('tournamentTable')],
   ['options', () => window.nc.session.menus.show('options')],
+  ['survey', () => window.nc.session.menus.show('survey')],
   ['access', () => window.nc.session.menus.show('access')],
   ['controls', () => window.nc.session.menus.show('controls')],
   ['records', () => window.nc.session.menus.show('records')],

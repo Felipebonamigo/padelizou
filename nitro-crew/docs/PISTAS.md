@@ -486,6 +486,8 @@ com 🇪🇺; as 27 copas de estado usam 🇧🇷 (a sigla do estado é o carimb
 
 ## Balanceamento
 
+**Termômetro de emoção (onda K, K2).** `npm run balance -- corrida` imprime, por pista, `| emoção ult/min A disputa B% sozinho C% fundo D% nitro E% raspões F traseiras G` e, no fim, a média das pistas. Definições: ult/min = posições ganhas por minuto; disputa = % do tempo com o vizinho de posição a ≤ 1000 u de progresso; sozinho = % com os dois vizinhos a > 3000 u; fundo = % com velocidade ≥ 85% da máxima do carro; nitro = % com o nitro ligado; raspões = contatos de lado sem o evento de batida; traseiras = eventos de batida em fila. `ilha_do_bananal` e `caldas_novas` saturam em disputa (~100%): esperado. A linha de base fica em `scripts/race-feel-base/profissional-{11,12,13}.json`, geradas com `NC_FEEL_OUT=<arquivo> npm run balance -- corrida profissional <semente>`. Médias no HEAD `24aae99`: semente 11 ult/min 6.79 · disputa 57% · sozinho 19% · fundo 53% · nitro 3.0% · raspões 10.6 · traseiras 7.2; semente 12 6.61 · 50% · 27% · 55% · 3.0% · 12.6 · 8.3; semente 13 6.50 · 66% · 14% · 53% · 3.0% · 10.7 · 5.8. O `tests/race-feel.test.ts` exige as 109 pistas: pista nova faz o teste falhar até regravar.
+
 ### As 109 pistas, corrida inteira (03/10/2026)
 
 ⚠️ Medição de antes das pistas com desenho (04/10): nas 26 redesenhadas os números de hoje (profissional) estão em

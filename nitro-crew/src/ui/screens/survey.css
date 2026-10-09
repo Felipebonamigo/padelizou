@@ -1,0 +1,4 @@
+/* Questionário (src/ui/screens/survey.ts): painel centrado como o da pausa (styles.css:590–591), mais largo para os seletores. */
+.scr-survey { justify-content: center; }
+.survey-panel { width: min(92vw, calc(720 * var(--u))); padding: calc(20 * var(--u)) calc(16 * var(--u)); display: flex; flex-direction: column; gap: calc(8 * var(--u)); }
+.survey-note { color: var(--muted); margin: 0; }

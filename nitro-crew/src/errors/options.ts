@@ -1,14 +1,16 @@
-// Os dois itens do relatório de erros na tela de Opções, no rodapé, na mesma linha do "Voltar":
-//   [ Copiar relatório de erros · 1 erro ]   [ VOLTAR ]   [ Telemetria anônima ‹ Desligado › ]
+// Os dois itens do relatório na tela de Opções, no rodapé, na mesma linha do "Voltar":
+//   [ Copiar relatório · 1 erro ]   [ VOLTAR ]   [ Telemetria anônima ‹ Desligado › ]
 // No rodapé e não numa coluna porque a tela já ocupa a altura toda em 1600×900: uma linha a mais fazia a tela
 // rolar e escondia o "Voltar" (medido com scratch/measure-options.mjs de 1024×640 a 2560×1440).
-//   • Copiar relatório — Enter/A/clique copia; o valor mostra quantos erros há (ao vivo) e, por 2,5 s,
+//   • Copiar relatório — Enter/A/clique copia o relatório de erros e, logo abaixo, o diário de jogo
+//     (src/game/playlog.ts: funil, corridas, sessões e questionário, sem nomes); o valor mostra quantos erros há (ao vivo) e, por 2,5 s,
 //     "Copiado ✓" ou "Não deu para copiar".
 //   • Telemetria anônima — liga/desliga (padrão desligado). Ligar grava a versão dos termos aceita
 //     (Settings.telemetryConsent = TELEMETRY_TERMS). Hoje só grava a preferência: não há servidor
 //     (src/game/errors.ts, `telemetryEndpoint` nulo).
 // A tela chama `destroy()` ao sair (menus.ts → ScreenInstance.destroy): desfaz a assinatura do relator.
 import { copyToClipboard, currentReportText, getActiveReporter, TELEMETRY_TERMS, telemetryConsented } from '../game/errors';
+import { getActivePlaylog } from '../game/playlog';
 import { t } from '../i18n';
 import { h, onOff, selector, type FocusItem, type ScreenApi } from '../ui/screens/common';
 import './errors.css';
@@ -42,7 +44,9 @@ function reportItem(api: ScreenApi): FocusItem & { destroy(): void } {
       timer = undefined;
     },
     activate: () => {
-      const text = currentReportText({ language: s.language, quality: s.quality, telemetry: telemetryConsented(s.telemetryConsent) ? 'on' : 'off' });
+      const errorsText = currentReportText({ language: s.language, quality: s.quality, telemetry: telemetryConsented(s.telemetryConsent) ? 'on' : 'off' });
+      const play = getActivePlaylog()?.reportText();
+      const text = play ? `${errorsText}\n${play}` : errorsText;
       void copyToClipboard(text).then((ok) => {
         value.textContent = ok ? t('errors.options.copied') : t('errors.options.copyFailed');
         value.classList.toggle('ok', ok);

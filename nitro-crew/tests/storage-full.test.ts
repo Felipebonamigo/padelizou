@@ -294,6 +294,26 @@ describe('localStorage cheio no navegador (sem arquivo)', () => {
     expect(storage.getItem(g.errors.ERRORS_KEY)).toBe('[]');
     expect(g.storage.saveHealth().lost).toEqual([SAVE_KEY]);
   });
+
+  // O diário de jogo (playlog.ts) é métrica, não progresso: se não couber, a gravação dele se perde e o jogador é
+  // avisado — mas ele nunca come o log de erros nem o fantasma de quem joga para abrir espaço para si mesmo.
+  it('o diário de jogo não descarta nada para caber: nem o log de erros nem fantasma', async () => {
+    const storage = new QuotaStorage(40_000);
+    const g = await boot(storage);
+    const errors = JSON.stringify([{ time: '2026-09-01T00:00:00Z', message: 'x'.repeat(400), kind: 'error' }]);
+    storage.setItem(g.errors.ERRORS_KEY, errors);
+    const store = g.ghosts.emptyGhostStore();
+    ['a1', 'b2', 'c3'].forEach((id, i) => g.ghosts.putGhost(store, ghostRecord(id), `2026-09-0${i + 1}T00:00:00Z`));
+    storage.setItem(g.ghosts.GHOST_STORE_KEY, JSON.stringify(store));
+    storage.fill();
+    g.storage.setSpaceFreers([(k) => g.errors.dropStoredErrors(storage, k), g.ghosts.dropOldestGhost]);
+
+    const ok = g.settings.writeJson('nitro-crew.playlog', { format: 1, races: ['x'.repeat(500)] });
+    expect(Object.keys(g.ghosts.loadGhostStore().ghosts).sort()).toEqual(['a1', 'b2', 'c3']);
+    expect(storage.getItem(g.errors.ERRORS_KEY)).toBe(errors);
+    expect(ok).toBe(false);
+    expect(g.storage.saveHealth().lost).toEqual(['nitro-crew.playlog']);
+  });
 });
 
 describe('aviso ao jogador', () => {

@@ -5,13 +5,13 @@ import { registerStrings } from '../i18n';
 registerStrings('errors', {
   pt: {
     'toast.title': 'Algo deu errado — o jogo continua.',
-    'toast.hint': 'Opções › Copiar relatório de erros',
+    'toast.hint': 'Opções › Copiar relatório',
     'toast.count': '{n} erros registrados',
 
     'save.title': 'O progresso não foi salvo',
     'save.hint': 'Não há espaço para gravar (armazenamento do navegador ou disco cheio). O jogo tenta de novo na próxima gravação.',
 
-    'options.report': 'Copiar relatório de erros',
+    'options.report': 'Copiar relatório',
     'options.none': 'Nenhum erro',
     'options.one': '1 erro',
     'options.many': '{n} erros',
@@ -27,13 +27,13 @@ registerStrings('errors', {
   },
   en: {
     'toast.title': 'Something went wrong — the game keeps going.',
-    'toast.hint': 'Options › Copy error report',
+    'toast.hint': 'Options › Copy report',
     'toast.count': '{n} errors recorded',
 
     'save.title': 'Your progress was not saved',
     'save.hint': 'There is no room to save (browser storage or disk is full). The game will try again on the next save.',
 
-    'options.report': 'Copy error report',
+    'options.report': 'Copy report',
     'options.none': 'No errors',
     'options.one': '1 error',
     'options.many': '{n} errors',

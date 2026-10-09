@@ -3,7 +3,7 @@
 O agente cobre o que dá para cobrir sem hardware (testes, playtest no Chromium, E2E do pacote Electron); este
 documento é o que **só gente com máquinas e controles de verdade** consegue fazer, e a ordem em que fazer.
 Registre cada rodada numa cópia da tabela de resultado (fim do documento) com a versão testada — a versão está
-no relatório de erros (Opções › Copiar relatório de erros, linha `version:`).
+no relatório de erros (Opções › Copiar relatório, linha `version:`).
 
 ## 1. Portões automáticos (antes de qualquer teste manual)
 
@@ -117,7 +117,7 @@ Marque na ordem; cada item tem dono (V = Felipe, A = agente, T = terceiros).
 - [ ] (V) Roteiro de 30 minutos (seção 4) feito por alguém que **não** é o Felipe.
 - [ ] (V) Sessão de 1 hora com 4 jogadores sem travar, sem vazar memória (anotar a memória no início e no fim).
 - [ ] (A) Todo defeito achado virou teste de regressão antes da correção.
-- [ ] (V) Relatório de erros de cada testador recolhido (Opções › Copiar relatório de erros) — mesmo sem erro, confirma que ficou limpo.
+- [ ] (V) Relatório de erros de cada testador recolhido (Opções › Copiar relatório) — mesmo sem erro, confirma que ficou limpo.
 
 ### 3.5 Dia do lançamento
 
@@ -172,8 +172,9 @@ Anote **tudo o que estranhar**, mesmo sem certeza de que é defeito. Tempo entre
 19. Opções → troque o idioma para English. ✅ todas as telas mudam na hora; nada fica em português.
 20. Mude volume, qualidade e minimapa; saia e volte. ✅ tudo ficou salvo.
 21. Feche o jogo e abra de novo. ✅ as opções continuam (e o idioma também).
-22. Opções → "Copiar relatório de erros" → cole num bloco de notas. ✅ texto começa com
+22. Opções → "Copiar relatório" → cole num bloco de notas. ✅ texto começa com
     "Nitro Crew — error report", tem a versão, e **não** tem o seu nome de usuário nem pastas do computador.
+22b. No relatório colado, depois do bloco `Nitro Crew — error report`, há um `Nitro Crew — play log` com `sessions:`, `races:` e o JSON. ✅ nenhum nome de jogador aparece.
 23. Confira "Telemetria anônima": ✅ veio **Desligado**.
 
 ### F. Fechamento (2 min)

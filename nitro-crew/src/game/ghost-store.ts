@@ -12,6 +12,7 @@ import {
   checkGhost, ghostFileText, parseGhostFile, sanitizeGhostRecord, MAX_GHOST_FILE_CHARS, type GhostCheck, type GhostRecord,
 } from './ghost';
 import { isRecord, readJson, writeJson } from './settings';
+import { PLAYLOG_KEY } from './playlog';
 
 export const GHOST_STORE_KEY = 'nitro-crew.ghosts';
 /** Teto do JSON inteiro (~30 voltas típicas de ~5 KB; o arquivo espelhado do Electron aceita até 1 MB). */
@@ -106,11 +107,12 @@ export function saveGhostStore(
 
 /**
  * Abre espaço para outra chave que não coube no localStorage (storage.ts, setSpaceFreers): tira o fantasma gravado
- * há mais tempo. Nunca para a própria loja — saveGhostStore tem a poda dela, sobre a cópia que está gravando.
+ * há mais tempo. Nunca para a própria loja — saveGhostStore tem a poda dela, sobre a cópia que está gravando — nem
+ * para o diário de jogo (playlog.ts): métrica não custa o fantasma de quem joga.
  * Só roda sem o espelho do Electron, então gravar a loja menor é encolher o localStorage. Devolve se tirou um.
  */
 export function dropOldestGhost(forKey: string): boolean {
-  if (forKey === GHOST_STORE_KEY) return false;
+  if (forKey === GHOST_STORE_KEY || forKey === PLAYLOG_KEY) return false;
   const store = loadGhostStore();
   const oldest = oldestFirst(store)[0];
   if (oldest === undefined) return false;

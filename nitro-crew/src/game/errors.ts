@@ -1,5 +1,5 @@
 // Relatório de erros: guarda os últimos 50 erros — com versão do jogo, data, modo e pista do momento — para o
-// jogador copiar em Opções › "Copiar relatório de erros" e mandar ao desenvolvedor.
+// jogador copiar em Opções › "Copiar relatório" (junto do diário de jogo, src/game/playlog.ts) e mandar ao desenvolvedor.
 // Fontes: window 'error', promessas rejeitadas sem tratamento e o catch do laço da sessão (`reportError(err, 'loop')`).
 // Onde fica: localStorage (`nitro-crew.errors`, só neste computador — fora do Steam Cloud) e, no Electron, também
 // `<userData>/logs/errors.log` pelo IPC `logAppend` (limite de tamanho e rotação em desktop/storage.cjs).
@@ -19,6 +19,7 @@
 // (TELEMETRY_TERMS — suba o número no mesmo commit que ligar o envio). Ver docs/legal/PRIVACIDADE.md.
 import { version as packageVersion } from '../../package.json';
 import { getDesktop, isDesktop } from './desktop';
+import { PLAYLOG_KEY } from './playlog';
 
 export const GAME_VERSION: string = packageVersion;
 export const ERRORS_KEY = 'nitro-crew.errors';
@@ -265,12 +266,13 @@ export interface ErrorReporter {
 
 /**
  * Abre espaço para uma gravação do jogo que não coube no localStorage (storage.ts, setSpaceFreers): tira de lá o anel
- * de erros — o que primeiro se descarta. Nesta sessão nada some (o relator guarda o anel na memória e o regrava no
- * próximo erro). Devolve se havia o que tirar.
+ * de erros — o que primeiro se descarta, menos para gravar o diário de jogo (PLAYLOG_KEY: métrica não custa o log de
+ * erros). Nesta sessão nada some (o relator guarda o anel na memória e o regrava no próximo erro). Devolve se havia
+ * o que tirar.
  */
 export function dropStoredErrors(storage: Pick<Storage, 'getItem' | 'removeItem'> | null, forKey: string): boolean {
   try {
-    if (!storage || forKey === ERRORS_KEY || storage.getItem(ERRORS_KEY) === null) return false;
+    if (!storage || forKey === ERRORS_KEY || forKey === PLAYLOG_KEY || storage.getItem(ERRORS_KEY) === null) return false;
     storage.removeItem(ERRORS_KEY);
     return true;
   } catch {

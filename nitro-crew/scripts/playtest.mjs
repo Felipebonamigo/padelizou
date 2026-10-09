@@ -2,7 +2,7 @@
 // com 3 e 4 jogadores, resultado e pausa. Exige `npm run preview` (porta 4174) em outro terminal.
 // Uso: node scripts/playtest.mjs [url] [prefixo-das-capturas]
 import { chromium } from 'playwright';
-const url = process.argv[2] ?? 'http://localhost:4174/';
+const url = process.argv[2] ?? 'http://localhost:4174/?nosurvey=1';
 const out = process.argv[3] ?? 'scratch/pt';
 const exe = process.env.CHROME_PATH ?? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const browser = await chromium.launch({ executablePath: exe, args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });

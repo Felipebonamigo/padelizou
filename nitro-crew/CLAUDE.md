@@ -43,6 +43,7 @@ Revisão visual (RTX 4070 Ti, Unity/Unreal/Meshy) em `docs/CRONOGRAMA.md`, "Revi
   Peça baixada (o bicho ou a estátua DENTRO de um marco procedural: tuiuiú, jacaré, búfalo, garça, girafa, rena, cavalo, troll, shisa, garimpeiro):
   `… --part <peça> --height <m> [--paint 'y>0.62:#1b1b1b'] [--palette … --by-light] --install` → `src/assets/landmarks/parts/<peça>.glb`;
   sem o arquivo, a cena usa o bicho procedural (`landmarks/parts.ts`; os comandos por peça em `docs/ARTE.md`, "Peças baixadas").
+- `NC_FEEL_OUT=<arquivo> npm run balance -- corrida profissional <semente>` grava a linha de base do termômetro de emoção (só com `corrida` e sem pista avulsa). `?nosurvey=1` na URL desliga o questionário (playtests que encadeiam corridas).
 - `npx tsx scripts/career-balance.ts` — calibragem da carreira (dinheiro × nível dos rivais) com corridas inteiras.
 - Ver e medir (com o vite no ar): `PORT=<porta> node tools/capture.mjs "nome::track=<pista>&seg=<n>&hud=0"` (captura na corrida) · `node tools/landmark-sheet.mjs <porta> x.png "ids=a,b"` (folha de marcos) · `npx tsx tools/landmark-sight.ts <pista>` (onde fica cada marco e quantos segundos aparece) · `npx tsx tools/front-view-measure.ts <marco>` · `node tools/tile.mjs` · `node tools/svg2png.mjs` (detalhes no `docs/PLAYBOOK.md`).
 - ⚠️ Para matar um relay órfão, filtre pelo processo `node` (`ps -eo pid,comm,args`); `pkill -f relay.mjs` casa com o próprio shell.

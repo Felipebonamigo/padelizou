@@ -27,5 +27,5 @@ O QUE TESTAR
 
 ACHOU UM PROBLEMA?
 - Mande para o Felipe: o que estava fazendo, o que esperava e o que aconteceu (print ajuda muito).
-- Se travou ou deu erro: Opções › "Copiar relatório de erros" e cole na mensagem.
+- Se travou ou deu erro: Opções › "Copiar relatório" e cole na mensagem (o relatório leva também o diário de jogo, sem nomes).
 - Se o jogo nem abrir e falar de WebGL/placa de vídeo: a própria tela tem um botão para copiar o relatório.
