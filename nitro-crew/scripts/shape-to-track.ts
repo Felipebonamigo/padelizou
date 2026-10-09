@@ -1,5 +1,6 @@
 // Traça uma pista a partir de um DESENHO: recebe um polígono-alvo fechado (scripts/track-shapes.ts) e gera os `ops`
-// (`pit`/`st`/`cv`/`hl`) cuja volta o minimapa desenha com essa forma; mostra a sobreposição contorno × alvo.
+// (`pit`/`st`/`cv`/`hl`) cuja volta o minimapa desenha com essa forma; mostra a sobreposição contorno × alvo. Um traço
+// em curva (scripts/track-art.ts) vira `pit`/`st`/`bd`/`hl` (seção "do traço em curva", mais abaixo).
 //
 // Como o minimapa desenha (src/render/minimap.ts, `trackOutline`): integra o rumo segmento a segmento, girando
 // `curve × k` e andando um passo, com `k` escolhido para a soma das curvas fechar uma volta (2π). Daí:
@@ -296,9 +297,10 @@ export const ART_CFG: Record<string, { segments: number; cmax: number; index: nu
 // O traço é reamostrado em um ponto por segmento (a volta inteira), e o giro de cada passo vira a curva daquele
 // segmento — a curvatura do desenho, ponto a ponto, não só nas quinas. Uma janela gaussiana de `sigma` segmentos
 // arredonda as quinas vivas (o traço de cartum já é redondo). A curva é escalada para a mais forte valer `cmax` (a
-// dificuldade; o desenho não muda, ver o cabeçalho) e codificada em `cv` com a mesma integral por trecho: trechos de
-// curva parecida viram um `cv` comprido, os que mudam viram `cv` curtos, e o erro de arredondamento de cada um passa
-// para o seguinte — o rumo nas emendas fica exato. Os 40 primeiros segmentos são o box (reta).
+// dificuldade; o desenho não muda, ver o cabeçalho) e codificada em `bend` (curva constante, sem rampa) com a mesma
+// integral por trecho: segmentos de curva parecida viram um `bend` comprido, os que mudam viram `bend` curtos, e o
+// erro de arredondamento de cada um passa para o seguinte — o rumo nas emendas fica exato. Os 40 primeiros
+// segmentos são o box (reta).
 
 export interface ArtFit { ops: TrackOp[]; start: V; scale: number; curves: number[]; warnings: string[]; cmax: number }
 
@@ -333,7 +335,12 @@ export function loopTurns(q: V[], sigma: number): number[] {
   return raw.map((_, i) => { let s = 0; for (let d = -R; d <= R; d++) s += raw[(i + d + n) % n] * w[d + R]; return s / W; });
 }
 
-/** Os `cv`/`st` de uma sequência de curvas por segmento (depois do box), com a integral de cada trecho preservada. */
+/**
+ * Os `bend`/`st` de uma sequência de curvas por segmento (depois do box), com a integral de cada trecho preservada.
+ * Trecho: cresce enquanto a curva fica a no máximo max(0,05; 6% × |c|) da do começo dele; vira `bend(L, média)` com o
+ * resto do arredondamento (2 casas) passado ao trecho seguinte — o rumo nas emendas fica exato. Sem rampa não há pico
+ * acima da média. Média que arredonda para 0,00 vira reta.
+ */
 function encodeCurves(c: number[], from: number, cap: number): { ops: TrackOp[]; peak: number } {
   const ops: TrackOp[] = []; let carry = 0; let peak = 0;
   const pushStraight = (len: number) => {
@@ -342,22 +349,14 @@ function encodeCurves(c: number[], from: number, cap: number): { ops: TrackOp[];
   };
   const n = c.length; let i = from;
   while (i < n) {
-    // Trecho: cresce enquanto a curva fica parecida com a do começo (±20% e ±0,08) e no mesmo sentido; 4 a 240.
     const c0 = c[i]; let L = 1;
-    const quiet = (x: number) => Math.abs(x) < 0.03;
-    while (i + L < n && L < 240) {
-      const x = c[i + L];
-      if (quiet(c0) !== quiet(x)) break;
-      if (!quiet(c0) && (Math.sign(x) !== Math.sign(c0) || Math.abs(x - c0) > 0.2 * Math.abs(c0) + 0.08)) break;
-      L++;
-    }
-    if (L < 4) L = Math.min(4, n - i);
+    const tol = Math.max(0.05, 0.06 * Math.abs(c0));
+    while (i + L < n && Math.abs(c[i + L] - c0) <= tol) L++;
     let area = carry; for (let k = i; k < i + L; k++) area += c[k];
-    const eff = curveProfile(L, 1).reduce((a, b) => a + b, 0);
-    const cc = Math.round((area / eff) * 100) / 100;
-    if (L < 4 || cc === 0) { pushStraight(L); carry = area; } else {
-      ops.push({ op: 'curve', length: L, curve: cc });
-      carry = area - cc * eff; peak = Math.max(peak, Math.abs(cc));
+    const cc = Math.round((area / L) * 100) / 100;
+    if (cc === 0) { pushStraight(L); carry = area; } else {
+      ops.push({ op: 'bend', length: L, curve: cc });
+      carry = area - cc * L; peak = Math.max(peak, Math.abs(cc));
     }
     i += L;
   }
@@ -365,7 +364,7 @@ function encodeCurves(c: number[], from: number, cap: number): { ops: TrackOp[];
   return { ops, peak };
 }
 
-/** Do desenho à pista: a curva escalada para o pico dos `cv` valer `cmax`. */
+/** Do desenho à pista: a curva escalada para o pico dos `bend` valer `cmax`. */
 export function fitArt(art: Art, segments: number, cmax: number, sigma: number): ArtFit {
   const warnings: string[] = [];
   const { q, perim } = resampleLoop(art.pts as V[], art.start as V, segments);
@@ -378,10 +377,9 @@ export function fitArt(art: Art, segments: number, cmax: number, sigma: number):
   turns[40] += moved;
   const up = Math.atan2(q[1][1] - q[0][1], q[1][0] - q[0][0]);
   if (Math.abs(wrap(up + Math.PI / 2)) > 0.05) warnings.push(`a largada não sobe na vertical (${(wrap(up + Math.PI / 2) * 180 / Math.PI).toFixed(1)}°)`);
-  // Escala: o pico dos `cv` (que fica acima da média do trecho por causa da entrada e da saída) vale `cmax`.
+  // Escala: sem rampa, o pico dos `bend` é a curva do segmento de maior giro — vale `cmax` direto.
   const maxTurn = Math.max(...turns.map(Math.abs));
-  let g = cmax / maxTurn; let enc = encodeCurves(turns.map((t) => t * g), 40, cmax);
-  for (let it = 0; it < 6 && Math.abs(enc.peak - cmax) > 0.02; it++) { g *= cmax / enc.peak; enc = encodeCurves(turns.map((t) => t * g), 40, cmax); }
+  const g = cmax / maxTurn; const enc = encodeCurves(turns.map((t) => t * g), 40, cmax);
   const ops: TrackOp[] = [{ op: 'pit', length: 40 }, ...enc.ops];
   const total = ops.reduce((a, o) => a + o.length, 0);
   if (total !== segments) warnings.push(`a volta deu ${total} segmentos (pedido ${segments})`);
@@ -390,7 +388,7 @@ export function fitArt(art: Art, segments: number, cmax: number, sigma: number):
 
 /**
  * Morros para o índice técnico pedido (o que a curva não dá): `hl` nas retas mais longas (até 120, altura ≤ 0,45 do
- * comprimento) e, faltando, desnível dentro dos `cv` mais longos, em pares (sobe num, desce no seguinte; ≤ 0,4 do
+ * comprimento) e, faltando, desnível dentro dos `cv`/`bend` mais longos, em pares (sobe num, desce no seguinte; ≤ 0,4 do
  * comprimento). Altura não muda o desenho nem a IA.
  */
 export function artHills(ops: TrackOp[], segments: number, slopeIndex: number): { ops: TrackOp[]; missing: number } {
@@ -412,12 +410,12 @@ export function artHills(ops: TrackOp[], segments: number, slopeIndex: number): 
     }
     if (list.length) hillAt.set(i, list);
   }
-  const curves = out.map((o, i) => [o, i] as const).filter(([o]) => o.op === 'curve' && o.length >= 8).sort((a, b) => b[0].length - a[0].length);
+  const curves = out.map((o, i) => [o, i] as const).filter(([o]) => (o.op === 'curve' || o.op === 'bend') && o.length >= 8).sort((a, b) => b[0].length - a[0].length);
   for (let j = 0; j + 1 < curves.length && need > 1; j += 2) {
     const h = Math.min(Math.floor(0.4 * curves[j][0].length), Math.floor(0.4 * curves[j + 1][0].length), Math.ceil(need / 2));
     if (h <= 0) break;
-    (curves[j][0] as Extract<TrackOp, { op: 'curve' }>).hill = h;
-    (curves[j + 1][0] as Extract<TrackOp, { op: 'curve' }>).hill = -h;
+    (curves[j][0] as Extract<TrackOp, { op: 'curve' | 'bend' }>).hill = h;
+    (curves[j + 1][0] as Extract<TrackOp, { op: 'curve' | 'bend' }>).hill = -h;
     need -= 2 * h;
   }
   // Monta: cada reta com morros vira reta–morro–reta… do mesmo comprimento.
@@ -516,6 +514,7 @@ export function formatOps(ops: TrackOp[]): string {
       case 'hill': return `hl(${o.length}, ${o.height})`;
       case 'curve': return o.hill ? `cv(${o.length}, ${o.curve}, ${o.hill})` : `cv(${o.length}, ${o.curve})`;
       case 's': return `ss(${o.length}, ${o.curve})`;
+      case 'bend': return o.hill ? `bd(${o.length}, ${o.curve}, ${o.hill})` : `bd(${o.length}, ${o.curve})`;
     }
   }).join(', ');
 }
@@ -660,7 +659,7 @@ function main(): void {
       printReport(id, r, quiet);
       const was = technicalIndex(before);
       console.log(`  em tracks.ts: ${buildTrack(before).segments.length} segmentos · índice ${was.total.toFixed(2)} (curvas ${was.curve.toFixed(2)} + morros ${was.slope.toFixed(2)})`);
-      console.log(`  traço: curva de pico ${fit.cmax.toFixed(2)} · ${fit.ops.filter((o) => o.op === 'curve').length} cv · índice pedido ${cfg.index}: curva ${fit.curve.toFixed(2)} + morros ${fit.slope.toFixed(2)}`);
+      console.log(`  traço: curva de pico ${fit.cmax.toFixed(2)} · ${fit.ops.filter((o) => o.op === 'bend').length} bd · índice pedido ${cfg.index}: curva ${fit.curve.toFixed(2)} + morros ${fit.slope.toFixed(2)}`);
       const cost = sceneryCost(r.track);
       console.log(`  cenário: ${cost.toFixed(0)} triângulos por segmento (teto ${SCENERY_BUDGET})`);
       if (cost > SCENERY_BUDGET) fit.warnings.push(`o cenário passa do orçamento (${cost.toFixed(0)} > ${SCENERY_BUDGET} por segmento)`);

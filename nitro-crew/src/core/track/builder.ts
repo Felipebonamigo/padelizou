@@ -55,6 +55,7 @@ function applyOp(b: Builder, op: TrackOp): void {
       addRoad(b, e, Math.max(1, op.length - half - 2 * e), e, -op.curve, 0);
       break;
     }
+    case 'bend': addRoad(b, 0, op.length, 0, op.curve, op.hill ?? 0); break;
     case 'pit': {
       const start = b.segments.length;
       addRoad(b, 0, op.length, 0, 0, 0);
@@ -113,6 +114,14 @@ function sprite(kind: SpriteKind, x: number, scale: number, solid: boolean, vari
   return { kind, x, scale, solid, variant };
 }
 
+/**
+ * Curva forte que ganha placas: a parte com |curva| ≥ 3 precisa durar ao menos isto (segmentos). Quina curta (os
+ * desenhos de polígono da onda J) jogava a IA para fora bem em cima das 3 placas: Maceió ia de 5,7 a 32 batidas por
+ * corrida (tests/batidas-cenario.test.ts). Fica aqui, não em constants.ts: lá toda constante entra na impressão de
+ * toda volta (content-version.ts, lapContent).
+ */
+const SIGN_MIN_STRONG = 12;
+
 function decorate(track: Track, seed: number): void {
   const r = createRng(seed);
   const recipe = RECIPES[track.def.scenery];
@@ -146,11 +155,14 @@ function decorate(track: Track, seed: number): void {
   }
   if (pitStart >= 0) segs[Math.max(0, pitStart - 6)].sprites.push(sprite('pit_sign', 1.6, 1, false));
 
-  // Placas de curva do lado de fora, no começo de cada curva forte.
+  // Placas de curva do lado de fora, no começo de cada curva forte longa (SIGN_MIN_STRONG).
   for (let i = 1; i < n; i++) {
     const s = segs[i];
     const prev = segs[i - 1];
     if (Math.abs(s.curve) >= 3 && Math.abs(prev.curve) < 3) {
+      let strong = 0;
+      while (strong < n && Math.abs(segs[(i + strong) % n].curve) >= 3) strong++;
+      if (strong < SIGN_MIN_STRONG) continue;
       const kind: SpriteKind = s.curve > 0 ? 'sign_right' : 'sign_left';
       const outer = (s.curve > 0 ? -1 : 1) * spriteX(kind, 1, SPRITE_MIN_EDGE + 0.05);
       for (let k = 0; k < 3; k++) {

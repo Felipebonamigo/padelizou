@@ -21,10 +21,12 @@ import { PHYSICS_REVISION } from '../src/game/content-version';
 
 // Pistas com desenho (04/10, docs/PISTAS.md): Copacabana (o Cristo) e Noite em Sampa (o MASP) ganharam traçado novo —
 // só as duas corridas delas mudaram; as outras seis deram o mesmo bit.
+// Onda K (K5): Copacabana com o Cristo em traço de cartum (`bend`), e as placas de curva só em curva forte de ≥ 12
+// segmentos — Noite em Sampa (quinas de 8–9) perdeu as placas. Só as duas corridas delas mudaram.
 const EXPECTED: Record<string, { fingerprint: string; ticks: number }> = {
-  'solo-sem-assistencias': { fingerprint: '5553cf13', ticks: 7887 },
+  'solo-sem-assistencias': { fingerprint: '368c98f8', ticks: 7812 },
   'coop4-tudo': { fingerprint: '4aebaa41', ticks: 7860 },
-  'versus-cambio-manual': { fingerprint: '1fbd037d', ticks: 9483 },
+  'versus-cambio-manual': { fingerprint: '56beefb8', ticks: 9520 },
   escolta: { fingerprint: 'a44eeff9', ticks: 8491 },
   revezamento: { fingerprint: 'ca459552', ticks: 11597 },
   'tomada-pela-ia': { fingerprint: 'a7cca80f', ticks: 8910 },

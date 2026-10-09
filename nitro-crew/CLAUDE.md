@@ -52,7 +52,7 @@ Revisão visual (RTX 4070 Ti, Unity/Unreal/Meshy) em `docs/CRONOGRAMA.md`, "Revi
   `Map`/`Set` no estado. Use `state.rng` (`src/core/rng.ts`). `tests/determinism.test.ts` varre a pasta e falha se violar.
 - Toda mutação de estado passa por `stepRace(state, track, inputs)`. O renderizador nunca altera o estado.
 - Estado é JSON puro (`serializeRace`/`hashRace`); campo novo precisa de valor padrão em `deserializeRace`.
-- Conteúdo é dado: pistas em `track/tracks.ts` (DSL: `straight/curve/hill/s/pit`), carros em `data/cars.ts`,
+- Conteúdo é dado: pistas em `track/tracks.ts` (DSL: `straight/curve/hill/s/pit/bend`), carros em `data/cars.ts`,
   copas em `data/cups.ts`. Pista nova entra sozinha nos testes de IA, de pista e de combustível (corrida inteira por pista).
 - Desempenho do carro vem de `carStats(car)` (`sim/stats.ts`: CarDef + melhorias da carreira, guardado no estado); `carDef`
   só para nome e cor. A IA da corrida usa só o `AI_CAR_POOL` (os 7 carros livres).

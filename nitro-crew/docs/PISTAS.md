@@ -12,7 +12,7 @@ por estado, e os 7 países de antes. Duas etapas, destravadas em sequência:
   a primeira exige a última copa da Expedição (`br_to`).
 - Planetas (etapa 3): depois.
 
-Tudo é dado: pistas em `src/core/track/tracks.ts` (DSL `straight/curve/hill/s/pit`), copas em `src/core/data/cups.ts`
+Tudo é dado: pistas em `src/core/track/tracks.ts` (DSL `straight/curve/hill/s/pit/bend`; `bend(L, curva[, hill])` é a curva constante, sem a rampa do `cv`, atalho `bd`), copas em `src/core/data/cups.ts`
 (`stage`, `region`, `state`; `BRAZIL_REGIONS`, `stageCups`, `stateCup`), lugar e marcos de cada pista em
 `src/core/data/places.ts`. As 4 pistas do Brasil que já existiam (Copacabana, Noite em Sampa, Serra do Mar,
 Transpantaneira) mantiveram id e traçado; a Copa Brasil antiga virou a Copa Rio de Janeiro (migração abaixo).
@@ -145,7 +145,7 @@ mesmo para os demais"). A causa: o alvo de cada um é um **polígono** com as qu
 então tudo sai reto e anguloso — o Cristo era um boneco de palito. O redesenho troca o alvo por **silhuetas de cartum em
 traço contínuo** (Bézier e arcos), como um ícone ilustrado, e a pista passa a seguir a curvatura do traço inteiro.
 
-**Estado (06/10/2026):** parado a pedido do dono (montar o cronograma antes). Já commitado: `scripts/track-art.ts` (caneta
+**Estado (onda K, K5):** o trecho `bend` (curva constante, sem rampa) existe no DSL (`applyOp` em `builder.ts`; atalho `bd` em `tracks.ts`) e o `encodeCurves` de `scripts/shape-to-track.ts` agora o emite: segmentos de curva parecida (a no máximo max(0,05; 6% × |c|) da do começo do trecho) viram um `bend` com a integral preservada, e a escala do `fitArt` é direta (o pico dos `bend` vale `cmax`). `artHills` e `formatOps` aceitam `bend`. O Cristo está aplicado em `copacabana` (`--apply`, sigma 6, `ART_CFG` vazio): 314 `bd`, curva de pico 2,92, erro médio 0,80 e máx. 2,12 (em 100), desvio de fechamento 2,7 (com `cv`: 1,49 / 5,22 / 46,4), menor vão 5,9 e 433 triângulos de cenário por segmento. Testes: `tests/track.test.ts` ("trecho bend", "o traço vira bend", "fidelidade ao desenho", com a lista `APPLIED_ART`). O Cristo em `landmark-sight`: 3,7 s e 4,0 s à vista. Os outros 26 desenhos usam o mesmo caminho e entram em `APPLIED_ART` no `--apply` de cada um (onda O).
 `Pen` com `L`/`C`/`Q`/`arc`, `sym` para desenho simétrico; só o **Cristo** desenhado e aprovado no visual), o modo de
 traço em curva em `scripts/shape-to-track.ts` (`fitArt`, `solveArt`, `artHills`, `ART_CFG`; a CLI usa o desenho de
 `ART` quando existe) e `scripts/art-sheet.ts` (folha dos alvos). **Nenhuma pista mudou ainda.**
@@ -303,7 +303,7 @@ de 5 nas duas: v média 0,697 → 0,687):
   esquerda-direita) que quase não aparecem no minimapa — não feito, muda o caráter da pista. A ordem dentro da copa
   sente isso: em GO a Caldas Novas, que fecha a copa, passa a ser a mais leve das três (Pirenópolis 2,2, Veadeiros
   2,4); no CE a Canoa (2ª) fica abaixo da Jericoacoara (1ª, 3,7). A ordem não foi mexida.
-- **Batidas no cenário subiram em quatro**: Maceió (5,7 → 32,0), Monte Roraima (8,0 → 17,3), Palmas (29,3 → 55,7) e
+- **Batidas no cenário (corrigidas na K5).** A causa eram as placas de curva do `decorate` (`builder.ts`): 3 placas sólidas no começo de toda curva com |curva| ≥ 3, e os desenhos de polígono encheram quatro pistas de quinas curtas de curva forte. Regra nova: só ganha placa a curva forte com ≥ 12 segmentos acima de 3 (`SIGN_MIN_STRONG`, local no `builder.ts`). Batidas por corrida (média das sementes 11–13, profissional): Maceió 32,0 → 1,0, Palmas 55,7 → 28,7, Rio Branco 16,0 → 3,0, Monte Roraima 17,3 → 6,3; velocidade média das 26 pistas de polígono dentro de ±0,005. Travado por `tests/batidas-cenario.test.ts`. 23 pistas perdem as placas das quinas curtas (sampa_noite fica sem nenhuma).
   Rio Branco (1,0 → 16,0) — muitas quinas seguidas perto do paredão ou da mata (a jangada, o sol e os tufos da copa são
   quinas por natureza). A corrida dura o mesmo.
 - **Marcos**: o enquadramento (`landmarkSight`, ≥ 2,5 s) depende de onde caem as praças e mirantes, que dependem do
@@ -313,8 +313,7 @@ de 5 nas duas: v média 0,697 → 0,687):
   ("entre no box") exatamente no tick em que cruzava a linha para a última volta — `tests/fuel.test.ts` pegou. O
   núcleo confere `pitStillAhead` com a volta de antes do tick, e a contagem da volta vem depois (`physics.ts` ×
   `positions.ts`). Ficou 5,4 (mesma velocidade da IA); o defeito do núcleo é de antes e vale para qualquer pista.
-- **Recordes e fantasmas** dessas 26 pistas ficam como "versão anterior" (a impressão do traçado entra na versão do
-  conteúdo: `tests/content-version.test.ts`, "curva"), como nas pistas que ganharam praça ou mirante.
+- **Recordes e fantasmas** de 24 pistas (a copacabana, que mudou de traçado, e 23 que perderam placas) ficam como "versão anterior": a impressão do traçado entra na versão do conteúdo (`content-version.ts`, `trackLayout`), e a placa é sprite sólido. A `onlineFingerprint` também muda. `caldas_novas`, `canoa_quebrada` e as outras 83 pistas não mudam. No `sim-golden` mudam só `solo-sem-assistencias` e `versus-cambio-manual` (sampa_noite sem placas).
 - As tabelas de "Balanceamento" abaixo são de 03/10, **antes dos desenhos**; para as 26, vale a tabela acima.
 
 ### Os testes

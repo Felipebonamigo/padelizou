@@ -12,6 +12,8 @@ import { getTrack } from '../src/core/track';
 import type { TrackDef } from '../src/core/types';
 import { setLanguage, t } from '../src/i18n';
 import '../src/i18n/core';
+import { fitArt, report, resampleLoop } from '../scripts/shape-to-track';
+import { ART } from '../scripts/track-art';
 
 describe('pistas', () => {
   it('todas montam, com tamanho entre 1.500 e 3.000 segmentos e ids únicos', () => {
@@ -60,7 +62,7 @@ describe('pistas', () => {
   });
 
   it('curvas fortes ganham placas do lado de fora', () => {
-    const t = buildTrack(trackDef('sampa_noite'));
+    const t = buildTrack(trackDef('roma'));
     const signs = t.segments.flatMap((s) => s.sprites.filter((sp) => sp.kind === 'sign_left' || sp.kind === 'sign_right'));
     expect(signs.length).toBeGreaterThan(10);
     for (const s of t.segments) for (const sp of s.sprites) {
@@ -78,7 +80,8 @@ describe('pistas', () => {
     const t = getTrack('copacabana');
     expect(segmentAt(t, t.length + 10).index).toBe(0);
     expect(segmentAt(t, -10).index).toBe(t.segments.length - 1);
-    expect(maxCurveAhead(t, t.length - 100, 50)).toBe(Math.max(...t.segments.slice(0, 50).map((s) => Math.abs(s.curve)), Math.abs(t.segments[t.segments.length - 1].curve)));
+    // a partir do último segmento, os 50 à frente são ele e os de 0 a 48
+    expect(maxCurveAhead(t, t.length - 100, 50)).toBe(Math.max(...t.segments.slice(0, 49).map((s) => Math.abs(s.curve)), Math.abs(t.segments[t.segments.length - 1].curve)));
   });
 
   it('as copas apontam para pistas existentes e a cadeia de destravamento fecha', () => {
@@ -1057,5 +1060,70 @@ describe('TO · Ponte de Palmas desenha o sol com raios (o da bandeira do Tocant
   it('os raios saem de um disco: os vales ficam longe do centro, mas bem dentro das pontas', () => {
     const rmin = Math.min(...polar.filter((r) => r > 0));
     expect(rmin / rmax).toBeGreaterThan(0.5); expect(rmin / rmax).toBeLessThan(0.8);
+  });
+});
+
+// ───────── Trecho `bend` e desenhos em curva (docs/PISTAS.md, "Desenhos em cartum"; onda K, frente K5) ─────────
+
+describe('trecho bend: curva constante, sem rampa', () => {
+  const def = (ops: TrackDef['ops']): TrackDef => ({ ...trackDef('copacabana'), id: 'teste-bend', ops });
+
+  it('bend(L, c) gera L segmentos de curva exatamente c — sem a entrada e a saída do cv', () => {
+    const t = buildTrack(def([{ op: 'pit', length: 40 }, { op: 'bend', length: 10, curve: 2.5 }, { op: 'straight', length: 50 }]));
+    expect(t.segments.length).toBe(100);
+    expect(t.segments.slice(40, 50).map((s) => s.curve)).toEqual(new Array(10).fill(2.5));
+    expect(t.segments[39].curve).toBe(0);
+    expect(t.segments[50].curve).toBe(0);
+  });
+
+  it('bend com hill sobe o desnível dentro do trecho, como o cv', () => {
+    const t = buildTrack(def([{ op: 'pit', length: 40 }, { op: 'bend', length: 20, curve: -1, hill: 6 }, { op: 'bend', length: 20, curve: 1, hill: -6 }, { op: 'straight', length: 40 }]));
+    expect(t.segments.length).toBe(120);
+    expect(t.segments[59].y1 - t.segments[40].y0).toBeGreaterThan(0);
+    expect(t.segments.slice(40, 60).every((s) => s.curve === -1)).toBe(true);
+  });
+});
+
+describe('desenho em curva: o traço vira bend (ferramenta scripts/shape-to-track.ts)', () => {
+  it('o Cristo é codificado só em pit, reta e bend: nenhum cv, pico ≤ cmax e a volta com os segmentos pedidos', () => {
+    // sigma 6: o padrão da ferramenta (solveArt), o mesmo do --apply da copacabana.
+    const fit = fitArt(ART.copacabana(), 1800, 3, 6);
+    expect(fit.ops.filter((o) => o.op === 'curve')).toEqual([]);
+    expect(fit.ops.some((o) => o.op === 'bend')).toBe(true);
+    expect(fit.ops.reduce((a, o) => a + o.length, 0)).toBe(1800);
+    expect(fit.cmax).toBeLessThanOrEqual(3 + 1e-9);
+  });
+});
+
+/**
+ * Desenhos em curva já aplicados em tracks.ts. Um desenho novo em ART (a rodada em andamento) só entra aqui no
+ * `--apply` da pista dele (a onda O aplica os outros 26 de uma vez).
+ */
+const APPLIED_ART = ['copacabana'];
+
+describe('fidelidade ao desenho: o minimapa segue o traço de ART', () => {
+  for (const id of APPLIED_ART) {
+    it(`${id}: erro médio ≤ 1,0, máximo ≤ 2,5 e fechamento ≤ 3 (em 100) contra o traço normalizado`, () => {
+      expect(ART[id], `${id} sem desenho em scripts/track-art.ts`).toBeDefined();
+      const def = trackDef(id);
+      const n = buildTrack(def).segments.length;
+      const art = ART[id]();
+      // A normalização do relatório (`report`): o mesmo ponto de largada e a mesma escala que `fitArt` usa.
+      const { q, perim } = resampleLoop(art.pts, art.start, n);
+      const r = report(def, { poly: art.pts, start: q[0], scale: n / perim });
+      expect(r.fit?.mean ?? Infinity, 'erro médio').toBeLessThanOrEqual(1.0);
+      expect(r.fit?.max ?? Infinity, 'erro máximo').toBeLessThanOrEqual(2.5);
+      expect(r.drift, 'desvio de fechamento').toBeLessThanOrEqual(3);
+    });
+  }
+});
+
+describe('placas de curva: só em curva forte de verdade', () => {
+  // A quina curta (desenho de polígono) jogava a IA para fora bem em cima das 3 placas (tests/batidas-cenario.test.ts).
+  it('curva forte longa ganha as 3 placas; quina curta (menos de 12 segmentos acima de 3) não ganha nenhuma', () => {
+    const signsIn = (ops: TrackDef['ops']) => buildTrack({ ...trackDef('copacabana'), id: 'teste-placas', ops }).segments
+      .flatMap((s) => s.sprites).filter((sp) => sp.kind === 'sign_left' || sp.kind === 'sign_right').length;
+    expect(signsIn([{ op: 'pit', length: 40 }, { op: 'straight', length: 200 }, { op: 'curve', length: 40, curve: 5 }, { op: 'straight', length: 200 }])).toBe(3);
+    expect(signsIn([{ op: 'pit', length: 40 }, { op: 'straight', length: 200 }, { op: 'curve', length: 8, curve: 5 }, { op: 'straight', length: 200 }])).toBe(0);
   });
 });
