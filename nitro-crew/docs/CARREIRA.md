@@ -425,3 +425,11 @@ com a regra de sempre: lixo vira ausente, campo ruim é consertado, nunca lança
   levar a carreira a outra máquina, e o Steam Cloud (5.4) resolve isso melhor.
 - Um espaço de carreira só; vender carro ou peça; a IA comprando carros novos. (O rival principal por copa
   entrou no passo 3.4 — `docs/RIVAIS.md`.)
+
+## Ritmo da IA na carreira (onda K, K3, 09/10/2026)
+
+`RaceConfig.aiPace` mede o ritmo da IA em degraus de dificuldade (+1 = um degrau acima da escolhida no lobby, −0,5 = meio abaixo). Ele interpola `DIFFICULTY_SPEED` e `DIFFICULTY_SKILL` (`pacedSpeed`/`pacedSkill` em `src/core/sim/ai.ts`), fica preso entre amador e campeão e vale **só para os carros da IA** (`car.seat < 0`). O piloto-proxy da sonda, que é um humano guiado pelo cérebro da IA, não acelera junto; por isso o "+0,8 no Mundial" do cronograma foi refutado (com o ritmo só na IA, +0,8 dá EUA 12,25 e Mediterrâneo 9,38). Ausente ou 0 é a corrida de antes, bit a bit (`sim-golden` não mudou), e `deserializeRace` nunca grava o campo, só apaga lixo. A carreira passa o ritmo por `careerAiPace(career)`, que interpola `CAREER_AI_PACE_POINTS` (em `career.ts`, não em `constants.ts`, para não mexer na impressão da volta).
+
+**Calibragem provisória, opção B** (a definitiva é da O2; o dono não respondeu A/B): 0 do RJ ao ES, 0,1 no RS, 0,4 do DF ao AC, 0,3 no TO e 0,2 no Mundial. Medido com 2 sementes, o piloto médio ia de PE 1,67 e PB 1,17 ("volta da vitória" do DF em diante) para 3,67 e 3,33, e o Mediterrâneo de 2,50 para 4,13. Copas com média entre 3º e 5º: 5 → 29 de 34; top 5 em pelo menos 50% das corridas: 34 de 34 antes e depois. Fora da faixa 3–5: PR 2,17, GO 5,50, RO 5,17, TO 5,83 e África do Sul 2,63.
+
+**Sonda 2.0** (`npx tsx scripts/career-balance.ts [última copa] [ritmo]`, ponto decimal): 5 perfis de compra (focado, colecionador, vaidoso, sempre 1º, sempre 8º) mostram o dinheiro parado e as corridas sem compra por copa. O focado completa o Falcão no fim do RS, fica 88 corridas seguidas sem ter o que comprar e termina com $ 364.270 parados; o vaidoso passa 79 corridas sem comprar e o catálogo não fecha em nenhum perfil. Quem fecha a economia é a P1.

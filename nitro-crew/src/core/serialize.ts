@@ -13,6 +13,9 @@ export function deserializeRace(json: string): RaceState {
   if (!Array.isArray(s.cars) || typeof s.tick !== 'number') throw new Error('Estado de corrida inválido');
   s.events = s.events ?? [];
   s.teamNitro = s.teamNitro ?? {};
+  // Ritmo da IA (carreira, RaceConfig.aiPace): ausente vale 0 e continua AUSENTE — gravar 0 aqui mudaria o JSON do
+  // estado (tests/determinism.test.ts, "sobrevive a serializar e desserializar"). Lixo vira ausente.
+  if (s.config && (typeof s.config.aiPace !== 'number' || !Number.isFinite(s.config.aiPace))) delete s.config.aiPace;
   // Estado anterior às melhorias da carreira: atributos recalculados da configuração.
   for (const c of s.cars) if (!c.stats) c.stats = statsFor(s.config, c);
   // Modos de festa (modes.ts): ausente = corrida normal; campos que faltam ganham o padrão.

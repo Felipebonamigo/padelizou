@@ -3,7 +3,7 @@
 // em src/core/career.ts; aqui só se liga isso à sessão (corrida, menus, save). Em session.ts ficam
 // só os ganchos que chamam este módulo.
 import {
-  beginCareerCup, careerAiLevel, careerHumans, newCareer, settleCareerRace, type CareerState,
+  beginCareerCup, careerAiLevel, careerAiPace, careerHumans, newCareer, settleCareerRace, type CareerState,
 } from '../core/career';
 import { isCoop, nextTrackId } from '../core/championship';
 import { seatColor } from '../core/data/drivers';
@@ -100,6 +100,7 @@ export function createCareerSession(host: CareerHost): CareerSession {
     const config = host.baseConfig(trackId, trackDef(trackId).laps, humans, host.randomSeed());
     config.rosterSeed = career.rosterSeed;
     config.aiLevel = careerAiLevel(career);
+    config.aiPace = careerAiPace(career);
     // O rival da copa vale também na carreira: o mesmo piloto da copa normal.
     config.rival = gridRival(champ);
     host.persist();

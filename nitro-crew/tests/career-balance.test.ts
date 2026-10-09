@@ -7,7 +7,7 @@
 // A sonda completa, copa a copa: `npx tsx scripts/career-balance.ts` (docs/CARREIRA.md).
 import { describe, expect, it } from 'vitest';
 import { averagePlayerUpgrades, PROXY_SKILL, proxyPositions } from '../scripts/career-balance-lib';
-import { careerAiLevel, newCareer, NO_UPGRADES } from '../src/core/career';
+import { careerAiLevel, careerAiPace, newCareer, NO_UPGRADES } from '../src/core/career';
 import { CUPS } from '../src/core/data/cups';
 
 const SEEDS = [1, 2];
@@ -25,9 +25,23 @@ describe('calibragem contra a IA que evolui', () => {
     const aiLevel = careerAiLevel(career);
     expect(aiLevel).toBeGreaterThan(0);
     const upgrades = averagePlayerUpgrades(last);
-    const final = proxyPositions(CUPS[last].trackIds, aiLevel, upgrades, SEEDS);
-    const msg = `última copa (${CUPS[last].id}, IA ${aiLevel.toFixed(2)}, melhorias ${JSON.stringify(upgrades)}): ${final.join(',')}`;
+    const aiPace = careerAiPace(career);
+    const final = proxyPositions(CUPS[last].trackIds, aiLevel, upgrades, SEEDS, PROXY_SKILL, 'profissional', aiPace);
+    const msg = `última copa (${CUPS[last].id}, IA ${aiLevel.toFixed(2)}, ritmo ${aiPace.toFixed(2)}, melhorias ${JSON.stringify(upgrades)}): ${final.join(',')}`;
     expect(mean(final), msg).toBeLessThanOrEqual(5.5);
     expect(final.filter((p) => p <= 5).length, msg).toBeGreaterThanOrEqual(final.length / 2);
   }, 900_000); // ~2–3 min sozinha; com a máquina carregada (agentes em paralelo) passou de 5 min
+
+  // Onda K (K3): do DF em diante o piloto médio tem o Falcão completo e a IA está no teto de melhorias; sem o ritmo
+  // da carreira ele vencia quase tudo (PE 1,67 e PB 1,17 em 06/10). O ritmo (careerAiPace) devolve a disputa.
+  it.each(['br_pe', 'br_pb'])('%s: com o ritmo da carreira, o piloto médio fica entre 2,5º e 5,5º de média', (cupId) => {
+    const i = CUPS.findIndex((c) => c.id === cupId);
+    const career = { ...newCareer([{ seat: 0, name: 'P1', carId: 'falcao', teamId: 0, color: '#fff' }]), cupId };
+    const aiLevel = careerAiLevel(career);
+    const aiPace = careerAiPace(career);
+    const ps = proxyPositions(CUPS[i].trackIds, aiLevel, averagePlayerUpgrades(i), SEEDS, PROXY_SKILL, 'profissional', aiPace);
+    const msg = `${cupId} (IA ${aiLevel.toFixed(2)}, ritmo ${aiPace.toFixed(2)}): ${ps.join(',')}`;
+    expect(mean(ps), msg).toBeGreaterThanOrEqual(2.5);
+    expect(mean(ps), msg).toBeLessThanOrEqual(5.5);
+  }, 600_000);
 });

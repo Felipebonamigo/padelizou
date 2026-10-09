@@ -38,6 +38,15 @@ export const CAREER_AI_LEVEL_MAX = 3;
 /** Quanto do nível da IA acompanha as melhorias do piloto médio (o resto sobe com a posição da copa). */
 export const CAREER_AI_FOLLOW = 0.8;
 /**
+ * Ritmo da IA por copa (RaceConfig.aiPace, em degraus de dificuldade: +1 = um degrau acima da escolhida no lobby,
+ * −0,5 = meio abaixo). Pontos (copa, ritmo) com reta entre eles; antes do primeiro e depois do último, o valor da
+ * ponta. Calibragem PROVISÓRIA da onda K (docs/CARREIRA.md); a definitiva é da O2, sobre a física final.
+ * Mora aqui, e não em constants.ts: a impressão da volta (lapContent) leva todas as constantes de lá.
+ */
+export const CAREER_AI_PACE_POINTS: ReadonlyArray<readonly [cupId: string, pace: number]> = [
+  ['br_es', 0], ['br_rs', 0.1], ['br_df', 0.4], ['br_ac', 0.4], ['br_to', 0.3], ['eua', 0.2],
+];
+/**
  * A corrida que elimina paga esta fração do prêmio da posição, nunca menos que a ajuda de custo
  * (PRIZE_PARTICIPATION no fator da copa), e sem bônus de equipe.
  */
@@ -312,6 +321,19 @@ export function careerAiLevel(career: CareerState, cups: readonly CupDef[] = CUP
   const linear = i / (cups.length - 1);
   const share = i >= cups.length - 1 ? 1 : averagePlayerShare(i, cups);
   return CAREER_AI_LEVEL_MAX * (CAREER_AI_FOLLOW * share + (1 - CAREER_AI_FOLLOW) * linear);
+}
+
+/** Ritmo da IA na copa atual (RaceConfig.aiPace), pelos pontos de CAREER_AI_PACE_POINTS; 0 sem nenhum ponto na lista. */
+export function careerAiPace(career: CareerState, cups: readonly CupDef[] = CUPS): number {
+  const i = cupIndexOf(career, cups);
+  const pts = CAREER_AI_PACE_POINTS.map(([id, pace]) => [cups.findIndex((c) => c.id === id), pace] as const).filter(([k]) => k >= 0);
+  if (pts.length === 0) return 0;
+  if (i <= pts[0][0]) return pts[0][1];
+  for (let k = 1; k < pts.length; k++) {
+    const [a, va] = pts[k - 1]; const [b, vb] = pts[k];
+    if (i <= b) return va + ((vb - va) * (i - a)) / (b - a);
+  }
+  return pts[pts.length - 1][1];
 }
 
 /** Começa (ou devolve) a copa atual. `rosterSeed` fixa o elenco da IA até a copa acabar. */

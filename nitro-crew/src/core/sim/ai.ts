@@ -17,6 +17,32 @@ export const DIFFICULTY_SKILL: Record<Difficulty, [number, number]> = {
   amador: [0.8, 0.92], profissional: [0.88, 0.98], campeao: [0.94, 1.03],
 };
 
+/** As dificuldades em ordem: o `aiPace` anda nesta escada, em degraus. */
+const DIFFICULTY_STEPS: readonly Difficulty[] = ['amador', 'profissional', 'campeao'];
+
+/** Os dois degraus vizinhos de dificuldade + ritmo e a fração entre eles (preso entre amador e campeão). */
+function paceStep(difficulty: Difficulty, aiPace: number): { lo: Difficulty; hi: Difficulty; t: number } {
+  const last = DIFFICULTY_STEPS.length - 1;
+  const s = Math.max(0, Math.min(last, DIFFICULTY_STEPS.indexOf(difficulty) + aiPace));
+  const i = Math.min(last - 1, Math.floor(s));
+  return { lo: DIFFICULTY_STEPS[i], hi: DIFFICULTY_STEPS[i + 1], t: s - i };
+}
+
+/** DIFFICULTY_SPEED com o ritmo (`RaceConfig.aiPace`, em degraus); 0 ou ausente devolve a tabela sem conta nenhuma. */
+export function pacedSpeed(difficulty: Difficulty, aiPace = 0): number {
+  if (!aiPace) return DIFFICULTY_SPEED[difficulty];
+  const { lo, hi, t } = paceStep(difficulty, aiPace);
+  return DIFFICULTY_SPEED[lo] + (DIFFICULTY_SPEED[hi] - DIFFICULTY_SPEED[lo]) * t;
+}
+
+/** DIFFICULTY_SKILL com o ritmo; 0 ou ausente devolve a tabela sem conta nenhuma. */
+export function pacedSkill(difficulty: Difficulty, aiPace = 0): readonly [number, number] {
+  if (!aiPace) return DIFFICULTY_SKILL[difficulty];
+  const { lo, hi, t } = paceStep(difficulty, aiPace);
+  const a = DIFFICULTY_SKILL[lo]; const b = DIFFICULTY_SKILL[hi];
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
 /** Quem é o piloto: personalidade fixa (data/drivers.ts) e se é o rival principal da copa. */
 export interface DriverProfile {
   personality: Personality | null;
@@ -24,7 +50,7 @@ export interface DriverProfile {
 }
 
 export function createBrain(state: RaceState, difficulty: Difficulty, slot: number, profile?: DriverProfile): AiBrain {
-  const [lo, hi] = DIFFICULTY_SKILL[difficulty];
+  const [lo, hi] = pacedSkill(difficulty, state.config.aiPace);
   // Os quatro sorteios na mesma ordem de sempre: o perfil não muda o acaso dos outros pilotos.
   const brain: AiBrain = {
     skill: nextRange(state.rng, lo, hi),
@@ -135,7 +161,7 @@ export function aiInput(state: RaceState, track: Track, car: CarState): PlayerIn
   // ── Velocidade-alvo: na reta, o que a habilidade permite; para cada curva à frente, a
   // velocidade que dá para chegar nela freando a partir de agora (ponto de frenagem).
   const lookahead = brain.lookahead + Math.floor(speedFrac * 30);
-  const straightLimit = brain.skill * DIFFICULTY_SPEED[difficulty];
+  const straightLimit = brain.skill * (car.seat < 0 ? pacedSpeed(difficulty, state.config.aiPace) : DIFFICULTY_SPEED[difficulty]);
   let target = straightLimit;
   // Personalidade: o agressivo supõe frear mais forte (freia mais tarde) e entrar mais rápido; o
   // errático (e, menos, o agressivo) às vezes erra o ponto de frenagem de um trecho e vai à grama.
