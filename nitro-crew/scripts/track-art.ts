@@ -244,6 +244,19 @@ function aviao(): Art {
   return { state: 'DF', what: 'avião do Plano Piloto', pts: sym(r.pts), start: [44.5, 68] };
 }
 
+/**
+ * GO · A gota d'água das águas termais: fundo redondo, a ponta fina que se curva para a direita no alto. A lateral esquerda
+ * da parte larga tem uns 17 de reta para a largada.
+ */
+function gota(): Art {
+  const r = new Pen(50, 95)
+    .C(34, 95, 18, 86, 18, 72).L(18, 55) // o fundo, à esquerda, e a reta da largada
+    .C(18, 36, 40, 24, 50, 12).C(54, 8, 58, 5, 63, 3) // o flanco esquerdo até a ponta curva
+    .C(61, 14, 82, 32, 82, 56) // o flanco direito
+    .C(82, 84, 68, 95, 50.5, 95); // o fundo, à direita
+  return { state: 'GO', what: 'gota d\'água', pts: r.pts, start: [18, 68] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
@@ -253,4 +266,5 @@ export const ART: Readonly<Record<string, () => Art>> = {
   cuia_gaucha: cuia,
   curitiba: araucaria,
   brasilia: aviao,
+  caldas_novas: gota,
 };
