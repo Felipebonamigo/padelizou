@@ -159,9 +159,26 @@ function penha(): Art {
   return { state: 'ES', what: 'Convento da Penha', pts: r.pts, start: [2, 82] };
 }
 
+/**
+ * SC · Ponte Hercílio Luz: as duas torres com capitel e o cabo pênsil que desce em curva até tocar o chão no meio (o "M"
+ * da ponte); dos topos, os estais descem em faixa até os blocos de ancoragem nas pontas. Simétrica: desenhada a metade da
+ * direita, do alto do cabo (eixo) até o pé dele. Largada na lateral esquerda da torre esquerda, do lado de fora.
+ */
+function hercilio(): Art {
+  const r = new Pen(50, 50)
+    .C(57, 50, 64, 32, 70.5, 14) // o cabo, por cima, até o topo da torre
+    .L(70.5, 8).L(81, 8).L(81, 14).L(78, 16.5).L(78, 19) // o capitel
+    .C(87, 22, 94, 36, 95, 52).L(100, 52).L(100, 62).L(87, 62).L(87, 53) // o estai, o bloco de ancoragem
+    .C(88, 44, 86, 33, 78, 29) // o estai, por baixo, de volta à torre
+    .L(78, 62).L(72, 62).L(72, 30) // a torre
+    .C(66, 42, 58, 62, 50, 62); // o cabo, por baixo, até o chão no meio
+  return { state: 'SC', what: 'Ponte Hercílio Luz', pts: sym(r.pts), start: [22, 58] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
   pampulha,
   convento_penha: penha,
+  floripa: hercilio,
 };
