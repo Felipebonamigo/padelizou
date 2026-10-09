@@ -8,7 +8,7 @@ import { BRAZIL_REGIONS } from '../../core/data/cups';
 import type { BrazilRegion, CupDef, CupStage, TrackDef } from '../../core/types';
 import type { MenuContext } from '../../game/contracts';
 import { t } from '../../i18n';
-import { blurActive, countryName, createFocusList, dayIcon, dots, h, lapsText, listNav, screenFrame, trackName, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
+import { blurActive, countryName, createFocusList, dayIcon, dots, h, lapsText, listNav, screenFrame, trackName, trackNameParts, trackThumb, type FocusItem, type FocusList, type ScreenApi, type ScreenInstance } from './common';
 import { icon } from './icons';
 import { lobbyHumans } from './lobby';
 import { cupRivalBlock } from './rival';
@@ -98,6 +98,12 @@ export interface CupTab {
 }
 
 /** As abas na ordem da expedição: as 5 regiões (com os estados na ordem de BRAZIL_REGIONS) e o Mundial por último. */
+/** Cidade num <span> próprio (`.cup-race-city`): com texto grande o painel esconde a cidade para a lista caber. */
+function raceNameChildren(id: string, fallback: string): Array<string | HTMLElement> {
+  const { city, name } = trackNameParts(id, fallback);
+  return city ? [h('span', { class: 'cup-race-city', text: `${city} · ` }), name] : [name];
+}
+
 export function cupTabs(cups: readonly CupDef[]): CupTab[] {
   const tabs: CupTab[] = BRAZIL_REGIONS.map((r) => ({
     id: r.id, stage: 'brasil' as const,
@@ -163,7 +169,7 @@ function cupDetail(ctx: MenuContext, cup: CupDef, status: CupStatus): HTMLElemen
       h('span', { class: 'cup-race-n mono', text: String(i + 1) }),
       scalableThumb(ctx, def),
       h('div', { class: 'cup-race-text' },
-        h('span', { class: 'cup-race-name', text: trackName(def.id, def.name) }),
+        h('span', { class: 'cup-race-name' }, ...raceNameChildren(def.id, def.name)),
         h('span', { class: 'meta' },
           dayIcon(def.timeOfDay), h('span', { text: t(`core.time.${def.timeOfDay}`) }),
           h('span', { class: 'sep', text: '·' }),

@@ -325,9 +325,17 @@ export function onOff(v: boolean): string {
  * no nome da definição, e sem definição no próprio id.
  */
 export function trackName(id: string, fallback?: string): string {
+  const { city, name } = trackNameParts(id, fallback);
+  return city ? `${city} · ${name}` : name;
+}
+
+/** O nome dividido em cidade e trecho (a cidade some quando o trecho já a diz): telas apertadas escondem só a cidade. */
+export function trackNameParts(id: string, fallback?: string): { city?: string; name: string } {
   const key = `core.track.${id}`;
-  const name = t(key);
-  return trackTitle(id, name === key ? fallback ?? getTrackName(id) : name, getLanguage());
+  const translated = t(key);
+  const name = translated === key ? fallback ?? getTrackName(id) : translated;
+  const title = trackTitle(id, name, getLanguage());
+  return title === name ? { name } : { city: title.slice(0, title.length - name.length - 3), name };
 }
 
 function getTrackName(id: string): string {

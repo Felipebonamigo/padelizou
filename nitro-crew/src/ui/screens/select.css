@@ -170,8 +170,8 @@
   line-height: 1.15;
   white-space: normal;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -291,3 +291,6 @@
 #ui.large-text .scr-cups .cup-rival .rival-quote { display: none; }
 #ui.large-text .scr-cups .cup-detail-head { gap: calc(10 * var(--u)); }
 #ui.large-text .scr-cups .uf-badge.big { min-width: calc(54 * var(--u)); height: calc(44 * var(--u)); }
+
+/* Texto grande: o painel das copas não tem altura para o título "Cidade · trecho" em duas linhas; fica o trecho. */
+#ui.large-text .scr-cups .cup-race-city { display: none; }

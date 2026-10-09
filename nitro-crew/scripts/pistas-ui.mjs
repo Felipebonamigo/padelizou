@@ -147,7 +147,7 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   check(await activeTab(page) === 'mundial' && (await rowIds(page)).length === 7, `${tag}: abre na aba da fronteira, o Mundial, com 7 copas (${await activeTab(page)})`);
   check(await focused(page, 'data-cup') === 'africa_do_sul', `${tag}: cursor começa na fronteira (África do Sul) — ${await focused(page, 'data-cup')}`);
   const detail = await detailTracks(page);
-  check(detail.length === 4 && detail[0] === 'Savana do Kruger', `${tag}: detalhe mostra as 4 pistas da copa em foco (${detail.join(', ')})`);
+  check(detail.length === 4 && detail[0] === 'Hoedspruit · Savana do Kruger', `${tag}: detalhe mostra as 4 pistas da copa em foco (${detail.join(', ')})`);
   check(await listFits(page), `${tag}: as 7 copas do Mundial cabem sem rolar`);
   await layoutChecks(page, `${tag} copas`);
   await shot(page, `copas-${tag}`);
@@ -182,7 +182,7 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   check(norte.join(',') === 'br_pa,br_am,br_ap,br_rr,br_ro,br_ac,br_to', `${tag}: Norte com os 7 estados na ordem (${norte.join(',')})`);
   check(await focused(page, 'data-cup') === 'br_to', `${tag}: com a região toda concluída, o cursor fica na última (${await focused(page, 'data-cup')})`);
   const to = await detailTracks(page);
-  check(to.join(', ') === 'Dunas do Jalapão, Ponte de Palmas, Ilha do Bananal', `${tag}: copa de estado com 3 pistas no detalhe (${to.join(', ')})`);
+  check(to.join(', ') === 'Mateiros · Dunas do Jalapão, Ponte de Palmas, Formoso do Araguaia · Ilha do Bananal', `${tag}: copa de estado com 3 pistas no detalhe (${to.join(', ')})`);
   const stampChip = await page.evaluate(() => ({ chip: document.querySelector('#ui .cup-chip.done')?.textContent ?? '', badge: document.querySelector('#ui .cup-detail .uf-badge.on')?.textContent ?? '' }));
   check(stampChip.chip.includes('Carimbada') && stampChip.badge === 'TO', `${tag}: estado carimbado no detalhe (${stampChip.chip}; ${stampChip.badge})`);
   await layoutChecks(page, `${tag} copas Norte`);
@@ -202,7 +202,7 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
     await page.waitForTimeout(300);
     const en = await page.evaluate(() => ({ title: document.querySelector('#ui .cup-detail-title strong')?.textContent, stage: document.querySelector('#ui .cup-stage-name')?.textContent, track: document.querySelector('#ui .cup-race-name')?.textContent }));
     check(typeof en.title === 'string' && en.title.endsWith(' Cup') && (en.stage ?? '').startsWith('Brazil Expedition'), `${tag}: copas em inglês (${en.title}; ${en.stage}; a tela é remontada e o cursor volta à fronteira)`);
-    check(en.track === 'Kruger Savanna', `${tag}: nome da pista em inglês pelas strings do núcleo (${en.track})`);
+    check(en.track === 'Hoedspruit · Kruger Savanna', `${tag}: nome da pista em inglês pelas strings do núcleo (${en.track})`);
     await layoutChecks(page, `${tag} copas EN`);
     await shot(page, `copas-en-${tag}`);
     await page.evaluate(() => { const s = window.nc.session; s.handleMenuEvent({ type: 'settingsChanged', settings: { ...s.settings, language: 'pt' } }); });
@@ -220,7 +220,7 @@ for (const [w, hgt] of onlySizes ? [] : [[1280, 720], [1920, 1080]]) {
   await press(page, 'Enter');
   await page.waitForTimeout(300);
   const race = await page.evaluate(() => { const r = window.nc.session.race; return r ? { id: r.state.trackId, name: r.track.def.name, mode: r.mode } : null; });
-  check(await menu(page) === null && race !== null && race.name === firstName, `${tag}: Enter em ${cupNow} começa a 1ª corrida dela (${race?.id}, ${race?.mode})`);
+  check(await menu(page) === null && race !== null && firstName.endsWith(race.name), `${tag}: Enter em ${cupNow} começa a 1ª corrida dela (${race?.id}, ${race?.mode})`);
 
   // Classificação de uma copa de 4 corridas depois da primeira: 4 colunas e "2 de 4".
   await page.evaluate(() => {
