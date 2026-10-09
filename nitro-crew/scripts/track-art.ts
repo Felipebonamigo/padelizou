@@ -230,6 +230,20 @@ function araucaria(): Art {
   return { state: 'PR', what: 'araucária', pts: sym(r.pts), start: [45, 90] };
 }
 
+/**
+ * DF · O avião do Plano Piloto visto de cima, bico para cima: a fuselagem de nariz redondo (o Eixo Monumental), as asas
+ * arqueadas para trás de pontas redondas (o Eixo Rodoviário) e a cauda. Simétrico: desenhada a metade da direita, do bico
+ * ao pé da cauda. Largada na lateral reta da fuselagem, atrás da asa esquerda.
+ */
+function aviao(): Art {
+  const r = new Pen(50, 3).C(53.5, 3, 55.5, 6.5, 55.5, 13).L(55.5, 32) // o nariz e a fuselagem
+    .C(70, 33, 85, 43, 94, 55).C(97, 59, 95, 64, 91, 63) // a asa, por cima, e a ponta redonda
+    .C(82, 59, 70, 52, 55.5, 50) // a asa, por baixo, de volta à fuselagem
+    .L(55.5, 76).C(60, 78, 66, 82, 68, 86).C(69, 90, 65, 92, 61, 90.5) // a cauda: o estabilizador
+    .L(55.5, 88).C(55.5, 93, 54, 96, 50, 96); // o cone de cauda
+  return { state: 'DF', what: 'avião do Plano Piloto', pts: sym(r.pts), start: [44.5, 68] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
@@ -238,4 +252,5 @@ export const ART: Readonly<Record<string, () => Art>> = {
   floripa: hercilio,
   cuia_gaucha: cuia,
   curitiba: araucaria,
+  brasilia: aviao,
 };
