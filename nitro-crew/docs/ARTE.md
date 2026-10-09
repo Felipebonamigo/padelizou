@@ -2,12 +2,19 @@
 
 Briefing de arte (direção, paleta, carros, cenário, especificação, lotes): https://claude.ai/code/artifact/049e138a-cb57-4adb-baef-d3084b4f0d03
 
-**Decisão (dono, 04/10/2026): não gerar 3D por IA neste jogo; baixar o orgânico pronto.** O estilo é low-poly
-(referência Horizon Chase Turbo) e o código dá conta dele — prédios, pontes, torres, relevo. As formas orgânicas
+Contrato do asset (convenção do carro e do marco-herói, nós `kit_*`, `seat`, `lod0`/`lod1`, tetos; **proposta**, o dono aprova no Marco 1): `docs/CONTRATO-DO-ASSET.md`.
+
+**Decisão (dono, 04/10/2026): não gerar 3D por IA neste jogo; baixar o orgânico pronto.** O alvo é cartunesco de última geração (`docs/DIRECAO-DE-ARTE.md`); hoje (até a L3) o estilo em código é low-poly
+e o código dá conta dele — prédios, pontes, torres, relevo. As formas orgânicas
 (bichos, estátuas), onde o código fica quadrado, vêm de modelos **prontos da galeria da comunidade do Meshy (CC0)**,
 convertidos para o estilo (seção "Marcos baixados"). **Nada de gerar pela API** — gasta créditos do dono (custou 200 em
 04/10 por engano). A conta assinada é Pro (downloads da comunidade ilimitados); o download é pelo navegador logado do
 dono (sessão local com o Claude in Chrome), não por aqui.
+
+**Atualização (dono, 09/10/2026; `docs/CRONOGRAMA.md`, decisões nº 27 e 28, R4).** Não há artista: a arte sai de modelos prontos CC0, do
+Meshy **só para o que não existir pronto** (lista em `docs/MESHY-LISTA.md`; **nada é gerado sem o dono ver a lista**; teto de
+créditos; nunca em tempo de jogo) e de limpeza no Blender — inclusive os carros (rodas separadas, camadas de pintura, nós `kit_*`,
+ponto `seat`, conferidos por `npm run check-car`). A frase "nada de gerar pela API" acima vale até a lista aprovada.
 
 ## Carros — pronto
 1. **Modelo-base**: `art/templates/cars/<estilo>.glb` (13), o carro atual do jogo na convenção. `npm run car-templates` regera.
@@ -17,7 +24,8 @@ dono (sessão local com o Claude in Chrome), não por aqui.
      (branco = cor pura, cinza = um tom abaixo);
    - `headlight*`, `taillight*`: acendem; força = emissivo ÷ cor (sem emissivo = 1);
    - "popup" no nome: sobe com o farol escamoteável;
-   - qualquer outro nome: peça fixa com a cor, rugosidade e metal do material. **Sem textura** nos carros.
+   - qualquer outro nome: peça fixa com a cor, rugosidade e metal do material. **Hoje (até a L3): sem textura** nos carros;
+     o alvo é o atlas de paleta 256² (`docs/CONTRATO-DO-ASSET.md`).
 3. **Conferir**: `npm run check-car -- arquivo.glb` (mesmo validador do jogo: pegada, rodas, luzes, escape, ≤ 3.500
    triângulos no casco — eram 2.000 até a onda I, que arredondou os carros do jogo para 2.600–3.400 —, faixas que os
    carros do estilo usam).
@@ -35,7 +43,7 @@ Mesmo caminho (convenção na seção Especificação do briefing); para árvore
 
 ## Marcos baixados (Meshy, CC0)
 Um modelo pronto, realista e texturizado (dezenas a centenas de milhares de triângulos) vira o marco do jogo: low-poly,
-cor chapada por face, na convenção de `src/render/scenery/landmarks/types.ts`. **Não gera nada por IA nem gasta
+cor chapada por face (**hoje (até a L3)**; o alvo é o atlas de paleta 256², `docs/CONTRATO-DO-ASSET.md`), na convenção de `src/render/scenery/landmarks/types.ts`. **Não gera nada por IA nem gasta
 crédito** — traz um arquivo já pronto para o estilo do jogo (decisão de 04/10 no topo). Primeira leva escolhida:
 tuiuiú (de cegonha), jacaré, búfalo (de boi), garça, girafa, rena, cavalo, troll, shisa, garimpeiro — que não são
 marcos inteiros, e sim **peças** de cenas que já existem (o tuiuiú no ninho, a manada de búfalos…): o mesmo conversor no
@@ -69,7 +77,7 @@ modo `--part`, seção "Peças baixadas", abaixo. Este caminho (o arquivo no lug
    área, determinístico, e junta tons quase iguais); reduz os triângulos com o simplificador do meshoptimizer que vem
    com o three (o do `SimplifyModifier`; preserva a silhueta pelo erro quadrático; com muitas peças soltas some com as
    minúsculas e, em último caso, agrupa vértices); e cada face reduzida fica com a cor de **maior área** dos triângulos
-   originais mais próximos dela (moda, não média: a média de branco e preto seria cinza). Sem textura nem uv na saída.
+   originais mais próximos dela (moda, não média: a média de branco e preto seria cinza). **Hoje (até a L3): sem textura nem uv na saída**; o alvo é o atlas de paleta 256² (`docs/CONTRATO-DO-ASSET.md`).
 4. **Conferir**: olhe a prévia (`scratch/marcos/<id>.png`). Depois, no jogo, com o arquivo em `src/assets/landmarks/` e
    `npx vite --port <porta>` no ar: `node tools/scenery-showroom.mjs <porta> antes.png lm:<id> '&gap=40&nolm=1'` e
    `… depois.png lm:<id> '&gap=40'`; na pista, `tools/render-harness.html?track=<pista>&seg=<n>&hud=0&pause=1` (o
@@ -106,7 +114,7 @@ código; sem o arquivo da peça, o marco usa o bicho procedural de sempre (byte 
 
 **Convenção da peça** (`src/render/scenery/landmarks/parts.ts`): metros, +Y para cima, base em y = 0, pegada
 centrada na origem, a **frente (a cabeça, o rosto) em +X**; uma parte lisa só (`flat`, nada brilha), malha não
-indexada, cor chapada por face (COLOR_0). Um arquivo por peça: `src/assets/landmarks/parts/<peça>.glb`.
+indexada, cor chapada por face (COLOR_0; **hoje (até a L3)**, com o atlas de paleta 256² como alvo, `docs/CONTRATO-DO-ASSET.md`). Um arquivo por peça: `src/assets/landmarks/parts/<peça>.glb`.
 
 1. **Arquivo bruto**: `art/raw/<peça>.glb` (fora do repositório, como os marcos). Anote a origem e a licença.
 2. **Converter no modo peça** (o mesmo `tools/convert-landmark.mjs`, com `--part`): grava `scratch/pecas/<peça>.glb`,

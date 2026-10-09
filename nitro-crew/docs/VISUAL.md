@@ -1,8 +1,10 @@
 # Visual (Fase 2, onda F)
 
+> **O alvo novo está em `DIRECAO-DE-ARTE.md`; as seções abaixo descrevem o visual de hoje (ondas F–J) e as réguas que continuam valendo.**
+
 ## Pista, céu e luz
 
-Referência: Horizon Chase Turbo (e Art of Rally). Tudo procedural, sem asset nem dependência nova. Arquivos:
+Referência: Horizon Chase Turbo (alvo antigo) (e Art of Rally). Tudo procedural, sem asset nem dependência nova. Arquivos:
 `src/render/palette.ts` (as cores e a luz de cada bioma × período), `road.ts` + `road-textures.ts` (o chão da
 pista), `terrain.ts` (terreno, mar, horizonte), `sky.ts` (céu, nuvens, sol/lua, luzes, névoa), `effects.ts` (cor
 da poeira) e `renderer.ts` (tone mapping, bloom). Testes das partes puras: `tests/render-ground.test.ts`.
@@ -159,7 +161,7 @@ mais lados nas silhuetas que aparecem perto (pneu, tronco, arco), e menos `speck
 
 ### Carros menos quadrados pela geometria (onda I)
 
-O passo seguinte, nos carros (o cenário fica para outra rodada). Referência Horizon Chase Turbo: limpo, parrudo, liso,
+O passo seguinte, nos carros (o cenário fica para outra rodada). Referência Horizon Chase Turbo (alvo antigo): limpo, parrudo, liso,
 não realista. Capturas `ondai-carros-*-antes/depois` (folhas de contato de dia e de noite, showroom, perto de cada
 estilo e duas corridas com a câmera de perseguição).
 
@@ -197,7 +199,7 @@ cenário e os materiais saem lisos — uma volta ao `flatShading` quebra ali).
 Depois das normais suaves, o que ainda desenhava as facetas na beira da pista era a **cor por face** (a mancha
 `speckle` das copas e pedras e o `tintUp` da neve e do musgo acendiam face sim, face não, mesmo com a luz lisa) e as
 **silhuetas de poucos lados** (copa de icosaedro de 20 faces — 12 pontos, contorno de hexágono —, tronco de 6, camada de
-conífera de 7, cacto de 6–8, moita de caixa). Referência: Horizon Chase Turbo — macio, redondo, cor limpa. Mudou só a
+conífera de 7, cacto de 6–8, moita de caixa). Referência: Horizon Chase Turbo (alvo antigo) — macio, redondo, cor limpa. Mudou só a
 geometria e a cor dos modelos de vegetação e pedra (`vegetation.ts`), a cerca-viva e o penedo do mar
 (`structures.ts`); marcos, carros, núcleo, layout e runtime ficaram como estavam — mesmas instâncias, mesmas
 chamadas de desenho.
@@ -256,7 +258,7 @@ bico de cone, que aponta para cima em qualquer resolução, contava como gomo); 
 
 O que aparece na beira da pista: árvores, pedras, prédios, placas, arquibancadas, box, cercas, postes e os
 pontos de referência de cada país. Tudo procedural (Three.js + canvas), low-poly de cor por face (luz suave
-com vinco: "Sombreamento", acima) e cor saturada, na linha de Horizon Chase Turbo. Código em
+com vinco: "Sombreamento", acima) e cor saturada, na linha de Horizon Chase Turbo (alvo antigo). Código em
 `src/render/scenery/` (a porta de entrada continua `src/render/scenery.ts`, com o mesmo contrato para o renderizador: `new Scenery()`, `group`, `setNight()`,
 `update(frame, track, time)`, `dispose()`).
 

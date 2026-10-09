@@ -1,7 +1,7 @@
 # Nitro Crew *(nome provisório)*
 
-Corrida arcade no espírito do Top Gear (SNES) com visual **3D atual, low-poly estilizado** (referência:
-Horizon Chase Turbo), e **cooperativo local para até 4 jogadores em tela dividida**: a equipe divide um cofre
+Corrida arcade no espírito do Top Gear (SNES) com visual **3D cartunesco de última geração** (referência:
+Mario Kart 8 Deluxe), e **cooperativo local para até 4 jogadores em tela dividida**: a equipe divide um cofre
 de nitro, empurra o companheiro que parou, ganha vácuo atrás dele e pontua junta nas copas contra 19 pilotos
 de IA. Tem carreira com dinheiro e melhorias, 109 pistas — a Expedição Brasil (27 estados, 3 pistas cada) e o Mundial (7 países) — e jogo online por lockstep. Feito em
 TypeScript + Three.js (WebGL), com simulação determinística, e empacotável com Electron para a Steam.
@@ -49,7 +49,7 @@ Versão otimizada: `npm run build` e `npm run preview` (porta 4174).
   aceleração, curva e consumo (`docs/CARROS.md`).
 - 19 pilotos de IA em 10 equipes, 3 dificuldades, elástico, nitro e box pelo consumo medido volta a volta.
 - Estatísticas por jogador, recordes por pista e 57 conquistas (`docs/ESTATISTICAS.md`).
-- Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros low-poly (procedural até a arte final).
+- Visual 3D com iluminação, sombras, bloom, névoa, céu dinâmico, partículas e carros procedurais (até a arte final cartunesca).
 - **Modo Retrô** opcional (Opções › Visual): pseudo-3D de 16 bits no estilo Top Gear, com a mesma corrida, HUD e tela
   dividida — ver `docs/RETRO.md`.
 - Tela dividida 1–4, minimapa, HUD por jogador, PT-BR/EN, jukebox procedural com 4 músicas.

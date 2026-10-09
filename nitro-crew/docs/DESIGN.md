@@ -1,8 +1,8 @@
 # Nitro Crew — Design e arquitetura
 
 ## O jogo em uma frase
-Corrida arcade no espírito dos clássicos de 16 bits (Top Gear), com visual 3D atual (low-poly estilizado, à
-Horizon Chase Turbo), em que **até 4 pessoas no mesmo sofá correm como uma equipe** contra 16–19 pilotos de IA,
+Corrida arcade no espírito dos clássicos de 16 bits (Top Gear), com visual 3D cartunesco de última geração, na linha de Mario Kart 8 Deluxe
+(`docs/DIRECAO-DE-ARTE.md`), em que **até 4 pessoas no mesmo sofá correm como uma equipe** contra 16–19 pilotos de IA,
 com nitro, box e combustível — e mecânicas que só existem porque há uma equipe.
 
 ## Pilares
@@ -79,7 +79,7 @@ origem na linha central em `z = car.z`, integrando a curvatura para ~30 segmento
 um mundo fixo; o que fica ao longe (céu, sol, cordilheira, skyline) gira pelo heading absoluto do carro.
 Escalas: x = ±1 → ±7 m; segmento = 4 m (300 km/h do velocímetro ≈ 430 km/h visuais, exagero arcade); elevação × 0,0025
 (com 0,006 as rampas passavam de 40% e a câmera empinava).
-Malha da pista, terreno por bioma, cenário instanciado a partir dos `sprites` dos segmentos, 20 carros low-poly
+Malha da pista, terreno por bioma, cenário instanciado a partir dos `sprites` dos segmentos, 20 carros (procedurais por estilo até a arte da L3)
 re-posicionados por viewport, céu procedural com PMREM para reflexos, sombras direcionais, bloom só nos
 emissivos, partículas. Tela dividida por scissor: 1 = cheia, 2 = em cima/embaixo, 3–4 = 2×2 (com 3, a 4ª célula é
 classificação + minimapa). HUD em DOM por cima do canvas.

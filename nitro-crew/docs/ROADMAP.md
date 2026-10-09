@@ -1,10 +1,8 @@
 # Nitro Crew — Roteiro e cronograma até a Steam
 
 > **Documento vivo.** Ao concluir um passo, marque ✅ aqui. Revisar a cada duas semanas (ver "Rotina" no fim).
-> Última revisão: **28/09/2026** — Fase 0 e as ondas A, B, C e D concluídas (passos marcados com ✅ abaixo). A onda C
-> foi caça a bugs por lentes e balanceamento por dados; a D, co-op afinado por dados, telas em 7 resoluções e Steam
-> Deck, desempenho e memória, assistência no online e pacote Windows. O que ficou em aberto está em "Riscos" e nos
-> documentos de cada área.
+> Última revisão: 09/10/2026 — ondas A–J concluídas (resumo em "Estado atual" do `CLAUDE.md`); as próximas, K–W, estão em
+> `docs/CRONOGRAMA.md`. O que ficou em aberto está em "Riscos" e nos documentos de cada área.
 
 Premissas: um desenvolvedor (Felipe) com **8–12 h/semana** para jogar, decidir, testar com amigos e cuidar da
 parte comercial, mais o agente (Claude) para código, testes, ferramentas e balanceamento; arte e música
@@ -51,14 +49,14 @@ Objetivo: divertido no sofá com 2–4 amigos, sem travar, sem "sensação de pr
 Marco **M1 (semana 5)**: "fatia vertical jogável por terceiros" — enviar build a 5 amigos com controles.
 
 ## Fase 2 — Identidade visual e áudio · semanas 3–14 (paralela)
-Objetivo: do "bonito procedural" para o "bonito de loja". O visual é 3D low-poly estilizado (decisão de 25/09,
-a pedido do dono: gráficos atuais); a arte final entra como modelos glTF e texturas no mesmo renderizador. O jogo
+Objetivo: do "bonito procedural" para o "bonito de loja". O visual é 3D cartunesco de última geração
+(decisão de 06/10: bíblia em `docs/DIRECAO-DE-ARTE.md`; antes, decisão de 25/09: low-poly estilizado); a arte final entra como modelos glTF e texturas no mesmo renderizador. O jogo
 é lembrado pela música tanto quanto pela pista (o Top Gear é o exemplo), então a trilha é tão importante quanto os modelos.
 
 | # | Passo | Resp. | Semanas |
 |---|---|---|---|
-| 2.1 | Direção de arte fechada em documento de 1 página (paleta por bioma, proporção dos carros, o que é "premium" nas referências Horizon Chase Turbo / Art of Rally); **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
-| 2.2 | Contratar artista 3D low-poly (ou pipeline com IA + retoque no Blender) com o briefing gerado da lista de `SpriteKind`, carros e biomas já no código; formato glTF, orçamento de triângulos por modelo | V + T | 4–5 |
+| 2.1 | Direção de arte fechada em documento de 1 página (paleta por bioma, proporção dos carros, bíblia de estilo em `docs/DIRECAO-DE-ARTE.md` (referência Mario Kart 8 Deluxe; onda K)); **nome definitivo** (verificar marca no INPI e nomes na Steam — "Nitro Crew" é provisório) e logo | V + T | 3–4 |
+| 2.2 | Produzir a arte pelo contrato do asset (`docs/CONTRATO-DO-ASSET.md`): sem artista (dono, 09/10), com modelos CC0, Meshy só para o que não existir pronto (`docs/MESHY-LISTA.md`, decisão nº 28) e limpeza no Blender; se o dono contratar um artista, o mesmo contrato vale. Com o briefing gerado da lista de `SpriteKind`, carros e biomas já no código; formato glTF, orçamento de triângulos por modelo | V + T | 4–5 |
 | 2.3 | Assets: 14 carros (com variações de cor por material), ~60 modelos de cenário (6 biomas), skyboxes/céus e anéis de horizonte por bioma × período, arco de largada, box, arquibancadas; retratos de 20 pilotos; capsule art da Steam | T | 5–13 |
 | 2.3b | ✅ Visual procedural da onda F (30/09): 13 modelos de carro por estilo, pista/céu/luz por bioma × período, cenário por bioma e país (`docs/CARROS.md`, `docs/VISUAL.md`); modo Retrô pseudo-3D opcional (`docs/RETRO.md`). Serve de base e de briefing para a arte final | A | — |
 | 2.4 | ✅ carros (02/10: `docs/ARTE.md`) · falta cenário · Integração: carregador glTF no renderizador (substitui os modelos procedurais um a um), materiais e LODs, animações (rodas, suspensão, chama), efeitos de clima; "visual procedural" pode ficar como opção de baixo custo | A | 8–14 |
@@ -128,11 +126,18 @@ ver as vendas na Steam.
 | Item | Estimativa |
 |---|---|
 | Steam Direct | US$ 100 (devolvidos após US$ 1.000 em vendas) |
-| Arte 3D low-poly (14 carros, cenários de 6 biomas, UI, cápsulas) | R$ 12–40 mil conforme escopo; menos com pipeline assistido por IA + Blender |
+| Style frames (3–4) | a cotar no Marco 1 |
+| Carro-herói de teste | a cotar no Marco 1 |
+| Cristo-régua | a cotar no Marco 1 |
+| 14 carros | a cotar no Marco 1 |
+| ~10 marcos-herói | a cotar no Marco 1 |
+| Retratos de 32 pilotos × 3 expressões | a cotar no Marco 1 |
 | Trilha (10–12 músicas) e efeitos | R$ 3–12 mil (compositor chiptune) ou bancos licenciados |
 | Marca no INPI (opcional, recomendado) | ~R$ 355 + honorários |
 | Servidor relay (só para o online próprio, Fase 4.2) | R$ 30–100/mês |
 | Contabilidade/empresa | R$ 100–300/mês (dividido com o AgeOfEarth) |
+
+Os seis itens de arte entram na cotação do Marco 1 (decisão nº 5 de `docs/CRONOGRAMA.md`). Sem artista (dono, 09/10/2026), a conta inclui a alternativa feita em casa: modelos CC0, Meshy com teto de créditos (nº 28) e Blender.
 
 ## Riscos e mitigação
 - **Arte é o caminho crítico**: fechar direção de arte na semana 4; os sprites procedurais nunca bloqueiam o código.

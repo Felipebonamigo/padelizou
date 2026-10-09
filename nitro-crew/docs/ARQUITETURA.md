@@ -52,7 +52,7 @@ CarState {
   ai: AiBrain | null; stats: CarStats /* topSpeed, accel, brake, handling 0..1, fuelPerUnit, nitro */;
 }
 PlayerInput { steer: -1..1; throttle; brake; nitro /* borda */; gearUp; gearDown; takeover? }
-RaceConfig { trackId; laps; humans: HumanEntry[]; totalCars; difficulty; manualGear; assists; seed; timeTrial?; mode?; … }
+RaceConfig { trackId; laps; humans: HumanEntry[]; totalCars; difficulty; manualGear; assists; seed; timeTrial?; mode?; aiPace? /* ritmo da IA na carreira; ausente = 0 */; … }
 CarDef (data/cars.ts) { id; name; color; body /* estilo de carroceria */; accent?; topSpeed; accel; brake; handling; fuelPerUnit; price; blurb }
 ```
 Regras: o estado é JSON puro (serializável, `hashRace` para o online em lockstep); nada de `Math.random`,
@@ -192,10 +192,11 @@ segIndex }` (Float32Arrays). `locateOnFrame(frame, track, z, x, out)` põe qualq
 
 ## 4. Geração da pista
 
-- **Definição = dados.** `src/core/track/tracks.ts` exporta `TRACKS: TrackDef[]` (32 pistas); `src/core/data/cups.ts` agrupa
-  em 8 copas de 4. Cada pista é uma lista de operações (`TrackOp`):
+- **Definição = dados.** `src/core/track/tracks.ts` exporta `TRACKS: TrackDef[]` (109 pistas); `src/core/data/cups.ts` agrupa
+  em 34 copas (27 de estado com 3 pistas e 7 do Mundial com 4). Cada pista é uma lista de operações (`TrackOp`):
   `{op:'straight', length}` · `{op:'curve', length, curve, hill?}` · `{op:'hill', length, height}` ·
-  `{op:'s', length, curve}` (S) · `{op:'pit', length}` — comprimentos em segmentos.
+  `{op:'s', length, curve}` (S) · `{op:'pit', length}` · `{op:'bend', length, curve, hill?}` (curva constante, sem rampa de
+  entrada nem de saída; usada pelos desenhos em cartum) — comprimentos em segmentos.
 - **Construção** (`src/core/track/builder.ts`, determinística, sem trigonometria):
   ```
   buildTrack(def): Track
