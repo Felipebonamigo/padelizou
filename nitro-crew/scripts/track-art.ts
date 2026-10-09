@@ -83,8 +83,8 @@ function cristo(): Art {
     .C(93.8, 27.8, 94.6, 35.6, 88.6, 35.8) // a mão
     .C(77, 36.4, 59.5, 41, 58.3, 55) // a manga caindo até a cintura
     .C(57.6, 64, 59.8, 76, 61.6, 85.5) // o manto abrindo
-    .L(64, 85.5).L(64, 98).L(50, 98); // pedestal
-  return { state: 'RJ', what: 'Cristo Redentor', pts: sym(r.pts), start: [36, 96] };
+    .L(64, 85.5).L(64, 100.5).L(50, 100.5); // pedestal (reta de 15: os 40 segmentos do box cabem retos)
+  return { state: 'RJ', what: 'Cristo Redentor', pts: sym(r.pts), start: [36, 97] };
 }
 
 export const ART: Readonly<Record<string, () => Art>> = {

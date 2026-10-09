@@ -13,7 +13,9 @@ export type TrackOp =
   | { op: 'curve'; length: number; curve: number; hill?: number }
   | { op: 'hill'; length: number; height: number }
   | { op: 's'; length: number; curve: number }
-  | { op: 'pit'; length: number };
+  | { op: 'pit'; length: number }
+  /** Curva constante, sem rampa de entrada nem de saída (desenhos em cartum, docs/PISTAS.md). O builder é da K5. */
+  | { op: 'bend'; length: number; curve: number; hill?: number };
 
 export interface TrackDef {
   id: string;
@@ -184,6 +186,13 @@ export interface RaceConfig {
   rival?: string;
   /** Modo de festa com regra no núcleo (src/core/modes.ts, docs/MODOS.md); ausente = corrida normal. Só local. */
   mode?: CoreMode;
+  /**
+   * Ritmo da IA na carreira, em degraus de dificuldade (careerAiPace em src/core/career.ts, onda K3): negativo = mais
+   * lenta que a dificuldade escolhida, positivo = mais rápida. Ausente = 0 (o comportamento de antes); quem lê usa
+   * `config.aiPace ?? 0`, como o `aiLevel`. Sem padrão gravado, de propósito: o 0 gravado no deserializeRace quebra os
+   * testes de ida e volta (determinism, modes, assist); gravado no createRace, muda as impressões do sim-golden.
+   */
+  aiPace?: number;
 }
 
 /** Escolta (a equipe protege um VIP da IA) ou revezamento (um carro por dupla, troca no box). */
