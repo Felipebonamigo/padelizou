@@ -121,7 +121,30 @@ function masp(): Art {
   return { state: 'SP', what: 'MASP', pts, start: [4, 76] };
 }
 
+/**
+ * MG · Igreja da Pampulha, de perfil: a abóbada parabólica da nave e as três menores, em onda, com vãos arredondados
+ * entre elas; a marquise fina que leva à torre em trapézio invertido (com o vão do chão por baixo). Largada na parede
+ * esquerda da nave.
+ */
+function pampulha(): Art {
+  const r = new Pen(3, 72).L(3, 52)
+    .C(3, 0, 35, 0, 35, 52) // a nave
+    .L(35, 58.9).arc(37.1, 58.9, 2.1, 180, 0) // o vão entre a nave e a 1ª menor
+    .L(39.2, 50).C(39.2, 24, 51.2, 24, 51.2, 50) // 1ª menor
+    .L(51.2, 61).arc(53.3, 61, 2.1, 180, 0)
+    .L(55.4, 57).C(55.4, 38, 64.4, 38, 64.4, 57) // 2ª
+    .L(64.4, 63.5).arc(66.5, 63.5, 2.1, 180, 0)
+    .L(68.6, 60).C(68.6, 48, 75.6, 48, 75.6, 60) // 3ª
+    .L(83.5, 60) // a marquise, por cima
+    .L(81, 19).Q(80.6, 15, 84.5, 15).L(93.5, 15).Q(97.4, 15, 97, 19) // a torre: topo largo
+    .L(92.5, 75.5).L(88.8, 75.5) // até o pé, estreito
+    .L(84.5, 65).L(77, 65).L(77, 75.5) // o vão por baixo da marquise
+    .L(6, 75.5).Q(3, 75.5, 3, 72);
+  return { state: 'MG', what: 'Igreja da Pampulha', pts: r.pts, start: [3, 68] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
+  pampulha,
 };
