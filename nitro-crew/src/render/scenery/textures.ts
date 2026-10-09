@@ -103,6 +103,9 @@ const DESIGNS: BillboardDesign[] = [
   { brand: 'NITRO', tag: '', bg: '#e8262c', fg: '#ffffff', accent: '#ffd23f', motif: 'stripes' },
   { brand: 'CREW', tag: 'RACING', bg: '#1b5fc4', fg: '#ffffff', accent: '#9fd4ff', motif: 'check' },
   { brand: 'PADELIZOU', tag: '', bg: '#0f8b5f', fg: '#ffffff', accent: '#b8f06a', motif: 'rings' },
+  // Marcas do dono (09/10/2026). Cores provisórias: troca por textura quando chegar o logo (docs/CRONOGRAMA.md, decisão nº 26).
+  { brand: 'ATOMATIZA', tag: '', bg: '#0b2a4a', fg: '#ffffff', accent: '#3fe0c5', motif: 'rings' },
+  { brand: 'ATOMO', tag: 'GALERIA', bg: '#f4efe6', fg: '#1b1b1b', accent: '#d1495b', motif: 'wave' },
   { brand: 'APEX', tag: '', bg: '#15171b', fg: '#ffd23f', accent: '#ffd23f', motif: 'tire' },
   { brand: 'VOLTZ', tag: '', bg: '#5b2bb5', fg: '#fff34a', accent: '#ff6ad5', motif: 'bolt' },
   { brand: 'SOLARA', tag: '', bg: '#ff8a1f', fg: '#ffffff', accent: '#ffe066', motif: 'sun' },

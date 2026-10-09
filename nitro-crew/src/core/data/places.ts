@@ -143,3 +143,57 @@ export function placeOf(trackId: string): TrackPlace | undefined {
 
 /** Todos os lugares (primeira e segunda leva). */
 export const ALL_PLACES: Readonly<Record<string, TrackPlace>> = { ...TRACK_PLACES, ...EXTRA_BRAZIL_PLACES };
+
+// ── Cidade de cada pista (pedido do dono, 09/10/2026: o nome da corrida é o da cidade). Quando o trecho fica fora de
+// uma cidade (serra, cânion, parque), vale o município onde ele está. Nome em PT; só os que mudam em EN levam o par.
+// ⚠️ Conferir os municípios das pistas de natureza antes da 0.1.1 (docs/CRONOGRAMA.md, K6).
+type CityName = string | readonly [pt: string, en: string];
+const CITY_OF: Readonly<Record<string, CityName>> = {
+  copacabana: 'Rio de Janeiro', paraty: 'Paraty', serra_dos_orgaos: 'Teresópolis',
+  ilhabela: 'Ilhabela', campos_do_jordao: 'Campos do Jordão', sampa_noite: 'São Paulo',
+  pampulha: 'Belo Horizonte', ouro_preto: 'Ouro Preto', serra_da_canastra: 'São Roque de Minas',
+  itaunas: 'Conceição da Barra', convento_penha: 'Vila Velha', pedra_azul: 'Domingos Martins',
+  foz_do_iguacu: 'Foz do Iguaçu', serra_do_mar: 'Morretes', curitiba: 'Curitiba',
+  floripa: 'Florianópolis', camboriu: 'Balneário Camboriú', rio_do_rastro: 'Bom Jardim da Serra',
+  orla_guaiba: 'Porto Alegre', cuia_gaucha: 'Gramado', aparados_da_serra: 'Cambará do Sul',
+  lago_paranoa: 'Brasília', torre_de_tv: 'Brasília', brasilia: 'Brasília',
+  pirenopolis: 'Pirenópolis', caldas_novas: 'Caldas Novas', chapada_veadeiros: 'Alto Paraíso de Goiás',
+  bonito: 'Bonito', campo_grande: 'Campo Grande', estrada_parque: 'Corumbá',
+  transpantaneira: 'Poconé', cuiaba: 'Cuiabá', chapada_guimaraes: 'Chapada dos Guimarães',
+  porto_seguro: 'Porto Seguro', salvador: 'Salvador', chapada_diamantina: 'Lençóis',
+  aracaju: 'Aracaju', sao_cristovao: 'São Cristóvão', xingo: 'Canindé de São Francisco',
+  maragogi: 'Maragogi', maceio: 'Maceió', foz_sao_francisco: 'Piaçabuçu',
+  recife_antigo: 'Recife', olinda: 'Olinda', noronha: 'Fernando de Noronha',
+  joao_pessoa: 'João Pessoa', campina_grande: 'Campina Grande', pedra_da_boca: 'Araruna',
+  natal: 'Natal', ponta_negra: 'Natal', cajueiro_pirangi: 'Parnamirim',
+  jericoacoara: 'Jijoca de Jericoacoara', fortaleza_beira_mar: 'Fortaleza', canoa_quebrada: 'Aracati',
+  delta_parnaiba: 'Parnaíba', sete_cidades: 'Piracuruca', serra_capivara: 'São Raimundo Nonato',
+  sao_luis: 'São Luís', chapada_das_mesas: 'Carolina', lencois: 'Barreirinhas',
+  alter_do_chao: 'Santarém', belem: 'Belém', marajo: 'Soure',
+  manaus: 'Manaus', ponte_rio_negro: 'Manaus', parintins: 'Parintins',
+  macapa: 'Macapá', pororoca_araguari: 'Cutias', serra_do_navio: 'Serra do Navio',
+  boa_vista: 'Boa Vista', monte_roraima: 'Uiramutã', lago_caracarana: 'Normandia',
+  porto_velho: 'Porto Velho', forte_principe: 'Costa Marques', vale_guapore: 'Costa Marques',
+  rio_branco: 'Rio Branco', geoglifos: 'Plácido de Castro', estrada_pacifico: 'Assis Brasil',
+  jalapao: 'Mateiros', palmas: 'Palmas', ilha_do_bananal: 'Formoso do Araguaia',
+  rota_66: 'Flagstaff', rochosas: 'Denver', canion: 'Mesquite', las_vegas: 'Las Vegas',
+  baia_toquio: ['Tóquio', 'Tokyo'], yanbaru: 'Kunigami', monte_fuji: 'Fujiyoshida', osaka_neon: 'Osaka',
+  autobahn: 'Frankfurt', paris: 'Paris', passo_alpino: 'Andermatt', monaco_noite: ['Mônaco', 'Monaco'],
+  kruger: 'Hoedspruit', karoo: 'Beaufort West', drakensberg: 'Bergville', boa_esperanca: ['Cidade do Cabo', 'Cape Town'],
+  outback: 'Alice Springs', great_ocean: 'Apollo Bay', daintree: 'Daintree', sydney: 'Sydney',
+  atlantico: 'Kristiansund', laponia: 'Rovaniemi', trollstigen: 'Åndalsnes', tromso: 'Tromsø',
+  amalfi: 'Amalfi', santorini: 'Santorini', etna: ['Catânia', 'Catania'], roma: ['Roma', 'Rome'],
+};
+
+/** Cidade da pista no idioma pedido; undefined para pista sem lugar (a fictícia de um teste). */
+export function cityOf(trackId: string, lang: 'pt' | 'en'): string | undefined {
+  const c = CITY_OF[trackId];
+  if (c === undefined) return undefined;
+  return typeof c === 'string' ? c : lang === 'en' ? c[1] : c[0];
+}
+
+/** "Cidade · trecho"; o trecho sozinho quando já traz a cidade ("Fernando de Noronha") ou a pista não tem cidade. */
+export function trackTitle(trackId: string, name: string, lang: 'pt' | 'en'): string {
+  const city = cityOf(trackId, lang);
+  return !city || name.includes(city) ? name : `${city} · ${name}`;
+}

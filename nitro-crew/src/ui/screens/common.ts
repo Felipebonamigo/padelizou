@@ -5,7 +5,8 @@ import { TRACKS } from '../../core/track/tracks';
 import type { CarDef, TimeOfDay, TrackDef } from '../../core/types';
 import type { DeviceId, MenuContext, MenuEvent, MenuNav, MenuScreen, RaceMode, ResultsScreenData, StandingsScreenData, TutorialDoneData } from '../../game/contracts';
 import { ORIGINAL_PAINT, paintedCar } from '../../game/paints';
-import { t } from '../../i18n';
+import { getLanguage, t } from '../../i18n';
+import { trackTitle } from '../../core/data/places';
 import { carSilhouette, icon } from './icons';
 
 /** "3 voltas" / "1 volta" (e em inglês "3 laps" / "1 lap"). */
@@ -326,7 +327,7 @@ export function onOff(v: boolean): string {
 export function trackName(id: string, fallback?: string): string {
   const key = `core.track.${id}`;
   const name = t(key);
-  return name === key ? fallback ?? getTrackName(id) : name;
+  return trackTitle(id, name === key ? fallback ?? getTrackName(id) : name, getLanguage());
 }
 
 function getTrackName(id: string): string {

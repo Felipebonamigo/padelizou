@@ -61,6 +61,7 @@
 /* Minimapa. */
 .nc-hud .mini { position: absolute; right: calc(18px * var(--s)); bottom: calc(178px * var(--s)); width: calc(92px * var(--s)); height: calc(92px * var(--s)); padding: calc(4px * var(--s)); }
 .nc-hud .mini.hidden { display: none; }
+.nc-hud .mini .mini-name { position: absolute; right: 0; bottom: 100%; width: calc(190px * var(--s)); margin-bottom: calc(3px * var(--s)); text-align: right; font-size: calc(11px * var(--s)); font-weight: 700; letter-spacing: 0.02em; color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .nc-hud .mini svg { width: 100%; height: 100%; display: block; }
 .nc-hud .mini path { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 3; stroke-linejoin: round; }
 .nc-hud .mini .ai { fill: #9aa3b5; }

@@ -96,10 +96,11 @@ describe('passaporte', () => {
 describe('nomes de pista e de copa pelas strings do núcleo', () => {
   it('trackName usa core.track.<id> (EN traduz a descrição)', () => {
     setLanguage('en');
-    expect(trackName('copacabana')).toBe(t('core.track.copacabana'));
-    expect(trackName('copacabana')).not.toBe('Orla de Copacabana');
+    // Desde 09/10/2026 o nome leva a cidade na frente: "Cidade · trecho" (src/core/data/places.ts, trackTitle).
+    expect(trackName('copacabana')).toBe(`Rio de Janeiro · ${t('core.track.copacabana')}`);
+    expect(trackName('copacabana')).not.toContain('Orla de Copacabana');
     setLanguage('pt');
-    expect(trackName('copacabana')).toBe('Orla de Copacabana');
+    expect(trackName('copacabana')).toBe('Rio de Janeiro · Orla de Copacabana');
   });
 
   it('toda pista e toda copa têm nome nos dois idiomas', () => {

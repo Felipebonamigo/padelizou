@@ -6,6 +6,7 @@ import { CARS } from '../core/data/cars';
 import { CUPS, cupDef } from '../core/data/cups';
 import { seatColor } from '../core/data/drivers';
 import { createRace, formatTicks } from '../core/sim/race';
+import { advanceAfterFlag, type AfterFlag } from './after-flag';
 import { finishMessage } from './finish-message';
 import { getTrack, TRACKS, trackDef } from '../core/track';
 import { hashString } from '../core/rng';
@@ -70,6 +71,10 @@ interface ActiveRace {
   ghost: GhostHooks | null;
   /** Pintura de cada carro (índice = state.cars), montada na largada a partir de `humans` (paints.ts: racePaints). */
   paints: Array<CarColors | null>;
+  /** Bordas (nitro, marchas) lidas num quadro de tela em que não coube nenhum passo da física; valem no próximo passo. */
+  /** Cópia só de exibição que segue andando depois da bandeirada (o estado real fica parado); some com a corrida. */
+  afterFlag?: AfterFlag;
+  heldEdges?: Array<Pick<PlayerInput, 'nitro' | 'gearUp' | 'gearDown'> | undefined>;
 }
 
 export interface Session {
@@ -440,7 +445,7 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
         };
       });
     return {
-      state: r.state, track: r.track, viewports,
+      state: r.afterFlag?.display ?? r.state, track: r.track, viewports,
       options: { quality: settings.quality, showMinimap: settings.showMinimap, screenShake: settings.screenShake, reduceEffects: settings.reduceEffects, palette: settings.colorPalette, landmarkCaptions: settings.landmarkCaptions },
       time: elapsed, paused: session.paused, coop: r.humans.length >= 2 && r.humans.every((h) => h.teamId === r.humans[0].teamId),
       showHud: menus.current() === null || menus.current() === 'pause' || (r.driver !== null && online.quitOpen),
@@ -472,6 +477,11 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
       else accumulator += dtRaw * session.speed;
       let steps = 0;
       const inputs = readInputs(r);
+      // O monitor rápido tem quadros sem passo (144 Hz: 2,4 quadros por passo): sem isto o aperto do nitro morria ali.
+      for (const h of r.humans) {
+        const held = r.heldEdges?.[h.seat]; const i = inputs[h.seat];
+        if (held && i && i !== NEUTRAL_INPUT) inputs[h.seat] = { ...i, nitro: i.nitro || held.nitro, gearUp: i.gearUp || held.gearUp, gearDown: i.gearDown || held.gearDown };
+      }
       while (accumulator >= DT && steps < MAX_STEPS_PER_FRAME * session.speed) {
         stepOnce(r, inputs);
         // As bordas (nitro, marcha) valem só no primeiro passo do quadro.
@@ -480,11 +490,14 @@ export function createSession(canvas: HTMLCanvasElement, hudRoot: HTMLElement, u
         steps++;
       }
       if (steps === MAX_STEPS_PER_FRAME * session.speed) accumulator = 0; // não tenta recuperar quadros perdidos
+      r.heldEdges = [];
+      if (steps === 0 && !r.driver) for (const h of r.humans) { const i = inputs[h.seat]; if (i && i !== NEUTRAL_INPUT && (i.nitro || i.gearUp || i.gearDown)) r.heldEdges[h.seat] = { nitro: i.nitro, gearUp: i.gearUp, gearDown: i.gearDown }; }
       for (const list of r.messages.values()) {
         for (let i = list.length - 1; i >= 0; i--) { list[i].ttl -= dtRaw; if (list[i].ttl <= 0) list.splice(i, 1); }
       }
       if (r.state.phase === 'finished' && menus.current() === null) {
         r.overFor += dtRaw;
+        r.afterFlag = advanceAfterFlag(r.afterFlag, r.state, r.track, dtRaw * session.speed);
         if (r.overFor >= RESULTS_DELAY) finishRace(r);
       }
     }

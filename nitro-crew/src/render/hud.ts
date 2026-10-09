@@ -9,6 +9,7 @@ import '../rivals/strings';
 import './strings';
 import { COUNTDOWN_TICKS, GEAR_TOP, NITRO_DURATION_TICKS, TICK_RATE } from '../core/constants';
 import { seatColor, type ColorPalette } from '../core/data/drivers';
+import { trackTitle } from '../core/data/places';
 import '../access/strings';
 import { seatAssist } from '../access/humans';
 import { VIP_COLOR } from '../core/modes';
@@ -100,6 +101,7 @@ class LandmarkCaption {
 class MiniMap {
   readonly root: HTMLElement;
   private readonly path: SVGPathElement;
+  private readonly label: HTMLElement;
   private readonly dots: SVGCircleElement[] = [];
   private outline: Outline = [];
   private trackId = '';
@@ -107,6 +109,7 @@ class MiniMap {
 
   constructor(parent: HTMLElement, cls: string) {
     this.root = el('div', cls, parent);
+    this.label = el('div', 'mini-name', this.root);
     const s = svg('svg', this.root, { viewBox: `0 0 ${MAP_SIZE} ${MAP_SIZE}` });
     this.path = svg('path', s, { d: '' });
     for (let i = 0; i < MAX_CARS; i++) this.dots.push(svg('circle', s, { r: '3', cx: '0', cy: '0', class: 'ai', visibility: 'hidden' }));
@@ -115,6 +118,9 @@ class MiniMap {
   update(track: Track, state: RaceState, ownIndex: number, viewports: ViewportSpec[], palette: ColorPalette): void {
     if (track.def.id !== this.trackId) {
       this.trackId = track.def.id;
+      const key = `core.track.${track.def.id}`;
+      const named = t(key);
+      this.label.textContent = trackTitle(track.def.id, named === key ? track.def.name : named, getLanguage());
       this.outline = trackOutline(track, MAP_SIZE);
       this.path.setAttribute('d', this.outline.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('') + 'Z');
     }

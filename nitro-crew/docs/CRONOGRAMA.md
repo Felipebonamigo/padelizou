@@ -678,10 +678,10 @@ Amostra mínima: as metas com gente valem a partir de **8 testadores numa versã
 | 20 | Estrelas e preços | antes da P | Estrela paga pouco (10–15% do prêmio, uma vez só) e libera itens-troféu. Catálogo de ~$ 250–350 mil. Carros à venda espalhados até a corrida ~80. |
 | 21 | Nomes Falcão GT e Tornado (lembram modelos reais) | antes da M4 | Renomear junto com o redesenho. |
 | 22 | `--no-sandbox` no Deck | antes da T | Decidir com o teste no aparelho (`desktop/README.md`). |
-| 23 | "Os carros não estão de acordo com o desenho": é a imagem da escolha diferente do carro na pista, ou o carro não parece o modelo real/ilustração que o dono tem em mente? | antes da L3 | Se for a primeira, a N2 resolve mostrando o próprio modelo 3D em toda tela. Se for a segunda, o dono manda as referências e elas entram no contrato do asset (K0). |
-| 24 | Tom do balão de provocação | antes da N | Só frases de brincadeira ("Come poeira!", "Tchau, tartaruga!", "Segura essa!"), sem palavrão: o público é família, palavrão sobe a classificação etária na Steam e o online exige moderação. |
-| 25 | Clima que muda durante a corrida | antes da O (física congela) | Visual (período andando, M6) já entra. Chuva com menos aderência só se entrar antes do congelamento, em 1 pista por copa; senão, Temporada 2. |
-| 26 | Logos do Atomatiza e da Galeria Atomo | durante a K | Mandar SVG ou PNG; até lá, placa em texto nas cores das marcas. Confirmar que as marcas podem aparecer no jogo. |
+| 23 | **(aberta)** "Os carros não estão de acordo com o desenho": é a imagem da escolha diferente do carro na pista, ou o carro não parece o modelo real/ilustração que o dono tem em mente? | antes da L3 | Se for a primeira, a N2 resolve mostrando o próprio modelo 3D em toda tela. Se for a segunda, o dono manda as referências e elas entram no contrato do asset (K0). |
+| 24 | **Adotada ("pode fazer tudo", 09/10)**: Tom do balão de provocação | antes da N | Só frases de brincadeira ("Come poeira!", "Tchau, tartaruga!", "Segura essa!"), sem palavrão: o público é família, palavrão sobe a classificação etária na Steam e o online exige moderação. |
+| 25 | **Adotada (09/10)**: só a mudança visual entra (M6); chuva com aderência fica para a Temporada 2. Clima que muda durante a corrida | antes da O (física congela) | Visual (período andando, M6) já entra. Chuva com menos aderência só se entrar antes do congelamento, em 1 pista por copa; senão, Temporada 2. |
+| 26 | **Parcial (09/10)**: placas em texto já no jogo; o dono ainda manda os logos e confirma o uso das marcas. Logos do Atomatiza e da Galeria Atomo | durante a K | Mandar SVG ou PNG; até lá, placa em texto nas cores das marcas. Confirmar que as marcas podem aparecer no jogo. |
 
 ## 8. Fora do escopo por enquanto
 
