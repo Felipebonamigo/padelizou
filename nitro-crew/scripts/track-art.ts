@@ -175,10 +175,27 @@ function hercilio(): Art {
   return { state: 'SC', what: 'Ponte Hercílio Luz', pts: sym(r.pts), start: [22, 58] };
 }
 
+/**
+ * RS · A cuia de chimarrão, de lado: o bojo redondo, a cintura, a boca com o lábio largo e a bomba saindo em diagonal (é ela
+ * que diz "chimarrão"), com o bocal alargado na ponta. A lateral esquerda do bojo tem uns 16 de reta para a largada (o pé
+ * reto de docs/PISTAS.md); o resto é curva.
+ */
+function cuia(): Art {
+  const r = new Pen(40, 92).L(32, 92)
+    .C(20, 92, 11, 86, 11, 74).L(11, 58) // o pé reto da largada
+    .C(11, 50, 14, 44, 16, 38) // o ombro do bojo até a cintura
+    .C(16, 33, 8, 34, 8, 28).Q(8, 23, 17, 23) // o lábio largo, à esquerda
+    .L(39.4, 23).L(59.53, 2.38).arc(62, 5, 3.6, -133.4, 46.6).L(46.6, 23) // a bomba, com o bocal
+    .L(69, 23).Q(78, 23, 78, 28).C(78, 34, 70, 33, 70, 38) // o lábio, à direita, e a cintura
+    .C(72, 44, 77, 50, 77, 64).C(77, 82, 66, 92, 52, 92).L(40.5, 92); // o bojo, à direita, e o fundo
+  return { state: 'RS', what: 'cuia de chimarrão', pts: r.pts, start: [11, 70] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
   sampa_noite: masp,
   pampulha,
   convento_penha: penha,
   floripa: hercilio,
+  cuia_gaucha: cuia,
 };
