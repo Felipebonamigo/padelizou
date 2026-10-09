@@ -182,3 +182,7 @@ nenhuma das duas telas tinha altura sobrando (medido com o roteiro: o carro do c
   `scripts/playtest-online.mjs` (sem medição de layout).
 - Só em português (os textos em inglês são, em geral, mais curtos).
 - Tela mais apertada depois das correções: resultado e recordes em 1024×640 (10 px de folga).
+
+## Fluxo sem atrito (onda K, K1 — 09/10/2026)
+
+Do menu à contagem são 4 entradas (antes 8, medido pelo `scripts/playtest.mjs`): Enter num modo do menu (Continuar, Campeonato, Corrida rápida, Contra-relógio) já senta o P1 com o dispositivo que apertou; Enter no carro, na pintura ou na direção só dá PRONTO (nunca tira; tirar é o botão PRONTO) e leva o cursor do P1 a INICIAR; Enter em INICIAR larga. Start (controle) ou Enter/Espaço/F segurados (teclado; `keyNav` em `src/ui/menus.ts`, via `e.repeat`) dão PRONTO a quem ainda não está e largam quando todos estão prontos. A dica de largar fala do dispositivo do P1 (`lobby.startHint.kb` / `.pad`). Com 1 assento somem o seletor Modo e as 4 assistências de co-op. Do resultado à próxima largada são no máximo 2 entradas: corrida rápida mostra "MAIS UMA?" (a pista seguinte da ordem da tela de pistas, `nextQuickTrackId`, com os mesmos humanos) e a linha "Próxima pista: X"; o eliminado vê "RECOMEÇAR A COPA" e o campeão "PRÓXIMA COPA" (na última copa, só MENU). Tudo reusa os eventos `startQuick` e `startCup`; "MENU" continua desligando os assentos. Contra-relógio, escolta, festa, tutorial e online não mudam. Pendência antiga: as reticências dos cartões de conquista do resultado (`records.css:280`).

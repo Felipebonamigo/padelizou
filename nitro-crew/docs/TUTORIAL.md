@@ -93,3 +93,7 @@ O DOM só nasce no primeiro uso (os testes de sessão em Node criam a sessão se
 `tests/tutorial.test.ts` (31 testes) e `node scripts/playtest-tutorial.mjs http://localhost:<porta>/ scratch/tut`
 com `npx vite preview` no ar: 2 jogadores pelo teclado fazem o tutorial inteiro (capturas de cada
 passo, do carro parado e da tela final), "Correr a Copa Brasil", depois 1 jogador pula com Esc.
+
+## Cartão "Primeira vez?" focável (K1)
+
+O cartão do menu principal é um item da lista de foco (`tutorialOfferCard` devolve um `FocusItem`; clique e som vêm da lista), por último e fora de `.menu-list`. O foco inicial continua no 1º botão; chega-se ao cartão com ↑ a partir do 1º item, com ↓ a partir do último botão ou com →, e ← volta ao 1º botão. Quem já correu (`racesRun > 0`) ou fez o tutorial não vê o cartão.

@@ -33,6 +33,19 @@ export function emptyNav(device: DeviceId | null = null): MenuNav {
   return { up: false, down: false, left: false, right: false, confirm: false, back: false, start: false, device };
 }
 
+/**
+ * Tecla → borda de menu (null = tecla sem uso nos menus). Confirmar segurado (`repeat`: a repetição do sistema com a
+ * tecla presa) vira `start`: larga no lobby e não reativa o item nas outras telas.
+ */
+export function keyNav(code: string, repeat: boolean): MenuNav | null {
+  const m = KEY_NAV[code];
+  if (!m) return null;
+  const nav = emptyNav(m.device);
+  if (repeat && m.key === 'confirm') nav.start = true;
+  else nav[m.key] = true;
+  return nav;
+}
+
 export function hasEdge(nav: MenuNav): boolean {
   return nav.up || nav.down || nav.left || nav.right || nav.confirm || nav.back || nav.start;
 }
@@ -121,11 +134,9 @@ export function createMenus(ctx: MenuContext): Menus {
       }
       return;
     }
-    const m = KEY_NAV[e.code];
-    if (!m) return;
+    const nav = keyNav(e.code, e.repeat);
+    if (!nav) return;
     e.preventDefault();
-    const nav = emptyNav(m.device);
-    nav[m.key] = true;
     instance.nav(nav);
   };
   const onPointerDown = () => { ctx.audio.unlock(); };

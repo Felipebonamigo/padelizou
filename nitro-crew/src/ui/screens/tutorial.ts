@@ -13,7 +13,7 @@ import { t } from '../../i18n';
 import { uiScale, viewportRects } from '../../render/layout';
 import { isKeyboard } from '../input';
 import type { LayoutMap } from '../remap/labels';
-import { button, createFocusList, h, listNav, screenFrame, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
+import { button, createFocusList, h, listNav, screenFrame, type FocusItem, type ScreenApi, type ScreenData, type ScreenInstance } from './common';
 import { icon } from './icons';
 import { availableCars, LOBBY_SEATS } from './lobby';
 
@@ -33,15 +33,17 @@ export function tutorialHumans(ctx: Pick<MenuContext, 'cars' | 'save' | 'setting
   });
 }
 
-/** Cartão "Primeira vez?" do menu principal; clicar abre "Como jogar". */
-export function tutorialOfferCard(api: ScreenApi): HTMLElement {
+/**
+ * Cartão "Primeira vez?" do menu principal: um item da lista de foco do menu (o último), então teclado, controle e
+ * mouse chegam nele. O clique e o som de confirmar vêm da lista (createFocusList/listNav).
+ */
+export function tutorialOfferCard(api: ScreenApi): FocusItem {
   const card = h('div', { class: 'tut-offer glass' },
     h('span', { class: 'tut-offer-badge', text: t('tutorial.offer.badge') }),
     h('strong', { class: 'tut-offer-title', text: t('tutorial.offer.title') }),
     h('span', { class: 'tut-offer-text', text: t('tutorial.offer.text') }),
   );
-  card.addEventListener('click', () => { api.sfx('confirm'); api.go('tutorial'); });
-  return card;
+  return { el: card, activate: () => api.go('tutorial') };
 }
 
 // ───────────────────────────── Como jogar ─────────────────────────────

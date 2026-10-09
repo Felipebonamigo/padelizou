@@ -15,7 +15,8 @@ export const SAVE_KEY = 'nitro-crew.save';
 export const SEATS = 4;
 export const NAME_MAX_LENGTH = 12;
 
-export interface NewRecord { seat: number; kind: 'lap' | 'race' }
+/** Marca nova de um assento. `first` só vem quando não havia marca anterior (a tela mostra "PRIMEIRA MARCA", não "RECORDE"). */
+export interface NewRecord { seat: number; kind: 'lap' | 'race'; first?: boolean }
 
 function stringList(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
@@ -195,16 +196,18 @@ export function recordRaceResults(
   // Recorde é de carro de fábrica: quem corre com melhorias da carreira conta corrida e vitória, não recorde.
   const factory = humanRows.filter((r) => !hasUpgrades(humans.find((x) => x.seat === r.seat)?.upgrades));
   const lap = bestHuman(factory, (r) => r.bestLapTicks);
-  if (lap && improves(lap.bestLapTicks, save.bestLaps[trackId])) {
+  const prevLap = save.bestLaps[trackId];
+  if (lap && improves(lap.bestLapTicks, prevLap)) {
     save.bestLaps[trackId] = entry(lap, lap.bestLapTicks);
-    out.push({ seat: lap.seat, kind: 'lap' });
+    out.push(prevLap ? { seat: lap.seat, kind: 'lap' } : { seat: lap.seat, kind: 'lap', first: true });
   }
 
   const race = bestHuman(factory.filter((r) => r.finished), (r) => r.totalTicks);
   const key = bestRaceKey(trackId, laps);
-  if (race && improves(race.totalTicks, save.bestRaces[key])) {
+  const prevRace = save.bestRaces[key];
+  if (race && improves(race.totalTicks, prevRace)) {
     save.bestRaces[key] = entry(race, race.totalTicks);
-    out.push({ seat: race.seat, kind: 'race' });
+    out.push(prevRace ? { seat: race.seat, kind: 'race' } : { seat: race.seat, kind: 'race', first: true });
   }
   return out;
 }

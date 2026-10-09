@@ -384,7 +384,7 @@ export interface ResultsScreenData {
   humans: HumanEntry[];
   champ: ChampionshipState | null;
   /** Recordes batidos nesta corrida (por assento), para destacar. */
-  newRecords: Array<{ seat: number; kind: 'lap' | 'race' }>;
+  newRecords: Array<{ seat: number; kind: 'lap' | 'race'; first?: boolean }>;
   /** Conquistas desbloqueadas nesta corrida e quem as ganhou (opcional: ausente = nenhuma). */
   achievements?: AchievementUnlock[];
   /** Modo de festa: veredito da escolta, trocas do revezamento, bateria do torneio. */

@@ -142,7 +142,7 @@ describe('recordRaceResults', () => {
     const save = sanitizeSave({});
     const results = [row(1, 1, 9000, 2900), row(0, 2, 9100, 2800), row(-1, 3, 9200, 2950)];
     const news = recordRaceResults(save, results, humans, 'copacabana', 3);
-    expect(news).toEqual([{ seat: 0, kind: 'lap' }, { seat: 1, kind: 'race' }]);
+    expect(news).toEqual([{ seat: 0, kind: 'lap', first: true }, { seat: 1, kind: 'race', first: true }]);
     expect(save.bestLaps.copacabana).toMatchObject({ ticks: 2800, name: 'Fê', carId: 'trovao' });
     expect(save.bestRaces[bestRaceKey('copacabana', 3)]).toMatchObject({ ticks: 9000, name: 'Bia', carId: 'tornado' });
     expect(save.bestLaps.copacabana.date).not.toBe('');
@@ -168,8 +168,17 @@ describe('recordRaceResults', () => {
     expect(save.bestLaps.rota_66).toBeUndefined();
     expect(save.bestRaces['rota_66:5']).toBeUndefined();
     expect(save.racesWon).toBe(0);
-    expect(recordRaceResults(save, [row(0, 2, 9000, 2600)], humans, 'rota_66', 5)).toEqual([{ seat: 0, kind: 'lap' }, { seat: 0, kind: 'race' }]);
+    expect(recordRaceResults(save, [row(0, 2, 9000, 2600)], humans, 'rota_66', 5)).toEqual([{ seat: 0, kind: 'lap', first: true }, { seat: 0, kind: 'race', first: true }]);
     expect(Object.keys(save.bestRaces)).toEqual(['rota_66:5']);
+  });
+
+  it('1ª corrida, mesmo em 20º: as marcas saem como primeira marca; batida depois sai sem first', () => {
+    const save = sanitizeSave({});
+    const field = (me: RaceResultRow) => [...Array.from({ length: 19 }, (_, i) => row(-1, i + 1, 8000 + i * 10, 2500 + i)), me];
+    expect(recordRaceResults(save, field(row(0, 20, 9900, 3300)), humans, 'copacabana', 3))
+      .toEqual([{ seat: 0, kind: 'lap', first: true }, { seat: 0, kind: 'race', first: true }]);
+    expect(recordRaceResults(save, field(row(0, 20, 9990, 3400)), humans, 'copacabana', 3)).toEqual([]);
+    expect(recordRaceResults(save, field(row(0, 20, 9995, 3200)), humans, 'copacabana', 3)).toEqual([{ seat: 0, kind: 'lap' }]);
   });
 });
 

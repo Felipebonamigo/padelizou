@@ -29,7 +29,7 @@
 
 /* ───────────── Oferta no menu principal ───────────── */
 .tut-offer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: calc(12 * var(--u)); row-gap: calc(2 * var(--u)); align-items: center; margin-top: calc(18 * var(--u)); padding: calc(12 * var(--u)) calc(18 * var(--u)); max-width: calc(520 * var(--u)); cursor: pointer; border-color: rgba(255, 210, 63, 0.55); }
-.tut-offer:hover { background: rgba(255, 255, 255, 0.08); }
+.tut-offer:hover, .tut-offer.focus { background: rgba(255, 255, 255, 0.08); }
 .tut-offer-badge { grid-row: 1 / span 2; padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px; background: #ffd23f; color: #1a1400; font-weight: 800; font-size: var(--fs-sm); letter-spacing: 0.08em; }
 .tut-offer-title { font-size: var(--fs-md); }
 .tut-offer-text { color: var(--muted); font-size: var(--fs-sm); }

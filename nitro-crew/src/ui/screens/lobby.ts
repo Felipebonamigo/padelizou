@@ -149,6 +149,8 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
     body,
   );
   let lists: Array<FocusList | null> = [null, null, null, null];
+  /** O P1 acabou de ficar PRONTO: o próximo render põe o cursor dele em INICIAR (o render reconstrói as listas). */
+  let focusStartNext = false;
 
   const saveCursors = () => {
     lobby.seats.forEach((s, i) => { const l = lists[i]; if (s && l && l.index >= 0) s.cursor = l.index; });
@@ -173,6 +175,16 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   const toggleReady = (s: LobbySeat) => {
     s.ready = !s.ready;
     api.sfx(s.ready ? 'confirm' : 'back');
+    if (s.ready && s.seat === 0) focusStartNext = true;
+    render();
+  };
+
+  /** Confirmar no carro, na pintura ou na direção: só dá PRONTO, nunca tira (tirar é o botão PRONTO). */
+  const markReady = (s: LobbySeat) => {
+    if (s.ready) return;
+    s.ready = true;
+    api.sfx('confirm');
+    if (s.seat === 0) focusStartNext = true;
     render();
   };
 
@@ -222,7 +234,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
         arrowButton(1, () => { changeCar(1); api.sfx('move'); }),
       ),
       adjust: changeCar,
-      activate: () => toggleReady(s),
+      activate: () => markReady(s),
     };
     // A pintura só onde o carro se escolhe aqui (carreira: na garagem; copa retomada: a da copa salva).
     paintItem = carItem ? paintSelector({
@@ -235,7 +247,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
         showCar();
       },
       sfx: api.sfx,
-      onActivate: () => toggleReady(s),
+      onActivate: () => markReady(s),
       cls: s.ready ? 'locked' : '',
     }) : null;
     const carEl = carItem ? carItem.el
@@ -251,7 +263,7 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       const i = ASSIST_LEVELS.indexOf(assistOf());
       ctx.settings.seatAssists[s.seat] = ASSIST_LEVELS[(i + dir + ASSIST_LEVELS.length) % ASSIST_LEVELS.length];
       commitSettings(api);
-    }, { sfx: api.sfx, onActivate: () => toggleReady(s), cls: `sel-assist${s.ready ? ' locked' : ''}` });
+    }, { sfx: api.sfx, onActivate: () => markReady(s), cls: `sel-assist${s.ready ? ' locked' : ''}` });
     const ready = button(t('ui.lobby.ready'), () => toggleReady(s), s.ready ? 'btn-ready on' : 'btn-ready');
     if (s.ready) ready.el.prepend(icon('check'));
     const team = lobbyTeamLabel(lobby.mode, rank)
@@ -291,23 +303,27 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
   function panel(): { el: HTMLElement; items: FocusItem[] } {
     const tt = lobby.mode === 'timetrial';
     const items: FocusItem[] = [];
-    if (!tt && !resume && versusAllowed(lobby.mode, occupiedSeats(lobby).length)) {
+    // Sozinho no sofá: sem Modo (versus de um?) e sem as 4 assistências de co-op, que só valem com companheiro.
+    const n = occupiedSeats(lobby).length;
+    if (!tt && !resume && n >= 2 && versusAllowed(lobby.mode, n)) {
       items.push(selector(t('ui.lobby.mode'), () => (lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop')), () => { lobby.versus = !lobby.versus; render(); }, { sfx: api.sfx }));
     }
     items.push(...raceOptionSelectors(api, () => commitSettings(api), {
-      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick' || isPartyMode(lobby.mode), assists: !tt && !lobby.versus && lobby.mode !== 'tournament', lapsLabel: t('ui.lobby.laps'),
+      difficulty: !tt, gear: true, totalCars: !tt, quickLaps: lobby.mode === 'quick' || isPartyMode(lobby.mode), assists: !tt && !lobby.versus && lobby.mode !== 'tournament' && n >= 2, lapsLabel: t('ui.lobby.laps'),
     }));
     const startBtn = button(t('ui.lobby.start'), start, 'btn-primary btn-start');
     startBtn.disabled = !canStart(lobby, save);
     if (startBtn.disabled) startBtn.el.classList.add('disabled');
     const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
     items.push(startBtn, backBtn);
+    const p1dev = lobby.seats[0]?.device;
+    const startHint = p1dev && isKeyboard(p1dev) ? t('ui.lobby.startHint.kb') : t('ui.lobby.startHint.pad');
     const fixedMode = resume ? h('p', { class: 'hint lobby-fixed', text: t('career.lobby.fixedMode', { mode: maxSeats(lobby, save) === 1 ? t('career.mode.solo') : lobby.versus ? t('ui.lobby.versus') : t('ui.lobby.coop') }) }) : null;
     const panelEl = h('div', { class: 'lobby-panel glass' },
       h('h2', { class: 'sub-title', text: t('ui.lobby.options') }),
       fixedMode,
       h('div', { class: 'lobby-options' }, items.slice(0, items.length - 2).map((i) => i.el)),
-      h('p', { class: 'hint', text: canStart(lobby, save) ? t('ui.lobby.startHint') : partySeatsProblem(lobby.mode, occupiedSeats(lobby).length) ?? t('ui.lobby.waitHint') }),
+      h('p', { class: 'hint', text: canStart(lobby, save) ? startHint : partySeatsProblem(lobby.mode, occupiedSeats(lobby).length) ?? t('ui.lobby.waitHint') }),
       h('div', { class: 'lobby-actions' }, startBtn.el, backBtn.el),
     );
     return { el: panelEl, items };
@@ -335,6 +351,8 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
       const pn = panel();
       panelEl = pn.el;
       slotItems[0] = [...(slotItems[0] ?? []), ...pn.items];
+      // INICIAR e Voltar são os dois últimos itens do P1: depois do PRONTO, o cursor vai para INICIAR.
+      if (focusStartNext) { p1.cursor = slotItems[0].length - 2; focusStartNext = false; }
     } else {
       const backBtn = button(t('ui.common.back'), () => { api.sfx('back'); api.back(); });
       panelEl = h('div', { class: 'lobby-panel glass waiting' },
@@ -368,7 +386,13 @@ export function lobbyScreen(api: ScreenApi): ScreenInstance {
         if (nav.back && occupiedSeats(lobby).length === 0) { api.sfx('back'); api.back(); }
         return;
       }
-      if (nav.start) { start(); return; }
+      // Start (controle) ou confirmar segurado (teclado, keyNav): quem não está pronto fica, e larga se todos estiverem.
+      if (nav.start) {
+        const me = lobby.seats[seat];
+        if (me && !me.ready) markReady(me);
+        start();
+        return;
+      }
       const list = lists[seat];
       const s = lobby.seats[seat];
       if (!list || !s) return;

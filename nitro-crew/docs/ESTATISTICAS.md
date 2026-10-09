@@ -124,3 +124,7 @@ estatísticas antes de avaliar as conquistas.
   (`unlockAchievements`; teste em `tests/desktop.test.ts`). Copa do Mundial não carimba.
 - Com 109 pistas a tela de recordes passa de 11 para ~37 linhas de 3: a navegação por linha focável já cobre; o
   `GIRO_COMPLETO` (posição registrada em toda pista) ficou bem mais longo — quem já o tinha não perde.
+
+## PRIMEIRA MARCA × RECORDE (K1)
+
+`recordRaceResults` devolve `NewRecord` com `first: true` só quando não havia marca anterior na pista (volta) ou na pista com aquelas voltas (corrida). O resultado mostra o selo "PRIMEIRA MARCA" (`.record-badge.first`) nesse caso e "RECORDE" só quando uma marca anterior foi batida. O resto das regras de recorde não muda.

@@ -285,3 +285,6 @@
    de rival.css (84 u para o cartão do rival), com 4vh a menos. */
 #ui.large-text .scr-standings .standings-columns .table-wrap { max-height: 58vh; }
 #ui.large-text .scr-standings:has(.rival-card) .standings-columns .table-wrap { max-height: calc(58vh - 84 * var(--u)); }
+
+/* Primeira marca na pista (não havia marca para bater): o mesmo selo, mais discreto que o RECORDE. */
+.record-badge.first { background: rgba(255, 255, 255, 0.16); color: var(--text); }

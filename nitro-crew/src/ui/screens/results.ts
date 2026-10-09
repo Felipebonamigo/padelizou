@@ -2,7 +2,7 @@
 import { isCoop, nextTrackId, teamRaceRank, teamRaceScore } from '../../core/championship';
 import { seatColor, type ColorPalette } from '../../core/data/drivers';
 import { formatTicks } from '../../core/sim/race';
-import type { AssistLevel, HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
+import type { AssistLevel, CupDef, HumanEntry, RaceResultRow, StandingRow } from '../../core/types';
 import { seatAssist } from '../../access/humans';
 import '../../access/access.css';
 import { achievementDescription, achievementName } from '../../game/achievements';
@@ -25,6 +25,7 @@ function titleRow(title: string, chip: string): HTMLElement {
 }
 import { icon, medal } from './icons';
 import { rivalRaceCard, rivalStandingsCard, rivalTag } from './rival';
+import { cupTabs } from './select';
 
 /** Cor do humano do assento na paleta das opções (a da HumanEntry é a de quem montou a corrida). */
 function humanColor(humans: HumanEntry[], seat: number, palette: ColorPalette): string | null {
@@ -45,6 +46,16 @@ export function assistMark(level: AssistLevel): HTMLElement | null {
   return h('span', { class: 'assist-mark', text: t('access.hud.assist'), attrs: { title: t(`access.level.${level}`) } });
 }
 
+/**
+ * Pista seguinte da corrida rápida ("Mais uma?"): a ordem da tela de pistas (abas das regiões e o Mundial, copa por
+ * copa); depois da última, volta à primeira. Pista fora das copas: a primeira.
+ */
+export function nextQuickTrackId(cups: readonly CupDef[], trackId: string): string {
+  const order = cupTabs(cups).flatMap((tab) => tab.cups).flatMap((c) => c.trackIds);
+  const i = order.indexOf(trackId);
+  return i < 0 ? order[0] : order[(i + 1) % order.length];
+}
+
 /** Célula da posição: medalha para o pódio, número para o resto. */
 function positionCell(position: number): HTMLElement {
   const m = medal(position);
@@ -60,8 +71,13 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
   }
   const { ctx } = api;
   const carName = (id: string) => ctx.cars.find((c) => c.id === id)?.name ?? id;
-  const isRecord = (seat: number, kind: 'lap' | 'race') => d.newRecords.some((r) => r.seat === seat && r.kind === kind);
-  const badge = () => h('span', { class: 'record-badge', text: t('ui.results.record') });
+  // Marca nova: "PRIMEIRA MARCA" quando não havia marca anterior; "RECORDE" só quando bateu uma.
+  const recordOf = (seat: number, kind: 'lap' | 'race') => d.newRecords.find((r) => r.seat === seat && r.kind === kind);
+  const badge = (seat: number, kind: 'lap' | 'race') => {
+    const rec = seat >= 0 ? recordOf(seat, kind) : undefined;
+    if (!rec) return null;
+    return h('span', { class: rec.first ? 'record-badge first' : 'record-badge', text: t(rec.first ? 'ui.results.firstMark' : 'ui.results.record') });
+  };
   const rows = [...d.results].sort((a, b) => a.position - b.position);
   const cupLike = d.mode === 'cup' || d.mode === 'career';
   // Rival da copa (src/game/rivals.ts): linha marcada na tabela e o cartão do duelo em cima.
@@ -77,8 +93,8 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
       positionCell(r.position),
       h('td', {}, r.name, isRival(r) ? rivalTag() : null, r.seat >= 0 ? assistMark(seatAssist(d.humans, r.seat)) : null),
       h('td', { class: 'muted-cell', text: carName(r.carDefId) }),
-      h('td', { class: 'mono' }, r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf'), r.seat >= 0 && isRecord(r.seat, 'race') ? badge() : null),
-      h('td', { class: 'mono' }, formatTicks(r.bestLapTicks), r.seat >= 0 && isRecord(r.seat, 'lap') ? badge() : null),
+      h('td', { class: 'mono' }, r.finished ? formatTicks(r.totalTicks) : t('ui.results.dnf'), badge(r.seat, 'race')),
+      h('td', { class: 'mono' }, formatTicks(r.bestLapTicks), badge(r.seat, 'lap')),
       h('td', { class: 'mono num', text: String(r.points) }),
     ))),
   );
@@ -107,6 +123,13 @@ export function resultsScreen(api: ScreenApi, data?: ScreenData): ScreenInstance
     const cup = ctx.cups.find((c) => c.id === champ.cupId);
     if (cup) items.push(button(t('ui.results.standings'), () => api.go('standings', { champ, humans: d.humans, cup, career: d.mode === 'career' }), 'btn-primary'));
     else items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
+  } else if (d.mode === 'quick') {
+    // Corrida rápida: "Mais uma?" na próxima pista, com os mesmos humanos (assentos, carros e pinturas).
+    const next = nextQuickTrackId(ctx.cups, d.trackDef.id);
+    extras.push(h('p', { class: 'status-line' }, icon('flag'), h('span', { text: t('ui.results.nextTrack', { track: trackName(next) }) })));
+    items.push(button(t('ui.results.again'), () => api.emit({ type: 'startQuick', trackId: next, laps: ctx.settings.quickLaps, humans: d.humans }), 'btn-primary'));
+    items.push(button(t('ui.results.retry'), () => api.emit({ type: 'retryRace' })));
+    items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
   } else {
     items.push(button(t('ui.results.retry'), () => api.emit({ type: 'retryRace' }), 'btn-primary'));
     items.push(button(t('ui.results.menu'), () => api.emit({ type: 'toMain' })));
@@ -229,7 +252,16 @@ export function standingsScreen(api: ScreenApi, data?: ScreenData): ScreenInstan
   // Carreira: depois da classificação vem sempre a garagem (prêmio, compras, próxima corrida ou copa).
   if (d.career) items.push(button(t('ui.standings.garage'), () => api.emit({ type: 'nextRace' }), 'btn-primary'));
   else if (next && !champ.eliminated && !champ.completed) items.push(button(t('ui.standings.nextBtn'), () => api.emit({ type: 'nextRace' }), 'btn-primary'));
-  else items.push(button(t('ui.standings.menu'), () => api.emit({ type: 'toMain' }), 'btn-primary'));
+  else if (champ.eliminated) {
+    // Eliminado: recomeça a mesma copa com os mesmos humanos (a sessão regrava a copa salva do zero).
+    items.push(button(t('ui.standings.restart'), () => api.emit({ type: 'startCup', cupId: cup.id, humans }), 'btn-primary'));
+    items.push(button(t('ui.standings.menu'), () => api.emit({ type: 'toMain' })));
+  } else {
+    // Campeão: a copa que esta abriu (a corrente é linear); na última, só o menu.
+    const nextCup = champ.completed ? api.ctx.cups.find((c) => c.requires === cup.id && api.ctx.isCupUnlocked(c.id)) : undefined;
+    if (nextCup) items.push(button(t('ui.standings.nextCup'), () => api.emit({ type: 'startCup', cupId: nextCup.id, humans }), 'btn-primary'));
+    items.push(button(t('ui.standings.menu'), () => api.emit({ type: 'toMain' }), nextCup ? '' : 'btn-primary'));
+  }
   const list = createFocusList(items, { sfx: api.sfx });
   const el = screenFrame('standings', null,
     titleRow(t('ui.standings.title'), t(`core.cup.${cup.id}`)),
