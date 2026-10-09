@@ -45,7 +45,10 @@ Uma mudança visual só está pronta se a captura (antes × depois, mesma câmer
   galeria da comunidade do Meshy marcados CC0, convertidos e validados (`tools/convert-landmark.mjs`; carros pelo
   pipeline glTF de `docs/ARTE.md`). Sempre conferir e registrar a licença de cada arquivo.
 - **Arte contratada**: depende do orçamento de arte (decisão pendente do dono).
-- **Proibido**: gerar modelos pela API do Meshy (gasta créditos do dono); dependência de produção nova além do `three`.
+- **Proibido**: gerar modelos pela API do Meshy (gasta créditos do dono) **até a decisão nº 28 do cronograma** (piloto
+  de 10 peças de cenário com teto de créditos; nunca carros, nunca em tempo de jogo); dependência de produção nova além do `three`.
+- **Em avaliação (09/10/2026)**: nível Ultra para RTX, luz assada por pista e o duelo Unity 6 URP × Three.js Ultra antes
+  da fatia vertical — `docs/CRONOGRAMA.md`, "Revisão visual" (R1–R6) e decisão nº 27.
 
 ## 3. Como provar
 
