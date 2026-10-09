@@ -58,6 +58,10 @@ Uma mudança visual só está pronta se a captura (antes × depois, mesma câmer
 - Medida de desempenho do `docs/DESEMPENHO.md` (tempo de quadro, triângulos, chamadas de desenho) antes × depois.
 - O dono é o juiz final: mande as capturas e pergunte; "bonito" é dele.
 
+## 3b. Spike WebGPU (K4, 09/10/2026)
+
+**Ficar no WebGL com `onBeforeCompile`, que é o plano da L1 como está.** Regra de migrar só se as três passarem: (1) ganho de desempenho medido, (2) custo ≤ 3 dias-base, (3) o WebGPU funciona de verdade no Electron do Deck. A (2) **falhou**: o inventário dá 5–7 dias, porque o `WebGPURenderer` não aceita `ShaderMaterial` nem `onBeforeCompile` (7 materiais, o carro, a névoa do cenário, o pós, o PMREM e o teste que lê GLSL). Isso decide sozinho, então a decisão é firme para a L1 e a L2. A (1) e a (3) ficam abertas: no Electron 44 sem `enable-unsafe-webgpu` o backend cai calado para WebGL2 (`adapter: null`), e com a flag funciona só com 1 viewport (com 4, o swiftshader perdeu o dispositivo); o ganho não se mede sem GPU. O `env.webgpu` do bench do dono (PC e Deck) só serve para reabrir a questão se a L2 achar caro demais fazer GTAO, SSR e TAA no WebGL. O WebGPU real exige Chromium ≥ ~152 (o 141 do Playwright recusa `swizzle`). A decisão de motor maior (Unity × Three.js) é outra: `docs/CRONOGRAMA.md`, "Revisão visual" e nº 27.
+
 ## 4. Desenhos do minimapa (pistas com desenho)
 
 Ícones de cartum em traço contínuo e curvo (Bézier), bonitos e proporcionais — não polígonos com quinas. O plano técnico

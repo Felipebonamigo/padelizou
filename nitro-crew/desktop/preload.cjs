@@ -15,5 +15,7 @@ contextBridge.exposeInMainWorld('desktop', {
   storeWrite: (key, json) => ipcRenderer.invoke('store:write', key, json),
   logAppend: (text) => ipcRenderer.invoke('log:append', text),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+  benchWrite: (json) => ipcRenderer.invoke('bench:write', json),
+  openFolder: (kind) => ipcRenderer.invoke('folder:open', kind),
   onFullscreen: (cb) => { ipcRenderer.on('fullscreen', (_e, v) => cb(v)); },
 });

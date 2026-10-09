@@ -13,6 +13,9 @@ interface StorageModule {
   readAllSaves(dir: string): Record<string, string | null>;
   writeSave(dir: string, key: unknown, json: unknown): boolean;
   appendLog(dir: string, text: unknown, maxBytes?: number): boolean;
+  benchQuery(argv: unknown): Record<string, string> | null;
+  writeBench(dir: unknown, json: unknown, now?: Date): string | null;
+  folderFor(userData: unknown, kind: unknown): string | null;
   LOG_MAX_BYTES: number;
   MAX_SAVE_BYTES: number;
   LOG_ENTRY_MAX_CHARS: number;
@@ -129,6 +132,62 @@ describe('ponte preload ↔ main ↔ desktop.ts', () => {
     const channels = [...preload.matchAll(/ipcRenderer\.invoke\('([^']+)'/g)].map((m) => m[1]);
     expect(channels.length).toBeGreaterThan(10);
     for (const ch of channels) expect(main, `ipcMain.handle('${ch}')`).toContain(`ipcMain.handle('${ch}'`);
+  });
+});
+
+describe('banco de prova e pastas (desktop/storage.cjs, main.cjs)', () => {
+  let dir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'nc-bench-')); });
+  afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+
+  it('benchQuery: só --bench liga, e só as chaves conhecidas passam', () => {
+    expect(storage.benchQuery(['/x/nitro-crew'])).toBeNull();
+    expect(storage.benchQuery(['/x/nitro-crew', '--benchmark'])).toBeNull();
+    expect(storage.benchQuery(['/x/nitro-crew', '--bench'])).toEqual({ bench: '1', uncapped: '1' });
+    expect(storage.benchQuery(['/x/nitro-crew', '--no-sandbox', '--bench=frames=4&warm=2&cenas=copa-1p&q=low&sair=1&evil=../x']))
+      .toEqual({ bench: '1', uncapped: '1', frames: '4', warm: '2', cenas: 'copa-1p', q: 'low', sair: '1' });
+    expect(storage.benchQuery('nada')).toBeNull();
+  });
+
+  // Acréscimo do dono (09/10/2026): o Ultra mede em 1440p, e o tamanho de desenho vai pela linha de comando.
+  it('benchQuery: res (tamanho de desenho do Ultra) passa, e continua só o que é conhecido', () => {
+    expect(storage.benchQuery(['/x/nitro-crew', '--bench=q=ultra&res=2560x1440&uncapped=0&bench=0']))
+      .toEqual({ bench: '1', uncapped: '1', q: 'ultra', res: '2560x1440' });
+  });
+
+  it('writeBench: grava bench-AAAAMMDD-HHMMSS.json sem sobrescrever, e recusa lixo', () => {
+    const d = new Date(2026, 9, 12, 14, 5, 9);
+    const b = join(dir, 'bench');
+    const first = storage.writeBench(b, '{"schema":"nitro-crew-bench/1"}', d);
+    expect(first).toBe(join(b, 'bench-20261012-140509.json'));
+    expect(readFileSync(first ?? '', 'utf8')).toBe('{"schema":"nitro-crew-bench/1"}');
+    expect(storage.writeBench(b, '{"schema":"nitro-crew-bench/1"}', d)).toBe(join(b, 'bench-20261012-140509-2.json'));
+    expect(storage.writeBench(b, '{quebrado', d)).toBeNull();
+    expect(storage.writeBench(b, 7, d)).toBeNull();
+    expect(storage.writeBench(b, `"${'x'.repeat(storage.MAX_SAVE_BYTES)}"`, d)).toBeNull();
+    expect(storage.writeBench(null, '{}', d)).toBeNull();
+    expect(readdirSync(b).sort()).toEqual(['bench-20261012-140509-2.json', 'bench-20261012-140509.json']);
+  });
+
+  it('folderFor: só saves, logs e bench', () => {
+    for (const kind of ['saves', 'logs', 'bench']) expect(storage.folderFor('/u', kind)).toBe(join('/u', kind));
+    for (const kind of ['..', '../etc', 'saves/../..', '', 42, null, 'SAVES']) expect(storage.folderFor('/u', kind), String(kind)).toBeNull();
+    expect(storage.folderFor(42, 'saves')).toBeNull();
+  });
+
+  it('a ponte tem benchWrite e openFolder', () => {
+    expect(API_FUNCTIONS).toContain('benchWrite');
+    expect(API_FUNCTIONS).toContain('openFolder');
+  });
+
+  it('main.cjs: --bench liga antes do ready, tela cheia sem estrangular, e as pastas só por nome', () => {
+    const main = read('main.cjs');
+    expect(main).toMatch(/storage\.benchQuery\(process\.argv\)[\s\S]*appendSwitch\('disable-frame-rate-limit'\)[\s\S]*app\.whenReady\(/);
+    expect(main).toMatch(/backgroundThrottling: !bench/);
+    expect(main).toMatch(/win\.once\('ready-to-show', \(\) => \{ win\.show\(\); if \(bench\) win\.setFullScreen\(true\); \}\);/);
+    expect(main).toMatch(/bench \? \{ query: bench \} : undefined/);
+    expect(main).toMatch(/ipcMain\.handle\('bench:write'[\s\S]{0,300}writeBench\(/);
+    expect(main).toMatch(/ipcMain\.handle\('folder:open'[\s\S]{0,400}folderFor\([\s\S]{0,400}shell\.openPath\(/);
   });
 });
 

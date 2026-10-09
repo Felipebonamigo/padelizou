@@ -28,6 +28,10 @@ export interface DesktopApi {
   logAppend(text: string): Promise<boolean>;
   /** Copia para a área de transferência do sistema (o preload em sandbox não tem `clipboard`). */
   copyText(text: string): Promise<boolean>;
+  /** Grava o resultado do banco de prova em <userData>/bench/; devolve o caminho, ou null se falhou. */
+  benchWrite(json: string): Promise<string | null>;
+  /** Abre no gerenciador de arquivos uma pasta do jogo — só estas três, nunca um caminho vindo da página. */
+  openFolder(kind: 'saves' | 'logs' | 'bench'): Promise<boolean>;
   /** Avisa quando a tela cheia muda (inclusive por F11 tratado no processo principal). */
   onFullscreen(cb: (v: boolean) => void): void;
 }
@@ -39,7 +43,7 @@ declare global {
 /** Exportada para tests/desktop-storage.test.ts conferir que o preload.cjs expõe exatamente estas. */
 export const API_FUNCTIONS: ReadonlyArray<keyof DesktopApi> = [
   'toggleFullscreen', 'setFullscreen', 'isFullscreen', 'quit', 'steamName', 'achievement', 'richPresence',
-  'saveFile', 'openFile', 'storeReadAll', 'storeWrite', 'logAppend', 'copyText', 'onFullscreen',
+  'saveFile', 'openFile', 'storeReadAll', 'storeWrite', 'logAppend', 'copyText', 'benchWrite', 'openFolder', 'onFullscreen',
 ];
 
 /** Verdadeiro só se o objeto tem TODAS as funções — um preload desatualizado não passa. */

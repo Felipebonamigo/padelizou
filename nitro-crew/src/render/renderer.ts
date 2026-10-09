@@ -33,7 +33,9 @@ const MAX_POINTS = BEHIND + AHEAD.high + 1;
 /** Velocidade da câmera automática dos menus (unidades de pista por segundo). */
 const IDLE_SPEED = 2600;
 
-export interface DebugInfo { calls: number; triangles: number; frameMs: number }
+/** Contadores de um viewport no último quadro (banco de prova, src/bench/; gate da L2). */
+export interface ViewportDebug { calls: number; triangles: number; targetW: number; targetH: number; samples: number; passes: number; postPx: number }
+export interface DebugInfo { calls: number; triangles: number; frameMs: number; quality: Quality | null; shadows: boolean; viewports: ViewportDebug[] }
 
 interface ViewportPost { composer: EffectComposer; renderPass: RenderPass; bloom: UnrealBloomPass; key: string }
 
@@ -76,7 +78,10 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
   /** Bloom da paleta atual: força, raio, limiar. */
   let bloom: [number, number, number] = [0.3, 0.4, 1];
   const posts: ViewportPost[] = [];
-  const debug: DebugInfo = { calls: 0, triangles: 0, frameMs: 0 };
+  const debug: DebugInfo = { calls: 0, triangles: 0, frameMs: 0, quality: null, shadows: false, viewports: [] };
+  /** Contadores por viewport do último quadro: 4 objetos fixos; a cópia só acontece em debugInfo(). */
+  const vps: ViewportDebug[] = [0, 1, 2, 3].map(() => ({ calls: 0, triangles: 0, targetW: 0, targetH: 0, samples: 0, passes: 0, postPx: 0 }));
+  let vpCount = 0;
   let disposed = false;
 
   function ensureTrack(track: Track): void {
@@ -153,6 +158,31 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     return post;
   }
 
+  /**
+   * Desenha um viewport (com pós na alta) e conta o que ele custou. Mede a diferença do `renderer.info` em volta do
+   * desenho, e não do `setViewport`: a passada de sombra e os quadros cheios do bloom acontecem dentro do `render()`.
+   * `vpCount` só conta os viewports de fato desenhados (o `continue` da corrida pula assento sem carro).
+   */
+  function drawViewport(i: number, rect: Rect, camera: THREE.PerspectiveCamera, high: boolean): void {
+    const c0 = renderer.info.render.calls; const tri0 = renderer.info.render.triangles;
+    const v = vps[vpCount];
+    if (high) {
+      const post = postFor(i, rect, camera);
+      post.composer.render();
+      const rt1 = post.composer.renderTarget1; const rt2 = post.composer.renderTarget2; const b = post.bloom;
+      let px = rt2.width * rt2.height + b.renderTargetBright.width * b.renderTargetBright.height;
+      for (const t of b.renderTargetsHorizontal) px += t.width * t.height;
+      for (const t of b.renderTargetsVertical) px += t.width * t.height;
+      v.targetW = rt1.width; v.targetH = rt1.height; v.samples = rt1.samples; v.passes = post.composer.passes.length; v.postPx = px;
+    } else {
+      renderer.render(scene, camera);
+      v.targetW = Math.max(1, Math.round(rect.w * dpr)); v.targetH = Math.max(1, Math.round(rect.h * dpr)); // a fórmula do postFor
+      v.samples = 0; v.passes = 0; v.postPx = 0;
+    }
+    v.calls = renderer.info.render.calls - c0; v.triangles = renderer.info.render.triangles - tri0;
+    vpCount++;
+  }
+
   function setViewport(rect: Rect): void {
     const y = height - rect.y - rect.h;
     renderer.setViewport(rect.x, y, rect.w, rect.h);
@@ -190,6 +220,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     const n = Math.max(1, Math.min(4, frame.viewports.length));
     const rects = viewportRects(n, width, height);
     renderer.info.reset();
+    vpCount = 0;
     for (let i = 0; i < n; i++) {
       const vp = frame.viewports[i];
       const car = frame.state.cars[vp.carIndex];
@@ -215,12 +246,12 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
       captions[i].update(captionsOn ? captionSceneFor(track) : null, captionView, Math.max(1, car.lap), frame.state.tick / TICK_RATE,
         frame.state.phase === 'racing' && !car.finished);
       setViewport(rect);
-      if (q === 'high') postFor(i, rect, cam.camera).composer.render();
-      else renderer.render(scene, cam.camera);
+      drawViewport(i, rect, cam.camera, q === 'high');
     }
     if (frame.showHud) hud.update(frame, width, height, captions); else hud.hide();
     debug.calls = renderer.info.render.calls;
     debug.triangles = renderer.info.render.triangles;
+    debug.quality = q; debug.shadows = renderer.shadowMap.enabled;
     debug.frameMs = performance.now() - t0;
   }
 
@@ -241,11 +272,12 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
     const rect: Rect = { x: 0, y: 0, w: width, h: height };
     setViewport(rect);
     renderer.info.reset();
-    if (quality === 'high') postFor(0, rect, idleCamera.camera).composer.render();
-    else renderer.render(scene, idleCamera.camera);
+    vpCount = 0;
+    drawViewport(0, rect, idleCamera.camera, quality === 'high');
     hud.hide();
     debug.calls = renderer.info.render.calls;
     debug.triangles = renderer.info.render.triangles;
+    debug.quality = quality; debug.shadows = renderer.shadowMap.enabled;
     debug.frameMs = performance.now() - t0;
   }
 
@@ -266,7 +298,7 @@ export function createRenderer(canvas: HTMLCanvasElement, hudRoot: HTMLElement):
 
   return {
     canvas, resize, render, renderIdle, dispose,
-    debugInfo: () => ({ ...debug }),
+    debugInfo: () => ({ ...debug, viewports: vps.slice(0, vpCount).map((v) => ({ ...v })) }),
     /** Só para depuração no harness (não faz parte do contrato). */
     __scene: scene, __gl: renderer, __cams: cameras.map((c) => c.camera), __idle: idleCamera.camera,
   } as Renderer & { debugInfo(): DebugInfo };

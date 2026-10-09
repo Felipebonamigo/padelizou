@@ -11,6 +11,7 @@
 //   NC_LAYOUT_ONLY=options,lobby-4   só essas telas      NC_LAYOUT_RES=1280x720,1024x640   só essas resoluções
 //   NC_LAYOUT_TEXT=normal|large      só um tamanho de texto      NC_LAYOUT_SKIP_HUD=1   pula a parte do HUD
 //   NC_LAYOUT_CSS=arquivo.css        injeta CSS antes de medir (experimentar um ajuste sem refazer o build)
+//   NC_LAYOUT_DESKTOP=1              simula o Electron (window.desktop falso): mede o que só aparece nele (ex.: "Abrir pasta")
 //   NC_LAYOUT_SHOTS=1                fotografa também as combinações limpas (sem ele, só as que falham e as mais apertadas)
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -54,6 +55,8 @@ await page.addInitScript(() => {
     stamps: ['RJ', 'SP', 'MG', 'ES', 'PR', 'SC', 'RS', 'DF', 'GO', 'MS', 'MT', 'BA'],
   }));
 });
+// NC_LAYOUT_DESKTOP=1: window.desktop falso com TODAS as funções de API_FUNCTIONS (src/game/desktop.ts), para medir o que só aparece no Electron.
+if (process.env.NC_LAYOUT_DESKTOP) await page.addInitScript(() => { const ok = () => Promise.resolve(true); window.desktop = { toggleFullscreen: () => Promise.resolve(), setFullscreen: () => Promise.resolve(), isFullscreen: () => Promise.resolve(false), quit: () => Promise.resolve(), steamName: () => Promise.resolve(null), achievement: ok, richPresence: () => Promise.resolve(), saveFile: ok, openFile: () => Promise.resolve(null), storeReadAll: () => Promise.resolve({}), storeWrite: ok, logAppend: ok, copyText: ok, benchWrite: () => Promise.resolve(null), openFolder: ok, onFullscreen: () => undefined }; });
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(800);
 await page.evaluate(() => {

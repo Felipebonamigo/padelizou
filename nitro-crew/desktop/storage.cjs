@@ -1,5 +1,6 @@
 // Arquivos do jogo dentro do userData do Electron: os saves (espelho do localStorage, para o Steam
-// Auto-Cloud sincronizar arquivos de verdade em vez do LevelDB do Chromium) e o log de erros.
+// Auto-Cloud sincronizar arquivos de verdade em vez do LevelDB do Chromium), o log de erros e o resultado do banco de
+// prova (`bench/`, nunca em `saves/`, que é o que o Steam sincroniza).
 // Não depende do Electron: main.cjs passa as pastas, e tests/desktop-storage.test.ts usa uma pasta temporária.
 // Tudo síncrono de propósito: arquivos pequenos, e uma gravação termina antes de o próximo IPC (ex.: "sair")
 // ser atendido — um app.quit() nunca corta um save pela metade.
@@ -84,4 +85,41 @@ function appendLog(dir, text, maxBytes = LOG_MAX_BYTES) {
   }
 }
 
-module.exports = { isSaveKey, readAllSaves, writeSave, appendLog, LOG_MAX_BYTES, MAX_SAVE_BYTES, LOG_ENTRY_MAX_CHARS };
+/** Chaves do banco de prova que passam da linha de comando para a página (o resto é ignorado). `res` é o tamanho de desenho do Ultra. */
+const BENCH_KEYS = ['frames', 'warm', 'cenas', 'q', 'res', 'sair'];
+// atalho: mora aqui para não criar um .cjs novo (exigiria desktop/package.json e check-package.mjs)
+/** `--bench` ou `--bench=<query>` no argv → a query da página ({ bench:'1', uncapped:'1', … }); sem isso, null. */
+function benchQuery(argv) {
+  if (!Array.isArray(argv)) return null;
+  const arg = argv.find((a) => a === '--bench' || (typeof a === 'string' && a.startsWith('--bench=')));
+  if (!arg) return null;
+  const out = { bench: '1', uncapped: '1' };
+  const params = new URLSearchParams(arg === '--bench' ? '' : arg.slice('--bench='.length));
+  for (const k of BENCH_KEYS) { const v = params.get(k); if (v !== null) out[k] = v; }
+  return out;
+}
+
+/** Grava o resultado em `<dir>/bench-AAAAMMDD-HHMMSS[-N].json` (hora local de `now`), sem sobrescrever; null se falhou. */
+function writeBench(dir, json, now = new Date()) {
+  if (typeof dir !== 'string' || !dir || typeof json !== 'string' || Buffer.byteLength(json, 'utf8') > MAX_SAVE_BYTES) return null;
+  try { JSON.parse(json); } catch { return null; }
+  const p2 = (n) => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}-${p2(now.getHours())}${p2(now.getMinutes())}${p2(now.getSeconds())}`;
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    for (let i = 1; i < 1000; i++) {
+      const file = path.join(dir, i === 1 ? `bench-${stamp}.json` : `bench-${stamp}-${i}.json`);
+      try { fs.writeFileSync(file, json, { encoding: 'utf8', flag: 'wx' }); return file; } catch (e) { if (!e || e.code !== 'EEXIST') return null; }
+    }
+  } catch { /* cai no null */ }
+  return null;
+}
+
+/** Só estas pastas do userData podem ser abertas pela página — nunca um caminho vindo dela. */
+const FOLDERS = ['saves', 'logs', 'bench'];
+function folderFor(userData, kind) {
+  if (typeof userData !== 'string' || !userData || typeof kind !== 'string' || !FOLDERS.includes(kind)) return null;
+  return path.join(userData, kind);
+}
+
+module.exports = { isSaveKey, readAllSaves, writeSave, appendLog, benchQuery, writeBench, folderFor, LOG_MAX_BYTES, MAX_SAVE_BYTES, LOG_ENTRY_MAX_CHARS };

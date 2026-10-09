@@ -208,6 +208,10 @@ na próxima vez que desenha, então o número não cresce; fica anotado para a l
 6. Para repetir a medição de CPU da simulação: `npx tsx scripts/perf-sim.ts` (uns 3 minutos) e
    `node scripts/playtest-memoria.mjs http://localhost:4174/ scratch/mem` (uns 20 minutos no headless).
 
+**Banco de prova (`--bench`, onda K, K4).** Windows: feche o jogo (instância única) e, na pasta do jogo, rode `"Nitro Crew.exe" --bench`. Abre em tela cheia, mede 6 cenas × 4 níveis (baixa, média, alta e **Ultra**) em uns 5–12 min, sem teto de quadros; não toque em nada. No fim o painel mostra o arquivo e os botões "Abrir pasta" e "Sair". O JSON fica em `%APPDATA%\Nitro Crew\bench\bench-AAAAMMDD-HHMMSS.json`: mande-o. Para medir tudo em 1440p: `"Nitro Crew.exe" "--bench=res=2560x1440"`; para uma parte: `"Nitro Crew.exe" "--bench=cenas=copa-1p,copa-4p&q=medium"`. Steam Deck (Modo Desktop): `./nitro-crew --bench=q=low,medium,high` (se não abrir, `--no-sandbox --bench=…`; arquivo em `~/.config/Nitro Crew/bench/`), na tomada e no perfil padrão.
+
+**Como ler o JSON:** 1º `warnings[]` ("teto de quadros em N fps" = o número não vale); 2º `verdicts[]` (meta × medido: Baixa e Média 60 fps, Ultra 120 fps a 1440p, a Alta sem meta); 3º `runs[]` (`avgFps`, `low1Fps`, `calls`, `triangles`, `renderW×renderH`, `viewports[]`); 4º `env` (`gl` = a GPU, `webgpu`, `uncapped`). **Ultra:** meta 4070 Ti a 1440p com ≥ 120 fps (`src/bench/ultra.ts`). Enquanto a L2 não implementa os 7 efeitos (GTAO, reflexo em tela, raios volumétricos, profundidade de campo, desfoque de movimento, sombras em cascata de 4K, antisserrilhado temporal), o Ultra mede a Alta desenhada em 1440p: é a folga que sobra antes dos efeitos (`ultra.effectsActive` vazio). Quem implementar um efeito liga o `implemented` dele.
+
 Meta sugerida para o passo 1.6: 60 FPS com 2 jogadores na média numa placa integrada recente em qualidade
 média; 4 jogadores podem cair para baixa. Se não bater, o que mais pesa por viewport são as sombras (média e
 alta) e o bloom (alta) — os ajustes ficam para a Fase 2.

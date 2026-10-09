@@ -147,6 +147,10 @@ aberto**: ligar isso por padrão em `main.cjs` (`app.commandLine.appendSwitch('i
 fazem muitos jogos HTML5 na Steam; o preço é trocar a tela explicativa por um possível travamento de driver.
 Decidir depois do teste em máquinas fracas (docs/QA.md).
 
+## Banco de prova (`--bench`)
+
+`--bench[=<query>]` liga o banco de prova (`src/bench/`): janela em tela cheia sem teto de quadros (`disable-frame-rate-limit`, `disable-gpu-vsync`, sem estrangular em segundo plano), uma corrida por cena × nível, resultado em `<userData>/bench/bench-AAAAMMDD-HHMMSS.json` (nunca em `saves/`, que o Steam sincroniza). Chaves aceitas: `frames`, `warm`, `cenas`, `q` (low, medium, high, ultra), `res` (LARGURAxALTURA), `sair=1`. A ponte tem `benchWrite(json)` e `openFolder('saves'|'logs'|'bench')`: a página só escolhe a pasta pelo nome, e o caminho sai do processo principal (`storage.folderFor`). Como rodar e como ler: `docs/DESEMPENHO.md` §4.
+
 ## O que a página enxerga (`window.desktop`)
 
 `preload.cjs` expõe `window.desktop` e `src/game/desktop.ts` é a tipagem dele (`DesktopApi`). Fora do

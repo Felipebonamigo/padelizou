@@ -28,6 +28,7 @@ const forceSkid = q.get('skid') === '1';
 // ghost=1: fantasma do contra-relógio ao lado do carro do jogador; brake=1: lanternas de freio acesas.
 // paints=<id>,<id>…: pintura de cada humano (P1, P2…; ids de src/game/paints.ts; vazio = Original), como a sessão monta;
 // paintsheet=<carro>: folha de contato com o carro nas 16 pinturas da paleta (carview escolhe a vista, padrão front34).
+// tod=day|dusk|night: o mesmo trecho em outro período (só aparência; cópia — o cache do getTrack não muda).
 const carview = q.get('carview');
 const showroom = q.get('showroom') === '1';
 const paintSheet = q.get('paintsheet');
@@ -54,7 +55,9 @@ function carForBody(body) {
 }
 const styleCars = CAR_BODIES.map(carForBody);
 
-const track = getTrack(trackId);
+const baseTrack = getTrack(trackId);
+const tod = ['day', 'dusk', 'night'].includes(q.get('tod')) ? q.get('tod') : null;
+const track = tod ? { ...baseTrack, def: { ...baseTrack.def, timeOfDay: tod } } : baseTrack;
 const paintIds = (q.get('paints') ?? '').split(',');
 const humans = Array.from({ length: humanCount }, (_, i) => ({ seat: i, name: `P${i + 1}`, carId: CARS[i % 8].id, teamId: 0, color: seatColor(i), ...(paintIds[i] ? { paint: paintIds[i] } : {}) }));
 // A config vai sem a pintura (como na sessão: o estado da corrida não carrega cosmético).

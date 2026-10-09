@@ -33,6 +33,8 @@ com swiftshader; precisam do vite no ar):
 | Ferramenta | Uso |
 |---|---|
 | Captura na corrida | `PORT=<porta> node tools/capture.mjs "nome::track=<pista>&seg=<n>&hud=0"` → `scratch/nome.png` (`humans=2` ou `4` = tela dividida) |
+| Banco de prova | `node tools/bench.mjs <porta> "frames=2&warm=1" scratch/x.json` (níveis low, medium, high, ultra; `res=LxA`; imprime a meta de cada corrida e os avisos; no swiftshader só prova o formato) |
+| Quadro de referências | `node tools/referencias.mjs captura <porta> scratch/ref depois [pistas,menus,carros]` e `node tools/referencias.mjs montar scratch/ref antes depois scratch/ref/k4` |
 | Folha de marcos | `node tools/landmark-sheet.mjs <porta> scratch/x.png "ids=a,b&cols=2&cw=500&ch=320&zoom=1.6&el=0.04&az=0.3"` |
 | Onde fica cada marco e quanto aparece | `npx tsx tools/landmark-sight.ts <pista>` (meta: 2,5 s perto/longe, 4 s horizonte) |
 | Vista de frente de um marco (ASCII) | `npx tsx tools/front-view-measure.ts <marco>` |

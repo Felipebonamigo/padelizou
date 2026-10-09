@@ -98,7 +98,7 @@ async function race(page) {
       toggleFullscreen: () => Promise.resolve(), setFullscreen: () => Promise.resolve(), isFullscreen: () => Promise.resolve(false),
       quit: () => Promise.resolve(), steamName: () => Promise.resolve(null), achievement: ok, richPresence: () => Promise.resolve(),
       saveFile: ok, openFile: () => Promise.resolve(null), storeReadAll: () => window.__storeReadAll(),
-      storeWrite: (k, j) => window.__storeWrite(k, j), logAppend: ok, copyText: ok, onFullscreen: () => undefined,
+      storeWrite: (k, j) => window.__storeWrite(k, j), logAppend: ok, copyText: ok, benchWrite: () => Promise.resolve(null), openFolder: ok, onFullscreen: () => undefined,
     };
   });
   const page = await ctx.newPage();

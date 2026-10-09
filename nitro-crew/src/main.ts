@@ -6,7 +6,8 @@ import { createSaveNotice } from './game/save-notice';
 import { createSession, type Session } from './game/session';
 import { loadCarAssets, type CarAssetReport } from './render/cars/assets';
 import { loadLandmarkAssets, loadLandmarkParts, type LandmarkAssetReport } from './render/scenery/landmarks/assets';
-import { saveHealth, setSpaceFreers } from './game/storage';
+import { createPlaylog, getActivePlaylog, setActivePlaylog } from './game/playlog';
+import { readJson, saveHealth, setSpaceFreers, writeJson } from './game/storage';
 import { showFatal } from './errors/fatal';
 import { createErrorToast, createSaveToast } from './errors/toast';
 
@@ -49,6 +50,9 @@ async function boot(): Promise<void> {
     installSaveMirror(desktop, storage);
   }
 
+  // Diário de jogo (playlog.ts); ?nosurvey=1 desliga o questionário (playtests que encadeiam corridas).
+  setActivePlaylog(createPlaylog({ now: () => new Date(), read: readJson, write: writeJson, version: GAME_VERSION, survey: !new URLSearchParams(location.search).has('nosurvey') }));
+
   // 3) Carros da arte (src/assets/cars/*.glb) antes do renderizador: o recusado fica procedural, com o motivo no console.
   const carAssets = await loadCarAssets();
   for (const r of carAssets.rejected) console.warn(`[carros] ${r.file} recusado: ${r.problems.join('; ')}`);
@@ -68,6 +72,14 @@ async function boot(): Promise<void> {
   const ui = document.getElementById('ui');
   if (!canvas || !hud || !ui) throw new Error('index.html precisa de #game, #hud e #ui');
 
+  // Banco de prova (?bench=1; no Electron, --bench vira ?bench=1&uncapped=1…): mede e para — sem sessão, sem menus.
+  // Import dinâmico: o código do bench fica num pedaço à parte do pacote (src/bench/run.ts, docs/DESEMPENHO.md §4).
+  if (new URLSearchParams(location.search).get('bench') === '1') {
+    const { runBench } = await import('./bench/run');
+    await runBench(location.search, { canvas, hud, ui, desktop });
+    return;
+  }
+
   const s = createSession(canvas, hud, ui);
   session = s;
 
@@ -76,6 +88,7 @@ async function boot(): Promise<void> {
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
 
+  getActivePlaylog()?.sessionStart();
   s.start();
   window.nc = { session: s, carAssets, landmarkAssets, landmarkParts };
 

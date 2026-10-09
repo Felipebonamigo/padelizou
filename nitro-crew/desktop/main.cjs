@@ -16,6 +16,13 @@ app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_DIR_NAME));
 const savesDir = () => path.join(app.getPath('userData'), 'saves');
 const logsDir = () => path.join(app.getPath('userData'), 'logs');
 
+// Banco de prova (--bench, docs/DESEMPENHO.md §4): sem teto de quadros, para medir a folga. Switch só vale antes do `ready`.
+const bench = storage.benchQuery(process.argv);
+if (bench) {
+  app.commandLine.appendSwitch('disable-frame-rate-limit');
+  app.commandLine.appendSwitch('disable-gpu-vsync');
+}
+
 /** Linha do log de erros para o que acontece fora da página (processo do jogo ou da GPU que caiu). */
 function logProcessEvent(kind, details) {
   storage.appendLog(logsDir(), `[${new Date().toISOString()}] ${kind} ${JSON.stringify(details)}\n`);
@@ -69,10 +76,10 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1600, height: 900, minWidth: 1024, minHeight: 640,
     title: 'Nitro Crew', backgroundColor: '#000', autoHideMenuBar: true, show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: !bench },
   });
-  win.once('ready-to-show', () => { win.show(); });   // tela cheia é decidida pelo jogo (opções salvas)
-  win.loadFile(path.join(__dirname, app.isPackaged ? 'app/index.html' : '../dist/index.html'));
+  win.once('ready-to-show', () => { win.show(); if (bench) win.setFullScreen(true); });   // tela cheia é decidida pelo jogo (opções salvas); no bench, sempre
+  win.loadFile(path.join(__dirname, app.isPackaged ? 'app/index.html' : '../dist/index.html'), bench ? { query: bench } : undefined);
 
   // Links externos abrem no navegador do sistema; a janela do jogo nunca navega para fora do próprio HTML.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -143,6 +150,13 @@ ipcMain.handle('log:append', (_e, text) => storage.appendLog(logsDir(), text));
 ipcMain.handle('clipboard:write', (_e, text) => {
   if (typeof text !== 'string') return false;
   try { clipboard.writeText(text.slice(0, storage.MAX_SAVE_BYTES)); return true; } catch { return false; }
+});
+// Banco de prova e "Abrir pasta": a página só escolhe pelo nome (saves, logs, bench); o caminho sai daqui (storage.folderFor).
+ipcMain.handle('bench:write', (_e, json) => storage.writeBench(storage.folderFor(app.getPath('userData'), 'bench'), json));
+ipcMain.handle('folder:open', async (_e, kind) => {
+  const dir = storage.folderFor(app.getPath('userData'), kind);
+  if (!dir) return false;
+  try { await fs.mkdir(dir, { recursive: true }); return (await shell.openPath(dir)) === ''; } catch { return false; }
 });
 
 // Processo da GPU caiu (driver): o Chromium tenta de novo sozinho; fica registrado para o relatório.
