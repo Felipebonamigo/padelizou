@@ -62,6 +62,28 @@ export function sym(right: P[]): P[] {
   return [...right, ...left];
 }
 
+/**
+ * Polígono fechado de quinas arredondadas: cada vértice [x, y, raio?] vira uma curva (quadrática) que começa `raio` antes
+ * dele e termina `raio` depois; o raio padrão é `r`. Serve aos objetos de arestas retas (o MASP, a fortaleza, o
+ * convento) que o cartum só amacia. O primeiro vértice não pode ficar no meio de uma reta: o traço começa logo depois
+ * da quina dele e fecha no mesmo ponto.
+ */
+export function softPoly(corners: Array<[number, number, number?]>, r: number): P[] {
+  const n = corners.length;
+  const cut = (i: number) => {
+    const [x, y, ri = r] = corners[i];
+    const [px, py] = corners[(i + n - 1) % n]; const [nx, ny] = corners[(i + 1) % n];
+    const din = Math.hypot(x - px, y - py); const dout = Math.hypot(nx - x, ny - y);
+    const rr = Math.min(ri, din / 2, dout / 2);
+    return { c: [x, y] as P, a: [x - ((x - px) / din) * rr, y - ((y - py) / din) * rr] as P, b: [x + ((nx - x) / dout) * rr, y + ((ny - y) / dout) * rr] as P };
+  };
+  const first = cut(0);
+  const pen = new Pen(first.b[0], first.b[1]);
+  for (let i = 1; i < n; i++) { const k = cut(i); pen.L(k.a[0], k.a[1]).Q(k.c[0], k.c[1], k.b[0], k.b[1]); }
+  pen.L(first.a[0], first.a[1]).Q(first.c[0], first.c[1], first.b[0], first.b[1]);
+  return pen.pts;
+}
+
 export interface Art {
   /** Estado (sigla) e o que o desenho representa — vão para a folha de desenhos. */
   state: string;
@@ -87,6 +109,19 @@ function cristo(): Art {
   return { state: 'RJ', what: 'Cristo Redentor', pts: sym(r.pts), start: [36, 97] };
 }
 
+/**
+ * SP · MASP: a caixa larga suspensa nos dois pórticos, com o vão livre embaixo. A viga do teto passa um pouco dos pilares
+ * (o que faz o prédio ler como prédio e não como mesa). Largada no pilar esquerdo, do lado de fora.
+ */
+function masp(): Art {
+  const pts = softPoly([
+    [4, 84], [4, 25], [0, 25, 1.8], [0, 17, 2.4], [100, 17, 2.4], [100, 25, 1.8], [96, 25], // viga do teto e o pilar direito
+    [96, 84], [87, 84], [87, 62, 4], [13, 62, 4], [13, 84], // o vão livre
+  ], 3.4);
+  return { state: 'SP', what: 'MASP', pts, start: [4, 76] };
+}
+
 export const ART: Readonly<Record<string, () => Art>> = {
   copacabana: cristo,
+  sampa_noite: masp,
 };

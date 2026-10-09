@@ -31,6 +31,10 @@ function arcLengths(p: V[]): number[] {
 }
 
 describe('desenhos em cartum (scripts/track-art.ts)', () => {
+  it('a rodada 1 está desenhada (9 + o Cristo)', () => { // T2b
+    expect(Object.keys(ART).sort()).toEqual(Object.keys(ROUND1).sort());
+  });
+
   for (const id of Object.keys(ART)) {
     describe(id, () => {
       const art = ART[id](); // ART guarda funções que devolvem o desenho
