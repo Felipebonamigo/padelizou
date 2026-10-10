@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **10/10/2026** — 🔒 **CHAVE PÚBLICA, GRADE TRAVADA: "RECALCULAR HORÁRIOS" E "AJUSTAR HORÁRIOS" SÓ ANTES DE PUBLICAR.** ✅ **SEM MIGRATION.** 🗣️ Felipe, no dia do NATA: *"desabilita o recalcular horário e refazer grade então depois que as chaves já estão públicas"* · *"o torneio tem que se manter igual do começo ao fim"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+> Última atualização: **10/10/2026** — 🔒 **CHAVE PÚBLICA, GRADE TRAVADA: "RECALCULAR HORÁRIOS" E "AJUSTAR HORÁRIOS" SÓ ANTES DE PUBLICAR.** ✅ **SEM MIGRATION.** 🗣️ Felipe, no dia do NATA: *"desabilita o recalcular horário e refazer grade então depois que as chaves já estão públicas"* · *"o torneio tem que se manter igual do começo ao fim"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1539-8f6da89`** (deploy runs **435** e **436**), no sábado do NATA, com o torneio rodando. PR #371.
 >
 > 📌 `RefazerGrade` (o botão "Recalcular horários", que joga a grade fora e RE-GRAVA a promessa) e `AjustarHorarios` (que troca jogos de lugar) **recusam no servidor** com `AprovacaoDeChaves.ChavePublicada` ("Fase de Grupos", "Mata-Mata", "Finalizado"), e os dois botões somem da tela nesse estado (`ViewBag.ChavePublicadaDoTorneio` pro partial da lista de jogos). O **Ajustar** entrou junto por decisão minha, dita ao Felipe: ele não refaz, mas move horário publicado do mesmo jeito. Trocar UM jogo à mão continua livre. **"Recolher as chaves"** (volta pra aprovação) reabre os dois — é o caminho deliberado.
 >
