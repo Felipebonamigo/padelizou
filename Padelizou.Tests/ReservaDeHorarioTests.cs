@@ -283,6 +283,10 @@ public class ReservaDeHorarioTests
         var c = Montar();
         await ReservarAsync(c, c.A, "Final", 1, "22:00");
 
+        // Desde 10/10/2026 o recálculo só roda com a chave NÃO pública (GradePublicadaNaoSeRefazTests):
+        // aqui ela é recolhida antes, que é o caminho que sobrou pra chegar até ele.
+        (await c.Ctx.Torneios.SingleAsync(t => t.Id == c.Torneio.Id)).Status = AprovacaoDeChaves.Pendente;
+        await c.Ctx.SaveChangesAsync();
         await Controller(c).RefazerGrade(c.Torneio.Id);
 
         var reservas = await ReservasAsync(c);

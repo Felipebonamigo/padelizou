@@ -150,6 +150,10 @@ public class AberturaDoMataMataPorCategoriaTests
 
         await ctx.SaveChangesAsync();
 
+        // Desde 10/10/2026 o recálculo só roda com a chave NÃO pública (GradePublicadaNaoSeRefazTests):
+        // aqui ela é recolhida antes, que é o caminho que sobrou pra chegar até ele.
+        torneio.Status = AprovacaoDeChaves.Pendente;
+        await ctx.SaveChangesAsync();
         await TestInfra.NovoTorneiosController(ctx, organizador.Id).RefazerGrade(torneio.Id);
 
         return (ctx, torneio, pronta, curta, atrasada);

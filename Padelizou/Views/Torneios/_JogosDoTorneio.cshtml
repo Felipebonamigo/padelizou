@@ -978,7 +978,8 @@
                 <i class="bi bi-clipboard-check"></i> Conferir a grade
             </a>
         }
-        @if (ehOrganizador && agendadasList.Count > 0)
+        @* Chave pública = grade travada (10/10/2026): sem "Ajustar horários" — o servidor recusa. *@
+        @if (ehOrganizador && agendadasList.Count > 0 && ViewBag.ChavePublicadaDoTorneio != true)
         {
             @* O irmão manso do recalcular, e o único dos dois que sobrou aqui: ele não desmarca
                nada — só troca jogos de lugar enquanto isso derrubar pontos do Conferir grade.
