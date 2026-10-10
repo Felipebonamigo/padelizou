@@ -1,6 +1,0 @@
-/* Fantasmas na tela de recordes (ghost-records.ts). */
-.ghost-status { text-align: left; margin-bottom: calc(2 * var(--u)); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85); }
-.ghost-status.ok { color: var(--ok); }
-.ghost-status.fail { color: var(--bad); }
-.record-entry.ghost-entry .record-kind { color: #a9d4ff; font-weight: 800; }
-.record-row.has-ghost { cursor: pointer; }

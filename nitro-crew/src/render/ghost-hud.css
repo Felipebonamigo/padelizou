@@ -1,6 +1,0 @@
-/* Diferença para o fantasma (ghost-hud.ts): no painel do tempo, cor pelo sinal. */
-.nc-hud .ghost-delta { font-size: calc(13px * var(--s)); font-weight: 800; letter-spacing: 0.06em; color: #a3acc2; }
-.nc-hud .ghost-delta.off { display: none; }
-.nc-hud .ghost-delta b { font-size: calc(17px * var(--s)); }
-.nc-hud .ghost-delta.ahead b { color: #3ddc84; }
-.nc-hud .ghost-delta.behind b { color: #ff5a5a; }
