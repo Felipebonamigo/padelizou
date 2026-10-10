@@ -1315,6 +1315,11 @@ namespace Padelizou.Controllers
         // O que ele muda: o horário e a quadra de tudo que ainda está "Agendada", começando
         // no primeiro horário livre a partir de AGORA (ou da abertura do torneio, se nada
         // começou ainda).
+        // O porquê da recusa, um texto só pros dois botões.
+        private const string GradeTravadaDepoisDePublicada =
+            "As chaves já estão públicas: os horários publicados não são refeitos, nem se o torneio atrasar. "
+            + "Pra mudar um jogo específico, troque o horário dele na lista de jogos.";
+
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
@@ -1329,6 +1334,17 @@ namespace Padelizou.Controllers
                 .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
+
+            // ⚠️ CHAVE PÚBLICA, GRADE TRAVADA (10/10/2026). 🗣️ Felipe, no dia do NATA: *"desabilita
+            // o recalcular horário e refazer grade então depois que as chaves já estão públicas"*.
+            // Este botão joga a grade fora e RE-GRAVA a promessa do sorteio — o horário que o
+            // jogador viu publicado e usou pra se programar. Depois de público, o horário é
+            // compromisso; trocar UM jogo à mão continua possível. Ver GradePublicadaNaoSeRefazTests.
+            if (AprovacaoDeChaves.ChavePublicada(torneio))
+            {
+                TempData["Erro"] = GradeTravadaDepoisDePublicada;
+                return VoltarPara(voltarPara, id, filtros);
+            }
 
             var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
 
@@ -1581,6 +1597,14 @@ namespace Padelizou.Controllers
                 .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
+
+            // A MESMA TRAVA do Recalcular: este não refaz a grade, mas TROCA jogos de lugar — e
+            // o jogo trocado muda de horário do mesmo jeito para quem o viu publicado.
+            if (AprovacaoDeChaves.ChavePublicada(torneio))
+            {
+                TempData["Erro"] = GradeTravadaDepoisDePublicada;
+                return VoltarPara(voltarPara, id, filtros);
+            }
 
             // Por Id: a mesma ordem da fila do sorteio (ver RecalcularAGradeAsync).
             var jogos = await _context.Partidas.Where(p => p.TorneioId == id).OrderBy(p => p.Id).ToListAsync();

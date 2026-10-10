@@ -3120,7 +3120,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                        atributos seguintes, e foi assim que o build-900 saiu pra produção sem o
                        `data-confirmar` deste mesmo botão (ver ComentarioRazorDentroDeTagTests). *@
                     @{ int agendadasNoTorneio = ViewBag.AgendadasNoTorneio as int? ?? 0; }
-                    @if (agendadasNoTorneio > 0)
+                    @* Chave pública = grade travada (10/10/2026): o botão some, e o servidor recusa. *@
+                    @if (agendadasNoTorneio > 0 && !Padelizou.Services.AprovacaoDeChaves.ChavePublicada(Model))
                     {
                         <hr />
                         <form asp-controller="Torneios" asp-action="RefazerGrade" method="post" class="mb-0"

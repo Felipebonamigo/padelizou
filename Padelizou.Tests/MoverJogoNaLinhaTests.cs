@@ -251,6 +251,10 @@ public class MoverJogoNaLinhaTests
         await Controller(c).MoverNoHorario(c.Torneio.Id, c.B.Id.ToString(), "cima");
         Assert.Equal(1, (await Recarregar(c, c.B)).OrdemNoHorario);
 
+        // Desde 10/10/2026 o recálculo só roda com a chave NÃO pública (GradePublicadaNaoSeRefazTests):
+        // aqui ela é recolhida antes, que é o caminho que sobrou pra chegar até ele.
+        (await c.Ctx.Torneios.SingleAsync(t => t.Id == c.Torneio.Id)).Status = AprovacaoDeChaves.Pendente;
+        await c.Ctx.SaveChangesAsync();
         await Controller(c).RefazerGrade(c.Torneio.Id);
 
         var todos = await c.Ctx.Partidas.AsNoTracking().Where(p => p.TorneioId == c.Torneio.Id).ToListAsync();

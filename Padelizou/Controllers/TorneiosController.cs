@@ -1741,6 +1741,10 @@ namespace Padelizou.Controllers
             // lote) é exatamente o trabalho dele — e cada POST confere de novo no servidor.
             ViewBag.EhOrganizador = await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0);
 
+            // Chave pública = grade travada: a lista de jogos esconde o "Ajustar horários" (o
+            // servidor recusa de qualquer jeito — ver RefazerGrade/AjustarHorarios).
+            ViewBag.ChavePublicadaDoTorneio = torneioDaGrade != null && AprovacaoDeChaves.ChavePublicada(torneioDaGrade);
+
             // O CHECK-IN LIGADO? É o que decide se a linha do jogo ganha a bolinha de presença do
             // lado de cada dupla (12/09/2026, _JogoEmLinha). Torneio que desligou a chamada não
             // ganha bolinha nenhuma — oferecer o botão e recusar o clique depois é fazer o

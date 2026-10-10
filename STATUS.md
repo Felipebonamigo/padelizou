@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **10/10/2026** — 🔒 **CHAVE PÚBLICA, GRADE TRAVADA: "RECALCULAR HORÁRIOS" E "AJUSTAR HORÁRIOS" SÓ ANTES DE PUBLICAR.** ✅ **SEM MIGRATION.** 🗣️ Felipe, no dia do NATA: *"desabilita o recalcular horário e refazer grade então depois que as chaves já estão públicas"* · *"o torneio tem que se manter igual do começo ao fim"*. ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita.
+>
+> 📌 `RefazerGrade` (o botão "Recalcular horários", que joga a grade fora e RE-GRAVA a promessa) e `AjustarHorarios` (que troca jogos de lugar) **recusam no servidor** com `AprovacaoDeChaves.ChavePublicada` ("Fase de Grupos", "Mata-Mata", "Finalizado"), e os dois botões somem da tela nesse estado (`ViewBag.ChavePublicadaDoTorneio` pro partial da lista de jogos). O **Ajustar** entrou junto por decisão minha, dita ao Felipe: ele não refaz, mas move horário publicado do mesmo jeito. Trocar UM jogo à mão continua livre. **"Recolher as chaves"** (volta pra aprovação) reabre os dois — é o caminho deliberado.
+>
+> 🧪 `GradePublicadaNaoSeRefazTests` (7, vistos vermelhos antes). 4 testes antigos do recálculo usavam torneio publicado como cenário e passaram a recolher a chave antes de recalcular — o que eles verificam não mudou. 7.733 verdes.
+>
 > Última atualização: **10/10/2026** — 🔎 **VÉSPERA DO NATA: A CHAVE DE VERDADE CONFERIDA CONTRA A PRÉVIA PUBLICADA, NOS FORMATOS DELE.** ✅ **SÓ TESTE — nada de produção mudou, nada publicado.** 🗣️ Felipe: *"dessa vez as chaves tem q seguir o que foi previsto, não pode ser igual ao último torneio"* · *"não mexer nas chaves já definidas"*.
 >
 > 📌 **Formatos lidos da página pública (`/Torneios/Details/22`):** 4ª Masc 9 duplas (3×3, 2 byes), 5ª Fem 7 (grupos 2/2/3, 2 byes), 5ª e 6ª Masc 6 (2×3), 6ª Fem 4 (2×2). O teste do ER (`ChaveRespeitaOPrevistoTests`) só cobria 4 grupos de 3 sem bye e só a 1ª rodada.
