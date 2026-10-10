@@ -277,7 +277,8 @@
 .seat-dot { display: block; width: calc(9 * var(--u)); height: calc(9 * var(--u)); border-radius: 50%; background: var(--seat, var(--accent)); }
 .ach-chip-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 .ach-chip-text strong { font-weight: 800; }
-.ach-chip-text strong, .ach-chip-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Quebra a linha em vez de cortar com reticências (o texto da conquista tem que ler inteiro; playtest-layout, regra 'reticências'). */
+.ach-chip-text strong, .ach-chip-text span { white-space: normal; overflow-wrap: anywhere; }
 .ach-chip-text span { font-size: var(--fs-sm); color: var(--muted); }
 
 /* Classificação com texto grande: as tabelas (que rolam por dentro) cedem um pouco de altura para o

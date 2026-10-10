@@ -141,13 +141,13 @@ Anote **tudo o que estranhar**, mesmo sem certeza de que é defeito. Tempo entre
 
 ### B. Uma corrida sozinho (7 min)
 
-4. Corrida rápida → entre com o controle → escolha a pista "Orla de Copacabana", 2 voltas.
+4. No menu, aperte Enter ✅ (o Jogador 1 já senta). Corrida rápida → escolha a pista "Rio de Janeiro · Orla de Copacabana", 2 voltas.
 5. Na largada, segure o acelerador durante a contagem. ✅ nada de largar antes do "JÁ!".
 6. Corra a primeira volta **sem frear**; na segunda, freie antes das curvas. ✅ dá para sentir a diferença; sair
    na grama tira velocidade; bater em carro por trás dói.
 7. Use os 3 nitros. ✅ o HUD conta; o nitro acaba no terceiro.
 8. Aperte Start/Esc no meio da corrida. ✅ pausa; "Continuar" volta de onde parou; "Sair para o menu" volta ao menu.
-9. Termine a corrida. ✅ tela de resultado com posições e tempos; recorde novo, se foi o caso.
+9. Termine a corrida. ✅ tela de resultado com posições e tempos; "PRIMEIRA MARCA" na 1ª vez nessa pista (RECORDE só se bateu uma marca anterior). Aperte **MAIS UMA?** ✅ larga a próxima pista com os mesmos assentos.
 
 ### C. Tela dividida (8 min)
 
@@ -162,7 +162,7 @@ Anote **tudo o que estranhar**, mesmo sem certeza de que é defeito. Tempo entre
 
 ### D. Campeonato (5 min)
 
-16. Campeonato → Copa Brasil com 1 ou 2 jogadores. Termine a primeira corrida (pode ser mal).
+16. Campeonato → Copa Rio de Janeiro com 1 ou 2 jogadores. Termine a primeira corrida (pode ser mal). Se for eliminado, ✅ **RECOMEÇAR A COPA** mantém os mesmos assentos.
 17. ✅ a classificação da copa aparece; a próxima corrida começa na pista seguinte.
 18. Feche o jogo no meio da copa e abra de novo. Anote se o progresso da copa ficou (passo 1.7 do roteiro: ainda
     pode não existir).

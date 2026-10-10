@@ -1,7 +1,7 @@
 {
   "name": "nitro-crew-desktop",
   "productName": "Nitro Crew",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Empacotamento desktop (Electron) do Nitro Crew para Steam/Windows/Linux/macOS.",
   "author": "Felipe Bonamigo",
   "main": "main.cjs",
@@ -34,15 +34,44 @@
       "main.cjs",
       "preload.cjs",
       "storage.cjs",
-      { "from": "../dist", "to": "app", "filter": ["**/*", "!**/*.map"] }
+      {
+        "from": "../dist",
+        "to": "app",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
+      }
     ],
-    "extraFiles": ["steam_appid.txt"],
-    "directories": { "output": "release", "buildResources": "build" },
+    "extraFiles": [
+      "steam_appid.txt"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "publish": null,
-    "win": { "target": ["dir"] },
-    "linux": { "target": ["dir"], "category": "Game", "executableName": "nitro-crew" },
-    "mac": { "target": ["dir"], "category": "public.app-category.games" },
+    "win": {
+      "target": [
+        "dir"
+      ]
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "category": "Game",
+      "executableName": "nitro-crew"
+    },
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.games"
+    },
     "asar": true,
-    "asarUnpack": ["node_modules/steamworks.js/**"]
+    "asarUnpack": [
+      "node_modules/steamworks.js/**"
+    ]
   }
 }

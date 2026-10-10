@@ -1,6 +1,6 @@
 {
   "name": "nitro-crew",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Corrida arcade 3D cartunesca no espírito de Top Gear (SNES), com co-op local para até 4 jogadores em tela dividida. TypeScript + Three.js (WebGL), empacotado com Electron para a Steam.",
   "type": "module",
   "private": true,

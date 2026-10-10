@@ -1,4 +1,4 @@
-NITRO CREW — versão de teste para amigos (0.1.0, build de 04/10/2026)
+NITRO CREW — versão de teste para amigos (0.1.1, build de 10/10/2026)
 
 Corrida arcade em 3D com co-op local de até 4 jogadores em tela dividida. Esta é uma versão de TESTE:
 pode ter bugs, e o nome, a arte e o equilíbrio ainda vão mudar. Obrigado por testar!
@@ -23,6 +23,11 @@ O QUE TESTAR
 - Modo Carreira: a Expedição Brasil (27 estados, 3 pistas cada) e depois o Mundial.
 - Corrida rápida e tela dividida com 2 a 4 jogadores (teclado + controles).
 - O passaporte (carimbos e cartão-postal de cada estado).
+- O fluxo novo: no menu, Enter já senta o Jogador 1; no resultado, "MAIS UMA?" larga a próxima pista na hora, e quem
+  foi eliminado numa copa tem "RECOMEÇAR A COPA". Na 1ª vez numa pista o selo é "PRIMEIRA MARCA" (RECORDE só quando bate uma marca).
+- O nitro agora dispara de primeira (antes podia perder o aperto), e depois da bandeirada os carros seguem andando.
+- Depois da 3ª corrida o jogo faz 3 perguntas rápidas (pode pular). As respostas ficam só no seu computador.
+- O nome da pista agora começa pela cidade ("Rio de Janeiro · Orla de Copacabana") e o minimapa mostra o nome.
 - O online ainda NÃO funciona nesta versão (falta o servidor no ar). Joguem juntos na mesma máquina.
 
 ACHOU UM PROBLEMA?
