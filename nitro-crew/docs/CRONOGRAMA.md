@@ -258,6 +258,8 @@ o que der para interligar), com uma RTX 4070 Ti no PC dele.
 
 ### Onda K: "Mais uma corrida, e medida"
 
+> **Concluída em 10/10/2026** (K1–K6, K0 e a versão 0.1.1 em 01d01ea). Falta só a medida do dono (bench no PC e no Deck) para a L abrir.
+
 **Objetivo.** Tirar o atrito entre uma corrida e a próxima, começar a medir o que as pessoas fazem e pôr gente de fora para jogar já na 1ª semana. A onda também acaba com a "volta da vitória" da 2ª metade da carreira e deixa prontos a régua, o banco de prova e o contrato da arte nova.
 
 **Antes de abrir:**

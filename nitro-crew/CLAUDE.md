@@ -13,10 +13,7 @@ não use nada de fora desta pasta.
    o modelo de instrução para cada agente, o checklist de mescla e as armadilhas que já custaram retrabalho. Feito para
    que um modo mais econômico faça igual (pedido do dono, 06/10/2026).
 2. **`docs/CRONOGRAMA.md`** — as ondas a fazer, em ordem; o cartão de cada onda em `docs/ondas/`.
-**Onde paramos (09/10/2026):** cronograma aprovado para seguir; cartão da onda K pronto (`docs/ondas/K.md` + `docs/ondas/K/K0–K5.md`).
-A K **não abre** até o repositório próprio `Felipebonamigo/nitro-crew` (privado) existir — o dono cria; a extração do histórico
-está descrita no topo de `docs/ondas/K.md`. Decisões ainda abertas: horas semanais, Steamworks, retorno dos amigos, rampa da IA (A/B).
-Os 13 ajustes anotados pelo dono (09/10) estão mapeados em `docs/CRONOGRAMA.md` ("Ajustes anotados pelo dono"): frentes K6, M6 e N6; decisões nº 23–26.
+**Onde paramos (10/10/2026):** a **onda K está concluída** (commit `01d01ea`): K1 fluxo sem atrito, K2 diário/termômetro/questionário, K3 ritmo da IA (rampa B provisória), K4 banco de prova com nível Ultra, K5 Cristo e `bend`, K6 ajustes do dono, K0 contratos, 10 desenhos de pista, bíblia de estilo e contrato do asset; versão **0.1.1** com pacotes Windows e Linux gerados (`desktop/release/`, **ainda não publicados**: o repositório `padelizou` é público e a decisão nº 2 do cronograma manda tornar privado antes). 2057 testes. **A onda L não abre** sem: o `.json` do `--bench` do dono (PC e Deck), a decisão do duelo de motores (nº 27, sessão local no PC da 4070 Ti) e a escolha do orçamento de arte (hoje: sem artista, Meshy pela lista). O repositório próprio `Felipebonamigo/nitro-crew` (privado) ainda não existe (o dono cria; a extração do histórico está no topo de `docs/ondas/K.md`). Decisões abertas: onde fica o botão "Abrir pasta" nas Opções, se o questionário vira só "ao sair", horas semanais, Steamworks, rampa da IA (A/B; a K3 usou B).
 Revisão visual (RTX 4070 Ti, Unity/Unreal/Meshy) em `docs/CRONOGRAMA.md`, "Revisão visual": nível Ultra, luz assada, duelo de motores antes da L (nº 27), Meshy com teto (nº 28).
 
 3. **`docs/DIRECAO-DE-ARTE.md`** — **diretriz do dono: parecer um jogo de ÚLTIMA GERAÇÃO, CARTUNESCO** (referências
