@@ -140,6 +140,8 @@ em volta inteira.
 
 ### Desenhos em cartum (em andamento, 06/10/2026)
 
+**Rodada 1 dos desenhos em cartum (onda K, `nc/k-k0`, 09/10/2026).** Os 9 desenhos da rodada 1 estão em `scripts/track-art.ts` (com o Cristo, `ART` tem 10), e `tests/track-art.test.ts` trava cada um (fecha, horário, não se cruza, vão ≥ 3 entre partes a mais de 3% do perímetro, e o box cabe no `fitArt`, com a largada numa reta vertical que sobe); a rodada tem 61 testes. Nenhum `--apply` foi rodado: **só a copacabana (Cristo) está aplicada na pista**. Relatório de `shape-to-track.ts <id> --quiet` (erro médio / máx. em 100, avisos): `sampa_noite` (MASP) 0,32 / 0,68; `pampulha` (igreja) 1,26 / 3,88; `convento_penha` 0,57 / 1,48; `floripa` (Hercílio Luz como "M") 1,83 / 6,55; `cuia_gaucha` (cuia com bomba, sem relatório até o `ART_CFG` ganhar `{ segments: 1970, cmax: 6, index: 7.03 }`); `curitiba` (araucária) 0,98 / 3,03; `brasilia` (avião do Plano Piloto) 0,75 / 1,67, aviso `faltam 141 de desnível`; `caldas_novas` (gota) 0,24 / 0,68, aviso `faltam 28 de desnível`; `bonito` (piraputanga) 0,96 / 2,56, aviso `faltam 367 de desnível`, 890 triângulos de cenário por segmento (teto 900). Fora da meta de fidelidade (≤ 0,8 / ≤ 2,5): `pampulha`, `floripa` e `curitiba`, para a calibração do `cmax` na O1; os avisos de desnível também são da O1.
+
 **O dono achou os 27 desenhos mal feitos** ("tipo do Cristo Redentor, pode ser cartoonado, mas visualmente bonito, e o
 mesmo para os demais"). A causa: o alvo de cada um é um **polígono** com as quinas arredondadas (`scripts/track-shapes.ts`),
 então tudo sai reto e anguloso — o Cristo era um boneco de palito. O redesenho troca o alvo por **silhuetas de cartum em

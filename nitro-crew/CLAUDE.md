@@ -108,10 +108,10 @@ Revisão visual (RTX 4070 Ti, Unity/Unreal/Meshy) em `docs/CRONOGRAMA.md`, "Revi
   sozinho (o Chromium headless daqui renderiza WebGL com swiftshader); núcleo determinístico separado da
   renderização para lockstep/replays; visual procedural em código como base (hoje low-poly; o alvo agora é cartunesco de última
   geração), arte final em glTF;
-  "Nitro Crew" é nome provisório (Fase 2.1 decide). Gerar 3D por IA (Meshy): **não neste jogo** (dono, 04/10/2026)
-  — o estilo fica em código e em arte pronta/contratada. Mas as peças orgânicas (bichos, estátuas) vêm de **modelos prontos baixados
-  da galeria da comunidade do Meshy (CC0)**, convertidos para o estilo por `tools/convert-landmark.mjs` (`docs/ARTE.md`).
-  Não gerar nada pela API: gasta créditos do dono.
+  "Nitro Crew" é nome provisório (Fase 2.1 decide). Gerar 3D por IA (Meshy): era proibido (dono, 04/10/2026); em 09/10/2026 o dono pôs o Meshy na lista de
+  ferramentas, **sem artista**: procurar SEMPRE modelo pronto antes (galeria CC0 do Meshy, Kenney, Quaternius, Poly Pizza), convertido por
+  `tools/convert-landmark.mjs` (`docs/ARTE.md`); o que não existir pronto vai para `docs/MESHY-LISTA.md` e **nada é gerado pela API sem o
+  dono ver a lista e dar um teto de créditos** (decisão nº 28 do cronograma). Nunca em tempo de jogo.
   Direção de arte (dono, 06/10/2026): **jogo de última geração, cartunesco** — pode refazer a direção de arte e o pipeline
   gráfico inteiros para chegar lá (`docs/DIRECAO-DE-ARTE.md`); os desenhos do minimapa viram ícones de cartum em curva
   (em andamento: `docs/PISTAS.md`, "Desenhos em cartum").
