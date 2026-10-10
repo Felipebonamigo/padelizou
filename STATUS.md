@@ -9,7 +9,7 @@
 >
 > 🗓️ **Grade publicada do sábado:** 28 jogos de grupo, nenhuma pessoa em dois jogos sobrepostos nem colados (11 jogam duas categorias).
 >
-> ⚠️ **O que ainda pode tirar a chave do previsto no fim de semana é OPERAÇÃO, não motor:** "Recalcular horários"/"Refazer grade" RE-GRAVA a promessa (`Recalcular_os_horarios_RE_GRAVA_a_promessa`); atraso que passe da hora reservada devolve o jogo pra grade (4ª Masc: último jogo de grupo 19:00, quartas reservadas 20:40 — folga de 50 min). 7.718 testes verdes.
+> ⚠️ **O que ainda pode tirar a chave do previsto no fim de semana é OPERAÇÃO, não motor:** "Recalcular horários"/"Refazer grade" RE-GRAVA a promessa (`Recalcular_os_horarios_RE_GRAVA_a_promessa`), e trocar horário à mão muda aquele jogo. **ATRASO NÃO MEXE** — corrigido depois de eu ter escrito o contrário: 🗣️ Felipe, *"mesmo que atrase muito, não pode mexer nos horários previstos"*. O robô que cria as eliminatórias não lê o relógio de parede: a validade da reserva usa o horário PREVISTO do último jogo jogado (`ReservasDeHorario.RelogioDoTorneio`), e nada reescreve `HorarioPrevisto` quando o jogo começa ou termina tarde. Travado por `Atraso_grande_nao_mexe_no_horario_previsto_do_mata_mata` (5h de atraso em todo jogo; sabotagem "relógio pela hora real" → vermelho). 7.726 testes verdes.
 >
 > Última atualização: **08/10/2026** — ↩️ **"O CABEÇA 1 NO TOPO DA CHAVE" FOI REVERTIDO SEM PUBLICAR.** 🗣️ Felipe: *"esquece isso, deixa como esta"*. O PR #367 entrou na `main` (gerou o `build-1531-edbb849`, que **nunca foi instalado** em `dev` nem `prod`) e foi desfeito pelo revert pra não pegar carona no próximo deploy. **Não instale o `build-1531`.**
 >

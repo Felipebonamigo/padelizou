@@ -139,7 +139,7 @@ public class AChaveDoNataSegueAPreviaTests
     // jogo de mata-mata que acabou de NASCER é comparado com o que a prévia publicada prometia.
     private static async Task<int> JogarConferindoAsync(
         DbPadelContext ctx, Torneio torneio, Categoria categoria, Jogador org,
-        List<ProximasFasesDaChave.JogoQueVem> promessa, int semente)
+        List<ProximasFasesDaChave.JogoQueVem> promessa, int semente, TimeSpan? atraso = null)
     {
         var sorte = new Random(semente);
         var conferidos = new HashSet<int>();
@@ -187,6 +187,15 @@ public class AChaveDoNataSegueAPreviaTests
                 .FirstOrDefaultAsync();
             if (proximo == null) break;
 
+            // O ATRASO DE VERDADE: o jogo começa e termina horas depois do marcado. É só isso
+            // que o sistema sabe de um atraso — o horário previsto não anda sozinho.
+            if (atraso is TimeSpan quanto && proximo.HorarioPrevisto is DateTime marcado)
+            {
+                proximo.HorarioInicioReal = marcado + quanto;
+                proximo.HorarioFimReal = marcado + quanto + TimeSpan.FromMinutes(50);
+                await ctx.SaveChangesAsync();
+            }
+
             int perdedor = sorte.Next(0, 5);
             bool ganhaODe1 = sorte.Next(2) == 0;
             await TestInfra.FinalizarComPlacarAsync(ctx, TestInfra.NovoTorneiosController(ctx, org.Id),
@@ -224,6 +233,28 @@ public class AChaveDoNataSegueAPreviaTests
         int conferidos = await JogarConferindoAsync(ctx, torneio, categoria, org, promessa, semente);
 
         // Todo jogo prometido nasceu — nenhum ficou pelo caminho, nenhum a mais.
+        Assert.Equal(doMataMata.Count, conferidos);
+    }
+
+    // 🗣️ Felipe, 10/10/2026, no dia do NATA: *"mesmo que atrase muito, não pode mexer nos
+    // horários previstos"*. O robô que cria quartas, semis e final NÃO LÊ O RELÓGIO: a
+    // validade da reserva mede o "relógio do torneio" pelo horário PREVISTO do último jogo
+    // jogado (ReservasDeHorario.RelogioDoTorneio), não pela hora real. Este teste trava isso:
+    // cinco horas de atraso em TODO jogo, e cada eliminatória continua nascendo no prometido.
+    [Theory]
+    [InlineData(9, 1)] [InlineData(9, 2)] [InlineData(9, 3)]
+    [InlineData(7, 1)] [InlineData(7, 2)] [InlineData(7, 3)]
+    [InlineData(6, 1)] [InlineData(4, 1)]
+    public async Task Atraso_grande_nao_mexe_no_horario_previsto_do_mata_mata(int qtdDuplas, int semente)
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = await NataAsync(ctx, qtdDuplas);
+        var promessa = await PreviaPublicadaAsync(ctx, torneio.Id, org.Id);
+        var doMataMata = promessa.Where(j => j.CategoriaId == categoria.Id).ToList();
+
+        int conferidos = await JogarConferindoAsync(ctx, torneio, categoria, org, promessa, semente,
+            atraso: TimeSpan.FromHours(5));
+
         Assert.Equal(doMataMata.Count, conferidos);
     }
 }
