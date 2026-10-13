@@ -1,6 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/10/2026** — ⭐ **MVP FEMININO E MVP MASCULINO: A VOTAÇÃO SE DIVIDE QUANDO HÁ CAMPEÕES DOS DOIS NAIPES.** ⚠️ **TEM MIGRATION** (`20261013113025_VotoDoMvpPorNaipe` — coluna `Naipe` aditiva, padrão vazio, e o índice único passa a `(TorneioId, VotanteId, Naipe)`). ⚠️ **AINDA NÃO PUBLICADO** quando esta linha foi escrita. 🗣️ Felipe, 11/10 (*"permita votar em um feminino e um masculino"*, segurado durante o NATA) e 13/10: *"vamos fazer para os próximos, separar a votação do feminino e do masculino"*.
+>
+> 📌 **Desenho aprovado (opção a):** o naipe do candidato sai da CATEGORIA em que foi campeão (Feminina/Masculina); em mista/livre, do sexo do cadastro; sem nenhum dos dois, fora da cédula dividida (`NaipeDoMvp.DoCandidato`). Divide só com campeões dos DOIS naipes — torneio só masculino segue com a cédula única de sempre. Um voto por cédula, trocável; o naipe do voto é decidido no servidor pelo candidato. Apuração e conquista do perfil (`VezesEleitoMvpAsync`) por cédula. Depois do 1º voto a tela fica na cédula que falta; só desce pra enquete com os dois.
+>
+> 🔒 **O PASSADO NÃO SE REESCREVE:** torneio que já tem voto sem naipe (todo voto anterior) continua com a cédula única — senão um MVP já apurado sumiria, e a conquista junto.
+>
+> 🧪 `MvpPorNaipeTests` (11): 7 vistos vermelhos contra a cédula única antes da regra; sabotagens (nunca dividir / voto ignora naipe / sem proteção do legado / índice sem naipe) derrubam testes. Tradução pro Postgres conferida por `ToQueryString`. `has-pending-model-changes` limpo. 7.743+ verdes. ⚠️ Num desvio meu, um `git checkout` desfez o serviço no meio do trabalho (sem perda fora da sessão) — refeito do script guardado.
+>
 > Última atualização: **10/10/2026** — 🔒 **CHAVE PÚBLICA, GRADE TRAVADA: "RECALCULAR HORÁRIOS" E "AJUSTAR HORÁRIOS" SÓ ANTES DE PUBLICAR.** ✅ **SEM MIGRATION.** 🗣️ Felipe, no dia do NATA: *"desabilita o recalcular horário e refazer grade então depois que as chaves já estão públicas"* · *"o torneio tem que se manter igual do começo ao fim"*. 🚀 **PUBLICADO em `dev` E `prod` no `build-1539-8f6da89`** (deploy runs **435** e **436**), no sábado do NATA, com o torneio rodando. PR #371.
 >
 > 📌 `RefazerGrade` (o botão "Recalcular horários", que joga a grade fora e RE-GRAVA a promessa) e `AjustarHorarios` (que troca jogos de lugar) **recusam no servidor** com `AprovacaoDeChaves.ChavePublicada` ("Fase de Grupos", "Mata-Mata", "Finalizado"), e os dois botões somem da tela nesse estado (`ViewBag.ChavePublicadaDoTorneio` pro partial da lista de jogos). O **Ajustar** entrou junto por decisão minha, dita ao Felipe: ele não refaz, mas move horário publicado do mesmo jeito. Trocar UM jogo à mão continua livre. **"Recolher as chaves"** (volta pra aprovação) reabre os dois — é o caminho deliberado.

@@ -44,16 +44,27 @@
        manada: quem abre a tela depois vota no que já está ganhando. *@
     @if (Model.Encerrada)
     {
-        if (Model.TemVencedor)
+        @* UM CARTÃO POR CÉDULA (13/10/2026): dividida, o MVP Feminino e o Masculino; única, o de
+           sempre — e aí o texto continua o mesmo de antes, palavra por palavra. *@
+        foreach (var cedula in Model.Cedulas)
+        {
+        if (cedula.TemVencedor)
         {
             <div class="card border-0 shadow-sm rounded-4 mb-4"
                  style="background: var(--pdz-navy-fixed);">
                 <div class="card-body text-center py-4 text-white">
                     <div class="small text-uppercase mb-3" style="letter-spacing:.12em; color: var(--padel-green);">
-                        @(Model.Empatou ? "Empate na votação" : "Melhor jogador do torneio")
+                        @if (Model.Dividida)
+                        {
+                            @(cedula.Empatou ? $"{cedula.Titulo} — empate na votação" : cedula.Titulo)
+                        }
+                        else
+                        {
+                            @(cedula.Empatou ? "Empate na votação" : "Melhor jogador do torneio")
+                        }
                     </div>
 
-                    @foreach (var vencedor in Model.Vencedores)
+                    @foreach (var vencedor in cedula.Vencedores)
                     {
                         <div class="mb-3">
                             <img src="@(string.IsNullOrEmpty(vencedor.Foto) ? "/img/default-avatar.png" : vencedor.Foto)"
@@ -74,12 +85,13 @@
             @* ⚠️ Estado vazio que AVISA, em vez de proclamar um MVP de um voto só. Mesma régua
                do "1º lugar com 0 pontos" que saiu do ranking. *@
             <div class="alert alert-light border rounded-4">
-                <strong>Este torneio não elegeu um MVP.</strong>
+                <strong>@(Model.Dividida ? $"Não houve {cedula.Titulo} neste torneio." : "Este torneio não elegeu um MVP.")</strong>
                 <div class="small text-muted">
                     A votação encerrou com menos de @Padelizou.Services.MvpDoTorneio.VotosMinimos votos —
                     poucos pra dizer que alguém foi o melhor do torneio.
                 </div>
             </div>
+        }
         }
     }
 
@@ -101,7 +113,10 @@
                     Quem foi o melhor jogador deste torneio?
                 </p>
                 <p class="text-muted small">
-                    Vote em um dos campeões. Você pode trocar enquanto a votação estiver aberta,
+                    @(Model.Dividida
+                        ? "Vote numa campeã pro MVP Feminino e num campeão pro MVP Masculino."
+                        : "Vote em um dos campeões.")
+                    Você pode trocar enquanto a votação estiver aberta,
                     e o resultado só aparece quando ela fechar.
                     @if (Model.FechaEm != null)
                     {
@@ -145,15 +160,26 @@
 
                ⚠️ RECOLHIDA, NUNCA APAGADA: trocar o voto é uma promessa em texto desta mesma
                tela, e o resumo do `<summary>` deixa a lista a um toque. *@
-            <details open="@(Model.CedulaRecolhida ? null : "open")">
-                <summary class="@(Model.CedulaRecolhida ? "fw-semibold" : "d-none")"
+            @* UMA LISTA POR CÉDULA (13/10/2026). 🗣️ Felipe: *"separar a votação do feminino e do
+               masculino"*. Cada uma com o SEU voto e o SEU recolher: dividida, quem votou só no
+               Feminino ainda vê a lista do Masculino aberta. Única, é exatamente a lista de antes. *@
+            @foreach (var cedula in Model.Cedulas)
+            {
+            @if (Model.Dividida)
+            {
+                <h6 class="fw-bold mt-2 mb-2" style="color: var(--pdz-ink);">
+                    <i class="bi bi-star-fill text-warning"></i> @cedula.Titulo
+                </h6>
+            }
+            <details open="@(cedula.Recolhida ? null : "open")" class="mb-3">
+                <summary class="@(cedula.Recolhida ? "fw-semibold" : "d-none")"
                          style="color: var(--pdz-ink); cursor: pointer;">
                     @{
-                        var meuCandidato = Model.Candidatos
-                            .FirstOrDefault(c => c.JogadorId == Model.MeuVoto);
+                        var meuCandidato = cedula.Candidatos
+                            .FirstOrDefault(c => c.JogadorId == cedula.MeuVoto);
                     }
                     <i class="bi bi-check-circle-fill text-success"></i>
-                    Seu voto: <strong>@(meuCandidato?.Nome ?? "registrado")</strong>
+                    @(Model.Dividida ? cedula.Titulo + " — seu" : "Seu") voto: <strong>@(meuCandidato?.Nome ?? "registrado")</strong>
                     <span class="small text-muted">— trocar</span>
                 </summary>
 
@@ -161,12 +187,12 @@
                por votos e sem quem já está no pódio acima (ver VotacaoDeMvp). Pode ficar
                VAZIA — num empate entre os dois únicos candidatos não sobra ninguém —, e aí a
                lista some em vez de deixar uma moldura oca com o rodapé solto embaixo. *@
-            @if (Model.CandidatosNaTela.Count > 0)
+            @if (cedula.CandidatosNaTela.Count > 0)
             {
             <div class="list-group list-group-flush">
-                @foreach (var candidato in Model.CandidatosNaTela)
+                @foreach (var candidato in cedula.CandidatosNaTela)
                 {
-                    var euVoteiNele = Model.MeuVoto == candidato.JogadorId;
+                    var euVoteiNele = cedula.MeuVoto == candidato.JogadorId;
                     var souEu = Model.EuId == candidato.JogadorId;
 
                     <div class="list-group-item px-0 d-flex align-items-center gap-3 flex-wrap">
@@ -218,6 +244,7 @@
             </div>
             }
             </details>
+            }
 
             <hr />
             <div class="small text-muted">

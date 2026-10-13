@@ -27,6 +27,15 @@ public class VotoDeMvp
 
     // Em quem votou. É sempre um campeão de alguma categoria deste torneio.
     public int CandidatoId { get; set; }
+
+    // DE QUAL CÉDULA É ESTE VOTO (13/10/2026): "Feminino", "Masculino", ou VAZIO na cédula única.
+    // 🗣️ Felipe: *"vamos fazer para os próximos, separar a votação do feminino e do masculino"*.
+    // Vazio é também todo voto anterior a esta coluna — e é ele que mantém o torneio antigo com a
+    // cédula única dele, sem o resultado já apurado ser reescrito (ver Services/NaipeDoMvp).
+    // Nunca nulo: no Postgres dois nulos não conflitam no índice único, e a trava de "um voto por
+    // cédula" deixaria de valer.
+    [System.ComponentModel.DataAnnotations.StringLength(10)]
+    public string Naipe { get; set; } = "";
     public virtual Jogador Candidato { get; set; } = null!;
 
     public DateTime CriadoEm { get; set; } = DateTime.Now;
