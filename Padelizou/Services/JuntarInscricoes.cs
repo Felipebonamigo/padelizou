@@ -46,6 +46,69 @@ public static class JuntarInscricoes
         queFica.PagoEm = jaPaga.PagoEm;
     }
 
+    // O IMPEDIMENTO DA QUE SAI ENTRA NA QUE FICA — UM POR DUPLA.
+    //
+    // 🗣️ Felipe, 13/10/2026: *"deixe para a pessoa q colocou impedimento, salvo lá, o
+    // impedimento q ela colocou"*, e *"lembrando que o impedimento é um por dupla"*. Até aqui o
+    // turno sumia junto com a linha apagada: a pessoa marcava "Sábado de manhã", fechava dupla
+    // e a dupla aparecia sem impedimento — o "não está ficando salvo" do Andrey no NATA.
+    //
+    // A régua (opção "a", escolhida por ele):
+    //  - a que fica SEM impedimento herda o da que sai, com a autoria e com a taxa no valor —
+    //    o mesmo número que a dupla teria se tivesse nascido com ele (é o `Aplicar` de sempre);
+    //  - a que fica JÁ COM impedimento mantém o seu, e o dono da que saiu volta na lista de
+    //    `FicaramDeFora` pra ser avisado — perder calado é o defeito que se está corrigindo;
+    //  - turno que o torneio não tem (ver TurnosDoTorneio) não é herdado: seria cobrar taxa por
+    //    uma janela que o sorteio ignora.
+    //
+    // Pura, como o LevarOPagamento: quem chama grava no mesmo SaveChanges e avisa depois.
+    // ⚠️ Quem chama precisa rodar ISTO ANTES de recontar o valor da dupla (AoEntrarOParceiro) e
+    // de perguntar se ela continua quitada: a taxa herdada faz parte do que ela deve.
+    public sealed record ImpedimentoQueFicouDeFora(int JogadorId, TurnoDoImpedimento Turno);
+
+    public sealed record ImpedimentoAoJuntar(bool Veio, IReadOnlyList<ImpedimentoQueFicouDeFora> FicaramDeFora);
+
+    public static ImpedimentoAoJuntar LevarOImpedimento(Dupla queFica, IEnumerable<Dupla> queSaem, Torneio torneio)
+    {
+        var veio = false;
+        var deFora = new List<ImpedimentoQueFicouDeFora>();
+
+        // A mais antiga primeiro: entre duas sozinhas com turnos diferentes (raro, mas a junção
+        // aceita mais de uma), quem chegou antes leva.
+        foreach (var sai in queSaem.OrderBy(d => d.Id))
+        {
+            var turno = AlteracaoDeImpedimento.TurnoAtual(sai);
+            if (turno == TurnoDoImpedimento.Nenhum || !TurnosDoTorneio.Tem(torneio, turno)) continue;
+
+            var atual = AlteracaoDeImpedimento.TurnoAtual(queFica);
+            if (atual == turno) continue;
+
+            if (atual != TurnoDoImpedimento.Nenhum)
+            {
+                deFora.Add(new ImpedimentoQueFicouDeFora(sai.Jogador1Id, turno));
+                continue;
+            }
+
+            // O `Aplicar` marca o turno e soma a taxa (nulo continua nulo); a autoria que ele
+            // carimba é sobrescrita logo abaixo pela da inscrição de onde o turno veio.
+            AlteracaoDeImpedimento.Aplicar(queFica, torneio, turno, 0, default);
+            queFica.ImpedimentoAlteradoPorId = sai.ImpedimentoAlteradoPorId;
+            queFica.ImpedimentoAlteradoEm = sai.ImpedimentoAlteradoEm;
+            veio = true;
+        }
+
+        return new ImpedimentoAoJuntar(veio, deFora);
+    }
+
+    public const string TituloDoImpedimentoQueNaoEntrou = "Seu impedimento não entrou na dupla";
+
+    public static string CorpoDoImpedimentoQueNaoEntrou(
+        string torneio, TurnoDoImpedimento seu, TurnoDoImpedimento daDupla) =>
+        $"{torneio}: cada dupla tem um impedimento só, e a sua ficou com "
+        + $"\"{AlteracaoDeImpedimento.Rotulo(daDupla)}\". O seu \"{AlteracaoDeImpedimento.Rotulo(seu)}\" "
+        + "não entrou — se precisar dele, combine com seu parceiro e troque na tela do torneio "
+        + "(ou fale com o organizador).";
+
     // AS COBRANÇAS DE "PAGAR DEPOIS" PASSAM A APONTAR PRA INSCRIÇÃO QUE FICOU.
     //
     // Este tipo de cobrança guarda o alvo no JSON (`DadosPagamentoDeInscricao`) e é o único

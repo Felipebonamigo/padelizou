@@ -566,12 +566,19 @@ namespace Padelizou.Controllers
 
             _context.Duplas.Add(dupla);
 
+            JuntarInscricoes.ImpedimentoAoJuntar? impedimentoAoJuntar = null;
+
             // As inscrições sozinhas que esta veio substituir saem JUNTO, no mesmo
             // SaveChanges: apagar antes deixaria a pessoa sem vaga nenhuma se a criação
             // falhasse no meio.
             if (idsQueSaem.Count > 0)
             {
                 var solosParaSair = await _context.Duplas.Where(d => idsQueSaem.Contains(d.Id)).ToListAsync();
+
+                // O impedimento da sozinha entra aqui quando o formulário não marcou nenhum —
+                // com a taxa somada ao valor que acabou de ser calculado (Felipe, 13/10/2026).
+                // Regra em Services/JuntarInscricoes.
+                impedimentoAoJuntar = JuntarInscricoes.LevarOImpedimento(dupla, solosParaSair, torneio);
 
                 // ⚠️ QUEM JÁ PAGOU CONTINUA PAGO (Felipe, 19/08/2026): a inscrição nova nasce
                 // paga quando a sozinha que ela substitui estava paga. Sem isto, quem pagou
@@ -592,6 +599,8 @@ namespace Padelizou.Controllers
                     _context, torneioId, idsQueSaem, dupla.Id);
                 await _context.SaveChangesAsync();
             }
+
+            await AvisarImpedimentoQueNaoEntrouAsync(torneio, dupla, impedimentoAoJuntar);
 
             var inscritos = jogador2 == null
                 ? new[] { jogador1.Id }
@@ -940,6 +949,16 @@ namespace Padelizou.Controllers
 
             dupla.Jogador2Id = novo.Id;
 
+            var ids = absorvidas.Select(a => a.DuplaId).Distinct().ToList();
+            var solosParaSair = ids.Count == 0
+                ? new List<Dupla>()
+                : await _context.Duplas.Where(d => ids.Contains(d.Id)).ToListAsync();
+
+            // O impedimento da inscrição sozinha dele entra ANTES da conta do valor: a taxa
+            // herdada faz parte do que a dupla deve, e a pergunta "ainda está quitada?" logo
+            // abaixo precisa vê-la. Regra em Services/JuntarInscricoes (Felipe, 13/10/2026).
+            var impedimentoAoJuntar = JuntarInscricoes.LevarOImpedimento(dupla, solosParaSair, torneio);
+
             // A dupla estava SOZINHA e ganhou o segundo nome: o valor da inscrição passa a
             // contar duas pessoas — com TETO, porque quem se inscreveu antes de 08/08/2026 já
             // pagou pelos dois. Ver PrecoDaInscricao.AoEntrarOParceiro.
@@ -950,15 +969,15 @@ namespace Padelizou.Controllers
             {
                 dupla.ValorInscricao = PrecoDaInscricao.AoEntrarOParceiro(
                     torneio, valorAntes, segundoRepete, ImpedimentosDa(dupla));
-
-                await DeixaDeEstarQuitadaSePrecisarAsync(dupla);
             }
 
-            if (absorvidas.Count > 0)
-            {
-                var ids = absorvidas.Select(a => a.DuplaId).Distinct().ToList();
-                var solosParaSair = await _context.Duplas.Where(d => ids.Contains(d.Id)).ToListAsync();
+            // ⚠️ `|| Veio`: a dupla JÁ COMPLETA que troca o parceiro por quem trazia
+            // impedimento também ficou mais cara — sem isto seguiria "paga" devendo a taxa.
+            if (precisaCobrarOSegundo || impedimentoAoJuntar.Veio)
+                await DeixaDeEstarQuitadaSePrecisarAsync(dupla);
 
+            if (ids.Count > 0)
+            {
                 // Mesma régua do aceite: a linha sai, o pagamento fica (Felipe, 19/08/2026).
                 JuntarInscricoes.LevarOPagamento(dupla, solosParaSair);
                 await JuntarInscricoes.ReapontarCobrancasDoPagarDepoisAsync(
@@ -991,6 +1010,7 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, antigo, novo);
+            await AvisarImpedimentoQueNaoEntrouAsync(torneio, dupla, impedimentoAoJuntar);
 
             var juntou = absorvidas.Count > 0
                 ? " A inscrição sozinha dele saiu — agora é uma só."
@@ -1000,6 +1020,26 @@ namespace Padelizou.Controllers
                 ? $"Parceiro definido: {novo.Nome}. Sua dupla está completa!"
                 : $"Parceiro alterado de {antigo.Nome} para {novo.Nome}.") + juntou;
             return RedirectToAction("Details", "Torneios", new { id = torneioId });
+        }
+
+        // UM IMPEDIMENTO POR DUPLA: quem trazia o seu e viu a dupla ficar com o do outro é
+        // avisado — perder calado é o "não está ficando salvo" do Andrey (Felipe, 13/10/2026).
+        // Depois do SaveChanges de propósito: aviso de uma junção que não gravou mentiria.
+        private async Task AvisarImpedimentoQueNaoEntrouAsync(
+            Torneio torneio, Dupla dupla, JuntarInscricoes.ImpedimentoAoJuntar? juntou)
+        {
+            if (juntou == null || juntou.FicaramDeFora.Count == 0) return;
+
+            var daDupla = AlteracaoDeImpedimento.TurnoAtual(dupla);
+            var url = Url.Action("Details", "Torneios", new { id = torneio.Id });
+
+            foreach (var deFora in juntou.FicaramDeFora)
+            {
+                await _pushService.EnviarParaJogadorAsync(deFora.JogadorId,
+                    JuntarInscricoes.TituloDoImpedimentoQueNaoEntrou,
+                    JuntarInscricoes.CorpoDoImpedimentoQueNaoEntrou(torneio.Nome, deFora.Turno, daDupla),
+                    url);
+            }
         }
 
         // A INSCRIÇÃO ACABOU DE FICAR MAIS CARA: O QUE ENTROU AINDA COBRE?
@@ -1335,6 +1375,10 @@ namespace Padelizou.Controllers
 
             dupla.Jogador2Id = novoParceiro.Id;
 
+            // O impedimento da inscrição sozinha do parceiro entra ANTES da conta do valor —
+            // a taxa herdada faz parte do que a dupla deve. Regra em Services/JuntarInscricoes.
+            var impedimentoAoJuntar = JuntarInscricoes.LevarOImpedimento(dupla, absorvidas, torneio);
+
             // A dupla estava sozinha e fechou: o valor passa a contar duas pessoas, com TETO
             // — quem se inscreveu antes de 08/08/2026 já pagou pelos dois. A regra mora no
             // PrecoDaInscricao justamente porque mais de um caminho chega até ela.
@@ -1406,6 +1450,7 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             await AvisarTrocaDeParceiroAsync(dupla, torneio, null, novoParceiro);
+            await AvisarImpedimentoQueNaoEntrouAsync(torneio, dupla, impedimentoAoJuntar);
 
             foreach (var (duplaId, candidatos) in ficaramDeFora)
             {
