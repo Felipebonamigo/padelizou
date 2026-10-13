@@ -493,6 +493,18 @@ public static class MvpDoTorneio
 
     public const string TituloDoAviso = "Vote no MVP do torneio";
 
+    // O LEMBRETE (13/10/2026): quanto antes de fechar ele sai, e o título que o identifica.
+    public const int HorasAntesDeFecharParaLembrar = 6;
+    public const string TituloDoLembrete = "Ainda falta o seu voto no MVP";
+
+    // `cedulaQueFalta` só vem quando a cédula é DIVIDIDA e falta exatamente uma — aí o lembrete
+    // diz qual ("MVP Masculino"). Faltando as duas, ou na cédula única, o texto é o geral.
+    public static string CorpoDoLembrete(string nomeDoTorneio, DateTime fechaEm, string? cedulaQueFalta = null) =>
+        (cedulaQueFalta == null
+            ? $"Você ainda não votou no MVP do {nomeDoTorneio}."
+            : $"Ainda falta o seu voto no {cedulaQueFalta} do {nomeDoTorneio}.")
+        + $" A votação fecha {fechaEm:dd/MM} às {fechaEm:HH'h'mm}.";
+
     // O convite leva a enquete junto: é o mesmo aviso que traz a pessoa pra página onde as
     // duas coisas moram, e um segundo push só pra nota seria ruído.
     //

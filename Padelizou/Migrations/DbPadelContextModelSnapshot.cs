@@ -3641,6 +3641,9 @@ namespace Padelizou.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<DateTime?>("LembreteDeMvpEnviadoEm")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int?>("LimiteDuplasTotal")
                         .HasColumnType("integer");
 
