@@ -1,6 +1,18 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/10/2026** — 📵 **SEM SMS DO ASAAS PRO JOGADOR, E "MARCAR COMO PAGO" CANCELA A FATURA DO ASAAS.** ✅ **SEM MIGRATION.** 🗣️ Lucas Fonseca (NATA) recebia cobrança por SMS de uma inscrição já paga. Felipe: *"remova os sms, somente eu posso receber sms"* · *"quando o sistema marcar como pago (na mão do organizador) é pq ele recebeu no pix dele ou de alguma forma dele, ai marque como pago no sistema e cancele a cobrança do asaas"*.
+>
+> 📌 **A CAUSA:** o Padelizou nunca apagava fatura no Asaas fora do estorno. Marcar pago na mão só mexia no nosso banco; a fatura de "pagar depois" seguia viva, e o Asaas lembra sozinho (SMS) de toda cobrança aberta. Pior: "Expirado" (varredor local) e "Cancelado" (webhook `PAYMENT_OVERDUE`) são mortes SÓ DO NOSSO LADO — lá ela segue VENCIDA, cobrando, e ainda pagável.
+>
+> 📌 **SMS:** `AsaasService.DesligarSmsDoClienteAsync` lê `customers/{id}/notifications` e manda `PUT notifications/batch` trocando SÓ `smsEnabledForCustomer` → false (o `smsEnabledForProvider`, do dono da conta, e o e-mail ficam). Roda em todo `ObterOuCriarClienteAsync` (novo e reaproveitado, antes da cobrança nascer; falha só loga) e numa passada na partida do app (`SmsDoAsaasSoProDonoDaContaBackgroundService`, 2 min depois de subir) pelos clientes das cobranças dos últimos 90 dias — é o que pega o Lucas. Sem marca de "já feito": cada deploy relê (só GET quando já está desligado).
+>
+> 📌 **MARCAR PAGO:** `AlternarPagamentoDupla`/`AlternarPagamentoAmericano`, quando vira PAGO, chamam `CancelarCobrancasAbertasDaInscricaoAsync`: faturas `TorneioPagarDepois` da inscrição com `AsaasPaymentId` e status Pendente/Expirado/Cancelado → DELETE no Asaas, "Cancelado" aqui. Recusa do gateway (pagou naquele instante) não muda o status. Desmarcar não cancela nada. A tela diz quantas foram canceladas. `TorneioDupla` (a que cria a inscrição) fica de fora.
+>
+> ⚠️ **A FATURA DO LUCAS:** ele já estava marcado pago ANTES desta regra, então ela não foi cancelada sozinha — o SMS para pela passada da partida; pra apagar a fatura, desmarcar e marcar pago de novo na aba Gerenciar (ou apagar no painel do Asaas). Quitação por pagamento do parceiro e junção de inscrições NÃO cancelam fatura (não foi pedido).
+>
+> 🧪 `SmsDoAsaasSoProDonoDaContaTests` (7) + `MarcarPagoCancelaCobrancaDoAsaasTests` (10): 12 vistos vermelhos contra esboços vazios; 8 sabotagens derrubam teste cada. 7.783 verdes.
+>
 > Última atualização: **13/10/2026** — 🧷 **O IMPEDIMENTO DE QUEM SE INSCREVEU SOZINHO NÃO SOME MAIS QUANDO A INSCRIÇÃO É JUNTADA.** ✅ **SEM MIGRATION.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1547-94dd89c`** (deploy runs **439** e **440**; `/healthz` 200 nos dois). PR #375. 🗣️ Felipe: *"deixe para a pessoa q colocou impedimento, salvo lá, o impedimento q ela colocou"* e, escolhida a opção (a), *"lembrando que o impedimento é um por dupla"*. É a hipótese mais forte pro *"não está ficando salvo"* do Andrey no NATA: juntar apagava a linha sozinha e o turno ia junto.
 >
 > 📌 **A régua (`JuntarInscricoes.LevarOImpedimento`, pura):** a que FICA sem impedimento herda o da que sai — com a autoria (`ImpedimentoAlteradoPorId/Em`, nula continua nula) e com a `TaxaPorImpedimento` no `ValorInscricao` (reusa `AlteracaoDeImpedimento.Aplicar`). Já tendo um, fica o dela e o dono da que saiu recebe aviso no app (*"Seu impedimento não entrou na dupla"*, dizendo qual ficou). Mesmo turno dos dois lados: nada muda, taxa não dobra. Turno que o torneio não tem (`TurnosDoTorneio.Tem`) não é herdado. Duas sozinhas com turnos diferentes: entra o da mais antiga.

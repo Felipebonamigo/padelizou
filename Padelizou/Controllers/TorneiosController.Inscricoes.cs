@@ -292,7 +292,14 @@ namespace Padelizou.Controllers
             dupla.PagoEm = dupla.Pago ? DateTime.Now : null;
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = dupla.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
+            // Marcou pago na mão = recebeu por fora (Felipe, 13/10/2026): a fatura do Asaas
+            // desta inscrição morre, senão segue cobrando e ainda pode ser paga de novo.
+            var canceladas = dupla.Pago
+                ? await _pagamentos.CancelarCobrancasAbertasDaInscricaoAsync(torneioId, dupla.Id, null)
+                : 0;
+
+            TempData["Sucesso"] = (dupla.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.")
+                + FraseDasCobrancasCanceladas(canceladas);
             return RedirectToAction(voltarPara == "Financeiro" ? "Financeiro" : "Details", new { id = torneioId });
         }
 
@@ -313,9 +320,22 @@ namespace Padelizou.Controllers
             inscricao.PagoEm = inscricao.Pago ? DateTime.Now : null;
             await _context.SaveChangesAsync();
 
-            TempData["Sucesso"] = inscricao.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.";
+            // A mesma régua da dupla: recebeu por fora, a fatura do Asaas morre.
+            var canceladas = inscricao.Pago
+                ? await _pagamentos.CancelarCobrancasAbertasDaInscricaoAsync(torneioId, null, inscricao.Id)
+                : 0;
+
+            TempData["Sucesso"] = (inscricao.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.")
+                + FraseDasCobrancasCanceladas(canceladas);
             return RedirectToAction(voltarPara == "Financeiro" ? "Financeiro" : "Details", new { id = torneioId });
         }
+
+        private static string FraseDasCobrancasCanceladas(int canceladas) => canceladas switch
+        {
+            0 => "",
+            1 => " A cobrança aberta no Asaas foi cancelada.",
+            _ => $" As {canceladas} cobranças abertas no Asaas foram canceladas.",
+        };
 
         // Aba "Gerenciar Torneio": remove um inscrito (só enquanto as inscrições estiverem abertas —
         // depois disso já pode existir Partida referenciando a dupla)
