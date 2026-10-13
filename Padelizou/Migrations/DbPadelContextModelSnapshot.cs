@@ -3641,6 +3641,9 @@ namespace Padelizou.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
+                    b.Property<DateTime?>("LembreteDeMvpEnviadoEm")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int?>("LimiteDuplasTotal")
                         .HasColumnType("integer");
 
@@ -3901,6 +3904,13 @@ namespace Padelizou.Migrations
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("Naipe")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("");
+
                     b.Property<int>("TorneioId")
                         .HasColumnType("integer");
 
@@ -3913,7 +3923,7 @@ namespace Padelizou.Migrations
 
                     b.HasIndex("VotanteId");
 
-                    b.HasIndex("TorneioId", "VotanteId")
+                    b.HasIndex("TorneioId", "VotanteId", "Naipe")
                         .IsUnique();
 
                     b.ToTable("VotoDeMvp");

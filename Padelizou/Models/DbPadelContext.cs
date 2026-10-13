@@ -623,7 +623,12 @@ public partial class DbPadelContext : DbContext
             //
             // Mesma régua do Elogio: quem já votou pode TROCAR a escolha (o serviço atualiza a
             // linha), nunca somar outra.
-            entity.HasIndex(v => new { v.TorneioId, v.VotanteId }).IsUnique();
+            //
+            // ⚠️ DESDE 13/10/2026 A TRAVA É POR CÉDULA (`Naipe`): um voto no MVP Feminino e um no
+            // Masculino, cada um trocável, nunca dois no mesmo. Na cédula única o naipe é vazio
+            // pra todo mundo e a regra continua exatamente a de antes.
+            entity.HasIndex(v => new { v.TorneioId, v.VotanteId, v.Naipe }).IsUnique();
+            entity.Property(v => v.Naipe).HasMaxLength(10).HasDefaultValue("");
 
             // Torneio apagado leva os votos junto: a votação não existe fora dele.
             entity.HasOne(v => v.Torneio)

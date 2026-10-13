@@ -591,6 +591,12 @@ public partial class Torneio
     // que não há o que mandar.
     public DateTime? AvisoDeMvpEnviadoEm { get; set; }
 
+    // Quando saiu o LEMBRETE de "ainda falta o seu voto no MVP" (13/10/2026). Nulo = não saiu.
+    // 🗣️ Felipe: *"temos que relembrar também quem ainda não votou, por que é apenas permitido 24h
+    // após o último jogo"*. Mesma lição do `AvisoDeMvpEnviadoEm`: o prazo se lê do relógio, mas o
+    // ENVIO se marca na coluna — sem ela, cada passada do varredor repetiria o lembrete.
+    public DateTime? LembreteDeMvpEnviadoEm { get; set; }
+
     // ---- Cancelamento (Services/CancelamentoDoTorneio) ----
     // O torneio não vai acontecer. Vive no Status ("Cancelado"), e estes dois campos guardam
     // o PORQUÊ e o QUANDO — sem eles o organizador cancela hoje e daqui a duas semanas não

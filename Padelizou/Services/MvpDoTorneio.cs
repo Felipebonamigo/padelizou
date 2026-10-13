@@ -196,18 +196,29 @@ public static class MvpDoTorneio
         var votos = await contexto.VotosDeMvp
             .AsNoTracking()
             .Where(v => v.TorneioId == torneioId)
-            .Select(v => new { v.VotanteId, v.CandidatoId })
+            .Select(v => new { v.VotanteId, v.CandidatoId, v.Naipe })
             .ToListAsync();
 
-        var porCandidato = votos.GroupBy(v => v.CandidatoId).ToDictionary(g => g.Key, g => g.Count());
+        // Contagem por (cédula, candidato): o mesmo jogador nunca está em duas cédulas, mas o
+        // voto antigo sem naipe e o novo com naipe não podem se somar se um dia conviverem.
+        var porCandidato = votos.GroupBy(v => (v.Naipe, v.CandidatoId)).ToDictionary(g => g.Key, g => g.Count());
+        var cedulas = NaipeDoMvp.Separar(candidatos, votos.Any(v => v.Naipe == NaipeDoMvp.Unico));
 
         // ⚠️ A CONTAGEM SÓ É PREENCHIDA DEPOIS QUE FECHA. Placar parcial em votação aberta
         // muda o voto de quem ainda não votou — vira efeito manada, e quem abriu a tela
         // primeiro decide a eleição pelos outros. Enquanto está aberta a tela mostra só
         // QUANTOS votaram, que é informação de participação, não de resultado.
-        foreach (var candidato in candidatos)
+        foreach (var cedula in cedulas)
         {
-            candidato.Votos = encerrada ? porCandidato.GetValueOrDefault(candidato.JogadorId) : 0;
+            foreach (var candidato in cedula.Candidatos)
+                candidato.Votos = encerrada ? porCandidato.GetValueOrDefault((cedula.Naipe, candidato.JogadorId)) : 0;
+
+            cedula.Encerrada = encerrada;
+            cedula.Aberta = aberta;
+            cedula.MeuVoto = olhandoId == null
+                ? null
+                : votos.FirstOrDefault(v => v.VotanteId == olhandoId.Value && v.Naipe == cedula.Naipe)?.CandidatoId;
+            cedula.Vencedores = encerrada ? Apurar(cedula.Candidatos) : new List<CandidatoAMvp>();
         }
 
         var eleitores = await EleitoresAsync(contexto, torneioId);
@@ -222,15 +233,17 @@ public static class MvpDoTorneio
             StatusDoTorneio = torneio.Status,
             UltimoJogo = ultimoJogo,
             Formato = torneio.Formato,
-            Candidatos = candidatos,
-            TotalDeVotos = votos.Count,
+            // As de cima continuam valendo pra cédula ÚNICA exatamente como antes; dividida, elas
+            // viram o apanhado das duas (quem quiser o recorte lê `Cedulas`).
+            Cedulas = cedulas,
+            Candidatos = cedulas.SelectMany(c => c.Candidatos).ToList(),
+            // Votos são por cédula; "quantos votaram" conta PESSOAS, como antes.
+            TotalDeVotos = votos.Select(v => v.VotanteId).Distinct().Count(),
             Eleitores = eleitores.Count,
             EuId = olhandoId,
             SouEleitor = olhandoId != null && eleitores.Contains(olhandoId.Value),
-            MeuVoto = olhandoId == null
-                ? null
-                : votos.FirstOrDefault(v => v.VotanteId == olhandoId.Value)?.CandidatoId,
-            Vencedores = encerrada ? Apurar(candidatos) : new List<CandidatoAMvp>(),
+            MeuVoto = cedulas.Count == 1 ? cedulas[0].MeuVoto : null,
+            Vencedores = cedulas.SelectMany(c => c.Vencedores).ToList(),
         };
     }
 
@@ -258,14 +271,17 @@ public static class MvpDoTorneio
                 J1Nome = d.Jogador1.Nome,
                 J1Apelido = d.Jogador1.Apelido,
                 J1Foto = d.Jogador1.FotoPerfil,
+                J1Sexo = d.Jogador1.Sexo,
                 J2Id = d.Jogador2Id,
                 J2Nome = d.Jogador2 == null ? null : d.Jogador2.Nome,
                 J2Apelido = d.Jogador2 == null ? null : d.Jogador2.Apelido,
                 J2Foto = d.Jogador2 == null ? null : d.Jogador2.FotoPerfil,
+                J2Sexo = d.Jogador2 == null ? null : d.Jogador2.Sexo,
             })
             .ToListAsync();
 
         var candidatos = new Dictionary<int, CandidatoAMvp>();
+        var sexoDe = new Dictionary<int, string?>();
 
         void Somar(int id, string nome, string? apelido, string? foto, string categoria, int duplaId)
         {
@@ -301,6 +317,8 @@ public static class MvpDoTorneio
 
         foreach (var c in campeas)
         {
+            sexoDe[c.J1Id] = c.J1Sexo;
+            if (c.J2Id != null) sexoDe[c.J2Id.Value] = c.J2Sexo;
             Somar(c.J1Id, c.J1Nome, c.J1Apelido, c.J1Foto, c.Categoria, c.DuplaId);
 
             // Jogador2 nulo é o campeão do Americano, que é UMA pessoa (o parceiro troca a cada
@@ -318,6 +336,11 @@ public static class MvpDoTorneio
         // é ela que mantém os dois parceiros grudados se uma categoria tiver mais de uma linha
         // de campeão. Nome e id fecham a ordem TOTAL, pra a lista não trocar de ordem entre
         // dois carregamentos da mesma página.
+        // O naipe só pode ser decidido DEPOIS da junção: quem foi campeã em duas categorias
+        // responde por todas elas (ver NaipeDoMvp.DoCandidato).
+        foreach (var candidato in candidatos.Values)
+            candidato.Naipe = NaipeDoMvp.DoCandidato(candidato.Categorias, sexoDe.GetValueOrDefault(candidato.JogadorId));
+
         return candidatos.Values
             .OrderBy(c => CategoriaNaTela.Ordem(c.CategoriaNaCedula))
             .ThenBy(c => c.DuplaNaCedula)
@@ -370,8 +393,12 @@ public static class MvpDoTorneio
         if (!votacao.SouEleitor)
             return "Só quem jogou este torneio vota no MVP.";
 
-        if (!votacao.Candidatos.Any(c => c.JogadorId == candidatoId))
-            return "Esse jogador não é campeão de nenhuma categoria deste torneio.";
+        // ⚠️ A CÉDULA SAI DO CANDIDATO, NUNCA DO FORMULÁRIO: quem decide se o voto é do MVP
+        // Feminino ou do Masculino é o servidor. Quem ficou fora da cédula dividida (categoria
+        // mista sem sexo no cadastro) cai aqui também.
+        var cedula = votacao.Cedulas.FirstOrDefault(c => c.Candidatos.Any(x => x.JogadorId == candidatoId));
+        if (cedula == null)
+            return "Esse jogador não está na cédula do MVP deste torneio.";
 
         // ⚠️ Ninguém vota em si mesmo. Com o campeão votando nele próprio, a eleição vira uma
         // corrida de quem tem mais parceiros campeões — e o voto de quem só jogou vale menos.
@@ -379,7 +406,7 @@ public static class MvpDoTorneio
             return "Você não pode votar em você mesmo.";
 
         var existente = await contexto.VotosDeMvp
-            .FirstOrDefaultAsync(v => v.TorneioId == torneioId && v.VotanteId == votanteId);
+            .FirstOrDefaultAsync(v => v.TorneioId == torneioId && v.VotanteId == votanteId && v.Naipe == cedula.Naipe);
 
         if (existente != null)
         {
@@ -395,6 +422,7 @@ public static class MvpDoTorneio
                 TorneioId = torneioId,
                 VotanteId = votanteId,
                 CandidatoId = candidatoId,
+                Naipe = cedula.Naipe,
                 CriadoEm = agora,
             });
         }
@@ -443,17 +471,19 @@ public static class MvpDoTorneio
             var votos = await contexto.VotosDeMvp
                 .AsNoTracking()
                 .Where(v => v.TorneioId == torneioId)
-                .GroupBy(v => v.CandidatoId)
-                .Select(g => new { CandidatoId = g.Key, Votos = g.Count() })
+                .GroupBy(v => new { v.Naipe, v.CandidatoId })
+                .Select(g => new { g.Key.Naipe, g.Key.CandidatoId, Votos = g.Count() })
                 .ToListAsync();
 
-            var eleitos = Apurar(votos.Select(v => new CandidatoAMvp
+            // Apura CÉDULA POR CÉDULA: no torneio dividido há um eleito em cada, e somar as duas
+            // contagens poria o MVP Feminino disputando com o Masculino.
+            var eleito = votos.GroupBy(v => v.Naipe).Any(cedula => Apurar(cedula.Select(v => new CandidatoAMvp
             {
                 JogadorId = v.CandidatoId,
                 Votos = v.Votos,
-            }));
+            })).Any(e => e.JogadorId == jogadorId));
 
-            if (eleitos.Any(e => e.JogadorId == jogadorId)) vezes++;
+            if (eleito) vezes++;
         }
 
         return vezes;
@@ -462,6 +492,18 @@ public static class MvpDoTorneio
     // ─────────────────────── O AVISO DE "VOTE NO MVP" ───────────────────────
 
     public const string TituloDoAviso = "Vote no MVP do torneio";
+
+    // O LEMBRETE (13/10/2026): quanto antes de fechar ele sai, e o título que o identifica.
+    public const int HorasAntesDeFecharParaLembrar = 6;
+    public const string TituloDoLembrete = "Ainda falta o seu voto no MVP";
+
+    // `cedulaQueFalta` só vem quando a cédula é DIVIDIDA e falta exatamente uma — aí o lembrete
+    // diz qual ("MVP Masculino"). Faltando as duas, ou na cédula única, o texto é o geral.
+    public static string CorpoDoLembrete(string nomeDoTorneio, DateTime fechaEm, string? cedulaQueFalta = null) =>
+        (cedulaQueFalta == null
+            ? $"Você ainda não votou no MVP do {nomeDoTorneio}."
+            : $"Ainda falta o seu voto no {cedulaQueFalta} do {nomeDoTorneio}.")
+        + $" A votação fecha {fechaEm:dd/MM} às {fechaEm:HH'h'mm}.";
 
     // O convite leva a enquete junto: é o mesmo aviso que traz a pessoa pra página onde as
     // duas coisas moram, e um segundo push só pra nota seria ruído.
@@ -541,6 +583,88 @@ public sealed class CandidatoAMvp
 
     // ⚠️ Zero enquanto a votação está aberta, de propósito (ver DoTorneioAsync).
     public int Votos { get; set; }
+
+    // "Feminino", "Masculino" ou nulo (categoria mista sem sexo no cadastro). Ver NaipeDoMvp.
+    public string? Naipe { get; set; }
+}
+
+// UMA CÉDULA: a única de sempre, ou a do MVP Feminino / Masculino (13/10/2026).
+public sealed class CedulaDoMvp
+{
+    public string Naipe { get; set; } = NaipeDoMvp.Unico;
+    public string Titulo => NaipeDoMvp.Titulo(Naipe);
+
+    public List<CandidatoAMvp> Candidatos { get; set; } = new();
+    public int? MeuVoto { get; set; }
+    public List<CandidatoAMvp> Vencedores { get; set; } = new();
+
+    public bool Aberta { get; set; }
+    public bool Encerrada { get; set; }
+
+    public bool TemVencedor => Vencedores.Count > 0;
+    public bool Empatou => Vencedores.Count > 1;
+
+    // A mesma régua da VotacaoDeMvp (ver lá), por cédula: dividida, a pessoa pode ter votado
+    // numa e ainda não na outra — e só a votada recolhe.
+    public List<CandidatoAMvp> CandidatosNaTela => !Encerrada
+        ? Candidatos
+        : MvpDoTorneio.PorVotos(Candidatos.Where(c => !Vencedores.Any(v => v.JogadorId == c.JogadorId)));
+
+    public bool Recolhida => Aberta && MeuVoto != null;
+}
+
+// O NAIPE DE QUEM ESTÁ NA CÉDULA, e quando a cédula se divide.
+//
+// 🗣️ Felipe, 11 e 13/10/2026: *"separar a votação do feminino e do masculino"*. Desenho aprovado, opção
+// (a): o naipe sai da CATEGORIA em que a pessoa foi campeã; em mista/livre, do sexo do cadastro;
+// sem nenhum dos dois, fora da cédula dividida (o sexo do cadastro é opcional, e adivinhar seria
+// pôr alguém na cédula errada).
+public static class NaipeDoMvp
+{
+    public const string Unico = "";
+    public const string Feminino = SexoDoJogador.Feminino;
+    public const string Masculino = SexoDoJogador.Masculino;
+
+    public static string? DoCandidato(IEnumerable<string> categoriasCampeas, string? sexoDoCadastro)
+    {
+        var categorias = categoriasCampeas.ToList();
+        bool feminina = categorias.Any(c => c.Contains("Feminin", StringComparison.OrdinalIgnoreCase));
+        bool masculina = categorias.Any(c => c.Contains("Masculin", StringComparison.OrdinalIgnoreCase));
+
+        // Campeã na feminina E na mista é feminina: a mista não desdiz a outra.
+        if (feminina && !masculina) return Feminino;
+        if (masculina && !feminina) return Masculino;
+        return SexoDoJogador.Existe(sexoDoCadastro) ? sexoDoCadastro : null;
+    }
+
+    // As cédulas do torneio. DIVIDE só quando há campeões dos DOIS naipes — torneio só masculino
+    // segue com a cédula única de sempre.
+    //
+    // ⚠️ `temVotoSemNaipe`: torneio que já recebeu voto na cédula única (todo voto anterior a
+    // 13/10/2026) continua com ela. Dividir agora poria aqueles votos fora de qualquer cédula e
+    // apagaria um MVP já apurado — e a conquista do perfil de quem foi eleito.
+    public static List<CedulaDoMvp> Separar(IReadOnlyList<CandidatoAMvp> candidatos, bool temVotoSemNaipe)
+    {
+        bool dividida = !temVotoSemNaipe
+            && candidatos.Any(c => c.Naipe == Feminino)
+            && candidatos.Any(c => c.Naipe == Masculino);
+
+        if (!dividida)
+            return new List<CedulaDoMvp> { new() { Naipe = Unico, Candidatos = candidatos.ToList() } };
+
+        return new List<CedulaDoMvp>
+        {
+            new() { Naipe = Feminino, Candidatos = candidatos.Where(c => c.Naipe == Feminino).ToList() },
+            new() { Naipe = Masculino, Candidatos = candidatos.Where(c => c.Naipe == Masculino).ToList() },
+        };
+    }
+
+    public static string Titulo(string naipe) => naipe switch
+    {
+        Feminino => "MVP Feminino",
+        Masculino => "MVP Masculino",
+        _ => "MVP do torneio",
+    };
 }
 
 public sealed class VotacaoDeMvp
@@ -559,6 +683,11 @@ public sealed class VotacaoDeMvp
 
     public bool SouEleitor { get; set; }
     public int? MeuVoto { get; set; }
+
+    // As cédulas: UMA na votação de sempre; DUAS (Feminino, Masculino) quando os campeões têm os
+    // dois naipes. Ver NaipeDoMvp.Separar.
+    public List<CedulaDoMvp> Cedulas { get; set; } = new();
+    public bool Dividida => Cedulas.Count > 1;
 
     // Quem está olhando. Fica aqui pra a VIEW não precisar ler claim nenhuma — tela que
     // interpreta credencial é tela que decide permissão, e quem decide isso é o serviço.
@@ -600,7 +729,9 @@ public sealed class VotacaoDeMvp
     // ⚠️ E SÓ COM A VOTAÇÃO ABERTA. Depois que ela encerra esta mesma lista deixa de ser
     // cédula e vira APURAÇÃO — recolher ali esconderia o placar de todo mundo, que é
     // exatamente o que a tela passa a mostrar.
-    public bool CedulaRecolhida => Aberta && MeuVoto != null;
+    //
+    // Dividida, "recolhida" é ter votado nas DUAS — com uma só, ainda há o que fazer aqui em cima.
+    public bool CedulaRecolhida => Aberta && Cedulas.Count > 0 && Cedulas.All(c => c.MeuVoto != null);
 
     // O estado do torneio, pra quem precisa responder outra pergunta sobre a MESMA janela —
     // hoje a enquete do clube, que vale onde o MVP foi DESLIGADO pelo organizador. Sem isto o

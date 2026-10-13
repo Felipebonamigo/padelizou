@@ -155,9 +155,15 @@ namespace Padelizou.Controllers
             // ⚠️ A ÂNCORA NUNCA APONTA PRO VAZIO: a enquete usa a MESMA janela do MVP
             // (EnqueteDoTorneio.Aberta = TemPosTorneio + DentroDaJanela), então voto aceito
             // significa enquete na tela, sem precisar perguntar de novo ao banco.
-            return recusa != null
-                ? RedirectToAction(nameof(Mvp), new { id })
-                : RedirectToAction(nameof(Mvp), null, new { id }, MvpDoTorneio.AncoraDaEnquete);
+            if (recusa != null) return RedirectToAction(nameof(Mvp), new { id });
+
+            // ⚠️ DIVIDIDA, SÓ DESCE DEPOIS DO SEGUNDO VOTO (13/10/2026): a cédula recolhe com os
+            // dois — o Feminino e o Masculino —, e descer pra enquete depois do primeiro
+            // esconderia a outra cédula de quem ainda tem o que votar.
+            var depois = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now);
+            return depois?.CedulaRecolhida == true
+                ? RedirectToAction(nameof(Mvp), null, new { id }, MvpDoTorneio.AncoraDaEnquete)
+                : RedirectToAction(nameof(Mvp), new { id });
         }
     }
 }

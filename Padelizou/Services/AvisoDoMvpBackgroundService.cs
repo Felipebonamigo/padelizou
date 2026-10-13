@@ -60,10 +60,16 @@ public class AvisoDoMvpBackgroundService : BackgroundService
             var context = scope.ServiceProvider.GetRequiredService<DbPadelContext>();
             var push = scope.ServiceProvider.GetRequiredService<IPushNotificationService>();
 
-            var avisados = await VarrerAsync(context, push, DateTime.Now, stoppingToken);
+            var agora = DateTime.Now;
+            var avisados = await VarrerAsync(context, push, agora, stoppingToken);
 
             if (avisados > 0)
                 _logger.LogInformation("{Total} torneio(s) com o aviso de MVP disparado.", avisados);
+
+            var lembrados = await LembrarAsync(context, push, agora, stoppingToken);
+
+            if (lembrados > 0)
+                _logger.LogInformation("{Total} torneio(s) com o lembrete de MVP disparado.", lembrados);
         }
         catch (Exception ex)
         {
@@ -144,5 +150,80 @@ public class AvisoDoMvpBackgroundService : BackgroundService
         }
 
         return avisados;
+    }
+
+    // ─────────────── O LEMBRETE: "AINDA FALTA O SEU VOTO" (13/10/2026) ───────────────
+    //
+    // 🗣️ Felipe: *"temos que relembrar também quem ainda não votou, pra votar, por que é apenas
+    // permitido 24h após o último jogo"*. Desenho aprovado por ele: UM lembrete por torneio,
+    // `HorasAntesDeFecharParaLembrar` antes de fechar, pelo app, só pra quem jogou e ainda não
+    // votou — na cédula dividida, o lembrete diz QUAL cédula falta.
+    //
+    // ⚠️ O RECORTE DE 2 DIAS no `AvisoDeMvpEnviadoEm` não é otimização: sem ele, a primeira passada
+    // depois do deploy olharia todo torneio finalizado do banco. A janela inteira é de 24h; quem
+    // recebeu o aviso inicial há mais de 2 dias não tem votação aberta pra lembrar.
+    //
+    // Devolve quantos TORNEIOS tiveram lembrete disparado.
+    public static async Task<int> LembrarAsync(DbPadelContext context, IPushNotificationService push,
+        DateTime agora, CancellationToken stoppingToken = default)
+    {
+        if (!MvpDoTorneio.HoraDeAvisar(agora)) return 0;
+
+        var recorte = agora.AddDays(-2);
+        var candidatos = await context.Torneios
+            .Where(t => t.UsaVotacaoDeMvp
+                     && t.LembreteDeMvpEnviadoEm == null
+                     && t.AvisoDeMvpEnviadoEm != null && t.AvisoDeMvpEnviadoEm > recorte
+                     && t.Status == MvpDoTorneio.StatusFinalizado)
+            .Select(t => t.Id)
+            .ToListAsync(stoppingToken);
+
+        int lembrados = 0;
+
+        foreach (var torneioId in candidatos)
+        {
+            var votacao = await MvpDoTorneio.DoTorneioAsync(context, torneioId, null, agora);
+            if (votacao == null || !votacao.Aberta || votacao.FechaEm is not DateTime fecha) continue;
+            if (votacao.Candidatos.Count == 0) continue;
+
+            // Ainda não é a hora: o varredor volta no próximo tick.
+            if (agora < fecha.AddHours(-MvpDoTorneio.HorasAntesDeFecharParaLembrar)) continue;
+
+            var torneio = await context.Torneios.FindAsync(new object[] { torneioId }, stoppingToken);
+            if (torneio == null) continue;
+
+            // Carimbo ANTES de enfileirar, pelo mesmo motivo do aviso inicial (ver VarrerAsync):
+            // entre "um torneio ficou sem lembrete" e "duzentas pessoas receberam dois", o
+            // primeiro é o defeito aceitável.
+            torneio.LembreteDeMvpEnviadoEm = agora;
+            await context.SaveChangesAsync(stoppingToken);
+
+            var votos = await context.VotosDeMvp.AsNoTracking()
+                .Where(v => v.TorneioId == torneioId)
+                .Select(v => new { v.VotanteId, v.Naipe })
+                .ToListAsync(stoppingToken);
+
+            var eleitores = await MvpDoTorneio.EleitoresAsync(context, torneioId);
+            var url = $"/Torneios/Mvp/{torneioId}";
+
+            foreach (var jogadorId in eleitores)
+            {
+                // As cédulas em que esta pessoa PODE votar e ainda não votou. Quem é o único nome
+                // de uma cédula não vota nela (ninguém vota em si mesmo) — e não é cobrado por isso.
+                var faltam = votacao.Cedulas
+                    .Where(c => c.Candidatos.Any(x => x.JogadorId != jogadorId))
+                    .Where(c => !votos.Any(v => v.VotanteId == jogadorId && v.Naipe == c.Naipe))
+                    .ToList();
+                if (faltam.Count == 0) continue;
+
+                await push.EnviarParaJogadorAsync(jogadorId, MvpDoTorneio.TituloDoLembrete,
+                    MvpDoTorneio.CorpoDoLembrete(torneio.Nome, fecha, votacao.Dividida && faltam.Count == 1 ? faltam[0].Titulo : null),
+                    url, MvpDoTorneio.CanalDoAviso);
+            }
+
+            lembrados++;
+        }
+
+        return lembrados;
     }
 }
