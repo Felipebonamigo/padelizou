@@ -1,6 +1,8 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **13/10/2026** — 🎯 **"CAIU NA CHAVE" DO PERFIL CONTAVA O AVESSO.** ✅ **SEM MIGRATION.** 🗣️ Felipe, com o print do próprio perfil (quartas no NATA, vice no EPT): *"está marcando como caiu na chave, mas eu nunca caí na chave"* — o card dizia 2. `ObterResumoJogadorAsync` contava quartas + semi + final (quem PASSOU da chave). Agora conta `UltimaFase == "Grupos"` em torneio **Finalizado** e fora do Americano: "Grupos" é o valor de nascimento da dupla, e antes do fim ela pode estar inscrita, nos grupos ou viva no mata-mata (o carimbo de fase só vai pra quem perde). `CaiuNaChaveTests` (9): 2 vistos vermelhos (0 esperado / 2 dado; 2 esperado / 1 dado); sabotagens "sem status" e "sem Americano" derrubam 6 e 2. 7.792 verdes.
+>
 > Última atualização: **13/10/2026** — 📵 **SEM SMS DO ASAAS PRO JOGADOR, E "MARCAR COMO PAGO" CANCELA A FATURA DO ASAAS.** ✅ **SEM MIGRATION.** 🗣️ Lucas Fonseca (NATA) recebia cobrança por SMS de uma inscrição já paga. Felipe: *"remova os sms, somente eu posso receber sms"* · *"quando o sistema marcar como pago (na mão do organizador) é pq ele recebeu no pix dele ou de alguma forma dele, ai marque como pago no sistema e cancele a cobrança do asaas"*.
 >
 > 📌 **A CAUSA:** o Padelizou nunca apagava fatura no Asaas fora do estorno. Marcar pago na mão só mexia no nosso banco; a fatura de "pagar depois" seguia viva, e o Asaas lembra sozinho (SMS) de toda cobrança aberta. Pior: "Expirado" (varredor local) e "Cancelado" (webhook `PAYMENT_OVERDUE`) são mortes SÓ DO NOSSO LADO — lá ela segue VENCIDA, cobrando, e ainda pagável.

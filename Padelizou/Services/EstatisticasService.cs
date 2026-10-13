@@ -1356,7 +1356,16 @@ public class EstatisticasService : IEstatisticasService
             Finais = fases.Count(f => f == "Final"),
             Semis = fases.Count(f => f == "Semifinal"),
             Quartas = fases.Count(f => f == "Quartas de Final"),
-            CaiuNaChave = fases.Count(f => f == "Quartas de Final" || f == "Semifinal" || f == "Final"),
+            // "CAIU NA CHAVE" = ELIMINADO NA FASE DE GRUPOS (a "chave" do torneio de clube).
+            // 🗣️ Felipe, 13/10/2026: *"está marcando como caiu na chave, mas eu nunca caí na
+            // chave"* — esta linha contava quartas + semi + final, as vezes que a pessoa PASSOU
+            // da chave. "Grupos" é o valor de nascimento da dupla e só vira veredito com o
+            // torneio TERMINADO: antes disso ela pode estar inscrita, jogando os grupos ou viva
+            // no mata-mata (o carimbo de fase só vai pra quem perde). Americano é rodízio, sem
+            // chave. Ver CaiuNaChaveTests.
+            CaiuNaChave = participacoes.Count(p => p.UltimaFase == "Grupos"
+                                                   && p.Status == "Finalizado"
+                                                   && !FormatoDoTorneio.EhAmericano(p.Formato)),
             Vitorias = vitorias,
             Derrotas = derrotas
         };
