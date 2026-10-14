@@ -509,7 +509,7 @@ public class GolpesEspeciaisDesempenhoTests
         public static Golpe? SmashPor4(float x0, float y0, float z0, int ladoDoAlvo, float alvoX)
         {
             float distanciaAoFundo = MathF.Max(1f, Quadra.MeioComprimento + MathF.Abs(y0));
-            float preferido = MathF.Atan2(alvoX - x0, distanciaAoFundo);
+            float preferido = MatematicaDeterministica.ArcoTangente2(alvoX - x0, distanciaAoFundo);
             var azimutes = new List<float>();
             foreach (float graus in new[] { 0f, -8f, 8f, -16f, 16f, -24f, 24f }) azimutes.Add(preferido + graus * MathF.PI / 180f);
             return Remate(x0, y0, z0, ladoDoAlvo, TipoDeGolpe.SmashPor4, azimutes, SaidaPor4(ladoDoAlvo));
@@ -532,8 +532,8 @@ public class GolpesEspeciaisDesempenhoTests
                 for (float graus = -8; graus >= -40; graus -= 2)
                 {
                     float elevacao = graus * MathF.PI / 180f;
-                    float horizontal = rapidez * MathF.Cos(elevacao);
-                    var v = new Velocidade(horizontal * MathF.Sin(azimute), ladoDoAlvo * horizontal * MathF.Cos(azimute), rapidez * MathF.Sin(elevacao), 0);
+                    float horizontal = rapidez * MatematicaDeterministica.Cosseno(elevacao);
+                    var v = new Velocidade(horizontal * MatematicaDeterministica.Seno(azimute), ladoDoAlvo * horizontal * MatematicaDeterministica.Cosseno(azimute), rapidez * MatematicaDeterministica.Seno(elevacao), 0);
                     var m = Simular(x0, y0, z0, v, 2.5f, 3);
                     if (!vale(m) || !Robusta(x0, y0, z0, v, 2.5f, 3, Margem.DePotencia, vale)) continue;
                     var quique = m[1];

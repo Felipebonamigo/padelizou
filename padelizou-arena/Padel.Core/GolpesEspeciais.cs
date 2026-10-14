@@ -278,7 +278,7 @@ public static class GolpesEspeciais
         static float Variacao(float tRede, float rapidez)
         {
             float kv = Bola.KArrasto * rapidez;
-            float porVz = kv * tRede > 1e-4f ? Margem.DeToque.Vz * (1 - MathF.Exp(-kv * tRede)) / kv : Margem.DeToque.Vz * tRede;
+            float porVz = kv * tRede > 1e-4f ? Margem.DeToque.Vz * (1 - MatematicaDeterministica.Exp(-kv * tRede)) / kv : Margem.DeToque.Vz * tRede;
             return (1 + FolgaRelativaNaRedeDaChiquita) * MathF.Max(porVz, Margem.DeToque.Rapidez * g * tRede * tRede) + FolgaNaRedeDaChiquita;
         }
 
@@ -339,7 +339,7 @@ public static class GolpesEspeciais
             // janela, p andaria aos pouquinhos, refazendo a rapidez a cada passo. Cada mudança seguida no mesmo sentido
             // mira mais pra dentro: 0, 2, 8, 26 mm… até 10 cm.
             mesmoSentido = subir == (mesmoSentido > 0) ? mesmoSentido + (subir ? 1 : -1) : (subir ? 1 : -1);
-            zQuerido += (subir ? 1 : -1) * MathF.Min(0.1f, FolgaNaRedeDaChiquita * (MathF.Pow(3, MathF.Abs(mesmoSentido) - 1) - 1));
+            zQuerido += (subir ? 1 : -1) * MathF.Min(0.1f, FolgaNaRedeDaChiquita * (MatematicaDeterministica.PotenciaInteira(3, Math.Abs(mesmoSentido) - 1) - 1));
             if (subir) pBaixo = MathF.Max(pBaixo, inclinacao); else pAlto = MathF.Min(pAlto, inclinacao);
             if (!(pAlto - pBaixo > 1e-3f * (1 + MathF.Abs(inclinacao)))) return false;
             float nova = float.NaN;
@@ -493,7 +493,7 @@ public static class GolpesEspeciais
             if (float.IsFinite(erroCurta) && float.IsFinite(erroLonga) && float.IsFinite(vhLonga))
                 proxima = vhCurta + (vhLonga - vhCurta) * (-erroCurta) / (erroLonga - erroCurta);
             else if (float.IsFinite(erro))
-                proxima = vh * MathF.Pow(alcance / MathF.Max(0.05f, alcance + erro), 0.67f);
+                proxima = vh * MatematicaDeterministica.Potencia(alcance / MathF.Max(0.05f, alcance + erro), 0.67f);
             else proxima = curta ? vh * 1.3f : vh * 0.75f;
             if (float.IsFinite(vhLonga) && vhCurta > 0 && !(proxima > vhCurta && proxima < vhLonga)) proxima = MathF.Sqrt(vhCurta * vhLonga);
             else if (float.IsFinite(vhLonga) && !(proxima < vhLonga)) proxima = 0.75f * vhLonga;
@@ -644,7 +644,7 @@ public static class GolpesEspeciais
     private static Golpe? ResolverSmashPor4(float x0, float y0, float z0, int ladoDoAlvo, float alvoX)
     {
         float distanciaAoFundo = MathF.Max(1f, Quadra.MeioComprimento + MathF.Abs(y0));
-        float preferido = MathF.Atan2(alvoX - x0, distanciaAoFundo);
+        float preferido = MatematicaDeterministica.ArcoTangente2(alvoX - x0, distanciaAoFundo);
         var azimutes = new List<float>();
         foreach (float graus in new[] { 0f, -8f, 8f, -16f, 16f, -24f, 24f }) azimutes.Add(preferido + graus * MathF.PI / 180f);
         return Remate(x0, y0, z0, ladoDoAlvo, TipoDeGolpe.SmashPor4, azimutes, lateralDaSaida: 0,
@@ -735,9 +735,9 @@ public static class GolpesEspeciais
         {
             float rapidez = 22 + 2 * nivel;
             float elevacao = ElevacaoDe(k);
-            float horizontal = rapidez * MathF.Cos(elevacao);
+            float horizontal = rapidez * MatematicaDeterministica.Cosseno(elevacao);
             float a = azimutes[azimute];
-            return new Velocidade(horizontal * MathF.Sin(a), ladoDoAlvo * horizontal * MathF.Cos(a), rapidez * MathF.Sin(elevacao), 0);
+            return new Velocidade(horizontal * MatematicaDeterministica.Seno(a), ladoDoAlvo * horizontal * MatematicaDeterministica.Cosseno(a), rapidez * MatematicaDeterministica.Seno(elevacao), 0);
         }
 
         // A reta de cada azimute e, por ela, a elevação mais funda que ainda passa a rede (-1: nenhuma). Fora da quadra as
@@ -755,7 +755,7 @@ public static class GolpesEspeciais
             for (int k = 0; k < Elevacoes; k++)
             {
                 float e = ElevacaoDe(k);
-                if (z0 + reta.AteARede * MathF.Sin(e) / MathF.Cos(e) < Quadra.AlturaDaRede - FolgaNaRede) break;   // a reta do lançamento na rede
+                if (z0 + reta.AteARede * MatematicaDeterministica.Seno(e) / MatematicaDeterministica.Cosseno(e) < Quadra.AlturaDaRede - FolgaNaRede) break;   // a reta do lançamento na rede
                 maisFunda[a] = k;
             }
         }
@@ -766,7 +766,7 @@ public static class GolpesEspeciais
         {
             if (perfis[nivel, k] is Perfil pronto) return pronto;
             float rapidez = 22 + 2 * nivel, elevacao = ElevacaoDe(k);
-            return perfis[nivel, k] = new Perfil(rapidez * MathF.Cos(elevacao), rapidez * MathF.Sin(elevacao), z0, temPorta);
+            return perfis[nivel, k] = new Perfil(rapidez * MatematicaDeterministica.Cosseno(elevacao), rapidez * MatematicaDeterministica.Seno(elevacao), z0, temPorta);
         }
         var noQuique = new NoQuique[Elevacoes];
         for (int nivel = 0; nivel < NiveisDeRapidez; nivel++)
@@ -796,7 +796,7 @@ public static class GolpesEspeciais
     {
         public static Reta? Do(float x0, float y0, int ladoDoAlvo, float azimute, int lateralDaSaida)
         {
-            float dx = MathF.Sin(azimute), du = MathF.Cos(azimute);   // du: rumo ao fundo do lado do alvo
+            float dx = MatematicaDeterministica.Seno(azimute), du = MatematicaDeterministica.Cosseno(azimute);   // du: rumo ao fundo do lado do alvo
             float u0 = ladoDoAlvo * y0;                                // < 0: do lado de cá da rede
             if (u0 >= 0 || du <= 1e-3f) return null;                   // já do lado do alvo, ou nunca chega à rede
             float ateARede = -u0 / du;
@@ -942,13 +942,13 @@ public static class GolpesEspeciais
         {
             const float g = Bola.G;
             float k = Bola.KArrasto, e = Bola.RestituicaoDoChao, fracaoDoAtrito = Bola.MomentoDeInercia / (1 + Bola.MomentoDeInercia);
-            float vh0 = rapidez * MathF.Cos(angulo), vz0 = rapidez * MathF.Sin(angulo);
+            float vh0 = rapidez * MatematicaDeterministica.Cosseno(angulo), vz0 = rapidez * MatematicaDeterministica.Seno(angulo);
             float vmax = MathF.Sqrt(rapidez * rapidez + 2 * g * z0);
             float vzMin = MathF.Min(vz0, g / (k * vmax));
             float queda = z0 / vzMin;
-            float vhMin = vh0 * MathF.Exp(-k * vmax * queda);
+            float vhMin = vh0 * MatematicaDeterministica.Exp(-k * vmax * queda);
             float assintota = g / (k * vhMin);
-            float vzNoQuique = vz0 < assintota ? assintota + (vz0 - assintota) * MathF.Exp(-k * vhMin * queda) : vz0;
+            float vzNoQuique = vz0 < assintota ? assintota + (vz0 - assintota) * MatematicaDeterministica.Exp(-k * vhMin * queda) : vz0;
             float inclinacao0 = vz0 / vh0, umSubPasso = vh0 * Bola.PassoMaximo;
             float Raiz(float curvatura) => (-inclinacao0 + MathF.Sqrt(inclinacao0 * inclinacao0 + 4 * curvatura * z0)) / (2 * curvatura);
             float quicaAte = Raiz(g / (2 * vh0 * vh0)) + umSubPasso;

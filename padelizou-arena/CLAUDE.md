@@ -40,6 +40,9 @@ commit que corrige diz "fecha #N".
 ## Regras do jogo
 
 - `Padel.Core` não referencia o Godot. Nunca. Toda regra vira teste no `Padel.Core.Tests`.
+- O motor da partida (a raiz de `Padel.Core`) não chama a libm: seno, cosseno, arco-tangente, exponencial, logaritmo e
+  potência saem de `MatematicaDeterministica` (a libm muda de bits entre máquinas, e o PadelSim do `padelizou-game`
+  reproduz o Core bit a bit). O teste `Nenhum_arquivo_do_motor_chama_funcao_da_libm` barra a volta.
 - Identificadores e comentários em português. Coordenadas do Core: `x` largura, `y` comprimento, `z` altura; no Godot,
   `(x, z, y)`.
 - Nada de marca nem de jogador real (FIP e Premier Padel são marcas de terceiros, só referência interna).

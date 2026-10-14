@@ -17,13 +17,13 @@ public sealed class Aleatorio
         return ((t ^ (t >> 14)) >> 8) / 16777216f;
     }
 
-    /// <summary>Box-Muller: média 0, desvio 1.</summary>
+    /// <summary>Box-Muller: média 0, desvio 1. Log e cosseno sem libm (<see cref="MatematicaDeterministica"/>).</summary>
     public float Gaussiana()
     {
         float u = 0, v = 0;
         while (u == 0) u = Proximo();
         while (v == 0) v = Proximo();
-        return MathF.Sqrt(-2 * MathF.Log(u)) * MathF.Cos(2 * MathF.PI * v);
+        return MathF.Sqrt(-2 * MatematicaDeterministica.Log(u)) * MatematicaDeterministica.Cosseno(2 * MathF.PI * v);
     }
 }
 
