@@ -4,6 +4,7 @@ using Padel.Core;
 
 // Gabarito da física da bola: casos fixos (lançamentos e golpes) simulados pelo Padel.Core, gravados em CSV com
 // todos os dígitos de cada float ("R"), pro PadelSim em C++ provar que reproduz a mesma física.
+// Este arquivo: a bola e golpes::Calcular. Os golpes especiais e a partida têm arquivo próprio.
 // Uso: dotnet run -- PASTA_DE_SAIDA COMMIT_DO_CORE
 if (args.Length != 2) { Console.Error.WriteLine("uso: Gabarito PASTA_DE_SAIDA COMMIT_DO_CORE"); return 2; }
 string pasta = args[0], commit = args[1];
@@ -104,6 +105,11 @@ foreach (var (nome, efeito, tempo) in efeitos)
 var sbConst = new StringBuilder($"# gabarito do Padel.Core em {commit}\nnome,valor\n");
 sbConst.AppendLine($"KArrasto,{F(Bola.KArrasto)}");
 sbConst.AppendLine($"KMagnus,{F(Bola.KMagnus)}");
+
+// As outras áreas, cada uma no seu arquivo (e nos seus CSVs).
+GabaritoDosGolpesEspeciais.Gravar(pasta, commit);
+GabaritoDaPartida.Gravar(pasta, commit);
+GabaritoDoPassoFixo.Gravar(pasta, commit);
 
 File.WriteAllText(Path.Combine(pasta, "casos.csv"), sbCasos.ToString());
 File.WriteAllText(Path.Combine(pasta, "trajetorias.csv"), sbTraj.ToString());
