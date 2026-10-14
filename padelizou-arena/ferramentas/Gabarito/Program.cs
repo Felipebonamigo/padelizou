@@ -110,6 +110,7 @@ sbConst.AppendLine($"KMagnus,{F(Bola.KMagnus)}");
 GabaritoDosGolpesEspeciais.Gravar(pasta, commit);
 GabaritoDaPartida.Gravar(pasta, commit);
 GabaritoDoPassoFixo.Gravar(pasta, commit);
+GabaritoDoPlacarEDoArbitro.Gravar(pasta, commit);
 
 File.WriteAllText(Path.Combine(pasta, "casos.csv"), sbCasos.ToString());
 File.WriteAllText(Path.Combine(pasta, "trajetorias.csv"), sbTraj.ToString());
