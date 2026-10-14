@@ -53,6 +53,35 @@ A IA lê a bola simulando **a mesma física** (inclusive efeito), e escolhe band
 
 Os ralis mais longos têm duas causas. Uma é defeito corrigido: com a regra antiga, a IA só batia com a bola no alcance confortável ou já indo embora, e o saque que vinha pela faixa de fora do alcance (0,85–1,1 m), ainda chegando, quicava a segunda vez sem a raquete sair — 12 % dos pontos do Difícil (`Nas_partidas_entre_IAs_nenhum_saque_passa_ao_alcance_de_quem_recebe_sem_ser_devolvido`). Esse não se devolve rebalanceando. A outra é equilíbrio: batendo no ponto ideal, a IA erra menos (a chance de erro cresce com a dificuldade do golpe) e o humano também — o humano ganhou mais do que a IA contra a Médio. **Não foi reajustado: é decisão de playtest** (abaixo).
 
+**A dupla da IA joga em formação** (25/09, `FormacaoTests`; `IA.LugarNaFormacao`, os números em `PerfilDeIA`). Antes, quem não ia na bola ficava no meio da sua metade, a 3,2 m (rede) ou 6,5 m (fundo) da rede, pela formação do time, que só mudava no golpe do próprio time — e a dupla na rede lobeada ficava com um lá atrás e o outro na rede. Agora os dois andam como um bloco:
+
+- **Profundidade.** A dupla sobe depois de um golpe que dá tempo (lob, bandeja, víbora, chiquita, smash) ou batido da frente, e **recua** quando a bola do adversário vai passar por cima dela (o ponto em que quem vai na bola a pega fica atrás da linha de saque). Quem não bateu acompanha depois do `AtrasoDaFormacao`. Subindo, quem está mais à frente **espera** o parceiro — olhando onde ele vai estar daqui a V/(2a), o que quem sai parado perde pra quem já corre — e chegam juntos à rede (cena: 1,07 s e 1,05 s; antes, 0,47 s e 1,05 s). Enquanto um vai na bola, o outro fica a `FolgaDoBloco` da profundidade dele, até 8 m (1 m atrás da linha de saque): lobeados na rede, os dois passam da linha de saque em 1,05 s no Difícil.
+- **Largura.** O centro da dupla segue o x da bola (`AcompanhamentoDaBola`, com o mesmo atraso, um filtro de primeira ordem) e os dois ficam a `SeparacaoDaDupla` um do outro. Se o parceiro foi buscar a bola bem do lado de cá (passou do centro por mais de ¼ da separação), quem fica troca de lado e cobre o vazio: o **cambio**.
+- **Níveis** (atraso / acompanhamento da bola / separação / folga / chance de desencontro): Fácil 0,7 s / 0,15 / 5 m / 2,5 m / 30 % — em 3 de cada 10 mudanças quem não bateu nem percebe e fica onde estava, um na rede e outro no fundo; Médio 0,35 s / 0,35 / 4 m / 1 m / 0; Difícil 0,10 s / 0,5 / 3,6 m / 0,5 m / 0; Parceiro 0,2 s / 0,4 / 3,8 m / 0,8 m / 0.
+- **Parceiro de um humano.** Lê a formação do humano, porque o humano não segue a IA: ele entrou na zona de rede (a menos de 4,5 m), a IA sobe; voltou pra trás de 5,5 m, a IA volta pro fundo — com histerese entre os dois. Na largura fica no meio da sua metade (e troca se o humano tomar a dela), sem roubar a bola do humano no meio. Copiar a profundidade do humano passo a passo, inclusive a corrida dele atrás da bola, foi medido e descartado: no frente a frente de rede (12 sementes, 120 s) o humano simulado batia 6,9 vezes, contra 8,3 antes; lendo a formação, 8,9.
+
+Medido em 25/09 — IA × IA, a dupla do nível contra o Parceiro, sementes 1–4, 300 s, fora de ±0,3 s dos golpes da dupla e do 1,5 s depois do saque (a regra do saque põe cada dupla com um na rede e outro no fundo); gradiente com 12 partidas de 1 set, sementes 42–53:
+
+| | antes | depois |
+|---|---|---|
+| Diferença média de profundidade entre os dois (Fácil / Médio / Difícil) | 1,00 / 1,25 / 1,27 m | 1,09 / 0,77 / 0,52 m |
+| Tempo com um na rede e outro no fundo (mais de 2,5 m de diferença), mesma ordem | 12,6 / 18,3 / 19,5 % | 17,5 / 7,0 / 1,2 % |
+| Inclinação do x do centro da dupla no x da bola (correlação), mesma ordem | 0,018 / 0,029 / 0,036 (0,10 / 0,12 / 0,16) | 0,064 / 0,19 / 0,28 (0,33 / 0,57 / 0,54) |
+| Sets vencidos contra o Parceiro, mesma ordem | 0 / 0 / 12 de 12 | 0 / 0 / 11 de 12 |
+| % dos pontos contra o Parceiro, mesma ordem | 21,0 / 36,1 / 60,7 | 22,8 / 37,6 / 58,7 |
+| Golpes por ponto, sem o saque, mesma ordem | 4,1 / 7,8 / 11,2 | 3,8 / 8,1 / 12,1 |
+
+Contra o humano simulado (`ferramentas/Calibracao`, 24 partidas por célula, até 4 games), % dos pontos do humano, antes → depois:
+
+| Humano | Fácil | Médio | Difícil |
+|---|---|---|---|
+| Iniciante | 71,7 → 62,1 | 48,2 → 39,9 (partidas: 50 → 17 %) | 23,2 → 22,0 |
+| Intermediário | 80,4 → 73,4 | 57,5 → 56,2 | 32,1 → 36,5 |
+| Avançado | 83,0 → 77,2 | 62,7 → 61,6 | 39,0 → 37,6 |
+| Profissional | 86,7 → 76,4 | 65,7 → 65,8 | 41,3 → 43,7 |
+
+Os golpes bons do humano (erro < 0,3) caem 4 a 12 pontos (Intermediário × Médio: 60 → 52 %). Separando as duas metades da mudança: só a formação das duplas de IA (o parceiro do humano como antes) deixa o Fácil mais forte (o humano faz 1,5 a 7,6 pontos a menos) e o Difícil um pouco mais fraco (0,7 a 3,9 a mais); só o parceiro seguindo o humano tira do time do humano 0,8 a 13,5 pontos contra todos os níveis — o humano simulado só sobe à rede depois de lob ou remate do time (ou se já está na frente), e o parceiro agora fica no fundo com ele em vez de segurar a rede sozinho. **O equilíbrio se deslocou e não foi reajustado** (D10): é decisão do Felipe.
+
 ## Mecânica — o que falta (entra no M1)
 
 - ~~Drive x revés, contato ao lado do corpo, chiquita, contrapared, remate por 3 e por 4~~ — feitos em 25/09 (`GolpesEspeciais`, `Jogador.Destro`, `DificuldadeDoGolpe`): bola no corpo e revés alto saem piores; os golpes especiais são achados simulando a própria física, sem altura de parede escrita à mão.
@@ -60,6 +89,7 @@ Os ralis mais longos têm duas causas. Uma é defeito corrigido: com a regra ant
 - **Golpes que faltam**: saída de parede dupla (fundo + lateral) como intenção, globo x lob curto, e a IA mirar a porta.
 - **Salto no smash**, **posição do corpo** na bandeja (lateral, raquete alta).
 - **Fadiga leve**: sprints seguidos reduzem a aceleração por alguns segundos. Decidir no playtest — pode irritar.
+- **Formação: o que ficou de fora.** O cambio acontece quando o plano manda o outro na bola, mas o plano não o prefere: correr de costas custa o mesmo que correr de frente, então quem tem o lob por cima quase sempre vai ele mesmo (o do padel é o parceiro cruzar na diagonal). O começo do ponto segue com as posições da regra do saque. O parceiro de um humano não faz bloco na largura. E o equilíbrio que a formação deslocou (acima) espera o mesmo playtest da linha de baixo.
 - **Equilíbrio depois do contato no ponto ideal** (25/09): decidir no playtest se fica como está (ralis mais longos, humano mais forte contra a Médio) ou volta perto do de antes. As alavancas: `PerfilDeIA.ChanceDeErro` (Jogadores.cs) e `PesoDoCorpoNoErro` / `PesoDoAtraso` e o limiar 0,95 (Partida.cs). Medido em 25/09 (12 partidas por célula): a chance de erro da IA × 1,34 devolve a taxa de golpes errados de antes (21,3 / 13,0 / 7,5 %), mas os golpes por ponto só descem a 3,6 / 5,9 / 9,5, o humano fica ainda mais forte contra a Médio (53 / 62 / 69 / 70 % dos pontos) e a semente 42 do Difícil troca de vencedor (quebra `A_dificuldade_gradua_o_facil_perde_e_o_dificil_vence_o_parceiro`). Do lado do humano, atraso a 2/m ou limiar 0,75 deixam o Avançado e o Profissional em 61–68 % dos pontos contra a Médio: nenhuma alavanca sozinha devolve o de antes — precisa de um alvo (ex.: "Intermediário × Médio perto de 50 % das partidas") e de mais partidas por célula (com 12, a % de partidas tem desvio padrão de 12 a 14 pontos).
 - **Calibração com vídeo** (semana 3): gravar 10 pontos de transmissão, marcar quadros, extrair velocidade e altura de 5 golpes; ajustar tempo de voo e coeficientes; **cada ajuste vira teste**, como a restituição virou.
 

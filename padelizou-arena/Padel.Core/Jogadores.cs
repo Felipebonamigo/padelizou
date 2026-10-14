@@ -28,16 +28,56 @@ public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, 
     public static readonly Entrada Vazia = default;
 }
 
-/// <summary>ChanceDeRemateParaFora: com a bola muito alta perto da rede, quanto tenta o remate por 3 / por 4 (se a física deixar).</summary>
-public sealed record PerfilDeIA(float Velocidade, float Reacao, float ErroDeMira, float ErroDePrevisao, float ChanceDeErro, float ChanceDeLob, float ChanceDeRemateParaFora = 0);
+/// <summary>
+/// ChanceDeRemateParaFora: com a bola muito alta perto da rede, quanto tenta o remate por 3 / por 4 (se a física deixar).
+/// <para>
+/// A formação da dupla (<see cref="IA"/>) — o que mais separa os níveis, porque é o que mais separa quem joga padel de quem
+/// só bate na bola. Os padrões são os do Médio.
+/// </para>
+/// <list type="bullet">
+/// <item><b>AtrasoDaFormacao</b> (s): quanto quem não bateu demora pra acompanhar a mudança da dupla (subir, recuar) e o
+///   deslocamento da bola — é também a constante de tempo com que o centro da dupla segue o x da bola e com que o parceiro
+///   de um humano lê a profundidade dele. Tempo de reação de escolha de gente é 0,3–0,4 s; quem joga bem antecipa pelo
+///   golpe do parceiro.</item>
+/// <item><b>AcompanhamentoDaBola</b> (0 a 1): quanto o centro da dupla segue o x da bola (a "cremallera"): 0 = cada um parado no
+///   meio da sua metade; 0,5 = com a bola junto à lateral (4,7 m), o centro vai 2,35 m pro lado dela e o parceiro de longe
+///   fica perto do meio da quadra, fechando a diagonal.</item>
+/// <item><b>SeparacaoDaDupla</b> (m): distância lateral entre os dois. A quadra tem 10 m e o alcance de um jogador é ~1 m de
+///   cada lado: 5 m (o antigo, cada um no meio da sua metade) deixa 3 m de buraco no meio; 3,6 m deixa 1,4 m.</item>
+/// <item><b>FolgaDoBloco</b> (m): a maior diferença de profundidade que um aceita do parceiro quando a dupla anda — quem está
+///   mais à frente espera o outro pra subirem juntos, e quem não vai na bola recua (ou sobe) até ficar a essa distância da
+///   profundidade de quem vai.</item>
+/// <item><b>ChanceDeDesencontro</b> (0 a 1): em cada mudança da dupla, a chance de quem não bateu nem perceber e ficar onde
+///   estava (um na rede e outro no fundo) até a próxima — erro de quem começa.</item>
+/// </list>
+/// </summary>
+public sealed record PerfilDeIA(float Velocidade, float Reacao, float ErroDeMira, float ErroDePrevisao, float ChanceDeErro, float ChanceDeLob, float ChanceDeRemateParaFora = 0,
+    float AtrasoDaFormacao = 0.35f, float AcompanhamentoDaBola = 0.35f, float SeparacaoDaDupla = 4.0f, float FolgaDoBloco = 1.0f, float ChanceDeDesencontro = 0);
 
+/// <summary>
+/// Formação, por nível (números explicados em <see cref="PerfilDeIA"/>):
+/// <list type="bullet">
+/// <item><b>Fácil</b> desencontra: acompanha tarde (0,7 s — o dobro da reação de escolha), segue pouco a bola (0,15: com ela na
+///   lateral o centro anda 0,7 m), fica aberto (5 m, cada um no meio da sua metade como a IA de antes: o meio aberto), aceita 2,5 m de
+///   diferença de profundidade (sobe e recua sem olhar o parceiro) e em 3 de cada 10 mudanças um fica pra trás.</item>
+/// <item><b>Médio</b> acompanha com atraso: 0,35 s (a reação de escolha de gente), 0,35 da bola, 4 m, 1 m de folga, sem desencontro.</item>
+/// <item><b>Difícil</b> fecha o meio e sobe/recua junto na hora: 0,10 s (o mesmo da reação à bola — lê o golpe do parceiro), 0,5
+///   da bola, 3,6 m, 0,5 m de folga.</item>
+/// <item><b>Parceiro</b> (do humano): entre o Médio e o Difícil. Com parceiro humano, a profundidade sai do humano (rede ou
+///   fundo, como ele) e a largura é a metade da IA; os números de formação valem quando ele joga com outra IA.</item>
+/// </list>
+/// </summary>
 public static class Perfis
 {
-    public static readonly PerfilDeIA Facil = new(Velocidade: 4.6f, Reacao: 0.45f, ErroDeMira: 1.5f, ErroDePrevisao: 1.1f, ChanceDeErro: 0.14f, ChanceDeLob: 0.2f, ChanceDeRemateParaFora: 0.05f);
-    public static readonly PerfilDeIA Medio = new(Velocidade: 5.6f, Reacao: 0.25f, ErroDeMira: 0.9f, ErroDePrevisao: 0.7f, ChanceDeErro: 0.07f, ChanceDeLob: 0.3f, ChanceDeRemateParaFora: 0.15f);
-    public static readonly PerfilDeIA Dificil = new(Velocidade: 6.6f, Reacao: 0.10f, ErroDeMira: 0.5f, ErroDePrevisao: 0.35f, ChanceDeErro: 0.025f, ChanceDeLob: 0.35f, ChanceDeRemateParaFora: 0.30f);
+    public static readonly PerfilDeIA Facil = new(Velocidade: 4.6f, Reacao: 0.45f, ErroDeMira: 1.5f, ErroDePrevisao: 1.1f, ChanceDeErro: 0.14f, ChanceDeLob: 0.2f, ChanceDeRemateParaFora: 0.05f,
+        AtrasoDaFormacao: 0.7f, AcompanhamentoDaBola: 0.15f, SeparacaoDaDupla: 5.0f, FolgaDoBloco: 2.5f, ChanceDeDesencontro: 0.3f);
+    public static readonly PerfilDeIA Medio = new(Velocidade: 5.6f, Reacao: 0.25f, ErroDeMira: 0.9f, ErroDePrevisao: 0.7f, ChanceDeErro: 0.07f, ChanceDeLob: 0.3f, ChanceDeRemateParaFora: 0.15f,
+        AtrasoDaFormacao: 0.35f, AcompanhamentoDaBola: 0.35f, SeparacaoDaDupla: 4.0f, FolgaDoBloco: 1.0f, ChanceDeDesencontro: 0);
+    public static readonly PerfilDeIA Dificil = new(Velocidade: 6.6f, Reacao: 0.10f, ErroDeMira: 0.5f, ErroDePrevisao: 0.35f, ChanceDeErro: 0.025f, ChanceDeLob: 0.35f, ChanceDeRemateParaFora: 0.30f,
+        AtrasoDaFormacao: 0.10f, AcompanhamentoDaBola: 0.5f, SeparacaoDaDupla: 3.6f, FolgaDoBloco: 0.5f, ChanceDeDesencontro: 0);
     /// <summary>O parceiro do humano: confiável sem ser um muro.</summary>
-    public static readonly PerfilDeIA Parceiro = new(Velocidade: 5.8f, Reacao: 0.18f, ErroDeMira: 0.8f, ErroDePrevisao: 0.55f, ChanceDeErro: 0.04f, ChanceDeLob: 0.3f, ChanceDeRemateParaFora: 0.15f);
+    public static readonly PerfilDeIA Parceiro = new(Velocidade: 5.8f, Reacao: 0.18f, ErroDeMira: 0.8f, ErroDePrevisao: 0.55f, ChanceDeErro: 0.04f, ChanceDeLob: 0.3f, ChanceDeRemateParaFora: 0.15f,
+        AtrasoDaFormacao: 0.2f, AcompanhamentoDaBola: 0.4f, SeparacaoDaDupla: 3.8f, FolgaDoBloco: 0.8f, ChanceDeDesencontro: 0);
 
     public static PerfilDeIA Por(Dificuldade d) => d switch
     {
@@ -357,9 +397,39 @@ public sealed class Jogador
 /// o buraco entre os adversários, lob ou chiquita quando eles estão na rede, bandeja/víbora/smash em bola alta
 /// (e às vezes o remate por 3 / por 4), contrapared quando não sobra outra, erro forçado quando esticada.
 /// Cada tipo de golpe imprime o efeito do padel de verdade e sai com o lado do corpo (drive/revés) certo.
+/// <para>
+/// Quem não vai na bola (e quem vai, enquanto não há plano) joga em <b>formação</b>: os dois andam como um bloco. Na
+/// profundidade, a dupla está na rede (<see cref="ProfundidadeDaRede"/>) ou no fundo (<see cref="ProfundidadeDoFundo"/>):
+/// sobe depois de um golpe que dá tempo (lob, bandeja, víbora, chiquita, smash) ou batido da frente, e recua quando a bola
+/// do adversário vai passar por cima (o plano de quem vai nela fica atrás da linha de saque). Quem não bateu acompanha a
+/// mudança depois de <see cref="PerfilDeIA.AtrasoDaFormacao"/> (ou, no desencontro, não acompanha); quem está mais à frente
+/// espera o parceiro pra subirem juntos; e, enquanto o parceiro vai na bola, quem fica anda até a
+/// <see cref="PerfilDeIA.FolgaDoBloco"/> da profundidade dele (recuam juntos, até <see cref="ProfundidadeMaximaDoBloco"/>).
+/// Na largura, o centro da dupla segue o x da bola (<see cref="PerfilDeIA.AcompanhamentoDaBola"/>) e cada um fica a meia
+/// <see cref="PerfilDeIA.SeparacaoDaDupla"/> do centro, do seu lado; se o parceiro foi buscar a bola bem do lado de cá, quem
+/// fica troca de lado e cobre o que ficou vazio (o "cambio"). O parceiro IA de um humano segue a formação do humano — sobe
+/// quando ele sobe, fica no fundo quando ele fica — e não a própria: o humano não segue a IA.
+/// </para>
 /// </summary>
 public sealed class IA
 {
+    /// <summary>Profundidade (m da rede) da dupla na rede: a ~3 m, onde o voleio alcança a bola baixa e o lob ainda se busca.</summary>
+    public const float ProfundidadeDaRede = 3.2f;
+    /// <summary>Profundidade da dupla no fundo (a de sempre da IA; a linha de saque está a 6,95 m).</summary>
+    public const float ProfundidadeDoFundo = 6.5f;
+    /// <summary>O mais fundo que quem não vai na bola recua junto com o parceiro: ~1 m atrás da linha de saque, a posição de defesa do padel.</summary>
+    public const float ProfundidadeMaximaDoBloco = 8.0f;
+    /// <summary>Até onde o corpo vai na largura (o mesmo limite do <see cref="Jogador"/>).</summary>
+    private const float LimiteLateralDoCorpo = 4.7f;
+    /// <summary>O meio de cada metade da largura (<see cref="Jogador.XDaMetade"/>): onde fica o parceiro de um humano.</summary>
+    private const float MeioDaMetade = 2.5f;
+    /// <summary>
+    /// Como a IA lê a formação do parceiro humano: a menos de ZonaDeRede da rede ele subiu (é a zona em que a IA conta
+    /// adversário na rede); a mais de LinhaDaFrente ele voltou pro fundo (é de onde a IA deixa de contar um golpe como
+    /// "batido da frente").
+    /// </summary>
+    private const float ZonaDeRede = 4.5f, LinhaDaFrente = 5.5f;
+
     private sealed class Plano
     {
         public required Jogador Responsavel;
@@ -380,10 +450,25 @@ public sealed class IA
 
     public int Time { get; }
     public PerfilDeIA Perfil { get; }
+    /// <summary>A formação que a dupla quer (a de quem bateu por último); cada jogador a segue com atraso — ou desencontra.</summary>
     public Formacao Posicao { get; private set; } = Formacao.Fundo;
     private readonly Aleatorio _aleatorio;
     private Plano? _plano;
     private float _relogio;
+
+    // Formação de cada jogador (pelo Indice): a que ele segue agora, a que vai seguir e quando.
+    private readonly Formacao[] _formacao = [Formacao.Fundo, Formacao.Fundo];
+    private readonly Formacao?[] _pendente = new Formacao?[2];
+    private readonly float[] _mudaEm = new float[2];
+    /// <summary>Depois de um golpe da dupla, quem está mais à frente espera o parceiro (uma vez) pra andarem juntos.</summary>
+    private readonly bool[] _esperaOParceiro = new bool[2];
+    /// <summary>Verdadeiro se o Indice 0 está na vaga da esquerda (no referencial da dupla) e o 1 na da direita: saque do outro lado ou cambio.</summary>
+    private bool _ladosTrocados;
+    /// <summary>O x da bola como a dupla o acompanha (atrasado de <see cref="PerfilDeIA.AtrasoDaFormacao"/>).</summary>
+    private float _xDaBolaLido;
+    /// <summary>A profundidade do parceiro humano como a IA a acompanha (idem), e se ela o lê na rede ou no fundo.</summary>
+    private float _profundidadeDoHumanoLida;
+    private bool _humanoNaRede;
 
     public IA(int time, PerfilDeIA perfil, Aleatorio aleatorio)
     {
@@ -396,6 +481,19 @@ public sealed class IA
     public void AoSacar(Partida partida, int timeSacador)
     {
         Posicao = timeSacador == Time ? Formacao.Rede : Formacao.Fundo;   // quem saca sobe; quem recebe fica atrás
+        // Ponto novo: os dois sabem onde a dupla fica, e cada um joga do lado em que começou (quem saca da metade do
+        // parceiro fica nela; a partida põe o parceiro na outra).
+        for (int i = 0; i < 2; i++) { _formacao[i] = Posicao; _pendente[i] = null; _esperaOParceiro[i] = false; }
+        var meus = partida.JogadoresDoTime(Time);
+        var (indice0, indice1) = meus[0].Indice == 0 ? (meus[0], meus[1]) : (meus[1], meus[0]);
+        _ladosTrocados = indice0.LateralDe(indice1.X) > 0;   // o 1 está à direita do 0
+        _xDaBolaLido = partida.Bola.X;
+        foreach (var j in meus)
+        {
+            if (!j.Humano) continue;
+            _profundidadeDoHumanoLida = MathF.Abs(j.Y);
+            _humanoNaRede = _profundidadeDoHumanoLida < ZonaDeRede;
+        }
         Planejar(partida, novaTrajetoria: true);
     }
 
@@ -406,10 +504,38 @@ public sealed class IA
             bool naFrente = MathF.Abs(jogador.Y) < 5.5f;
             bool sobe = golpe.Tipo is TipoDeGolpe.Lob or TipoDeGolpe.Smash or TipoDeGolpe.Bandeja or TipoDeGolpe.Vibora
                 or TipoDeGolpe.Chiquita or TipoDeGolpe.SmashPor3 or TipoDeGolpe.SmashPor4;   // a chiquita é o passaporte pra rede
-            Posicao = sobe || naFrente ? Formacao.Rede : Formacao.Fundo;
+            MudarFormacao(partida, sobe || naFrente ? Formacao.Rede : Formacao.Fundo, jogador);
+            _esperaOParceiro[0] = _esperaOParceiro[1] = true;
+        }
+        else
+        {
+            _esperaOParceiro[0] = _esperaOParceiro[1] = false;
         }
         Planejar(partida, novaTrajetoria: true);
     }
+
+    /// <summary>
+    /// A dupla muda (ou confirma) a formação. Quem mandou (quem bateu, ou quem vai na bola que passa por cima) segue na hora;
+    /// o outro segue depois de <see cref="PerfilDeIA.AtrasoDaFormacao"/> — ou, com <see cref="PerfilDeIA.ChanceDeDesencontro"/>,
+    /// nem percebe e fica na que estava até a próxima. O parceiro de um humano não entra: ele segue o humano.
+    /// </summary>
+    private void MudarFormacao(Partida partida, Formacao nova, Jogador quem)
+    {
+        Posicao = nova;
+        var meus = partida.JogadoresDoTime(Time);
+        foreach (var j in meus)
+        {
+            if (j.Humano || Parceiro(meus, j).Humano) continue;
+            int i = j.Indice;
+            if (j == quem || _formacao[i] == nova) { _formacao[i] = nova; _pendente[i] = null; continue; }
+            if (_pendente[i] == nova) continue;
+            if (Perfil.ChanceDeDesencontro > 0 && _aleatorio.Proximo() < Perfil.ChanceDeDesencontro) { _pendente[i] = null; continue; }
+            _pendente[i] = nova;
+            _mudaEm[i] = _relogio + Perfil.AtrasoDaFormacao;
+        }
+    }
+
+    private static Jogador Parceiro(Jogador[] meus, Jogador j) => meus[0] == j ? meus[1] : meus[0];
 
     /// <summary>Bola quicou ou bateu na parede: releitura da trajetória, sem novo tempo de reação.</summary>
     public void AoRebater(Partida partida)
@@ -475,6 +601,8 @@ public sealed class IA
             XDaBola = alvo.X,
             RuidoX = ruidoX,
         };
+        // A bola vai passar por cima da dupla na rede (quem vai nela vai buscá-la atrás da linha de saque): recuam juntos.
+        if (Posicao == Formacao.Rede && MathF.Abs(_plano.AlvoY) >= Quadra.LinhaDeSaque) MudarFormacao(partida, Formacao.Fundo, escolhido);
     }
 
     /// <summary>Desvio do erro de leitura (m) com a bola a tantos segundos do ponto de contato: o do perfil a 0,8 s ou mais, até zero.</summary>
@@ -528,7 +656,18 @@ public sealed class IA
     public void Reagir(float dt, Partida partida)
     {
         _relogio += dt;
-        foreach (var j in partida.JogadoresDoTime(Time))
+        var meus = partida.JogadoresDoTime(Time);
+        // O que a dupla acompanha anda atrasado de AtrasoDaFormacao (filtro de primeira ordem): o x da bola e a profundidade
+        // do parceiro humano.
+        float alfa = dt / (MathF.Max(Perfil.AtrasoDaFormacao, dt) + dt);
+        _xDaBolaLido += (partida.Bola.X - _xDaBolaLido) * alfa;
+        foreach (var j in meus) if (j.Humano) _profundidadeDoHumanoLida += (MathF.Abs(j.Y) - _profundidadeDoHumanoLida) * alfa;
+        for (int i = 0; i < 2; i++)
+        {
+            if (_pendente[i] is Formacao pendente && _relogio >= _mudaEm[i]) { _formacao[i] = pendente; _pendente[i] = null; }
+        }
+
+        foreach (var j in meus)
         {
             if (j.Humano) continue;
             var plano = _plano;
@@ -539,10 +678,75 @@ public sealed class IA
             }
             else
             {
-                float profundidade = Posicao == Formacao.Rede ? 3.2f : 6.5f;
-                j.IrPara(j.XDaMetade, j.Lado * profundidade, dt);
+                var (x, profundidade) = LugarNaFormacao(j, Parceiro(meus, j), plano);
+                j.IrPara(x, j.Lado * profundidade, dt);
             }
         }
+    }
+
+    /// <summary>
+    /// Onde o jogador fica na formação: x no mundo e profundidade (m da rede). Ver o resumo da classe; os números por nível
+    /// estão em <see cref="PerfilDeIA"/>.
+    /// </summary>
+    private (float X, float Profundidade) LugarNaFormacao(Jogador j, Jogador parceiro, Plano? plano)
+    {
+        int i = j.Indice;
+        float separacao = Perfil.SeparacaoDaDupla;
+        float limiteDoCentro = MathF.Max(0, LimiteLateralDoCorpo - separacao / 2);
+        float centro = Util.Limitar(Perfil.AcompanhamentoDaBola * _xDaBolaLido, -limiteDoCentro, limiteDoCentro);
+        if (parceiro.Humano)
+        {
+            // O humano não segue a IA: a IA lê a formação DELE. Subiu = entrou na zona de rede; voltou = passou da linha da
+            // frente; entre as duas fica o que estava (histerese). A IA vai pra profundidade dela de rede ou de fundo — não
+            // copia cada passo do humano: a corrida dele atrás de uma bola não é formação. Na largura não há bloco (o humano
+            // não anda com a bola junto dela): a IA fica no meio da sua metade, sem roubar a bola dele no meio, e troca de
+            // metade se o humano tomou a dela.
+            if (_profundidadeDoHumanoLida < ZonaDeRede) _humanoNaRede = true;
+            else if (_profundidadeDoHumanoLida > LinhaDaFrente) _humanoNaRede = false;
+            CobrirOOutroLado(j, parceiro.X, centro: 0);
+            return (j.Lado * VagaDe(j) * MeioDaMetade, _humanoNaRede ? ProfundidadeDaRede : ProfundidadeDoFundo);
+        }
+
+        float minha = _formacao[i] == Formacao.Rede ? ProfundidadeDaRede : ProfundidadeDoFundo;
+        float profundidade = minha;
+        float folga = Perfil.FolgaDoBloco;
+        if (plano is not null && plano.Responsavel == parceiro)
+        {
+            // O parceiro vai na bola: quem fica anda até a folga da profundidade dele (recuam e sobem juntos) e, se ele foi
+            // buscá-la bem do lado de cá, troca de lado. Quem desencontrou (fora da formação da dupla) nem olha.
+            if (_formacao[i] == Posicao && _relogio - plano.CriadoEm >= Perfil.AtrasoDaFormacao)
+            {
+                float dele = MathF.Abs(plano.AlvoY);
+                profundidade = Util.Limitar(Util.Limitar(minha, dele - folga, dele + folga), ProfundidadeDaRede, ProfundidadeMaximaDoBloco);
+                CobrirOOutroLado(j, XDoCorpo(plano, parceiro), centro);
+            }
+        }
+        else if (_esperaOParceiro[i] && _formacao[i] == _formacao[parceiro.Indice])
+        {
+            // Indo pra formação depois de um golpe da dupla: quem está mais à frente (no sentido em que a dupla anda) espera
+            // o outro chegar à folga, uma vez, e daí vão juntos. O outro é visto onde vai estar daqui a V/(2a) — o que quem
+            // sai parado perde pra quem já corre (0,37 s no Difícil) —, senão quem esperou chega depois.
+            float eu = MathF.Abs(j.Y);
+            float ele = MathF.Abs(parceiro.Y) + parceiro.Vy * parceiro.Lado * j.Velocidade / (2 * j.Aceleracao);
+            float frente = (eu - ele) * MathF.Sign(minha - eu);
+            if (frente > folga) profundidade = eu;
+            else _esperaOParceiro[i] = false;
+        }
+        return (centro + j.Lado * VagaDe(j) * separacao / 2, profundidade);
+    }
+
+    /// <summary>+1 se o jogador está na vaga da direita da dupla (no referencial dela), -1 se na da esquerda.</summary>
+    private int VagaDe(Jogador j) => (j.Indice == 0 ? 1 : -1) * (_ladosTrocados ? -1 : 1);
+
+    /// <summary>
+    /// O "cambio": o parceiro (xDele, no mundo) foi bem pro lado da vaga de j — passou do centro da dupla por mais de um
+    /// quarto da separação — e j troca de vaga, cobrindo o lado que ficou vazio. O quarto da separação (~1 m) é a histerese:
+    /// bola no meio não faz a dupla trocar de lado a cada golpe.
+    /// </summary>
+    private void CobrirOOutroLado(Jogador j, float xDele, float centro)
+    {
+        int ladoDaMinhaVaga = j.Lado * VagaDe(j);   // no mundo
+        if ((xDele - centro) * ladoDaMinhaVaga > Perfil.SeparacaoDaDupla / 4) _ladosTrocados = !_ladosTrocados;
     }
 
     /// <summary>Com a bola acima disso e o jogador a menos de DistanciaDaRedeDoRemateParaFora da rede, a IA pode tentar o por 3 / por 4.</summary>
