@@ -130,8 +130,10 @@ conferidos antes de qualquer coisa do Mixamo ir para a build pública.
 - **Lumen** para luz e reflexo. Vidro de 12 mm com a borda verde e reflexo dos refletores. Piso de grama
   sintética com areia, linhas gastas. Rede com tecido do Chaos. Seis torres de luz e público ao fundo, em
   impostores animados.
-- **Arte:** primeiro o acervo do estúdio (`acervo-3d`, galeria da Meshy em CC0 ou CC BY 4.0, Poly Haven CC0). O
-  que faltar sai do Fab, com a licença conferida item a item. Nada com marca nem pessoa real.
+- **Arte:** primeiro o que já foi baixado em `Padel.Godot/modelos/`: raquete, bola, dois atletas, banco e torre de
+  luz, todos CC0 da comunidade da Meshy, em GLB, e o Unreal importa direto (créditos em `modelos/CREDITOS.md`). Os
+  atletas vêm sem esqueleto: no Unreal, viram referência de roupa e corpo para os MetaHumans. Depois, o acervo do
+  estúdio (`acervo-3d`, Poly Haven CC0) e o Fab, com a licença conferida item a item. Nada com marca nem pessoa real.
 - **Desempenho:** 60 fps em 1440p na RTX 4070 Ti do PC, com DLSS ou FSR. A meta do Steam Deck fica para depois
   da fatia.
 - **Som:** MetaSounds. Batidas de bola em raquete, vidro, grade e chão gravadas num clube, no mesmo dia da captura.
