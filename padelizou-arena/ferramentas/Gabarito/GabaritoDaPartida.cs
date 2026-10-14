@@ -24,6 +24,7 @@ static class GabaritoDaPartida
         new("humano Avançado x Difícil, automático", new OpcoesDaPartida { Dificuldade = Dificuldade.Dificil, ModoDeGolpe = ModoDeGolpe.Automatico, Semente = 13 }, PerfilDeHumano.Avancado),
         new("pontos corridos 16, IA x IA", new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, PontosCorridos = 16, Semente = 5 }),
         new("vantagem, humano Iniciante x Fácil", new OpcoesDaPartida { Dificuldade = Dificuldade.Facil, PontoDeOuro = false, Semente = 21 }, PerfilDeHumano.Iniciante),
+        new("formato curto, humano Avançado x Médio, manual", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Semente = 31 }, PerfilDeHumano.Avancado),
     ];
 
     public static void Gravar(string pasta, string commit)
@@ -33,7 +34,7 @@ static class GabaritoDaPartida
         string B(bool b) => b ? "1" : "0";
         string Cabecalho(string colunas) => $"# gabarito do Padel.Core em {commit}\n{colunas}\n";
 
-        var sbCasos = new StringBuilder(Cabecalho("id,nome,dificuldade,pontoDeOuro,setsParaVencer,humano0,perfilDoHumano,modoDeGolpe,semente,pontosCorridos,passos,resumo,vencedor,empate,pontos,golpes,maiorRally,faltas,lets"));
+        var sbCasos = new StringBuilder(Cabecalho("id,nome,dificuldade,pontoDeOuro,setsParaVencer,gamesPorSet,pontosDoTieBreak,humano0,perfilDoHumano,modoDeGolpe,semente,pontosCorridos,passos,resumo,vencedor,empate,pontos,golpes,maiorRally,faltas,lets"));
         var sbRetratos = new StringBuilder(Cabecalho(
             "id,passo,estado,temporizador,tempoDeJogo,rally,ultimoErro,bx,by,bz,bvx,bvy,bvz,bwx,bwy,bwz,emJogo,rolando,parada," +
             "pontos0,pontos1,games0,games1,sets0,sets1,tieBreak,sacadorTime,sacadorJogador,faltas,golpeador,quicou,formacao0,formacao1," +
@@ -78,7 +79,7 @@ static class GabaritoDaPartida
             }
             var o = caso.Opcoes;
             var est = p.Estatisticas;
-            sbCasos.AppendLine(string.Join(',', id, caso.Nome.Replace(',', ';'), (int)o.Dificuldade, B(o.PontoDeOuro), o.SetsParaVencer, B(caso.Humano is not null),
+            sbCasos.AppendLine(string.Join(',', id, caso.Nome.Replace(',', ';'), (int)o.Dificuldade, B(o.PontoDeOuro), o.SetsParaVencer, o.GamesPorSet, o.PontosDoTieBreak, B(caso.Humano is not null),
                 caso.Humano?.Nome ?? "-", (int)o.ModoDeGolpe, o.Semente, o.PontosCorridos ?? -1, passo, p.Placar.Resumo(), p.Placar.Vencedor ?? -1, B(p.Placar.Empate),
                 est.Pontos, est.Golpes, est.MaiorRally, est.Faltas, est.Lets));
             Console.WriteLine($"partida {id} ({caso.Nome}): {passo} passos, {p.Placar.Resumo()}");

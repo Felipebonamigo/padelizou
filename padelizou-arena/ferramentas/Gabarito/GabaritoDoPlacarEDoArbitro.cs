@@ -17,30 +17,31 @@ static class GabaritoDoPlacarEDoArbitro
 
         // ---- Placar: (ponto de ouro, sets pra vencer, pontos corridos, time que saca, chance do time 0 ganhar o ponto;
         // negativa = os pontos alternam).
-        var configs = new (bool Ouro, int Sets, int? Corridos, int Saca, float Chance)[]
+        var configs = new (bool Ouro, int Sets, int? Corridos, int Saca, float Chance, int Games, int Tb)[]
         {
-            (true, 1, null, 0, 0.5f), (true, 2, null, 1, 0.5f), (false, 1, null, 0, 0.5f), (false, 3, null, 0, 0.55f),
-            (true, 3, null, 1, 0.45f), (false, 2, null, 1, 0.5f), (true, 1, null, 0, 0.5f), (true, 2, null, 0, 0.5f),
-            (false, 1, 24, 0, 0.5f), (false, 1, 16, 1, 0.5f), (false, 1, 21, 0, 0.6f), (false, 1, 32, 1, 0.5f),
-            (false, 1, 24, 1, -1f), (true, 1, null, 0, -1f),   // chance negativa: os pontos alternam (empate garantido)
+            (true, 1, null, 0, 0.5f, 6, 7), (true, 2, null, 1, 0.5f, 6, 7), (false, 1, null, 0, 0.5f, 6, 7), (false, 3, null, 0, 0.55f, 6, 7),
+            (true, 3, null, 1, 0.45f, 6, 7), (false, 2, null, 1, 0.5f, 6, 7), (true, 1, null, 0, 0.5f, 6, 7), (true, 2, null, 0, 0.5f, 6, 7),
+            (false, 1, 24, 0, 0.5f, 6, 7), (false, 1, 16, 1, 0.5f, 6, 7), (false, 1, 21, 0, 0.6f, 6, 7), (false, 1, 32, 1, 0.5f, 6, 7),
+            (false, 1, 24, 1, -1f, 6, 7), (true, 1, null, 0, -1f, 6, 7),   // chance negativa: os pontos alternam (empate garantido)
+            (true, 1, null, 0, 0.5f, 4, 10), (true, 2, null, 1, 0.5f, 4, 10), (false, 1, null, 0, 0.5f, 4, 10), (true, 1, null, 0, -1f, 4, 10),   // formato curto
         };
-        var sbPlacar = new StringBuilder($"# gabarito do Padel.Core em {commit}\nid,ouro,sets,corridos,saca,ponto,para,evento,timeDoEvento,pontos0,pontos1,games0,games1,sets0,sets1,tieBreak,vencedor,empate,sacadorTime,sacadorJogador,ladoDoSaque,decisivo,texto0,texto1,resumo\n");
+        var sbPlacar = new StringBuilder($"# gabarito do Padel.Core em {commit}\nid,ouro,sets,corridos,saca,games,tb,ponto,para,evento,timeDoEvento,pontos0,pontos1,games0,games1,sets0,sets1,tieBreak,vencedor,empate,sacadorTime,sacadorJogador,ladoDoSaque,decisivo,texto0,texto1,resumo\n");
         for (int id = 0; id < configs.Length; id++)
         {
             var c = configs[id];
             var r = new Aleatorio((uint)(777 + id));
-            var p = c.Corridos is int total ? Placar.DePontosCorridos(total, c.Saca) : new Placar(c.Ouro, c.Sets, c.Saca);
+            var p = c.Corridos is int total ? Placar.DePontosCorridos(total, c.Saca) : new Placar(c.Ouro, c.Sets, c.Saca, c.Games, c.Tb);
             for (int ponto = 0; ponto < 2000 && !p.Acabou; ponto++)
             {
                 int para = c.Chance < 0 ? ponto % 2 : r.Proximo() < c.Chance ? 0 : 1;
                 var ev = p.PontoPara(para);
-                sbPlacar.AppendLine(string.Join(',', id, B(c.Ouro), c.Sets, c.Corridos ?? -1, c.Saca, ponto, para, (int)ev.Tipo, ev.Time,
+                sbPlacar.AppendLine(string.Join(',', id, B(c.Ouro), c.Sets, c.Corridos ?? -1, c.Saca, c.Games, c.Tb, ponto, para, (int)ev.Tipo, ev.Time,
                     p.Pontos[0], p.Pontos[1], p.Games[0], p.Games[1], p.Sets[0], p.Sets[1], B(p.EmTieBreak), p.Vencedor ?? -1, B(p.Empate),
                     p.Sacador.Time, p.Sacador.Jogador, (int)p.LadoDoSaque, B(p.EmPontoDecisivo), p.TextoDosPontos(0), p.TextoDosPontos(1), p.Resumo()));
             }
             // Um ponto depois do fim: Encerrada.
             var depois = p.PontoPara(0);
-            sbPlacar.AppendLine(string.Join(',', id, B(c.Ouro), c.Sets, c.Corridos ?? -1, c.Saca, -1, 0, (int)depois.Tipo, depois.Time,
+            sbPlacar.AppendLine(string.Join(',', id, B(c.Ouro), c.Sets, c.Corridos ?? -1, c.Saca, c.Games, c.Tb, -1, 0, (int)depois.Tipo, depois.Time,
                 p.Pontos[0], p.Pontos[1], p.Games[0], p.Games[1], p.Sets[0], p.Sets[1], B(p.EmTieBreak), p.Vencedor ?? -1, B(p.Empate),
                 p.Sacador.Time, p.Sacador.Jogador, (int)p.LadoDoSaque, B(p.EmPontoDecisivo), p.TextoDosPontos(0), p.TextoDosPontos(1), p.Resumo()));
         }

@@ -151,4 +151,98 @@ public class PlacarTests
         Assert.Equal(1, p.Sacador.Time);
         Assert.Equal([0, 0], p.Games);
     }
+
+    // ── Formato curto (DESIGN da fatia no Unreal, pilar 3: partida de 4 a 6 minutos) ──────────────────
+    // Set até 4 games (vence com 2 de vantagem) e, em 4-4, tie-break; o "super tie-break" vai a 10, também por 2.
+
+    private static void GanharGames(Placar p, int time, int quantos)
+    {
+        for (int i = 0; i < quantos; i++) GanharGame(p, time);
+    }
+
+    [Fact]
+    public void Set_de_4_games_fecha_em_4_2()
+    {
+        var p = new Placar(gamesPorSet: 4);
+        GanharGames(p, 1, 2);
+        GanharGames(p, 0, 3);
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Partida, 0), GanharGame(p, 0));
+        Assert.Equal("4-2", p.Resumo());
+    }
+
+    [Fact]
+    public void Set_de_4_games_em_4_3_continua_e_fecha_em_5_3()
+    {
+        var p = new Placar(gamesPorSet: 4);
+        GanharGames(p, 1, 3);
+        GanharGames(p, 0, 3);
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Game, 0), GanharGame(p, 0));
+        Assert.False(p.Acabou);
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Partida, 0), GanharGame(p, 0));
+        Assert.Equal("5-3", p.Resumo());
+    }
+
+    [Fact]
+    public void Em_4_4_entra_o_super_tie_break_que_vai_a_10_por_2()
+    {
+        var p = new Placar(gamesPorSet: 4, pontosDoTieBreak: 10);
+        for (int i = 0; i < 4; i++) { GanharGame(p, 0); GanharGame(p, 1); }
+        Assert.True(p.EmTieBreak);
+        Pontos(p, 0, 9); Pontos(p, 1, 9);
+        Assert.Equal("9", p.TextoDosPontos(0));
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Ponto, 0), p.PontoPara(0));   // 10-9: não basta
+        Assert.False(p.Acabou);
+        p.PontoPara(1);
+        p.PontoPara(1);   // 10-11
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Partida, 1), p.PontoPara(1));   // 10-12
+        Assert.Equal("4-5(10)", p.Resumo());
+    }
+
+    [Fact]
+    public void O_super_tie_break_fecha_em_10_8()
+    {
+        var p = new Placar(gamesPorSet: 4, pontosDoTieBreak: 10);
+        for (int i = 0; i < 4; i++) { GanharGame(p, 0); GanharGame(p, 1); }
+        Pontos(p, 1, 8); Pontos(p, 0, 9);
+        Assert.Equal(new EventoDoPlacar(TipoDeEventoDoPlacar.Partida, 0), p.PontoPara(0));
+        Assert.Equal("5-4(8)", p.Resumo());
+    }
+
+    [Fact]
+    public void O_padrao_continua_6_games_e_tie_break_a_7()
+    {
+        var p = new Placar();
+        Assert.Equal(6, p.GamesPorSet);
+        Assert.Equal(7, p.PontosDoTieBreak);
+    }
+
+    [Theory]
+    [InlineData(0, 7)]
+    [InlineData(4, 0)]
+    public void Games_por_set_e_pontos_do_tie_break_precisam_ser_positivos(int games, int pontos) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Placar(gamesPorSet: games, pontosDoTieBreak: pontos));
+
+    [Fact]
+    public void A_partida_passa_o_formato_ao_placar_e_ele_nao_vale_online()
+    {
+        var curta = new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Humanos = OpcoesDaPartida.NinguemHumano, Semente = 1 };
+        var p = new Partida(curta);
+        Assert.Equal(4, p.Placar.GamesPorSet);
+        Assert.Equal(10, p.Placar.PontosDoTieBreak);
+        Assert.False(curta.ValeOnline);   // o protocolo só carrega ponto de ouro e sets (como nos pontos corridos)
+        Assert.True(new OpcoesDaPartida().ValeOnline);
+    }
+
+    [Fact]
+    public void Uma_partida_curta_entre_IAs_termina_com_um_set_de_4()
+    {
+        var p = new Partida(new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Humanos = OpcoesDaPartida.NinguemHumano, Semente = 3 });
+        for (int i = 0; i < 120 * 60 * 30 && !p.Acabou; i++) p.Avancar(1f / 120f);
+        Assert.True(p.Acabou);
+        var set = p.Placar.SetsAnteriores.Single();
+        int v = Math.Max(set.Games[0], set.Games[1]), d = Math.Min(set.Games[0], set.Games[1]);
+        // Os únicos sets possíveis: 4-0, 4-1, 4-2, 5-3, e 5-4 pelo tie-break.
+        bool valido = (v == 4 && d <= 2) || (v == 5 && d == 3 && set.TieBreak is null) || (v == 5 && d == 4 && set.TieBreak is not null);
+        Assert.True(valido, $"set {set.Games[0]}-{set.Games[1]}");
+    }
 }

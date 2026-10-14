@@ -19,6 +19,11 @@ public sealed record OpcoesDaPartida
     public Dificuldade Dificuldade { get; init; } = Dificuldade.Medio;
     public bool PontoDeOuro { get; init; } = true;
     public int SetsParaVencer { get; init; } = 1;
+    /// <summary>Games pra fechar o set; o empate nele vai ao tie-break (<see cref="Placar.GamesPorSet"/>). O formato curto da
+    /// fatia no Unreal é 4. Só no jogo local: ver <see cref="ValeOnline"/>.</summary>
+    public int GamesPorSet { get; init; } = 6;
+    /// <summary>Pontos do tie-break (<see cref="Placar.PontosDoTieBreak"/>); o super tie-break do formato curto é 10.</summary>
+    public int PontosDoTieBreak { get; init; } = 7;
     /// <summary>Por jogador (time*2 + índice): quem é humano. Padrão: só o da casa, metade direita.</summary>
     public bool[] Humanos { get; init; } = [true, false, false, false];
     public ModoDeGolpe ModoDeGolpe { get; init; } = ModoDeGolpe.Manual;
@@ -31,11 +36,11 @@ public sealed record OpcoesDaPartida
     public int? PontosCorridos { get; init; }
 
     /// <summary>
-    /// Estas opções servem pra uma sala online? Pontos corridos não: o protocolo (<c>Padel.Core.Rede</c>: as opções do
-    /// BemVindo e o placar do instantâneo) só carrega games e sets, e um cliente veria outra partida. O host consulta isto
-    /// e recusa criar a sala quando é <c>false</c>.
+    /// Estas opções servem pra uma sala online? Pontos corridos e set fora do padrão (6 games, tie-break a 7) não: o
+    /// protocolo (<c>Padel.Core.Rede</c>: as opções do BemVindo e o placar do instantâneo) só carrega ponto de ouro e sets,
+    /// e um cliente veria outra partida. O host consulta isto e recusa criar a sala quando é <c>false</c>.
     /// </summary>
-    public bool ValeOnline => PontosCorridos is null;
+    public bool ValeOnline => PontosCorridos is null && GamesPorSet == 6 && PontosDoTieBreak == 7;
 
     public static readonly bool[] NinguemHumano = [false, false, false, false];
 }
@@ -100,7 +105,7 @@ public sealed class Partida
         Aleatorio = new Aleatorio(semente);
         Placar = Opcoes.PontosCorridos is int total
             ? Placar.DePontosCorridos(total, timeQueSaca: 0)
-            : new Placar(Opcoes.PontoDeOuro, Opcoes.SetsParaVencer, timeQueSaca: 0);
+            : new Placar(Opcoes.PontoDeOuro, Opcoes.SetsParaVencer, timeQueSaca: 0, Opcoes.GamesPorSet, Opcoes.PontosDoTieBreak);
         var rival = Perfis.Por(Opcoes.Dificuldade);
         bool[] h = Opcoes.Humanos;
         Jogadores =

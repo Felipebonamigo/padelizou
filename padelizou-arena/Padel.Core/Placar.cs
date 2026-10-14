@@ -13,8 +13,8 @@ public readonly record struct Sacador(int Time, int Jogador);
 public sealed record SetEncerrado(int[] Games, int[]? TieBreak);
 
 /// <summary>
-/// Placar de padel, puro: pontos 0/15/30/40, ponto de ouro ou vantagem, games, tie-break em 6-6,
-/// sets, partida em melhor de N. Também diz quem saca e de que lado. Times: 0 casa, 1 visitante;
+/// Placar de padel, puro: pontos 0/15/30/40, ponto de ouro ou vantagem, games, tie-break em 6-6 (ou no empate em
+/// <see cref="GamesPorSet"/> — o formato curto da fatia no Unreal é 4, com super tie-break a 10), sets, partida em melhor de N. Também diz quem saca e de que lado. Times: 0 casa, 1 visitante;
 /// jogadores dentro do time: 0 e 1. Os times alternam a cada game; dentro do time os jogadores
 /// alternam a cada vez que o time volta a sacar. No tie-break quem abriu saca 1 ponto, depois 2 a 2.
 /// </summary>
@@ -50,6 +50,10 @@ public sealed class Placar
     public bool PontoDeOuro { get; }
     /// <summary>Nos pontos corridos não se aplica (fica 1, e nenhum set acontece).</summary>
     public int SetsParaVencer { get; }
+    /// <summary>Games pra fechar o set (com 2 de vantagem); o empate nele vai ao tie-break. Padrão 6; o formato curto, 4.</summary>
+    public int GamesPorSet { get; }
+    /// <summary>Pontos pra fechar o tie-break (com 2 de vantagem). Padrão 7; o super tie-break do formato curto, 10.</summary>
+    public int PontosDoTieBreak { get; }
     /// <summary>O total de pontos corridos da partida (a soma que a encerra), ou <c>null</c> no padel de games e sets.</summary>
     public int? PontosCorridos { get; private init; }
     public int[] Pontos { get; private set; } = [0, 0];
@@ -67,10 +71,14 @@ public sealed class Placar
     private readonly int[] _jogadorSacador = [0, 0];
     private int _turnoDeSaque;
 
-    public Placar(bool pontoDeOuro = true, int setsParaVencer = 1, int timeQueSaca = 0)
+    public Placar(bool pontoDeOuro = true, int setsParaVencer = 1, int timeQueSaca = 0, int gamesPorSet = 6, int pontosDoTieBreak = 7)
     {
+        ArgumentOutOfRangeException.ThrowIfLessThan(gamesPorSet, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pontosDoTieBreak, 1);
         PontoDeOuro = pontoDeOuro;
         SetsParaVencer = setsParaVencer;
+        GamesPorSet = gamesPorSet;
+        PontosDoTieBreak = pontosDoTieBreak;
         SacadorDoGame = timeQueSaca;
         AbrirTurnoDeSaque(timeQueSaca);
     }
@@ -120,7 +128,7 @@ public sealed class Placar
         int a = Pontos[time], b = Pontos[1 - time];
         if (EmTieBreak)
         {
-            if (a >= 7 && a - b >= 2) return FecharGame(time);
+            if (a >= PontosDoTieBreak && a - b >= 2) return FecharGame(time);
             RodarSaqueNoTieBreak();
             return new EventoDoPlacar(TipoDeEventoDoPlacar.Ponto, time);
         }
@@ -165,13 +173,13 @@ public sealed class Placar
         EmTieBreak = false;
         int g = Games[time], h = Games[1 - time];
         EventoDoPlacar evento;
-        if (eraTieBreak || (g >= 6 && g - h >= 2))
+        if (eraTieBreak || (g >= GamesPorSet && g - h >= 2))
         {
             evento = FecharSet(time, pontosDoTieBreak);
         }
         else
         {
-            if (g == 6 && h == 6) EmTieBreak = true;
+            if (g == GamesPorSet && h == GamesPorSet) EmTieBreak = true;
             evento = new EventoDoPlacar(TipoDeEventoDoPlacar.Game, time);
         }
         // Próximo game: o outro time saca. Depois do tie-break, saca quem NÃO abriu o tie-break.
