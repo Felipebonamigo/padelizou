@@ -107,6 +107,10 @@ public interface IPagamentoInscricaoService
     // TorneiosController.CancelarSemParceiro).
     Task<bool> EstornarTotalAsync(Pagamento pagamento);
 
+    // Apaga no Asaas as faturas de "pagar depois" ainda vivas desta inscrição — chamado quando
+    // o organizador marca como pago o que recebeu por fora.
+    Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId);
+
     // Devolvemos só PARTE do dinheiro: a inscrição fica, mas passa a valer menos. Sincroniza
     // o ValorInscricao dela com o valor que sobrou no Pagamento (ver Services/EstornoParcial).
     Task<bool> AjustarValorDaInscricaoAsync(Pagamento pagamento);
@@ -877,6 +881,67 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         pagamento.Status = jaFoiPaga ? "Estornado" : "Cancelado";
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    // O ORGANIZADOR RECEBEU POR FORA: A FATURA DO ASAAS DESTA INSCRIÇÃO É APAGADA.
+    //
+    // 🗣️ Felipe, 13/10/2026: *"quando o sistema marcar como pago (na mão do organizador) é pq
+    // ele recebeu no pix dele ou de alguma forma dele, ai marque como pago no sistema e cancele
+    // a cobrança do asaas"*. Viva, a fatura seguia cobrando (o Lucas Fonseca, do NATA, recebia
+    // SMS de uma inscrição paga) e ainda podia ser paga uma segunda vez.
+    //
+    // ⚠️ "EXPIRADO" E "CANCELADO" ENTRAM: são mortes SÓ DO NOSSO LADO. O varredor local grava
+    // "Expirado" e o webhook PAYMENT_OVERDUE grava "Cancelado", e nos dois casos a cobrança
+    // segue VENCIDA no Asaas, cobrando. Uma que já foi apagada de verdade só faz o gateway
+    // recusar de novo — fica no log e nada muda.
+    //
+    // ⚠️ SÓ "TorneioPagarDepois": é a cobrança de quem JÁ está inscrito. A "TorneioDupla" é a
+    // que cria a inscrição, e mexer nela é assunto do estorno (ver JuntarInscricoes).
+    //
+    // Devolve quantas foram apagadas — a tela conta pro organizador.
+    public async Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId)
+    {
+        var candidatas = await _context.Pagamentos
+            .Where(p => p.Tipo == "TorneioPagarDepois" && p.TorneioId == torneioId
+                        && p.AsaasPaymentId != null && p.AsaasPaymentId != ""
+                        && (p.Status == "Pendente" || p.Status == "Expirado" || p.Status == "Cancelado"))
+            .ToListAsync();
+
+        int canceladas = 0;
+        foreach (var pagamento in candidatas)
+        {
+            if (!EhDaInscricao(pagamento, duplaId, inscricaoAmericanaId)) continue;
+
+            // `jaFoiPaga: false` = DELETE da fatura. Recusado (ex.: a pessoa pagou naquele
+            // instante), o status fica como estava: "Cancelado" mentiria sobre uma cobrança que
+            // pode ter virado dinheiro — e o webhook dela ainda vai chegar.
+            if (!await _asaas.EstornarAsync(pagamento.AsaasPaymentId!, jaFoiPaga: false))
+            {
+                _logger.LogWarning("Não deu pra cancelar no Asaas a cobrança {Id} ({AsaasId}) da inscrição "
+                    + "marcada como paga pelo organizador.", pagamento.Id, pagamento.AsaasPaymentId);
+                continue;
+            }
+
+            pagamento.Status = "Cancelado";
+            canceladas++;
+        }
+
+        if (canceladas > 0) await _context.SaveChangesAsync();
+        return canceladas;
+    }
+
+    // O alvo mora no JSON (`DadosPagamentoDeInscricao`); o `ReferenciaId` só serve quando não
+    // há JSON — o número dele sozinho não diz se é de dupla ou de inscrição do americano.
+    private bool EhDaInscricao(Pagamento pagamento, int? duplaId, int? inscricaoAmericanaId)
+    {
+        if (string.IsNullOrWhiteSpace(pagamento.DadosInscricao))
+            return duplaId is int id && pagamento.ReferenciaId == id;
+
+        var dados = Desserializar<DadosPagamentoDeInscricao>(pagamento);
+        if (dados == null) return false;
+
+        return (duplaId is int d && dados.DuplaId == d)
+            || (inscricaoAmericanaId is int a && dados.InscricaoAmericanaId == a);
     }
 
     // Chamado pelo webhook: o dinheiro entrou, então agora a inscrição existe de fato.

@@ -85,6 +85,10 @@ public interface IAsaasService
     // Reaproveita o cliente já cadastrado pelo CPF; só cria um novo se não existir.
     Task<string?> ObterOuCriarClienteAsync(string nome, string cpf, string? email, string? celular);
 
+    // Desliga o SMS que o Asaas manda ao CLIENTE (o do dono da conta fica). True quando ficou
+    // desligado — inclusive se já estava. Ver AsaasService.
+    Task<bool> DesligarSmsDoClienteAsync(string clienteId);
+
     // Cria a cobrança na conta do Padelizou. Quando há walletId, o split manda ValorRepasse
     // direto pro dono e o restante (a comissão) fica na nossa conta.
     Task<CobrancaAsaas?> CriarCobrancaAsync(

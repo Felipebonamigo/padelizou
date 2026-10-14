@@ -269,6 +269,8 @@ builder.Services.AddSingleton<FonteDoCartao>();
 // EncerramentoDaPartida, quatro no RoboDoChaveamento), e pendurar o aviso em cada um seria a
 // mesma regra escrita seis vezes — com o sétimo caminho nascendo sem aviso, calado.
 builder.Services.AddHostedService<AvisoDoMvpBackgroundService>();
+// Uma passada na partida: os clientes que já existiam no Asaas saem do SMS (ver o serviço).
+builder.Services.AddHostedService<SmsDoAsaasSoProDonoDaContaBackgroundService>();
 // Tira da tabela de push os registros que o servidor de push já não entrega — o número de
 // aparelhos é o que a gente usa pra medir o alcance do canal, e ele inflava sozinho.
 builder.Services.AddScoped<ISondaDePush, SondaDePushWebPush>();

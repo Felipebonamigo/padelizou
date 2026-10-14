@@ -92,7 +92,7 @@ public class AsaasService : IAsaasService
                 using var jsonBusca = JsonDocument.Parse(await respostaBusca.Content.ReadAsStringAsync());
                 if (jsonBusca.RootElement.TryGetProperty("data", out var lista) && lista.GetArrayLength() > 0)
                 {
-                    return lista[0].GetProperty("id").GetString();
+                    return await SemSmsAsync(lista[0].GetProperty("id").GetString());
                 }
             }
 
@@ -126,13 +126,94 @@ public class AsaasService : IAsaasService
             }
 
             using var json = JsonDocument.Parse(conteudo);
-            return json.RootElement.GetProperty("id").GetString();
+            return await SemSmsAsync(json.RootElement.GetProperty("id").GetString());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Falha ao obter/criar cliente no Asaas.");
             return null;
         }
+    }
+
+    // O SMS QUE O ASAAS MANDA SOZINHO PRO JOGADOR, DESLIGADO.
+    //
+    // 🗣️ Felipe, 13/10/2026: *"remova os sms, somente eu posso receber sms"*. O Asaas cria um
+    // jogo de notificações pra cada cliente, com SMS pro cliente ligado — e lembra de TODA
+    // cobrança aberta, inclusive a de quem já acertou com o organizador por fora (o caso do
+    // Lucas Fonseca no NATA). O Padelizou já tem o lembrete dele (app, e-mail, WhatsApp).
+    //
+    // ⚠️ SÓ `smsEnabledForCustomer`. O SMS do dono da conta (`smsEnabledForProvider`), o e-mail
+    // e o resto seguem como estavam: cada notificação vai no lote com os valores que o próprio
+    // Asaas devolveu, trocando só esse campo.
+    public async Task<bool> DesligarSmsDoClienteAsync(string clienteId)
+    {
+        try
+        {
+            // `limit=100`: o padrão da listagem é 10, e o cliente nasce com perto disso — sem o
+            // limite, uma notificação a mais passaria sem ser vista.
+            using var consulta = Requisicao(HttpMethod.Get, $"customers/{clienteId}/notifications?limit=100");
+            var resposta = await _httpClient.SendAsync(consulta);
+            var conteudo = await resposta.Content.ReadAsStringAsync();
+            if (!resposta.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Asaas retornou {Status} ao listar as notificações do cliente {Cliente}: {Corpo}",
+                    resposta.StatusCode, clienteId, conteudo);
+                return false;
+            }
+
+            using var json = JsonDocument.Parse(conteudo);
+            if (!json.RootElement.TryGetProperty("data", out var lista)) return false;
+
+            var aDesligar = new List<Dictionary<string, object?>>();
+            foreach (var n in lista.EnumerateArray())
+            {
+                if (!Ligado(n, "smsEnabledForCustomer")) continue;
+
+                aDesligar.Add(new Dictionary<string, object?>
+                {
+                    ["id"] = n.GetProperty("id").GetString(),
+                    ["enabled"] = Ligado(n, "enabled"),
+                    ["emailEnabledForProvider"] = Ligado(n, "emailEnabledForProvider"),
+                    ["smsEnabledForProvider"] = Ligado(n, "smsEnabledForProvider"),
+                    ["emailEnabledForCustomer"] = Ligado(n, "emailEnabledForCustomer"),
+                    ["smsEnabledForCustomer"] = false,
+                    ["phoneCallEnabledForCustomer"] = Ligado(n, "phoneCallEnabledForCustomer"),
+                    ["whatsappEnabledForCustomer"] = Ligado(n, "whatsappEnabledForCustomer"),
+                });
+            }
+
+            if (aDesligar.Count == 0) return true;
+
+            using var lote = Requisicao(HttpMethod.Put, "notifications/batch",
+                new Dictionary<string, object?> { ["customer"] = clienteId, ["notifications"] = aDesligar });
+            var respostaLote = await _httpClient.SendAsync(lote);
+            if (!respostaLote.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Asaas retornou {Status} ao desligar o SMS do cliente {Cliente}: {Corpo}",
+                    respostaLote.StatusCode, clienteId, await respostaLote.Content.ReadAsStringAsync());
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao desligar o SMS do cliente {Cliente} no Asaas.", clienteId);
+            return false;
+        }
+    }
+
+    private static bool Ligado(JsonElement notificacao, string campo) =>
+        notificacao.TryGetProperty(campo, out var valor) && valor.ValueKind == JsonValueKind.True;
+
+    // Todo cliente que passa por aqui sai sem SMS — o novo e o reaproveitado pelo CPF —, ANTES
+    // da cobrança nascer: o SMS de "cobrança criada" já não sai. Falhar aqui não derruba nada
+    // (o `DesligarSmsDoClienteAsync` só loga): perder a inscrição porque a lista de
+    // notificações não respondeu seria trocar um incômodo por um prejuízo.
+    private async Task<string?> SemSmsAsync(string? clienteId)
+    {
+        if (!string.IsNullOrWhiteSpace(clienteId)) await DesligarSmsDoClienteAsync(clienteId);
+        return clienteId;
     }
 
     // Devolve o número só com dígitos (DDD + 8 ou 9), ou null se não der pra aproveitar.
