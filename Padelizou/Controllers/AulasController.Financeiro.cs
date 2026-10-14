@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ namespace padelizou.Controllers
         // `semanas` é o mês do card de semanas ("2026-08"), independente do `periodo` dos
         // cartões do topo: um responde "quanto entrou nesta semana", o outro "como foi agosto".
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Financeiro(string? periodo, string? semanas = null, DateTime? dataInicio = null, DateTime? dataFim = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -396,6 +398,7 @@ namespace padelizou.Controllers
 
         // 6. RELATÓRIO DO PROFESSOR (aulas dadas, alunos, receita e gasto por período)
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Relatorio(DateTime? dataInicio, DateTime? dataFim)
         {
             var professorId = await ObterProfessorLogadoAsync();

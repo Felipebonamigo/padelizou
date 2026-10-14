@@ -96,6 +96,16 @@ namespace padelizou.Controllers
                 return View(aula);
             }
 
+            // ⚠️ ACEITAR É MARCAÇÃO, e este link é GET sem login — o filtro do bloqueio não o
+            // alcança (não sabe quem é). Sem esta conferência, o professor bloqueado seguia
+            // confirmando aula nova pelo e-mail que o próprio sistema manda. Recusar passa: não
+            // põe nada na agenda. A aula continua pendente e o aluno vê o cancelamento normal.
+            if (aceitar && BloqueioDoProfessor.EstaBloqueado(aula.Professor, DateTime.Now, _plano))
+            {
+                ViewBag.ProfessorBloqueado = true;
+                return View(aula);
+            }
+
             var linkWhatsApp = await ProcessarDecisaoAsync(aula, aceitar);
             ViewBag.Aceitou = aceitar;
             ViewBag.WhatsAppLink = linkWhatsApp;

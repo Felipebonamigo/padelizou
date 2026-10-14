@@ -21,6 +21,11 @@ public sealed class SemBloqueioDeProfessorAttribute : Attribute
 {
 }
 
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class AgendaDoProfessorAttribute : Attribute
+{
+}
+
 // A AGENDA FECHA PRO PROFESSOR QUE NÃO SUSTENTA O PLANO (item 2 do desenho de 22/09/2026).
 // A régua de QUEM mora em Services/BloqueioDoProfessor; aqui só se aplica.
 //
@@ -65,12 +70,23 @@ public sealed class ExigePlanoAtivoAttribute : TypeFilterAttribute
         // Devolve o motivo quando o pedido tem que parar aqui; nulo quando pode seguir.
         private async Task<string?> EstaBloqueadoAsync(ActionExecutingContext ctx)
         {
-            // Leitura nunca fecha.
-            if (!HttpMethods.IsPost(ctx.HttpContext.Request.Method)) return null;
+            var metodo = (ctx.ActionDescriptor as ControllerActionDescriptor)?.MethodInfo;
 
-            if (ctx.ActionDescriptor is ControllerActionDescriptor acao
-                && acao.MethodInfo.GetCustomAttribute<SemBloqueioDeProfessorAttribute>() != null)
+            // ⚠️ A LEITURA SÓ FECHA SE A TELA SE MARCOU [AgendaDoProfessor] (Felipe, 14/10/2026:
+            // *"bloqueio nas marcações e acesso à agenda"*). Não dá pra fechar todo GET da classe:
+            // as telas do ALUNO e a vitrine pública moram nos mesmos controllers. Quem garante
+            // que nenhuma tela do professor fique de fora é o GateDaLeituraDoProfessorTests, que
+            // reprova GET sem classificação.
+            //
+            // Já o POST segue o desenho de sempre: fecha tudo, quem fica de fora se declara.
+            if (HttpMethods.IsPost(ctx.HttpContext.Request.Method))
+            {
+                if (metodo?.GetCustomAttribute<SemBloqueioDeProfessorAttribute>() != null) return null;
+            }
+            else if (metodo?.GetCustomAttribute<AgendaDoProfessorAttribute>() == null)
+            {
                 return null;
+            }
 
             // Sem login não é problema deste filtro — o [Authorize] já recusou antes.
             var claim = ctx.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -82,10 +98,30 @@ public sealed class ExigePlanoAtivoAttribute : TypeFilterAttribute
             // que moram nestes mesmos controllers, sem precisar marcar uma por uma.
             if (eu is not { IsProfessor: true }) return null;
 
+            await ComecarORelogioDoProfessorNovoAsync(eu);
+
             if (!BloqueioDoProfessor.EstaBloqueado(eu, DateTime.Now, _cfg)) return null;
 
-            return "Seu plano venceu e sua agenda está fechada pra novidades — o que já está "
-                 + "marcado continua aparecendo. Assine pra voltar a mexer nela.";
+            return "Seu plano venceu e sua agenda está fechada. Assine pra voltar a usá-la — o que "
+                 + "já está marcado continua marcado.";
+        }
+
+        // O RELÓGIO DO PROFESSOR NOVO COMEÇA NO PRIMEIRO USO, e não só no painel. Sem isto, quem
+        // chegasse por outra porta (publicar turma, cadastrar horário) usaria sem relógio algum.
+        //
+        // ⚠️ SÓ CONTA CRIADA DEPOIS DA ESTREIA, e só com o interruptor ligado: o professor
+        // antigo tem o prazo da data de ligar (BloqueioDoProfessor) e NÃO ganha 15 dias novos por
+        // bater aqui; dormente, o filtro não mexe em ninguém.
+        private async Task ComecarORelogioDoProfessorNovoAsync(Jogador eu)
+        {
+            if (_cfg.BloqueioAPartirDe is not DateTime estreia) return;
+            if (eu.TesteProfessorInicio != null
+                || eu.AssinaturaProfessorPagaAte != null
+                || eu.CortesiaConcedidaEm != null) return;
+            if (eu.CriadoEm is not DateTime criadoEm || criadoEm < estreia) return;
+
+            eu.TesteProfessorInicio = DateTime.Now;
+            await _context.SaveChangesAsync();
         }
 
         // ⚠️ REDIRECT PRA TELA DE FORMULÁRIO, 403 PRO RESTO. Devolver HTML de redirect pra um

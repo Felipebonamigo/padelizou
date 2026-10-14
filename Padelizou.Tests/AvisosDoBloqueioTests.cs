@@ -22,9 +22,9 @@ public class AvisosDoBloqueioTests
 {
     private static PlanoProfessorSettings Cfg => new() { BloqueioAPartirDe = new DateTime(2026, 01, 01) };
 
-    // Venceu em 01/09 → bloqueia 11/09 10h (10 dias) → aulas caem em 01/10 (30 dias).
+    // Venceu em 01/09 → bloqueia 07/09 10h (6 dias) → aulas caem em 01/10 (30 dias).
     private static readonly DateTime Venceu = new(2026, 09, 01);
-    private static readonly DateTime Bloqueia = new(2026, 09, 11, 10, 0, 0);
+    private static readonly DateTime Bloqueia = new(2026, 09, 07, 10, 0, 0);
 
     private static Jogador Largado() => new()
     {
@@ -128,8 +128,8 @@ public class AvisosDoBloqueioTests
     [Fact]
     public void O_email_sai_no_bloqueio_na_metade_e_na_vespera_do_cancelamento()
     {
-        // Bloqueio 11/09, cancelamento 01/10: 20 dias de prazo → metade no dia 10, véspera no 19.
-        foreach (var dia in new[] { 0, 10, 19 })
+        // Bloqueio 07/09, cancelamento 01/10: 24 dias de prazo → metade no dia 12, véspera no 23.
+        foreach (var dia in new[] { 0, 12, 23 })
         {
             Assert.Equal(AlcanceDoAviso.SoApp, AvisosDoPlanoDoProfessor.AlcanceDe(
                 AvisosDoPlanoDoProfessor.PrimeiroDiaBloqueado + dia, Largado(), Cfg));

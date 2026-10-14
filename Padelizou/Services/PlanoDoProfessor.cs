@@ -24,12 +24,12 @@ public class PlanoProfessorSettings
 
     // Dias de atraso da mensalidade que ainda seguram as condições de assinante. Cair pra
     // taxa cheia no primeiro minuto de atraso puniria quem só esqueceu o boleto no feriado.
-    public int DiasDeCarencia { get; set; } = 7;
+    public int DiasDeCarencia { get; set; } = 5;
 
     // Dias entre perder o direito e a AGENDA FECHAR, pra quem já foi cliente (pagou alguma vez
     // ou teve cortesia). ⚠️ Eixo diferente da carência acima: aquela decide quanto a aula
     // custa, esta decide quando ele para de marcar aula. Ver Services/BloqueioDoProfessor.
-    public int DiasAteOBloqueio { get; set; } = 10;
+    public int DiasAteOBloqueio { get; set; } = 6;
 
     // "Fica marcado até 1 mês depois do vencimento" (Felipe). Passado isto, as aulas futuras
     // são canceladas e os alunos avisados. ⚠️ Conta do MESMO ponto que o bloqueio — o fim do

@@ -98,34 +98,33 @@ public class BloqueioDoProfessorTests
         Assert.False(BloqueioDoProfessor.EstaBloqueado(ninguem, Agora, Cfg()));
     }
 
-    // ── Quem já pagou: os 10 dias de prazo ────────────────────────────────────────────────
+    // ── Quem já pagou: 5 dias de carência e o bloqueio no dia seguinte (14/10/2026) ──────────
 
     [Fact]
-    public void Entre_o_fim_da_carencia_e_o_decimo_dia_ele_paga_10_por_cento_e_AINDA_agenda()
+    public void Entre_o_fim_da_carencia_e_o_bloqueio_ele_paga_10_por_cento_e_AINDA_agenda()
     {
-        // ⚠️ O PRAZO DO BLOQUEIO É OUTRO, E MAIOR, QUE O DA CARÊNCIA — e esta é a janela que
-        // prova os dois eixos separados. Venceu em 14/09: a carência (7) acabou em 21/09, então
-        // hoje (22/09) ele JÁ paga taxa cheia; o bloqueio (10) só cai em 24/09. Sobram três
-        // dias em que ele custa 10% e continua marcando aula.
+        // ⚠️ O PRAZO DO BLOQUEIO É OUTRO, E UM DIA MAIOR, QUE O DA CARÊNCIA — e esta é a janela
+        // que prova os dois eixos separados. Venceu em 17/09: a carência (5) acabou em 22/09 à
+        // meia-noite, então hoje (22/09, meio-dia) ele JÁ paga taxa cheia; o bloqueio (6) só
+        // cai em 23/09, às 10h. Sobra um dia em que ele custa 10% e continua marcando aula.
         //
-        // Colar os dois números faria a porta bater no mesmo instante em que a taxa sobe — e o
-        // Felipe pediu explicitamente um prazo pra quem já foi cliente: "coloca o aviso de 10
-        // dias, se ele nao pagar, bloqueia tambem".
-        var atrasado = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 09, 14));
+        // Colar os dois números faria a porta bater no mesmo instante em que a taxa sobe.
+        // Felipe, 14/10/2026: "apenas 5 dias de utilização normal, depois um aviso de bloqueio".
+        var atrasado = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 09, 17));
 
         Assert.Equal(PlanoDoProfessor.Situacao.AssinanteEmAtraso,
             PlanoDoProfessor.SituacaoDe(atrasado, Agora, Cfg()));
         Assert.False(PlanoDoProfessor.CondicoesDeAssinante(atrasado, Agora, Cfg()));
         Assert.False(BloqueioDoProfessor.EstaBloqueado(atrasado, Agora, Cfg()));
-        Assert.Equal(new DateTime(2026, 09, 24, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(atrasado, Cfg()));
+        Assert.Equal(new DateTime(2026, 09, 23, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(atrasado, Cfg()));
     }
 
     [Fact]
     public void Dentro_da_carencia_ele_nem_chega_perto_do_bloqueio()
     {
-        // Venceu em 17/09, carência até 24/09: hoje ele ainda é "Assinante em dia" e a
+        // Venceu em 18/09, carência até 23/09: hoje ele ainda é "Assinante em dia" e a
         // invariante do topo já o protege — o bloqueio nem precisa ser consultado.
-        var naCarencia = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 09, 17));
+        var naCarencia = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 09, 18));
 
         Assert.Equal(PlanoDoProfessor.Situacao.AssinanteEmDia,
             PlanoDoProfessor.SituacaoDe(naCarencia, Agora, Cfg()));
@@ -133,25 +132,25 @@ public class BloqueioDoProfessorTests
     }
 
     [Fact]
-    public void Assinatura_vencida_ha_mais_de_dez_dias_bloqueia()
+    public void Assinatura_vencida_ha_mais_de_seis_dias_bloqueia()
     {
         var largado = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 09, 10));
 
-        Assert.Equal(new DateTime(2026, 09, 20, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(largado, Cfg()));
+        Assert.Equal(new DateTime(2026, 09, 16, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(largado, Cfg()));
         Assert.True(BloqueioDoProfessor.EstaBloqueado(largado, Agora, Cfg()));
     }
 
     [Fact]
     public void Quem_teve_cortesia_ganha_o_mesmo_prazo_de_quem_pagou()
     {
-        // Permuta que acabou em 15/09: ele foi cliente de verdade, e porta na cara no dia
+        // Permuta que acabou em 17/09: ele foi cliente de verdade, e porta na cara no dia
         // seguinte seria o pior jeito de tratar quem pagou com trabalho.
-        var permuta = Professor(cortesiaAte: new DateTime(2026, 09, 15),
+        var permuta = Professor(cortesiaAte: new DateTime(2026, 09, 17),
                                 cortesiaEm: new DateTime(2026, 03, 01),
                                 testeInicio: new DateTime(2026, 02, 01));
 
         Assert.False(BloqueioDoProfessor.EstaBloqueado(permuta, Agora, Cfg()));
-        Assert.Equal(new DateTime(2026, 09, 25, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(permuta, Cfg()));
+        Assert.Equal(new DateTime(2026, 09, 23, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(permuta, Cfg()));
     }
 
     [Fact]
@@ -164,7 +163,7 @@ public class BloqueioDoProfessorTests
                                 cortesiaAte: new DateTime(2026, 09, 10),
                                 cortesiaEm: new DateTime(2026, 08, 01));
 
-        Assert.Equal(new DateTime(2026, 10, 10, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(os_dois, Cfg()));
+        Assert.Equal(new DateTime(2026, 10, 06, 10, 0, 0), BloqueioDoProfessor.BloqueiaEm(os_dois, Cfg()));
         Assert.False(BloqueioDoProfessor.EstaBloqueado(os_dois, Agora, Cfg()));
     }
 
@@ -208,7 +207,7 @@ public class BloqueioDoProfessorTests
         // nem empurra todo mundo pro mesmo dia.
         var vencePosEstreia = Professor(PlanoDoProfessor.Assinante, pagaAte: new DateTime(2026, 11, 20));
 
-        Assert.Equal(new DateTime(2026, 11, 30, 10, 0, 0),
+        Assert.Equal(new DateTime(2026, 11, 26, 10, 0, 0),
             BloqueioDoProfessor.BloqueiaEm(vencePosEstreia, Cfg(new DateTime(2026, 10, 06))));
     }
 

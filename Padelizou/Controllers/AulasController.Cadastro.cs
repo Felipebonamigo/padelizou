@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MeusLocais()
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -488,6 +490,7 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MinhasCidades()
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -572,6 +575,7 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MeusHorarios()
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -670,6 +674,7 @@ namespace padelizou.Controllers
         // a linha certa. O jeito era criar outra e conviver com as duas.
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> EditarHorario(int id)
         {
             var professorId = await ObterProfessorLogadoAsync();

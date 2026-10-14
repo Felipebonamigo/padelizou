@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> AdicionarManual(DateTime? dataHora = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -53,6 +55,7 @@ namespace padelizou.Controllers
         // própria: vivia dentro do autocompletar de "Adicionar aula", onde some assim que o
         // professor escolhe um nome. Aqui não nasce regra nova, nasce lugar pra olhar.
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MeusAlunos(string? busca)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -83,6 +86,7 @@ namespace padelizou.Controllers
         // também quem já é aluno dele, marcado, pra ele não cadastrar a mesma pessoa duas
         // vezes por não ter reconhecido o nome completo.
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> BuscarAlunoNoSistema(string? termo)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -504,6 +508,7 @@ namespace padelizou.Controllers
 
         // 3. TELA DE GERENCIAMENTO DO PROFESSOR (Minha Agenda)
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MinhaAgenda(string? vista, string? periodo, DateTime? data, string? esporte = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -765,6 +770,7 @@ namespace padelizou.Controllers
         // aluno já tinha — e ele recebia um "aula apagada" seguido de nada. Ver
         // Services/EdicaoDeAula pra regra de quem pode editar e de quem precisa ser avisado.
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Editar(int id)
         {
             var professorId = await ObterProfessorLogadoAsync();

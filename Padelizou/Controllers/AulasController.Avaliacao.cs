@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ namespace padelizou.Controllers
         // ── A régua ───────────────────────────────────────────────────────────────────────
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> MinhaRegua(string? modulo)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -84,6 +86,7 @@ namespace padelizou.Controllers
         // ── As fichas ─────────────────────────────────────────────────────────────────────
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Avaliacoes(int? alunoId)
         {
             var professorId = await ObterProfessorLogadoAsync();
@@ -135,6 +138,7 @@ namespace padelizou.Controllers
         }
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Avaliacao(int id)
         {
             var professorId = await ObterProfessorLogadoAsync();

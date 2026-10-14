@@ -13,7 +13,7 @@ namespace Padelizou.Services;
 // a Mesa de Controle quebrou em 31/07.
 //
 // ⚠️ É UM EIXO À PARTE DA TAXA, e os dois prazos são diferentes de propósito. Os 7 dias de
-// `DiasDeCarencia` decidem quanto a aula CUSTA; os 10 daqui decidem quando a agenda FECHA.
+// `DiasDeCarencia` decidem quanto a aula CUSTA; os daqui decidem quando a agenda FECHA.
 // Colar os dois faria a porta bater no mesmo instante em que a taxa sobe, e o Felipe pediu
 // explicitamente um prazo pra quem já foi cliente: *"se ele ja pagou alguma vez, coloca o aviso
 // de 10 dias"*.
@@ -48,8 +48,23 @@ public static class BloqueioDoProfessor
             professor.CortesiaProfessorAte,
             PlanoDoProfessor.FimDoTeste(professor, cfg));
 
-        // Sem relógio não há prazo: quem nunca abriu o plano (nem o painel de aulas) não tem
-        // `TesteProfessorInicio`, e não dá pra bloquear alguém por um prazo que nunca correu.
+        // ⚠️ QUEM NUNCA TEVE RELÓGIO NÃO ESCAPA MAIS (Felipe, 14/10/2026: *"tem professor usando
+        // sem pagar"*). O professor que já existia quando o interruptor foi ligado e nunca abriu
+        // o painel nem o plano não tem `TesteProfessorInicio`, e era justamente ele que ficava
+        // SEM PRAZO — nunca barrado, por mais que usasse. O prazo dele parte da data de ligar.
+        //
+        // ⚠️ SÓ O PROFESSOR ANTIGO: conta criada DEPOIS da estreia ainda vai ter o teste dela
+        // (o filtro começa o relógio no primeiro uso), e fechá-la no dia seguinte seria bloquear
+        // quem nunca teve teste. `CriadoEm` nulo não prova nada — fica de fora.
+        if (ultimoDireito is null
+            && professor.IsProfessor
+            && professor.CriadoEm is DateTime criadoEm
+            && criadoEm < estreia)
+            ultimoDireito = estreia;
+
+        // Sem relógio não há prazo: conta nova que ainda não abriu o plano (nem o painel de
+        // aulas) não tem `TesteProfessorInicio`, e não dá pra bloquear alguém por um prazo que
+        // nunca correu.
         if (ultimoDireito is not DateTime fim) return null;
 
         // Quem já foi cliente de verdade ganha os 10 dias. Quem só usou o teste, não: o teste
