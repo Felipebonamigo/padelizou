@@ -1,0 +1,56 @@
+name: Problema de playtest
+description: Algo quebrado, estranho ou chato que apareceu jogando o Padelizou Arena.
+title: "[Playtest] Arena: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Uma Issue por problema. Pode escrever do jeito que vier; o Claude organiza, reproduz, corrige e fecha citando o commit.
+  - type: textarea
+    id: o-que
+    attributes:
+      label: O que aconteceu
+      description: O que você viu e o que esperava ver. Parece padel de verdade? Se não, por quê?
+    validations:
+      required: true
+  - type: input
+    id: onde
+    attributes:
+      label: Onde
+      description: Modo (partida, carreira, coop, online), tela, dificuldade e, se souber, a semente.
+  - type: textarea
+    id: como
+    attributes:
+      label: Como repetir
+      description: Os passos, se souber. "Não sei repetir" também serve.
+  - type: dropdown
+    id: gravidade
+    attributes:
+      label: Gravidade
+      options:
+        - Trava ou fecha o jogo
+        - Quebra a partida ou perde progresso
+        - Atrapalha, mas dá para jogar
+        - Incômodo ou visual
+        - Sugestão
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão
+      description: A versão do menu ou o commit.
+  - type: dropdown
+    id: plataforma
+    attributes:
+      label: Onde jogou
+      options:
+        - PC (Windows)
+        - Linux
+        - Steam Deck
+        - Outro
+  - type: textarea
+    id: anexos
+    attributes:
+      label: Captura, vídeo ou arquivo
+      description: Arraste a captura ou o vídeo para cá. Se tiver, cole o trecho do log do Godot (pasta logs/ em app_userdata/Padelizou Arena), sem o IP de quem hospedou.

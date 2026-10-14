@@ -25,11 +25,13 @@ Migrations_old_20260721_backup/
 # A config pessoal do Claude continua fora (settings.local.json e afins), mas o
 # hook de setup e o settings.json são do projeto: é o que instala o .NET nas
 # sessões da web. Precisa estar versionado pra valer nas sessões de todo mundo.
+# As rotinas do Padelizou Arena (`.claude/skills/`) também.
 # Não dá pra usar `.claude/` aqui: o git não readmite arquivo dentro de pasta
 # excluída — daí o `.claude/*`.
 .claude/*
 !.claude/settings.json
 !.claude/hooks/
+!.claude/skills/
 
 # Backups do appsettings — guardam os mesmos segredos do original
 appsettings.json.bak

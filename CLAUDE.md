@@ -196,3 +196,10 @@ declare "funciona" sem rodar a suíte.
 Ver `infra/vps/README.md`. Resumo: PR → CI verde → merge no `main` → o `ci.yml` publica um
 release `build-N-sha7` → workflow `Deploy` (GitHub Actions → Deploy → Run workflow) instala
 em `dev` ou `prod` via SSH, com rollback automático se o `/healthz` não responder 200.
+
+## Padelizou Arena (o jogo, só neste branch)
+
+Este branch (`claude/padel-game-new-9yl0ga`) também guarda o **Padelizou Arena**, o jogo de padel para a Steam, na pasta
+`padelizou-arena/` (Godot 4.7.2 + C#). Antes de mexer no jogo, leia `padelizou-arena/CLAUDE.md`. As rotinas do jogo
+ficam em `.claude/skills/`: `verificar`, `capturar`, `modelo-3d`, `triar-playtest`, `achar-gargalo`, `ler-crash`,
+`publicar-na-steam`, `declaracao-ia`, `conferir-fato`, `som-livre` e `traduzir`. Elas são do jogo, não da plataforma.
