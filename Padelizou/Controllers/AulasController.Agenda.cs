@@ -1225,5 +1225,115 @@ namespace padelizou.Controllers
             return RedirectToAction("MinhaAgenda");
         }
 
+        // 7. APAGAR ESTA E AS PRÓXIMAS — tira uma aula fixa da agenda numa ação só.
+        //
+        // Antes eram dois botões em duas telas: "Encerrar a repetição" (no Editar, só em série
+        // sem prazo) e "Apagar" aula por aula. O professor não achava o primeiro (14/10/2026).
+        //
+        // O que sai: as aulas DE PÉ (Pendente/Confirmada), desta data pra frente, da mesma série
+        // — e, se for turma, dos colegas também (o card é um só e cada um tem a própria série).
+        // O que fica: as anteriores (ninguém pediu), Realizada e Cancelada (fato registrado) e
+        // a futura já PAGA (apagar não devolve o dinheiro). A repetição para em todas as séries
+        // tocadas, inclusive nas linhas que ficaram: sem isso o renovador repovoaria a partir
+        // da paga que sobrou.
+        [HttpPost]
+        public async Task<IActionResult> ExcluirAulaEProximas(int aulaId)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            // O ProfessorId no filtro é a autorização (mesma razão do ExcluirAula).
+            var aula = await _context.Aulas
+                .FirstOrDefaultAsync(a => a.Id == aulaId && a.ProfessorId == professorId);
+
+            if (aula == null)
+            {
+                TempData["Erro"] = "Aula não encontrada.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            if (aula.RecorrenciaId == null)
+            {
+                TempData["Erro"] = "Essa aula não faz parte de uma série. Use Apagar.";
+                return RedirectToAction("MinhaAgenda");
+            }
+
+            var serieId = aula.RecorrenciaId;
+            var turmaId = aula.TurmaId;
+
+            var daquiPraFrente = await _context.Aulas
+                .Include(a => a.LocalAula)
+                .Where(a => a.ProfessorId == professorId
+                         && a.DataHora >= aula.DataHora
+                         && (a.RecorrenciaId == serieId || (turmaId != null && a.TurmaId == turmaId)))
+                .ToListAsync();
+
+            var deDePe = daquiPraFrente.Where(a => PoliticaAula.ContaComoAtiva(a.Status)).ToList();
+            var apagar = deDePe.Where(a => a.PagaEm == null).ToList();
+            var puladasPorPagas = deDePe.Count - apagar.Count;
+
+            // Todas as séries tocadas param de repor — as linhas que sobram incluídas.
+            var series = daquiPraFrente
+                .Where(a => a.RecorrenciaId != null)
+                .Select(a => a.RecorrenciaId!.Value)
+                .Distinct()
+                .ToList();
+            var apagarIds = apagar.Select(a => a.Id).ToHashSet();
+            var seguemRepondo = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId && a.RecorrenciaSemFim
+                         && a.RecorrenciaId != null && series.Contains(a.RecorrenciaId.Value))
+                .ToListAsync();
+            foreach (var viva in seguemRepondo.Where(a => !apagarIds.Contains(a.Id)))
+                viva.RecorrenciaSemFim = false;
+
+            var agora = DateTime.Now;
+            var avisos = apagar
+                .Where(a => ExclusaoDeAula.PrecisaAvisarAluno(a, agora) && a.AlunoId.HasValue)
+                .GroupBy(a => a.AlunoId!.Value)
+                .Select(g => (AlunoId: g.Key, Quantas: g.Count(), Primeira: g.Min(a => a.DataHora),
+                    Onde: g.First().LocalAula.Nome))
+                .ToList();
+            // Turma/série compartilham o evento (GoogleEventId igual em várias linhas): remove uma vez.
+            var eventosGoogle = apagar
+                .Where(a => a.GoogleEventId != null)
+                .Select(a => a.GoogleEventId!)
+                .Distinct()
+                .ToList();
+
+            // As anotações caem por cascade (ver DbPadelContext).
+            _context.Aulas.RemoveRange(apagar);
+            await _context.SaveChangesAsync();
+
+            foreach (var evento in eventosGoogle)
+                await _googleCalendarService.RemoverEventoAsync(professorId.Value, evento);
+
+            foreach (var (destinatario, quantas, primeira, onde) in avisos)
+            {
+                try
+                {
+                    await _pushService.EnviarParaJogadorAsync(destinatario,
+                        "Aulas apagadas pelo professor",
+                        (quantas == 1
+                            ? $"A aula de {primeira:dd/MM 'às' HH:mm} em {onde} foi apagada da agenda. "
+                            : $"{quantas} aulas a partir de {primeira:dd/MM 'às' HH:mm} em {onde} foram apagadas da agenda. ")
+                        + "Fale com seu professor se não era pra ser.",
+                        Url.Action("MinhasAulas", "Aulas"), AlcanceDoAviso.AppEWhatsApp);
+                }
+                catch (Exception ex)
+                {
+                    // As aulas já foram apagadas; falhar o aviso não justifica erro na tela.
+                    _logger.LogWarning(ex, "Falha ao avisar o aluno {AlunoId} da exclusão da série da aula {AulaId}", destinatario, aulaId);
+                }
+            }
+
+            // Sem isto o professor acharia que apagou tudo e a paga continuaria lá.
+            var texto = $"{apagar.Count} aula(s) apagada(s) e a repetição foi encerrada.";
+            if (puladasPorPagas > 0)
+                texto += $" {puladasPorPagas} aula(s) futura(s) já paga(s) ficou(aram) na agenda — apague à mão se for o caso.";
+            TempData["Sucesso"] = texto;
+
+            return RedirectToAction("MinhaAgenda");
+        }
+
     }
 }

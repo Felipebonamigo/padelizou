@@ -62,6 +62,15 @@
                                     </button>
                                 </form>
                             }
+                            @* Serve a qualquer série, com ou sem prazo: é o "tirar essa aula fixa da
+                               agenda" numa ação só. O Encerrar acima só para a reposição. *@
+                            <form asp-action="ExcluirAulaEProximas" method="post" class="mt-2"
+                                  onsubmit="return confirm('Apagar esta aula e todas as próximas desta série? A repetição também é encerrada. Aulas anteriores, realizadas, canceladas e já pagas continuam na agenda. Os alunos com conta serão avisados.');">
+                                <input type="hidden" name="aulaId" value="@Model.Id" />
+                                <button type="submit" class="btn btn-sm btn-danger rounded-pill">
+                                    <i class="bi bi-trash"></i> Apagar esta e as próximas
+                                </button>
+                            </form>
                         </div>
                     }
 
