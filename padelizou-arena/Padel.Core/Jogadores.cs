@@ -43,7 +43,7 @@ public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, 
 ///   meio da sua metade; 0,5 = com a bola junto à lateral (4,7 m), o centro vai 2,35 m pro lado dela e o parceiro de longe
 ///   fica perto do meio da quadra, fechando a diagonal.</item>
 /// <item><b>SeparacaoDaDupla</b> (m): distância lateral entre os dois. A quadra tem 10 m e o alcance de um jogador é ~1 m de
-///   cada lado: 5 m (o antigo, cada um no meio da sua metade) deixa 3 m de buraco no meio; 3,6 m deixa 1,4 m.</item>
+///   cada lado: 5 m (o antigo, cada um no meio da sua metade) deixa 3 m de buraco no meio; 3,6 m deixa 1,6 m.</item>
 /// <item><b>FolgaDoBloco</b> (m): a maior diferença de profundidade que um aceita do parceiro quando a dupla anda — quem está
 ///   mais à frente espera o outro pra subirem juntos, e quem não vai na bola recua (ou sobe) até ficar a essa distância da
 ///   profundidade de quem vai.</item>
@@ -464,6 +464,8 @@ public sealed class IA
     private readonly bool[] _esperaOParceiro = new bool[2];
     /// <summary>Verdadeiro se o Indice 0 está na vaga da esquerda (no referencial da dupla) e o 1 na da direita: saque do outro lado ou cambio.</summary>
     private bool _ladosTrocados;
+    /// <summary>O CriadoEm do plano (a trajetória da bola) em que a dupla fez o último cambio: um por trajetória.</summary>
+    private float _cambioNaTrajetoria = float.NegativeInfinity;
     /// <summary>O x da bola como a dupla o acompanha (atrasado de <see cref="PerfilDeIA.AtrasoDaFormacao"/>).</summary>
     private float _xDaBolaLido;
     /// <summary>A profundidade do parceiro humano como a IA a acompanha (idem), e se ela o lê na rede ou no fundo.</summary>
@@ -477,6 +479,12 @@ public sealed class IA
 
     /// <summary>Jogador que está indo buscar a bola, se houver (pra depuração e pra animação).</summary>
     public Jogador? Responsavel => _plano?.Responsavel;
+    /// <summary>Onde (x, no mundo) quem vai na bola põe o corpo agora, pela leitura do momento — null sem plano (depuração e teste).</summary>
+    public float? AlvoXDoResponsavel => _plano is Plano p ? XDoCorpo(p, p.Responsavel) : null;
+    /// <summary>A dupla está com os lados trocados (o Indice 0 na vaga da esquerda): saque do outro lado ou cambio (depuração e teste).</summary>
+    public bool LadosTrocados => _ladosTrocados;
+    /// <summary>A formação que o jogador (deste time) segue agora; difere de <see cref="Posicao"/> enquanto ele não acompanhou a dupla.</summary>
+    public Formacao FormacaoDe(Jogador j) => _formacao[j.Indice];
 
     public void AoSacar(Partida partida, int timeSacador)
     {
@@ -517,7 +525,8 @@ public sealed class IA
     /// <summary>
     /// A dupla muda (ou confirma) a formação. Quem mandou (quem bateu, ou quem vai na bola que passa por cima) segue na hora;
     /// o outro segue depois de <see cref="PerfilDeIA.AtrasoDaFormacao"/> — ou, com <see cref="PerfilDeIA.ChanceDeDesencontro"/>,
-    /// nem percebe e fica na que estava até a próxima. O parceiro de um humano não entra: ele segue o humano.
+    /// nem percebe e fica na que estava até a próxima. No time de um humano os dois seguem na hora, sem sorteio: a IA de lá
+    /// segue a formação do humano (LugarNaFormacao), e esta só vale se ele virar IA no meio do ponto.
     /// </summary>
     private void MudarFormacao(Partida partida, Formacao nova, Jogador quem)
     {
@@ -525,9 +534,8 @@ public sealed class IA
         var meus = partida.JogadoresDoTime(Time);
         foreach (var j in meus)
         {
-            if (j.Humano || Parceiro(meus, j).Humano) continue;
             int i = j.Indice;
-            if (j == quem || _formacao[i] == nova) { _formacao[i] = nova; _pendente[i] = null; continue; }
+            if (j == quem || _formacao[i] == nova || j.Humano || Parceiro(meus, j).Humano) { _formacao[i] = nova; _pendente[i] = null; continue; }
             if (_pendente[i] == nova) continue;
             if (Perfil.ChanceDeDesencontro > 0 && _aleatorio.Proximo() < Perfil.ChanceDeDesencontro) { _pendente[i] = null; continue; }
             _pendente[i] = nova;
@@ -718,7 +726,9 @@ public sealed class IA
             {
                 float dele = MathF.Abs(plano.AlvoY);
                 profundidade = Util.Limitar(Util.Limitar(minha, dele - folga, dele + folga), ProfundidadeDaRede, ProfundidadeMaximaDoBloco);
-                CobrirOOutroLado(j, XDoCorpo(plano, parceiro), centro);
+                // Um cambio por trajetória: a releitura (quique, parede, o x afinando) não desfaz a troca no meio do caminho.
+                if (plano.CriadoEm != _cambioNaTrajetoria && CobrirOOutroLado(j, XDoCorpo(plano, parceiro), centro))
+                    _cambioNaTrajetoria = plano.CriadoEm;
             }
         }
         else if (_esperaOParceiro[i] && _formacao[i] == _formacao[parceiro.Indice])
@@ -739,14 +749,18 @@ public sealed class IA
     private int VagaDe(Jogador j) => (j.Indice == 0 ? 1 : -1) * (_ladosTrocados ? -1 : 1);
 
     /// <summary>
-    /// O "cambio": o parceiro (xDele, no mundo) foi bem pro lado da vaga de j — passou do centro da dupla por mais de um
-    /// quarto da separação — e j troca de vaga, cobrindo o lado que ficou vazio. O quarto da separação (~1 m) é a histerese:
-    /// bola no meio não faz a dupla trocar de lado a cada golpe.
+    /// O "cambio": o parceiro (xDele, no mundo) invadiu a metade da quadra da vaga de j e passou do centro da dupla por mais
+    /// de um quarto da separação — e j troca de vaga, cobrindo o lado que ficou vazio. O quarto da separação (~1 m) é a
+    /// histerese: bola no meio não faz a dupla trocar de lado a cada golpe. A metade conta porque o centro anda com a bola:
+    /// com ela junto à lateral, o parceiro que vai buscá-la no meio da metade DELE já passou do centro, e não é cambio.
+    /// Devolve se trocou.
     /// </summary>
-    private void CobrirOOutroLado(Jogador j, float xDele, float centro)
+    private bool CobrirOOutroLado(Jogador j, float xDele, float centro)
     {
         int ladoDaMinhaVaga = j.Lado * VagaDe(j);   // no mundo
-        if ((xDele - centro) * ladoDaMinhaVaga > Perfil.SeparacaoDaDupla / 4) _ladosTrocados = !_ladosTrocados;
+        if (xDele * ladoDaMinhaVaga <= 0 || (xDele - centro) * ladoDaMinhaVaga <= Perfil.SeparacaoDaDupla / 4) return false;
+        _ladosTrocados = !_ladosTrocados;
+        return true;
     }
 
     /// <summary>Com a bola acima disso e o jogador a menos de DistanciaDaRedeDoRemateParaFora da rede, a IA pode tentar o por 3 / por 4.</summary>

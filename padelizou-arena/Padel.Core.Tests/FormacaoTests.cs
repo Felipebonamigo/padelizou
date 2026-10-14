@@ -294,4 +294,88 @@ public class FormacaoTests
         Assert.True(parceiroNaRede <= humanoNaRede + 1.0f,
             $"o parceiro devia subir junto com o humano: humano na rede em {humanoNaRede:F2} s, parceiro em {parceiroNaRede:F2} s");
     }
+
+    // ───────────── Revisão de 14/10: o cambio e a formação do time do humano ─────────────
+
+    /// <summary>
+    /// O cambio é o parceiro invadir a metade de quem fica — e só isso. Antes da revisão de 14/10, nesta cena, 54 de 150
+    /// cambios no Difícil (3 de 55 no Médio) eram com o alvo do parceiro ainda na metade dele (o centro da dupla anda com a
+    /// bola: junto à lateral, o parceiro que ia buscá-la no meio da metade dele contava como invasor) — quem ficava
+    /// atravessava a quadra cruzando o parceiro. Corrigido isso, ainda 11 de 70 cambios se desfaziam na mesma trajetória da
+    /// bola, em menos de 0,6 s: o vai-e-volta que quem joga vê. Aqui: IA × IA, a dupla rival (time 1), 8 sementes de 300 s.
+    /// </summary>
+    [Theory]
+    [InlineData(Dificuldade.Dificil)]
+    [InlineData(Dificuldade.Medio)]
+    public void O_cambio_so_acontece_com_o_parceiro_na_metade_de_quem_fica_e_nao_se_desfaz_na_mesma_trajetoria(Dificuldade dificuldade)
+    {
+        int cambios = 0, comOParceiroNaMetadeDele = 0, desfeitosNaMesmaTrajetoria = 0;
+        var exemplos = new List<string>();
+        for (uint semente = 1; semente <= 8; semente++)
+        {
+            var partida = new Partida(new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, Semente = semente, Dificuldade = dificuldade });
+            var ia = partida.IAs[1];
+            float t = 0, ultimoGolpe = 0;
+            float? ultimoCambio = null;
+            partida.Evento += ev => { if (ev.Tipo == TipoDeEventoDaPartida.Golpe) ultimoGolpe = t; };
+            bool antes = ia.LadosTrocados;
+            while (!partida.Acabou && t < SegundosPorPartida)
+            {
+                partida.Avancar(Passo);
+                t += Passo;
+                bool agora = ia.LadosTrocados;
+                if (agora == antes) continue;
+                if (ia.Responsavel is Jogador responsavel && ia.AlvoXDoResponsavel is float alvo && partida.Estado == EstadoDaPartida.Rally)
+                {
+                    cambios++;
+                    var quemFica = partida.JogadoresDoTime(1).First(j => j != responsavel);
+                    // A vaga (no mundo) de quem fica ANTES da troca: a metade que o parceiro tem de ter invadido.
+                    int vagaAntes = (quemFica.Indice == 0 ? 1 : -1) * (antes ? -1 : 1) * quemFica.Lado;
+                    if (alvo * vagaAntes <= 0)
+                    {
+                        comOParceiroNaMetadeDele++;
+                        if (exemplos.Count < 3) exemplos.Add($"semente {semente}, {t:F2} s: alvo do parceiro x = {alvo:F2}, quem fica em x = {quemFica.X:F2}");
+                    }
+                    if (ultimoCambio is float c && ultimoGolpe <= c && t - c < 0.6f) desfeitosNaMesmaTrajetoria++;
+                    ultimoCambio = t;
+                }
+                antes = agora;
+            }
+        }
+        Assert.True(cambios > 0, "a cena devia ter cambios");
+        Assert.True(comOParceiroNaMetadeDele == 0,
+            $"{comOParceiroNaMetadeDele} de {cambios} cambios com o alvo do parceiro ainda na metade dele: {string.Join("; ", exemplos)}");
+        Assert.True(desfeitosNaMesmaTrajetoria == 0, $"{desfeitosNaMesmaTrajetoria} de {cambios} cambios desfeitos na mesma trajetória em menos de 0,6 s");
+    }
+
+    /// <summary>
+    /// No time de um humano a IA não muda a formação dele (ela segue a dele), mas guarda a da dupla: se o humano vira IA no
+    /// meio do ponto (o servidor online faz isso com quem para de mandar entrada), os dois seguem a formação certa. Antes da
+    /// revisão de 14/10 a formação desse time ficava a do saque, e quem virava IA ia pro fundo com a dupla na rede.
+    /// </summary>
+    [Fact]
+    public void No_time_do_humano_a_formacao_de_cada_um_acompanha_a_da_dupla()
+    {
+        int amostras = 0, diferentes = 0;
+        for (uint semente = 1; semente <= 4; semente++)
+        {
+            var partida = new Partida(new OpcoesDaPartida { Humanos = [false, false, true, false], Semente = semente, Dificuldade = Dificuldade.Dificil });
+            var humano = new HumanoSimulado(2, PerfilDeHumano.Avancado, new Aleatorio(semente + 1000));
+            var ia = partida.IAs[1];
+            var entradas = new Entrada[4];
+            for (int i = 0; i < 120 * 120 && !partida.Acabou; i++)
+            {
+                entradas[2] = humano.Decidir(EstadoVisivel.De(partida), Passo);
+                partida.Avancar(Passo, entradas);
+                if (partida.Estado != EstadoDaPartida.Rally) continue;
+                foreach (var j in partida.JogadoresDoTime(1))
+                {
+                    amostras++;
+                    if (ia.FormacaoDe(j) != ia.Posicao) diferentes++;
+                }
+            }
+        }
+        Assert.True(amostras > 1000, $"poucas amostras: {amostras}");
+        Assert.True(diferentes == 0, $"em {diferentes} de {amostras} amostras a formação guardada de um jogador do time do humano não era a da dupla");
+    }
 }

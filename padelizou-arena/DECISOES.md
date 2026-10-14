@@ -128,6 +128,10 @@ do Difícil) e está travada por teste. O resto é equilíbrio e **não foi reaj
 de antes, e o alvo é do Felipe (ex.: "Intermediário x Médio perto de 50 % das partidas"). Números e alavancas no
 `REALISMO.md` ("o que falta").
 
+A formação das duplas (Onda 5, 14/10) deslocou o equilíbrio de novo, também sem reajuste: o humano simulado faz menos
+pontos contra o Fácil e o Médio (Iniciante x Médio: 43,9 → 37,6 % dos pontos, 21 → 4 % das partidas). Tabela no
+`REALISMO.md` ("A dupla da IA joga em formação").
+
 ## D6 — O que NÃO entra até o 1.0
 
 Servidor dedicado, editor de quadras, consoles, VR, modo carreira com narrativa, mais de 8
