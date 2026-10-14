@@ -86,11 +86,17 @@ public class AvisosDoPlanoDoProfessorBackgroundService : BackgroundService
         //
         // O resto da régua (qual mundo, estágio, janela, o que já foi enviado) roda em memória,
         // sobre um punhado de linhas — são os professores, não a base inteira.
+        //
+        // ⚠️ E A QUARTA PONTA (14/10/2026): o professor ANTIGO que nunca teve relógio. Ele tem
+        // prazo (parte da data de ligar — ver BloqueioDoProfessor) e por isso precisa do aviso;
+        // sem ela fecharia sem nunca ter sido avisado, que é o que a estreia existe pra evitar.
+        var estreia = cfg.BloqueioAPartirDe;
         var professores = await context.Jogadores
             .Where(j => j.IsProfessor
                      && (j.TesteProfessorInicio != null
                       || j.AssinaturaProfessorPagaAte != null
-                      || j.CortesiaProfessorAte != null))
+                      || j.CortesiaProfessorAte != null
+                      || (estreia != null && j.CriadoEm != null && j.CriadoEm < estreia)))
             .ToListAsync(stoppingToken);
 
         int avisados = 0;

@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [Authorize]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Anotacoes(int id)
         {
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var meuId))

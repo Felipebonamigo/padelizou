@@ -61,6 +61,7 @@ namespace padelizou.Controllers
 
 
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> Dashboard()
         {
             var professorId = await ObterProfessorLogadoAsync();

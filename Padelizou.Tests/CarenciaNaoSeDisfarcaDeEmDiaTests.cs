@@ -7,7 +7,7 @@ namespace Padelizou.Tests;
 // 22/09/2026, com o print do Jonatas: **Pago até 18/09/2026** e selo VERDE "Assinante em dia").
 //
 // ⚠️ A RÉGUA ESTAVA CERTA E A TELA ESTAVA MENTINDO — que é a mentira de rótulo do `build-373`
-// de novo. Os 7 dias de `DiasDeCarencia` seguram mesmo as condições de assinante depois do
+// de novo. Os 5 dias de `DiasDeCarencia` seguram mesmo as condições de assinante depois do
 // vencimento (existem pra não punir quem esqueceu o boleto no feriado), então em 22/09 o
 // Jonatas É "em dia" pra quem cobra. Só que o selo verde fica colado na data 18/09, e a única
 // explicação da tela mora em cinza no RODAPÉ da página — a uma rolagem de distância do que o
@@ -23,7 +23,7 @@ namespace Padelizou.Tests;
 // outra ("isto vai cair em breve?"), e ela é de TELA.
 public class CarenciaNaoSeDisfarcaDeEmDiaTests
 {
-    private static readonly PlanoProfessorSettings Cfg = new();   // DiasDeCarencia = 7
+    private static readonly PlanoProfessorSettings Cfg = new();   // DiasDeCarencia = 5
     private static readonly DateTime Agora = new(2026, 09, 22, 10, 0, 0);
 
     private static Jogador Assinante(DateTime? pagaAte) => new()
@@ -43,8 +43,8 @@ public class CarenciaNaoSeDisfarcaDeEmDiaTests
             PlanoDoProfessor.SituacaoDe(jonatas, Agora, Cfg));
         Assert.True(PlanoDoProfessor.CondicoesDeAssinante(jonatas, Agora, Cfg));
 
-        // O que passa a existir: a data em que esse verde acaba. 18/09 + 7 = 25/09.
-        Assert.Equal(new DateTime(2026, 09, 25), PlanoDoProfessor.CarenciaAte(jonatas, Agora, Cfg));
+        // O que passa a existir: a data em que esse verde acaba. 18/09 + 5 = 23/09.
+        Assert.Equal(new DateTime(2026, 09, 23), PlanoDoProfessor.CarenciaAte(jonatas, Agora, Cfg));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class CarenciaNaoSeDisfarcaDeEmDiaTests
 
         var linha = Assert.Single(linhas);
         Assert.Equal("Assinante em dia", linha.Situacao);
-        Assert.Equal(new DateTime(2026, 09, 25), linha.CarenciaAte);
+        Assert.Equal(new DateTime(2026, 09, 23), linha.CarenciaAte);
     }
 
     [Fact]

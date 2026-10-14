@@ -1,3 +1,4 @@
+using Padelizou.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using padelizou.Models;
@@ -26,6 +27,7 @@ namespace padelizou.Controllers
     public partial class AulasController
     {
         [HttpGet]
+        [AgendaDoProfessor]
         public async Task<IActionResult> ImportarDoGoogle(DateTime? de, DateTime? ate)
         {
             var professorId = await ObterProfessorLogadoAsync();

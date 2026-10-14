@@ -133,7 +133,7 @@ public class AvisosDoPlanoDoProfessorTests
         var prof = Assinante(ctx, Vencimento);
         var push = Substitute.For<IPushNotificationService>();
 
-        // Venceu dia 20, carência de 7 dias: no dia 23 ele ainda paga 3%.
+        // Venceu dia 20, carência de 5 dias: no dia 23 ele ainda paga 3%.
         await Varrer(ctx, push, AsDez(23));
 
         Assert.Equal(AvisosDoPlanoDoProfessor.VenceuNaCarencia,
@@ -141,7 +141,7 @@ public class AvisosDoPlanoDoProfessorTests
 
         var corpo = CorpoEnviado(push);
         Assert.Contains("venceu em 20/09", corpo);
-        Assert.Contains("ainda vale até 27/09", corpo);
+        Assert.Contains("ainda vale até 25/09", corpo);
     }
 
     [Fact]
@@ -151,9 +151,9 @@ public class AvisosDoPlanoDoProfessorTests
         var prof = Assinante(ctx, Vencimento);
         var push = Substitute.For<IPushNotificationService>();
 
-        // Carência acaba dia 27; dia 28 a aula já custa 10%. É o aviso que este serviço
+        // Carência acaba dia 25; dia 26 a aula já custa 10%. É o aviso que este serviço
         // existe pra dar: sem ele, essa subida acontece sem uma linha em lugar nenhum.
-        await Varrer(ctx, push, AsDez(28));
+        await Varrer(ctx, push, AsDez(26));
 
         Assert.Equal(AvisosDoPlanoDoProfessor.TaxaVoltouAoCheio,
             ctx.Jogadores.Single(j => j.Id == prof.Id).UltimoLembreteDeAssinatura);
