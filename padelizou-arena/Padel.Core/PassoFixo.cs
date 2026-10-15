@@ -7,7 +7,7 @@ namespace Padel.Core;
 /// - sem deriva: o acumulado é contado EM PASSOS (delta × passos por segundo, tudo em double), e um resto rente a um
 ///   inteiro vira o inteiro. Somar segundos e tirar Protocolo.Passo (float, 4,3e-10 s maior que o 1/120 double do
 ///   Godot) esgotava a folga no quadro 2301 (~19 s): aquele quadro ficava sem passo nenhum.
-/// - sem aperto perdido: ação e lob valem um quadro só; se o quadro não dá passo (física mais rápida que o protocolo,
+/// - sem aperto perdido: ação, lob, X e Y valem um quadro só; se o quadro não dá passo (física mais rápida que o protocolo,
 ///   ou o quadro 2301 acima), o aperto espera o próximo passo em vez de sumir. Num quadro com vários passos, só o
 ///   primeiro leva o aperto. Direção e botão segurado são sempre os do quadro mais novo.
 /// </summary>
@@ -26,7 +26,7 @@ public sealed class PassoFixo
 
     private readonly int _passosPorSegundo;
     private double _resto;   // fração de passo que sobrou dos quadros anteriores, em [0, 1)
-    private bool _acaoPendente, _lobPendente;
+    private bool _acaoPendente, _lobPendente, _cortadoPendente, _ataquePendente;
     private Entrada _primeira;
     private int _passosDoQuadro;
 
@@ -45,6 +45,8 @@ public sealed class PassoFixo
     {
         _acaoPendente |= entrada.AcaoPressionada;
         _lobPendente |= entrada.LobPressionada;
+        _cortadoPendente |= entrada.CortadoPressionado;
+        _ataquePendente |= entrada.AtaquePressionado;
         _passosDoQuadro = 0;
         if (!(delta > 0) || !double.IsFinite(delta)) return 0;
 
@@ -54,8 +56,12 @@ public sealed class PassoFixo
         if (Math.Abs(_resto) < Folga) _resto = 0;   // rente ao inteiro: é o inteiro, e o erro de arredondamento não soma
         if (passos == 0) return 0;
 
-        _primeira = entrada with { AcaoPressionada = _acaoPendente, LobPressionada = _lobPendente };
-        _acaoPendente = _lobPendente = false;
+        _primeira = entrada with
+        {
+            AcaoPressionada = _acaoPendente, LobPressionada = _lobPendente,
+            CortadoPressionado = _cortadoPendente, AtaquePressionado = _ataquePendente,
+        };
+        _acaoPendente = _lobPendente = _cortadoPendente = _ataquePendente = false;
         _passosDoQuadro = passos;
         return passos;
     }
@@ -65,6 +71,6 @@ public sealed class PassoFixo
     {
         ArgumentOutOfRangeException.ThrowIfNegative(i);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, _passosDoQuadro);
-        return i == 0 ? _primeira : _primeira with { AcaoPressionada = false, LobPressionada = false };
+        return i == 0 ? _primeira : _primeira with { AcaoPressionada = false, LobPressionada = false, CortadoPressionado = false, AtaquePressionado = false };
     }
 }

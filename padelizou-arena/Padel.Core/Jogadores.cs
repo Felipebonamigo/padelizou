@@ -9,6 +9,8 @@ public enum Dificuldade { Facil, Medio, Dificil }
 public enum TipoDeGolpe { Saque, Normal, Ataque, Defesa, Lob, Smash, Bandeja, Vibora, Erro, Chiquita, Contrapared, SmashPor3, SmashPor4 }
 /// <summary>No referencial de quem bate (olhando pra rede): bola do lado da raquete é drive; do outro lado, revés.</summary>
 public enum LadoDoGolpe { Drive, Reves }
+/// <summary>O botão que começou o balanço: A (chapado), B (lob), X (cortado) ou Y (ataque). X e Y só no controle de quatro botões.</summary>
+public enum IntencaoDoGolpe { Chapado, Lob, Cortado, Ataque }
 public enum Formacao { Fundo, Rede }
 
 /// <summary>
@@ -21,9 +23,12 @@ public readonly record struct Golpe(float AlvoX, float AlvoY, float TempoDeVoo, 
 /// <summary>
 /// Entrada de um humano, no referencial DELE: Dy &lt; 0 é "rumo à rede", Dx &gt; 0 é "minha direita".
 /// A partida converte pro mundo pelo lado do jogador — assim o cliente de cima e o de baixo mandam a mesma coisa.
-/// AcaoPressionada saca e, no modo manual, começa o balanço; LobPressionada começa um balanço de lob.
+/// AcaoPressionada saca e, no modo manual, começa o balanço; LobPressionada começa um balanço de lob. Os outros só valem no
+/// controle de quatro botões (<see cref="Controle.QuatroBotoes"/>): X (cortado), Y (ataque, e se segue apertado) e o RB
+/// (modificador, segurado).
 /// </summary>
-public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, bool AcaoSegurada, bool LobPressionada = false)
+public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, bool AcaoSegurada, bool LobPressionada = false,
+    bool CortadoPressionado = false, bool AtaquePressionado = false, bool AtaqueSegurado = false, bool ModificadorSegurado = false)
 {
     public static readonly Entrada Vazia = default;
 }
@@ -145,7 +150,9 @@ public sealed class Jogador
     /// <summary>Segundos restantes do balanço; 0 = raquete parada.</summary>
     public float Balanco { get; private set; }
     public float TempoNoBalanco { get; private set; }
-    public bool BalancoDeLob { get; private set; }
+    /// <summary>O botão que começou o balanço (o último, se a raquete já parou).</summary>
+    public IntencaoDoGolpe IntencaoDoBalanco { get; private set; }
+    public bool BalancoDeLob => IntencaoDoBalanco == IntencaoDoGolpe.Lob;
     /// <summary>Verdadeiro só no passo em que o balanço acabou sem tocar na bola (raquete no ar).</summary>
     public bool BalancoTerminouNoAr { get; private set; }
     /// <summary>
@@ -346,11 +353,13 @@ public sealed class Jogador
         return DistanciaAoPontoIdeal(cx, cy, bx, by) >= DistanciaAoPontoIdeal(bola.X, bola.Y);
     }
 
-    public void IniciarBalanco(bool lob)
+    public void IniciarBalanco(bool lob) => IniciarBalanco(lob ? IntencaoDoGolpe.Lob : IntencaoDoGolpe.Chapado);
+
+    public void IniciarBalanco(IntencaoDoGolpe intencao)
     {
         Balanco = DuracaoDoBalanco;
         TempoNoBalanco = 0;
-        BalancoDeLob = lob;
+        IntencaoDoBalanco = intencao;
     }
 
     /// <summary>A raquete tocou na bola: o balanço termina sem contar como raquete no ar.</summary>

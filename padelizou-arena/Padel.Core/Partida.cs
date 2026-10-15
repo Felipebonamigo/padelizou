@@ -9,6 +9,12 @@ public enum TipoDeEventoDaPartida { SaquePreparado, Balanco, Errou, Golpe, Quiqu
 /// </summary>
 public enum ModoDeGolpe { Manual, Automatico }
 
+/// <summary>
+/// DoisBotoes (o do Arena): ação e lob, e o analógico escolhe o golpe com a situação (Partida.GolpeDoHumano).
+/// QuatroBotoes (o da fatia no Unreal): o botão que começa o balanço escolhe a família do golpe e o analógico só a direção.
+/// </summary>
+public enum Controle { DoisBotoes, QuatroBotoes }
+
 /// <summary>Um acontecimento da partida. Em Golpe: o tipo do golpe e o lado do corpo (drive ou revés) — o que a animação precisa.</summary>
 public sealed record EventoDaPartida(TipoDeEventoDaPartida Tipo, Jogador? Jogador = null, int Time = -1, Motivo? Motivo = null, TipoDeGolpe? Golpe = null, LadoDoGolpe? Lado = null);
 public sealed record Mensagem(string Texto, bool Destaque = false, bool Suave = false);
@@ -27,6 +33,8 @@ public sealed record OpcoesDaPartida
     /// <summary>Por jogador (time*2 + índice): quem é humano. Padrão: só o da casa, metade direita.</summary>
     public bool[] Humanos { get; init; } = [true, false, false, false];
     public ModoDeGolpe ModoDeGolpe { get; init; } = ModoDeGolpe.Manual;
+    /// <summary>O esquema de botões do humano (<see cref="Padel.Core.Controle"/>). Quatro botões só no modo Manual.</summary>
+    public Controle Controle { get; init; } = Controle.DoisBotoes;
     public uint? Semente { get; init; }
     /// <summary>
     /// Pontos corridos (Americano/Mexicano): o total que a soma dos pontos precisa alcançar, ex. 24 ou 32 — a partida fica
@@ -101,6 +109,8 @@ public sealed class Partida
     {
         Opcoes = opcoes ?? new OpcoesDaPartida();
         if (Opcoes.Humanos.Length != 4) throw new ArgumentException("Humanos precisa ter 4 posições", nameof(opcoes));
+        if (Opcoes.Controle == Controle.QuatroBotoes && Opcoes.ModoDeGolpe != ModoDeGolpe.Manual)
+            throw new ArgumentException("O controle de quatro botões só vale no modo Manual: o botão do balanço é que escolhe o golpe", nameof(opcoes));
         uint semente = Opcoes.Semente ?? (uint)Random.Shared.Next();
         Aleatorio = new Aleatorio(semente);
         Placar = Opcoes.PontosCorridos is int total
@@ -256,9 +266,9 @@ public sealed class Partida
                 j.Cooldown = 0.45f;
                 Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Errou, j, j.Time));
             }
-            if ((e.AcaoPressionada || e.LobPressionada) && !j.Balancando && j.Cooldown <= 0)
+            if (IntencaoDoAperto(e) is IntencaoDoGolpe intencao && !j.Balancando && j.Cooldown <= 0)
             {
-                j.IniciarBalanco(lob: e.LobPressionada);
+                j.IniciarBalanco(intencao);
                 Emitir(new EventoDaPartida(TipoDeEventoDaPartida.Balanco, j, j.Time));
             }
         }
@@ -367,6 +377,21 @@ public sealed class Partida
     private const float AlturaDaBolaAlta = 1.5f;
 
     /// <summary>
+    /// O botão apertado neste passo que começa um balanço, se houver. Lob antes da ação, como sempre foi; no de quatro
+    /// botões, Y antes de X e os dois antes do A. No de dois botões, X e Y não existem.
+    /// </summary>
+    private IntencaoDoGolpe? IntencaoDoAperto(Entrada e)
+    {
+        if (e.LobPressionada) return IntencaoDoGolpe.Lob;
+        if (Opcoes.Controle == Controle.QuatroBotoes)
+        {
+            if (e.AtaquePressionado) return IntencaoDoGolpe.Ataque;
+            if (e.CortadoPressionado) return IntencaoDoGolpe.Cortado;
+        }
+        return e.AcaoPressionada ? IntencaoDoGolpe.Chapado : null;
+    }
+
+    /// <summary>
     /// Golpe do humano, no referencial dele (Dy &lt; 0 = frente, rumo à rede; Dx &gt; 0 = direita), com os dois botões — ação e
     /// lob — mais a direção. <b>Lob</b> = o balanço começou no botão de lob (no modo Automático: segurar a ação).
     /// <b>Ação segurada</b> = o botão de ação ainda apertado no instante do contato (no Automático, o mesmo segurar).
@@ -388,6 +413,13 @@ public sealed class Partida
     /// de onde a bola está no instante do contato: cedo demais é bola longe (esticada, ou fora do alcance: raquete no ar);
     /// tarde é bola em cima do corpo ou já passada do ponto (<see cref="Jogador.AtrasoDoContato"/>); baixo, rápido ou de
     /// revés (alto, principalmente) piora.
+    /// <para>
+    /// No controle de quatro botões (<see cref="Controle.QuatroBotoes"/>, a fatia no Unreal) a tabela acima não vale: o botão
+    /// que começou o balanço escolhe a família e o analógico só o canto. <b>A</b>: Normal; segurado no contato, Ataque.
+    /// <b>B</b>: Lob (sem chiquita). <b>X</b>: Bandeja na bola alta, Defesa (o slice) na baixa. <b>Y</b>: Ataque na bola
+    /// baixa; na alta, Víbora com o RB segurado, SmashPor3/SmashPor4 com o Y segurado (como acima), senão Smash. O erro é o
+    /// mesmo, e o golpe muito ruim também.
+    /// </para>
     /// </summary>
     private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada) =>
         EscolherGolpeDoHumano(jogador, entrada) with { Lado = jogador.LadoDoGolpePara(Bola) };
@@ -417,39 +449,58 @@ public sealed class Partida
         bool ladoForte = MathF.Abs(entrada.Dx) >= LimiarDoLadoForte;
         int paraOLado = (entrada.Dx < 0 ? -1 : 1) * lado;   // o lado forte, no mundo (sem MathF.Sign: ele lança exceção com NaN)
         bool bolaAlta = bola.Z > AlturaDaBolaAlta;
+
+        if (Opcoes.Controle == Controle.QuatroBotoes)
+        {
+            // O botão do balanço escolhe a família; a situação (bola alta ou baixa) escolhe o golpe dela; o analógico só mira.
+            return jogador.IntencaoDoBalanco switch
+            {
+                IntencaoDoGolpe.Lob => Lob(),
+                IntencaoDoGolpe.Cortado => bolaAlta ? Bandeja() : Defesa(),
+                IntencaoDoGolpe.Ataque when !bolaAlta => Ataque(),
+                IntencaoDoGolpe.Ataque when entrada.ModificadorSegurado => Vibora(),
+                IntencaoDoGolpe.Ataque => (entrada.AtaqueSegurado ? RemateForte() : null) ?? Smash(),
+                _ => entrada.AcaoSegurada ? Ataque() : Normal(),
+            };
+        }
+
         bool lob = manual ? jogador.BalancoDeLob : entrada.AcaoSegurada;
         bool acaoSegurada = manual ? entrada.AcaoSegurada && !jogador.BalancoDeLob : entrada.AcaoSegurada;
 
-        if (bolaAlta && frente && acaoSegurada)
-        {
-            if (erro < ErroMaximoDoRemateForte)
-            {
-                var forte = ladoForte
-                    ? GolpesEspeciais.SmashPor3(bola.X, bola.Y, bola.Z, ladoDoAlvo, paraOLado)
-                    : GolpesEspeciais.SmashPor4(bola.X, bola.Y, bola.Z, ladoDoAlvo, x);
-                if (forte is Golpe remate) return remate;
-            }
-            return Smash();
-        }
+        if (bolaAlta && frente && acaoSegurada) return RemateForte() ?? Smash();
         if (lob)
         {
             if (frente && GolpesEspeciais.Chiquita(bola.X, bola.Y, bola.Z, ladoDoAlvo, x) is Golpe chiquita) return chiquita;
-            return new Golpe(x, ladoDoAlvo * (8.2f + Ruido() * 0.5f), 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
+            return Lob();
         }
         if (tras && jogador.BolaAtrasJuntoAoVidro(bola) && GolpesEspeciais.Contrapared(bola.X, bola.Y, bola.Z, ladoDoAlvo, x) is Golpe contrapared)
             return contrapared;
         if (bolaAlta)
         {
             if (frente) return Smash();
-            if (ladoForte)
-                return new Golpe(Util.Limitar(3.8f * paraOLado + Ruido(), -4.5f, 4.5f), ladoDoAlvo * (6.5f + Ruido()), 0.7f, TipoDeGolpe.Vibora, Efeito: new Efeito(-800, 1800 * paraOLado * ladoDoAlvo));
-            return new Golpe(x, ladoDoAlvo * (7.5f + Ruido()), 0.95f, TipoDeGolpe.Bandeja, Efeito: new Efeito(-1500, 500));
+            if (ladoForte) return Vibora();
+            return Bandeja();
         }
-        if (frente) return new Golpe(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque, Efeito: new Efeito(2200, 0));
-        if (tras) return new Golpe(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa, Efeito: new Efeito(-1200, 0));
-        return new Golpe(x, ladoDoAlvo * (6.6f + Ruido()), 0.8f, TipoDeGolpe.Normal, Efeito: new Efeito(1200, 0));
+        if (frente) return Ataque();
+        if (tras) return Defesa();
+        return Normal();
 
+        // Cada golpe sorteia o ruído na ordem em que os argumentos aparecem (o PadelSim faz na mesma ordem).
         Golpe Smash() => new(x, ladoDoAlvo * (4.2f + Ruido()), 0.4f, TipoDeGolpe.Smash, Efeito: new Efeito(1500, 0));
+        Golpe Lob() => new(x, ladoDoAlvo * (8.2f + Ruido() * 0.5f), 1.6f, TipoDeGolpe.Lob, Efeito: new Efeito(-400, 0));
+        Golpe Vibora() => new(Util.Limitar(3.8f * paraOLado + Ruido(), -4.5f, 4.5f), ladoDoAlvo * (6.5f + Ruido()), 0.7f, TipoDeGolpe.Vibora, Efeito: new Efeito(-800, 1800 * paraOLado * ladoDoAlvo));
+        Golpe Bandeja() => new(x, ladoDoAlvo * (7.5f + Ruido()), 0.95f, TipoDeGolpe.Bandeja, Efeito: new Efeito(-1500, 500));
+        Golpe Ataque() => new(x, ladoDoAlvo * (4.5f + Ruido()), 0.6f, TipoDeGolpe.Ataque, Efeito: new Efeito(2200, 0));
+        Golpe Defesa() => new(x, ladoDoAlvo * (7.8f + Ruido()), 1.05f, TipoDeGolpe.Defesa, Efeito: new Efeito(-1200, 0));
+        Golpe Normal() => new(x, ladoDoAlvo * (6.6f + Ruido()), 0.8f, TipoDeGolpe.Normal, Efeito: new Efeito(1200, 0));
+        // Por 4; com lado forte, por 3 pra aquele lado. Nulo se o contato foi ruim ou se o solucionador não acha (longe da rede).
+        Golpe? RemateForte()
+        {
+            if (erro >= ErroMaximoDoRemateForte) return null;
+            return ladoForte
+                ? GolpesEspeciais.SmashPor3(bola.X, bola.Y, bola.Z, ladoDoAlvo, paraOLado)
+                : GolpesEspeciais.SmashPor4(bola.X, bola.Y, bola.Z, ladoDoAlvo, x);
+        }
     }
 
     private void Decidir(Decisao decisao)

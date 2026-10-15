@@ -81,6 +81,7 @@ public sealed class HumanoSimulado
 
     private readonly int _indice;
     private readonly Aleatorio _aleatorio;
+    private readonly Controle _controle;
     private readonly Jogador _eu;   // cópia local pra usar a mesma geometria do corpo (drive/revés, ponto de contato)
     private readonly Jogador _corpoNoContato;   // o mesmo corpo, correndo pro lugar na previsão (pra cronometrar o aperto)
 
@@ -97,10 +98,11 @@ public sealed class HumanoSimulado
 
     private enum PlanoDeGolpe { Normal, Ataque, Defesa, Lob, Chiquita, Remate, RemateForte, Bandeja, Vibora }
 
-    public HumanoSimulado(int indiceDoJogador, PerfilDeHumano perfil, Aleatorio aleatorio, bool destro = true)
+    public HumanoSimulado(int indiceDoJogador, PerfilDeHumano perfil, Aleatorio aleatorio, bool destro = true, Controle controle = Controle.DoisBotoes)
     {
         if (indiceDoJogador is < 0 or > 3) throw new ArgumentOutOfRangeException(nameof(indiceDoJogador));
         _indice = indiceDoJogador;
+        _controle = controle;
         Perfil = perfil;
         _aleatorio = aleatorio;
         _eu = new Jogador(indiceDoJogador / 2, indiceDoJogador % 2, perfil.Nome, humano: true, Jogador.VelocidadeDoHumano) { Destro = destro };
@@ -191,9 +193,8 @@ public sealed class HumanoSimulado
                 _desdeOAperto = 0;
                 _plano = EscolherGolpe(e, zContato);
                 _segurarAcao = _plano == PlanoDeGolpe.RemateForte;
-                bool lob = _plano is PlanoDeGolpe.Lob or PlanoDeGolpe.Chiquita;
                 var (dx, dy) = IrAte(xCorpo, yCorpo, distancia);
-                return new Entrada(dx, dy, AcaoPressionada: !lob, AcaoSegurada: _segurarAcao, LobPressionada: lob);
+                return Aperto(dx, dy);
             }
         }
         if (_apertouNestaBola)
@@ -203,16 +204,37 @@ public sealed class HumanoSimulado
             if (_desdeOAperto + 1.5f * dt >= Jogador.MomentoIdealDoBalanco)
             {
                 var (mx, my) = Mira(e, _plano);
-                return new Entrada(mx, my, false, _segurarAcao);
+                return Segurando(mx, my);
             }
             var (cx, cy) = IrAte(xCorpo, yCorpo, distancia);
-            return new Entrada(cx, cy, false, _segurarAcao);
+            return Segurando(cx, cy);
         }
         // Indo buscar: corre e freia pra chegar parado (se não reagiu ainda, fica onde está).
         if (!podeReagir) return Entrada.Vazia;
         var (ix, iy) = IrAte(xCorpo, yCorpo, distancia);
         return new Entrada(ix, iy, false, false);
     }
+
+    /// <summary>
+    /// O aperto do plano. Dois botões: lob (lob e chiquita) ou ação, segurada no remate forte. Quatro botões: B no lob (a
+    /// chiquita ficou fora da fatia), X na bandeja e na defesa, Y no ataque e nos remates (segurado no forte; com o RB na
+    /// víbora) e A no resto.
+    /// </summary>
+    private Entrada Aperto(float dx, float dy)
+    {
+        bool lob = _plano is PlanoDeGolpe.Lob or PlanoDeGolpe.Chiquita;
+        if (_controle == Controle.DoisBotoes)
+            return new Entrada(dx, dy, AcaoPressionada: !lob, AcaoSegurada: _segurarAcao, LobPressionada: lob);
+        bool cortado = _plano is PlanoDeGolpe.Bandeja or PlanoDeGolpe.Defesa;
+        bool ataque = _plano is PlanoDeGolpe.Ataque or PlanoDeGolpe.Remate or PlanoDeGolpe.RemateForte or PlanoDeGolpe.Vibora;
+        return new Entrada(dx, dy, AcaoPressionada: !lob && !cortado && !ataque, AcaoSegurada: false, LobPressionada: lob,
+            CortadoPressionado: cortado, AtaquePressionado: ataque, AtaqueSegurado: _segurarAcao, ModificadorSegurado: _plano == PlanoDeGolpe.Vibora);
+    }
+
+    /// <summary>Do aperto ao contato: os botões que seguem segurados (no de quatro, o Y do remate forte e o RB da víbora).</summary>
+    private Entrada Segurando(float dx, float dy) => _controle == Controle.DoisBotoes
+        ? new Entrada(dx, dy, false, _segurarAcao)
+        : new Entrada(dx, dy, false, false, AtaqueSegurado: _segurarAcao, ModificadorSegurado: _plano == PlanoDeGolpe.Vibora);
 
     /// <summary>
     /// Com a bola chegando ao ponto ideal daqui a tantos segundos, ainda falta pra apertar? Falta o momento ideal do balanço,

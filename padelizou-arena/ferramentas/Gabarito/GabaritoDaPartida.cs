@@ -25,6 +25,8 @@ static class GabaritoDaPartida
         new("pontos corridos 16, IA x IA", new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, PontosCorridos = 16, Semente = 5 }),
         new("vantagem, humano Iniciante x Fácil", new OpcoesDaPartida { Dificuldade = Dificuldade.Facil, PontoDeOuro = false, Semente = 21 }, PerfilDeHumano.Iniciante),
         new("formato curto, humano Avançado x Médio, manual", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Semente = 31 }, PerfilDeHumano.Avancado),
+        // Semente escolhida pra o humano passar por todos os golpes do controle (inclusive víbora e por 4) e o set ir ao super tie-break.
+        new("formato curto, quatro botões, humano Avançado x Médio", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Controle = Controle.QuatroBotoes, Semente = 126 }, PerfilDeHumano.Avancado),
     ];
 
     public static void Gravar(string pasta, string commit)
@@ -34,7 +36,7 @@ static class GabaritoDaPartida
         string B(bool b) => b ? "1" : "0";
         string Cabecalho(string colunas) => $"# gabarito do Padel.Core em {commit}\n{colunas}\n";
 
-        var sbCasos = new StringBuilder(Cabecalho("id,nome,dificuldade,pontoDeOuro,setsParaVencer,gamesPorSet,pontosDoTieBreak,humano0,perfilDoHumano,modoDeGolpe,semente,pontosCorridos,passos,resumo,vencedor,empate,pontos,golpes,maiorRally,faltas,lets"));
+        var sbCasos = new StringBuilder(Cabecalho("id,nome,dificuldade,pontoDeOuro,setsParaVencer,gamesPorSet,pontosDoTieBreak,humano0,perfilDoHumano,modoDeGolpe,semente,pontosCorridos,passos,resumo,vencedor,empate,pontos,golpes,maiorRally,faltas,lets,controle"));
         var sbRetratos = new StringBuilder(Cabecalho(
             "id,passo,estado,temporizador,tempoDeJogo,rally,ultimoErro,bx,by,bz,bvx,bvy,bvz,bwx,bwy,bwz,emJogo,rolando,parada," +
             "pontos0,pontos1,games0,games1,sets0,sets1,tieBreak,sacadorTime,sacadorJogador,faltas,golpeador,quicou,formacao0,formacao1," +
@@ -49,7 +51,8 @@ static class GabaritoDaPartida
             p.Evento += e => sbEventos.AppendLine(string.Join(',', id, passo, (int)e.Tipo,
                 e.Jogador is null ? -1 : e.Jogador.Time * 2 + e.Jogador.Indice, e.Time,
                 e.Motivo is Motivo m ? (int)m : -1, e.Golpe is TipoDeGolpe g ? (int)g : -1, e.Lado is LadoDoGolpe l ? (int)l : -1));
-            HumanoSimulado? humano = caso.Humano is null ? null : new HumanoSimulado(0, caso.Humano, new Aleatorio(caso.Opcoes.Semente!.Value + 1000));
+            HumanoSimulado? humano = caso.Humano is null ? null
+                : new HumanoSimulado(0, caso.Humano, new Aleatorio(caso.Opcoes.Semente!.Value + 1000), controle: caso.Opcoes.Controle);
             var entradas = new Entrada[4];
 
             void Retrato()
@@ -81,7 +84,7 @@ static class GabaritoDaPartida
             var est = p.Estatisticas;
             sbCasos.AppendLine(string.Join(',', id, caso.Nome.Replace(',', ';'), (int)o.Dificuldade, B(o.PontoDeOuro), o.SetsParaVencer, o.GamesPorSet, o.PontosDoTieBreak, B(caso.Humano is not null),
                 caso.Humano?.Nome ?? "-", (int)o.ModoDeGolpe, o.Semente, o.PontosCorridos ?? -1, passo, p.Placar.Resumo(), p.Placar.Vencedor ?? -1, B(p.Placar.Empate),
-                est.Pontos, est.Golpes, est.MaiorRally, est.Faltas, est.Lets));
+                est.Pontos, est.Golpes, est.MaiorRally, est.Faltas, est.Lets, (int)o.Controle));
             Console.WriteLine($"partida {id} ({caso.Nome}): {passo} passos, {p.Placar.Resumo()}");
         }
         File.WriteAllText(Path.Combine(pasta, "partidas.csv"), sbCasos.ToString());
