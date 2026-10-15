@@ -54,11 +54,13 @@ public sealed record OpcoesDaPartida
     public int? PontosCorridos { get; init; }
 
     /// <summary>
-    /// Estas opções servem pra uma sala online? Pontos corridos e set fora do padrão (6 games, tie-break a 7) não: o
-    /// protocolo (<c>Padel.Core.Rede</c>: as opções do BemVindo e o placar do instantâneo) só carrega ponto de ouro e sets,
-    /// e um cliente veria outra partida. O host consulta isto e recusa criar a sala quando é <c>false</c>.
+    /// Estas opções servem pra uma sala online? Pontos corridos, set fora do padrão (6 games, tie-break a 7), quatro botões e
+    /// assistência não: o protocolo (<c>Padel.Core.Rede</c>: as opções do BemVindo, o placar do instantâneo e a
+    /// EntradaDeRede) só carrega ponto de ouro, sets e os botões A e B, e um cliente veria outra partida ou perderia botões.
+    /// O <see cref="Rede.ServidorDaPartida"/> recusa criar a sala quando é <c>false</c>.
     /// </summary>
-    public bool ValeOnline => PontosCorridos is null && GamesPorSet == 6 && PontosDoTieBreak == 7;
+    public bool ValeOnline => PontosCorridos is null && GamesPorSet == 6 && PontosDoTieBreak == 7
+        && Controle == Controle.DoisBotoes && Assistencia == Assistencia.Pro;
 
     public static readonly bool[] NinguemHumano = [false, false, false, false];
 }

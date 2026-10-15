@@ -224,4 +224,28 @@ public class RedeSalaTests
         Assert.Equal(semente, ana.Opcoes?.Semente);
         Assert.Equal(semente, cenario.Servidor.Iniciar().Opcoes.Semente);
     }
+
+    /// <summary>
+    /// O protocolo (o BemVindo e a EntradaDeRede) só carrega ponto de ouro, sets e os botões A e B: um cliente numa sala de
+    /// pontos corridos, de formato curto, de quatro botões ou com assistência veria outra partida ou perderia botões. A sala
+    /// recusa essas opções na criação (revisão de 15/10: antes nada consultava o ValeOnline, e ele não olhava o controle).
+    /// </summary>
+    [Fact]
+    public void A_sala_recusa_opcoes_que_o_protocolo_nao_carrega()
+    {
+        var recusadas = new[]
+        {
+            new OpcoesDaPartida { PontosCorridos = 24 },
+            new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10 },
+            new OpcoesDaPartida { Controle = Controle.QuatroBotoes },
+            new OpcoesDaPartida { Assistencia = Assistencia.Casual },
+        };
+        foreach (var opcoes in recusadas)
+        {
+            Assert.False(opcoes.ValeOnline);
+            Assert.Throws<ArgumentException>(() => new Cenario(opcoes));
+        }
+        Assert.True(new OpcoesDaPartida { Dificuldade = Dificuldade.Dificil, PontoDeOuro = false, SetsParaVencer = 2 }.ValeOnline);
+        Assert.Equal(FaseDoServidor.Sala, new Cenario(new OpcoesDaPartida { Semente = 3 }).Servidor.Fase);
+    }
 }

@@ -46,6 +46,8 @@ public sealed class ServidorDaPartida
     {
         _transporte = transporte;
         var o = opcoes ?? new OpcoesDaPartida();
+        if (!o.ValeOnline)
+            throw new ArgumentException("Estas opções não servem para uma sala online: o protocolo só carrega ponto de ouro, sets e os botões A e B (OpcoesDaPartida.ValeOnline)", nameof(opcoes));
         Semente = o.Semente ?? (uint)Random.Shared.Next();   // sorteada aqui, e não na Partida, pra ir no BemVindo
         Opcoes = o with { Semente = Semente };
         _nomes[0] = NomeLimpo(nomeDoHost, 0);
