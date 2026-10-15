@@ -15,6 +15,14 @@ public enum ModoDeGolpe { Manual, Automatico }
 /// </summary>
 public enum Controle { DoisBotoes, QuatroBotoes }
 
+/// <summary>
+/// O nível de assistência do humano (padelizou-game, docs/ASSISTENCIA.md), de cada jogador e trocável a qualquer hora
+/// (<see cref="Jogador.Assistencia"/>). Hoje muda a janela do timing (<see cref="Partida.JanelaDoContato"/>): no Pro, o
+/// jogo de sempre, a raquete só pega a bola no instante do balanço; no Padrão e no Casual, no melhor passo de uma janela
+/// em volta dele. Só vale no modo Manual (no Automático a bola já é batida no melhor passo).
+/// </summary>
+public enum Assistencia { Pro, Padrao, Casual }
+
 /// <summary>Um acontecimento da partida. Em Golpe: o tipo do golpe e o lado do corpo (drive ou revés) — o que a animação precisa.</summary>
 public sealed record EventoDaPartida(TipoDeEventoDaPartida Tipo, Jogador? Jogador = null, int Time = -1, Motivo? Motivo = null, TipoDeGolpe? Golpe = null, LadoDoGolpe? Lado = null);
 public sealed record Mensagem(string Texto, bool Destaque = false, bool Suave = false);
@@ -35,6 +43,8 @@ public sealed record OpcoesDaPartida
     public ModoDeGolpe ModoDeGolpe { get; init; } = ModoDeGolpe.Manual;
     /// <summary>O esquema de botões do humano (<see cref="Padel.Core.Controle"/>). Quatro botões só no modo Manual.</summary>
     public Controle Controle { get; init; } = Controle.DoisBotoes;
+    /// <summary>O nível de assistência com que os humanos começam (<see cref="Padel.Core.Assistencia"/>); cada um muda o seu em <see cref="Jogador.Assistencia"/>.</summary>
+    public Assistencia Assistencia { get; init; } = Assistencia.Pro;
     public uint? Semente { get; init; }
     /// <summary>
     /// Pontos corridos (Americano/Mexicano): o total que a soma dos pontos precisa alcançar, ex. 24 ou 32 — a partida fica
@@ -100,6 +110,18 @@ public sealed class Partida
     public Caixa CaixaDoSaque { get; private set; }
     /// <summary>Erro (0 = perfeito, 1,6 = péssimo) do último golpe de um humano — pra HUD e pra teste.</summary>
     public float UltimoErroDoHumano { get; private set; }
+
+    /// <summary>
+    /// Meia largura (s) da janela do timing em volta de <see cref="Jogador.MomentoIdealDoBalanco"/>: Pro 0 (o instante),
+    /// Padrão ±20 ms, Casual ±40 ms. Medido em 15/10 (docs/ASSISTENCIA.md do padelizou-game): o ganho em pontos do
+    /// Iniciante contra a Médio para por volta de ±40 ms.
+    /// </summary>
+    public static float JanelaDoContato(Assistencia nivel) => nivel switch
+    {
+        Assistencia.Padrao => 0.02f,
+        Assistencia.Casual => 0.04f,
+        _ => 0,
+    };
     public event Action<EventoDaPartida>? Evento;
 
     private float _rolandoHa;
@@ -125,6 +147,7 @@ public sealed class Partida
             new Jogador(1, 0, "Rival 1", h[2], h[2] ? Jogador.VelocidadeDoHumano : rival.Velocidade),
             new Jogador(1, 1, "Rival 2", h[3], h[3] ? Jogador.VelocidadeDoHumano : rival.Velocidade),
         ];
+        foreach (var j in Jogadores) if (j.Humano) j.Assistencia = Opcoes.Assistencia;
         IAs = [new IA(0, Perfis.Parceiro, Aleatorio), new IA(1, rival, Aleatorio)];
         IniciarPonto();
     }
@@ -284,7 +307,9 @@ public sealed class Partida
                 {
                     // A raquete passa pelo ponto de contato uma vez por balanço: sem balanço, ou fora desse instante, a bola passa.
                     // Bola que só chega ao alcance depois do instante encontra a raquete já passada (raquete no ar no fim do balanço).
-                    if (!j.NoInstanteDoContato || !j.Alcanca(bola)) continue;
+                    // Com assistência, o instante vira uma janela, e o contato sai no passo dela com a bola mais perto do ideal.
+                    if (!j.NaJanelaDoContato || !j.Alcanca(bola)) continue;
+                    if (!j.FimDaJanelaDoContato && !j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;
                 }
                 else if (!j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;
                 Golpear(j);

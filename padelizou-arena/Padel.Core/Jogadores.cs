@@ -152,6 +152,8 @@ public sealed class Jogador
     public float TempoNoBalanco { get; private set; }
     /// <summary>O botão que começou o balanço (o último, se a raquete já parou).</summary>
     public IntencaoDoGolpe IntencaoDoBalanco { get; private set; }
+    /// <summary>O nível de assistência deste jogador (humano), trocável a qualquer hora: vale a partir do passo seguinte.</summary>
+    public Assistencia Assistencia { get; set; }
     public bool BalancoDeLob => IntencaoDoBalanco == IntencaoDoGolpe.Lob;
     /// <summary>Verdadeiro só no passo em que o balanço acabou sem tocar na bola (raquete no ar).</summary>
     public bool BalancoTerminouNoAr { get; private set; }
@@ -161,6 +163,13 @@ public sealed class Jogador
     /// já passada.
     /// </summary>
     public bool NoInstanteDoContato { get; private set; }
+    /// <summary>
+    /// A raquete está na janela do contato (<see cref="Partida.JanelaDoContato"/> da <see cref="Assistencia"/>) em volta do
+    /// momento ideal. No Pro, a janela é o próprio <see cref="NoInstanteDoContato"/>.
+    /// </summary>
+    public bool NaJanelaDoContato { get; private set; }
+    /// <summary>Este é o último passo da janela: a bola ao alcance tem de ser batida agora (no Pro, sempre).</summary>
+    public bool FimDaJanelaDoContato { get; private set; }
 
     public Jogador(int time, int indice, string nome, bool humano, float velocidade)
     {
@@ -370,6 +379,8 @@ public sealed class Jogador
         Cooldown = MathF.Max(0, Cooldown - dt);
         BalancoTerminouNoAr = false;
         NoInstanteDoContato = false;
+        NaJanelaDoContato = false;
+        FimDaJanelaDoContato = false;
         if (Balanco > 0)
         {
             float antes = TempoNoBalanco;
@@ -378,6 +389,18 @@ public sealed class Jogador
             // O passo mais perto do momento ideal (a 120 Hz, o 14º: 0,1167 s): o que cruza o momento menos meio passo.
             float meioPasso = dt / 2;
             NoInstanteDoContato = antes + meioPasso < MomentoIdealDoBalanco && TempoNoBalanco + meioPasso >= MomentoIdealDoBalanco;
+            float janela = Partida.JanelaDoContato(Assistencia);
+            if (janela <= 0)
+            {
+                NaJanelaDoContato = NoInstanteDoContato;
+                FimDaJanelaDoContato = true;
+            }
+            else
+            {
+                // Os passos com o tempo do balanço a menos de meio passo de [ideal − janela, ideal + janela).
+                NaJanelaDoContato = TempoNoBalanco + meioPasso >= MomentoIdealDoBalanco - janela && TempoNoBalanco - meioPasso < MomentoIdealDoBalanco + janela;
+                FimDaJanelaDoContato = TempoNoBalanco + dt - meioPasso >= MomentoIdealDoBalanco + janela;
+            }
             if (Balanco == 0) BalancoTerminouNoAr = true;
         }
     }
