@@ -118,7 +118,7 @@ aqui — **as duas esperam aprovação do Felipe**:
 
 Partida contra IA nunca mexe no rating.
 
-## D10 — Equilíbrio depois do contato no ponto ideal (a decidir no playtest)
+## D10 — Equilíbrio depois do contato no ponto ideal e da formação: fica como está (Felipe, 15/10/2026)
 
 Desde 25/09 o golpe acontece no instante do balanço e no ponto ideal ao lado do corpo, pra humano e IA (antes saía
 na borda do alcance e pagava "esticado" mesmo com timing perfeito). Isso trouxe ralis mais longos (Médio x Médio: 4,6 →
@@ -131,6 +131,9 @@ de antes, e o alvo é do Felipe (ex.: "Intermediário x Médio perto de 50 % das
 A formação das duplas (Onda 5, 14/10) deslocou o equilíbrio de novo, também sem reajuste: o humano simulado faz menos
 pontos contra o Fácil e o Médio (Iniciante x Médio: 43,9 → 37,6 % dos pontos, 21 → 4 % das partidas). Tabela no
 `REALISMO.md` ("A dupla da IA joga em formação").
+
+**Decisão do Felipe (15/10/2026): deixa o equilíbrio como está.** As alavancas e as medições seguem no `REALISMO.md`,
+para o caso de o playtest pedir outro alvo.
 
 ## D6 — O que NÃO entra até o 1.0
 
