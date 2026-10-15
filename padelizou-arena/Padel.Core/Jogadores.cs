@@ -474,6 +474,8 @@ public sealed class IA
         /// <summary>x de verdade da bola no ponto escolhido e o sorteio do erro de leitura (desvios-padrão): o erro em metros
         /// é RuidoX · <see cref="ErroDeLeitura"/>(tempo que falta), então afina enquanto a bola chega.</summary>
         public float XDaBola, RuidoX;
+        /// <summary>y de verdade da bola no ponto escolhido (o AlvoY é a leitura, com erro).</summary>
+        public float YDaBola;
         /// <summary>Drive ou revés, decidido no plano: o passo lateral não troca de lado no meio do caminho.</summary>
         public LadoDoGolpe Lado;
     }
@@ -525,6 +527,13 @@ public sealed class IA
     public float CentroDaDupla => Centro();
     /// <summary>Segundos desde que a trajetória do plano começou (o CriadoEm dele); null sem plano (depuração e teste).</summary>
     public float? TempoDoPlano => _plano is Plano p ? _relogio - p.CriadoEm : null;
+    /// <summary>
+    /// Onde o corpo de <paramref name="j"/> tem de ficar pra bater a bola do plano no ponto ideal, se é ele que vai nela: ao
+    /// lado do x de verdade da bola (sem o erro de leitura da IA), na profundidade de verdade. É o alvo do movimento
+    /// assistido do humano (Partida); null se ninguém vai ou se vai o outro.
+    /// </summary>
+    public (float X, float Y)? AlvoDoCorpo(Jogador j) =>
+        _plano is Plano p && p.Responsavel == j ? (Util.Limitar(j.XParaBater(p.XDaBola, p.Lado), -4.7f, 4.7f), p.YDaBola) : null;
 
     public void AoSacar(Partida partida, int timeSacador)
     {
@@ -647,6 +656,7 @@ public sealed class IA
             CriadoEm = novaTrajetoria || planoAnterior is null ? _relogio : planoAnterior.CriadoEm,
             PlanejadoEm = _relogio,
             XDaBola = alvo.X,
+            YDaBola = alvo.Y,
             RuidoX = ruidoX,
         };
         // A bola vai passar por cima da dupla na rede (quem vai nela vai buscá-la atrás da linha de saque): recuam juntos.

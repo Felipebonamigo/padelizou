@@ -282,7 +282,8 @@ public sealed class Partida
         {
             if (!j.Humano) continue;
             var e = EntradaDe(j);
-            j.Mover(e.Dx * j.Lado, e.Dy * j.Lado, dt);   // do referencial do jogador pro mundo
+            if (AlvoDaAssistencia(j, e) is (float ax, float ay)) j.IrPara(ax, ay, dt);
+            else j.Mover(e.Dx * j.Lado, e.Dy * j.Lado, dt);   // do referencial do jogador pro mundo
             if (!manual) continue;
             if (j.BalancoTerminouNoAr)
             {
@@ -448,6 +449,25 @@ public sealed class Partida
     /// mesmo, e o golpe muito ruim também.
     /// </para>
     /// </summary>
+    /// <summary>Abaixo disto em cada eixo, o analógico está solto e o movimento assistido pode agir.</summary>
+    public const float ZonaMortaDoAnalogico = 0.2f;
+    /// <summary>No Padrão, o movimento assistido só faz o ajuste final: com o corpo a até 1 m do ponto.</summary>
+    public const float RaioDoAjusteFinal = 1.0f;
+
+    /// <summary>
+    /// O movimento assistido (parte 2 da assistência): com o analógico solto, o humano que a IA do time mandou na bola anda
+    /// sozinho até o ponto de contato (<see cref="IA.AlvoDoCorpo"/>) — no Casual de onde estiver, no Padrão só dentro de
+    /// <see cref="RaioDoAjusteFinal"/>. O analógico mexido manda; quem não vai na bola não é levado; no Pro, nada.
+    /// </summary>
+    private (float X, float Y)? AlvoDaAssistencia(Jogador j, Entrada e)
+    {
+        if (j.Assistencia == Assistencia.Pro) return null;
+        if (MathF.Abs(e.Dx) >= ZonaMortaDoAnalogico || MathF.Abs(e.Dy) >= ZonaMortaDoAnalogico) return null;
+        if (IAs[j.Time].AlvoDoCorpo(j) is not (float x, float y)) return null;
+        if (j.Assistencia == Assistencia.Padrao && Util.Distancia(j.X, j.Y, x, y) > RaioDoAjusteFinal) return null;
+        return (x, y);
+    }
+
     private Golpe GolpeDoHumano(Jogador jogador, Entrada entrada) =>
         EscolherGolpeDoHumano(jogador, entrada) with { Lado = jogador.LadoDoGolpePara(Bola) };
 

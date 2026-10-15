@@ -129,4 +129,92 @@ public class AssistenciaTests
         Assert.Equal(casual.Erro, mudou.Erro);
         Assert.True(mudou.Erro < pro.Erro);
     }
+
+    // ───────────── Parte 2: o movimento assistido ─────────────
+
+    /// <summary>
+    /// A cena do movimento: o rival acabou de bater uma bola funda pro lado direito do humano (jogador 0, lado +1); o
+    /// parceiro IA está longe, na outra ponta; a IA do time planeja (como a partida faz no golpe do rival) e manda o humano
+    /// na bola. O humano fica com o analógico em <paramref name="analogico"/> por <paramref name="passos"/> passos.
+    /// </summary>
+    private static (Partida Partida, Jogador Humano, float XAntes, float YAntes) CenaDoMovimento(Assistencia nivel, float humanoX, float humanoY,
+        int passos, float analogico = 0, float parceiroX = -3.5f, float parceiroY = 6.5f)
+    {
+        var partida = new Partida(new OpcoesDaPartida { Semente = 21, Humanos = [true, false, false, false] });
+        var vazia = Entrada.Vazia;
+        partida.Avancar(Passo, [new Entrada(0, 0, true, true), vazia, vazia, vazia]);
+        var humano = partida.Jogadores[0];
+        var parceiro = partida.Jogadores[1];
+        humano.Assistencia = nivel;
+        humano.X = humanoX; humano.Y = humanoY; humano.Vx = 0; humano.Vy = 0;
+        parceiro.X = parceiroX; parceiro.Y = parceiroY; parceiro.Vx = 0; parceiro.Vy = 0;
+        partida.Arbitro.RegistrarGolpe(1);
+        partida.Bola.Posicionar(2.5f, -6f, 1.0f);
+        partida.Bola.Lancar(new Velocidade(0, 14, 3.5f, 0));
+        partida.IAs[0].AoGolpear(partida, new Golpe(2.5f, 6, 1, TipoDeGolpe.Normal), partida.Jogadores[2]);
+        float xAntes = humano.X, yAntes = humano.Y;
+        for (int i = 0; i < passos && partida.Estado == EstadoDaPartida.Rally; i++)
+            partida.Avancar(Passo, [new Entrada(analogico, 0, false, false), vazia, vazia, vazia]);
+        return (partida, humano, xAntes, yAntes);
+    }
+
+    private static float Distancia(float ax, float ay, float bx, float by) => MathF.Sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by));
+
+    [Fact]
+    public void No_Casual_com_o_analogico_solto_o_corpo_vai_sozinho_ate_o_ponto_de_contato()
+    {
+        // 100 passos: a bola ainda vem (quica perto do passo 110, e aí o plano muda); a 9 m/s², 1,7 m levam uns 90.
+        var (partida, humano, x0, y0) = CenaDoMovimento(Assistencia.Casual, 0.5f, 7.0f, passos: 100);
+        Assert.Same(humano, partida.IAs[0].Responsavel);
+        Assert.True(partida.IAs[0].AlvoDoCorpo(humano) is (float ax, float ay), "a IA do time devia mandar o humano na bola");
+        var (tx, ty) = partida.IAs[0].AlvoDoCorpo(humano)!.Value;
+        Assert.True(Distancia(x0, y0, tx, ty) > 1.0f, "a cena devia pôr o humano longe do ponto de contato");
+        Assert.True(Distancia(humano.X, humano.Y, tx, ty) < 0.15f,
+            $"o Casual devia levar o humano até ({tx:F2}, {ty:F2}); está em ({humano.X:F2}, {humano.Y:F2})");
+    }
+
+    [Fact]
+    public void No_Pro_com_o_analogico_solto_o_corpo_fica_parado()
+    {
+        var (_, humano, x0, y0) = CenaDoMovimento(Assistencia.Pro, 0.5f, 7.0f, passos: 60);
+        Assert.Equal(x0, humano.X);
+        Assert.Equal(y0, humano.Y);
+    }
+
+    [Fact]
+    public void No_Padrao_so_o_ajuste_final_dentro_de_um_metro()
+    {
+        // Longe (mais de 1 m do ponto): o Padrão não leva.
+        var (_, longe, x0, y0) = CenaDoMovimento(Assistencia.Padrao, 0.5f, 7.0f, passos: 60);
+        Assert.Equal(x0, longe.X);
+        Assert.Equal(y0, longe.Y);
+        // Perto: o mesmo ponto, com o humano a 0,7 m dele — o Padrão leva.
+        var (referencia, humanoDaReferencia, _, _) = CenaDoMovimento(Assistencia.Casual, 0.5f, 7.0f, passos: 0);
+        var (tx, ty) = referencia.IAs[0].AlvoDoCorpo(humanoDaReferencia)!.Value;
+        var (partida, perto, px, py) = CenaDoMovimento(Assistencia.Padrao, tx - 0.7f, ty, passos: 70);
+        Assert.Same(perto, partida.IAs[0].Responsavel);
+        var (tx2, ty2) = partida.IAs[0].AlvoDoCorpo(perto)!.Value;
+        Assert.True(Distancia(px, py, tx2, ty2) < 1.0f, "a cena devia pôr o humano a menos de 1 m");
+        Assert.True(Distancia(perto.X, perto.Y, tx2, ty2) < 0.15f, $"o Padrão devia fazer o ajuste final até ({tx2:F2}, {ty2:F2}); está em ({perto.X:F2}, {perto.Y:F2})");
+    }
+
+    [Fact]
+    public void Com_o_analogico_mexido_quem_manda_e_o_jogador()
+    {
+        // Analógico pra esquerda (no referencial dele; no lado +1, −x): ele vai pra esquerda, longe do ponto à direita.
+        // 45 passos (0,375 s) saindo do repouso a 9 m/s²: uns 0,6 m.
+        var (_, humano, x0, _) = CenaDoMovimento(Assistencia.Casual, 0.5f, 7.0f, passos: 45, analogico: -1);
+        Assert.True(humano.X < x0 - 0.3f, $"devia ter ido pra esquerda: x de {x0:F2} pra {humano.X:F2}");
+    }
+
+    [Fact]
+    public void Quem_nao_vai_na_bola_nao_e_levado()
+    {
+        // O parceiro IA perto do ponto, o humano longe na esquerda: a IA manda o parceiro, e o humano fica.
+        var (partida, humano, x0, y0) = CenaDoMovimento(Assistencia.Casual, -3.5f, 6.5f, passos: 40, parceiroX: 2.0f, parceiroY: 7.0f);
+        Assert.NotSame(humano, partida.IAs[0].Responsavel);
+        Assert.Null(partida.IAs[0].AlvoDoCorpo(humano));
+        Assert.Equal(x0, humano.X);
+        Assert.Equal(y0, humano.Y);
+    }
 }
