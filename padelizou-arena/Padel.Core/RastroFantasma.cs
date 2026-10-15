@@ -65,6 +65,7 @@ public static class RastroFantasma
                         acabou = true;
                         break;
                 }
+                if (acabou) break;   // o que vem depois no mesmo passo já é de bola morta (o vidro depois do 2º quique)
             }
             if (acabou || !b.EmJogo || b.Parada || b.Rolando) break;
         }

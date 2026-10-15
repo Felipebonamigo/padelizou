@@ -19,6 +19,11 @@ public class ControleDeQuatroBotoesTests
     /// o botão (A ou Y) ainda apertado no contato; rb = o modificador segurado do aperto ao contato.
     /// </summary>
     private static EventoDaPartida? GolpeDoHumano(float jx, float jy, float bx, float by, float bz, Velocidade v, Botao botao,
+        float dx, float dy, bool segurar = false, bool rb = false, bool jaQuicou = false, Controle controle = Controle.QuatroBotoes) =>
+        GolpeDoHumano(jx, jy, bx, by, bz, v, [botao], dx, dy, segurar, rb, jaQuicou, controle);
+
+    /// <summary>A mesma cena, com vários botões apertados no mesmo passo.</summary>
+    private static EventoDaPartida? GolpeDoHumano(float jx, float jy, float bx, float by, float bz, Velocidade v, Botao[] botoes,
         float dx, float dy, bool segurar = false, bool rb = false, bool jaQuicou = false, Controle controle = Controle.QuatroBotoes)
     {
         var partida = new Partida(new OpcoesDaPartida { Semente = 21, Humanos = [true, false, false, false], Controle = controle });
@@ -41,11 +46,12 @@ public class ControleDeQuatroBotoesTests
             float falta = TempoAteOAlcance(partida.Bola, humano);
             bool apertar = !apertou && falta >= 0 && falta <= Jogador.MomentoIdealDoBalanco;
             if (apertar) apertou = true;
+            bool a = botoes.Contains(Botao.A), b = botoes.Contains(Botao.B), x = botoes.Contains(Botao.X), y = botoes.Contains(Botao.Y);
             var entrada = !apertou ? vazia : new Entrada(dx, dy,
-                AcaoPressionada: apertar && botao == Botao.A, AcaoSegurada: botao == Botao.A && (apertar || segurar),
-                LobPressionada: apertar && botao == Botao.B,
-                CortadoPressionado: apertar && botao == Botao.X,
-                AtaquePressionado: apertar && botao == Botao.Y, AtaqueSegurado: botao == Botao.Y && (apertar || segurar),
+                AcaoPressionada: apertar && a, AcaoSegurada: a && (apertar || segurar),
+                LobPressionada: apertar && b,
+                CortadoPressionado: apertar && x,
+                AtaquePressionado: apertar && y, AtaqueSegurado: y && (apertar || segurar),
                 ModificadorSegurado: rb);
             partida.Avancar(Passo, [entrada, vazia, vazia, vazia]);
         }
@@ -107,6 +113,21 @@ public class ControleDeQuatroBotoesTests
         Assert.Equal(TipoDeGolpe.Smash, BolaAlta(4.5f, Botao.Y, dy: -1, segurar: true));
         // O RB pede víbora: segurar o Y não vira remate.
         Assert.Equal(TipoDeGolpe.Vibora, BolaAlta(2.5f, Botao.Y, dy: -1, segurar: true, rb: true));
+    }
+
+    /// <summary>
+    /// Botões apertados no mesmo passo: B antes de tudo (como no de dois botões), depois Y, depois X, e o A por último
+    /// (revisão de 15/10: a ordem estava escrita e sem teste — trocar X e Y deixava a suíte verde).
+    /// </summary>
+    [Fact]
+    public void Apertados_juntos_vale_o_B_depois_o_Y_depois_o_X_e_por_ultimo_o_A()
+    {
+        TipoDeGolpe? Alta(params Botao[] botoes) => GolpeDoHumano(2.0f, 2.5f, 2.6f, 2.5f, 3.3f, Parada, botoes, 0, 0)?.Golpe;
+        Assert.Equal(TipoDeGolpe.Smash, Alta(Botao.X, Botao.Y));
+        Assert.Equal(TipoDeGolpe.Smash, Alta(Botao.A, Botao.Y));
+        Assert.Equal(TipoDeGolpe.Bandeja, Alta(Botao.A, Botao.X));
+        Assert.Equal(TipoDeGolpe.Lob, Alta(Botao.B, Botao.Y));
+        Assert.Equal(TipoDeGolpe.Lob, Alta(Botao.B, Botao.X, Botao.Y, Botao.A));
     }
 
     [Fact]

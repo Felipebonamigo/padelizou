@@ -7,7 +7,7 @@ namespace Padel.Core.Tests;
 /// </summary>
 public class RastroFantasmaTests
 {
-    private const float Passo = RastroFantasma.Passo;
+    private const float Passo = 1f / 120f;   // o passo da partida, escrito aqui: o do RastroFantasma é o que se confere
 
     // Do fundo do lado −1 rumo ao +1 (eventos conferidos no Core de 15/10):
     // (20; 3) quica a 6,4 m, bate no vidro de fundo e quica de novo a 4,6 m; (11; 4) quica duas vezes antes do vidro;
@@ -45,25 +45,64 @@ public class RastroFantasmaTests
         return -1;
     }
 
+    /// <summary>
+    /// O rastro contra a bola DA PARTIDA (quatro humanos parados, ninguém bate), passo a passo — e não contra um laço igual
+    /// ao do próprio Prever, que passaria com o passo errado (revisão de 15/10: com o rastro a 1/60 s, o teste antigo
+    /// seguia verde).
+    /// </summary>
     [Theory]
     [InlineData(20f, 3f)]
     [InlineData(11f, 4f)]
     [InlineData(28f, 3f)]
-    public void O_rastro_e_o_caminho_da_bola_quando_ninguem_bate(float vy, float vz)
+    public void O_rastro_e_o_caminho_da_bola_da_partida_quando_ninguem_bate(float vy, float vz)
     {
-        var bola = Lancada(vy, vz);
-        var rastro = RastroFantasma.Prever(bola, lado: 1, jaQuicou: false);
+        var partida = new Partida(new OpcoesDaPartida { Semente = 3, Humanos = [true, true, true, true] });
+        var entradas = new Entrada[4];
+        entradas[partida.Sacador.Time * 2 + partida.Sacador.Indice] = new Entrada(0, 0, true, true);
+        partida.Avancar(Passo, entradas);
+        Assert.Equal(EstadoDaPartida.Rally, partida.Estado);
+        entradas = new Entrada[4];
+        partida.Arbitro.RegistrarGolpe(1);   // bateu o time do lado −1
+        partida.Bola.Posicionar(1, -8, 1);
+        partida.Bola.Lancar(new Velocidade(0, vy, vz, 0));
+        var rastro = RastroFantasma.Prever(partida.Bola, lado: 1, jaQuicou: false);
         Assert.True(rastro.Pontos.Count > 10, $"rastro curto demais: {rastro.Pontos.Count} pontos");
-        var caminho = Caminho(bola, rastro.Pontos.Count);
+        Assert.True(partida.Bola.X == 1 && partida.Bola.Y == -8 && partida.Bola.Z == 1, "a previsão mudou a bola de verdade");
         for (int i = 0; i < rastro.Pontos.Count; i++)
         {
+            Assert.Equal(EstadoDaPartida.Rally, partida.Estado);
+            partida.Avancar(Passo, entradas);
             var p = rastro.Pontos[i];
-            var r = caminho[i];
-            Assert.True(p.X == r.X && p.Y == r.Y && p.Z == r.Z && p.T == r.T,
-                $"ponto {i}: rastro ({p.X:R}, {p.Y:R}, {p.Z:R}, {p.T:R}), bola ({r.X:R}, {r.Y:R}, {r.Z:R}, {r.T:R})");
+            var b = partida.Bola;
+            Assert.True(p.X == b.X && p.Y == b.Y && p.Z == b.Z,
+                $"ponto {i}: rastro ({p.X:R}, {p.Y:R}, {p.Z:R}), bola da partida ({b.X:R}, {b.Y:R}, {b.Z:R})");
         }
-        // Prever não mexe na bola da partida.
-        Assert.True(bola.X == 1 && bola.Y == -8 && bola.Z == 1 && bola.Vy == vy, "a previsão mudou a bola de verdade");
+        // O rastro acaba onde a partida decide o ponto.
+        Assert.NotEqual(EstadoDaPartida.Rally, partida.Estado);
+    }
+
+    /// <summary>
+    /// Revisão de 15/10: com o segundo quique e o vidro no mesmo passo, a bola já morreu no quique — o vidro depois dele não
+    /// é saída de parede. Antes, o laço seguia lendo os eventos do passo e marcava a saída.
+    /// </summary>
+    [Fact]
+    public void Quique_e_vidro_no_mesmo_passo_a_bola_ja_morreu_e_nao_ha_saida()
+    {
+        Bola? achada = null;
+        for (float y0 = 9.80f; y0 < 9.999f && achada is null; y0 += 0.0005f)
+        for (float z0 = 0.005f; z0 < 0.2f && achada is null; z0 += 0.005f)
+        {
+            var b = new Bola();
+            b.Posicionar(0, y0, z0);
+            b.Lancar(new Velocidade(0, 12, -3, 0));
+            var eventos = new List<EventoDaBola>();
+            b.Clonar().Avancar(Passo, eventos);
+            if (eventos.Count >= 2 && eventos[0].Tipo == TipoDeEventoDaBola.Quique && eventos[1].Tipo == TipoDeEventoDaBola.Parede) achada = b;
+        }
+        Assert.NotNull(achada);
+        var rastro = RastroFantasma.Prever(achada, lado: 1, jaQuicou: true);
+        Assert.Single(rastro.Pontos);
+        Assert.Equal(-1, rastro.PrimeiroDepoisDaParede);
     }
 
     [Fact]

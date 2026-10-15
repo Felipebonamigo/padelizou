@@ -25,7 +25,8 @@ static class GabaritoDaPartida
         new("pontos corridos 16, IA x IA", new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, PontosCorridos = 16, Semente = 5 }),
         new("vantagem, humano Iniciante x Fácil", new OpcoesDaPartida { Dificuldade = Dificuldade.Facil, PontoDeOuro = false, Semente = 21 }, PerfilDeHumano.Iniciante),
         new("formato curto, humano Avançado x Médio, manual", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Semente = 31 }, PerfilDeHumano.Avancado),
-        // Semente escolhida pra o humano passar por todos os golpes do controle (inclusive víbora e por 4) e o set ir ao super tie-break.
+        // Semente escolhida pra o humano passar pelas sete famílias de golpe (inclusive víbora e um por 4) e o set ir ao super
+        // tie-break. O que ela não exercita (A segurado, por 3, botões juntos, a janela) está em GabaritoDosGolpesDoHumano.
         new("formato curto, quatro botões, humano Avançado x Médio", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Controle = Controle.QuatroBotoes, Semente = 126 }, PerfilDeHumano.Avancado),
         new("formato curto, quatro botões, Casual, humano Iniciante x Médio", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Controle = Controle.QuatroBotoes, Assistencia = Assistencia.Casual, Semente = 41 }, PerfilDeHumano.Iniciante),
         new("formato curto, quatro botões, Padrão, humano Intermediário x Médio", new OpcoesDaPartida { GamesPorSet = 4, PontosDoTieBreak = 10, Controle = Controle.QuatroBotoes, Assistencia = Assistencia.Padrao, Semente = 43 }, PerfilDeHumano.Intermediario),

@@ -113,6 +113,7 @@ GabaritoDoPassoFixo.Gravar(pasta, commit);
 GabaritoDoPlacarEDoArbitro.Gravar(pasta, commit);
 GabaritoDaMatematica.Gravar(pasta, commit);
 GabaritoDoRastro.Gravar(pasta, commit);
+GabaritoDosGolpesDoHumano.Gravar(pasta, commit);
 
 File.WriteAllText(Path.Combine(pasta, "casos.csv"), sbCasos.ToString());
 File.WriteAllText(Path.Combine(pasta, "trajetorias.csv"), sbTraj.ToString());
