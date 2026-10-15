@@ -10,9 +10,14 @@ public sealed class SessaoLocal : ISessao
 
     private readonly string?[] _nomes = new string?[4];
 
-    /// <summary>nomeDoJogador vai pro primeiro jogador desta máquina (o segundo do coop vira "Jogador 2"); destro vale pros dois.</summary>
-    public SessaoLocal(OpcoesDaPartida opcoes, string? nomeDoJogador = null, bool destro = true)
+    /// <summary>
+    /// nomeDoJogador vai pro primeiro jogador desta máquina (o segundo do coop vira "Jogador 2"); destro vale pros dois.
+    /// nomes, quando vem, dá nome aos quatro em quadra (time*2 + índice) — o rodízio, em que parceiro e rivais são gente
+    /// da tabela, e não "Parceiro" e "Rival 1".
+    /// </summary>
+    public SessaoLocal(OpcoesDaPartida opcoes, string? nomeDoJogador = null, bool destro = true, IReadOnlyList<string>? nomes = null)
     {
+        if (nomes is not null && nomes.Count != 4) throw new ArgumentException($"Os nomes são dos 4 em quadra; vieram {nomes.Count}.", nameof(nomes));
         _partida = new Partida(opcoes);
         _locais = Enumerable.Range(0, 4).Where(i => opcoes.Humanos[i]).ToArray();
         for (int n = 0; n < _locais.Length; n++)
@@ -22,6 +27,8 @@ public sealed class SessaoLocal : ISessao
         }
         // Demonstração (ninguém nos controles): "Você / Parceiro" mentiria; as duplas viram as cores da quadra.
         if (_locais.Length == 0) { _nomes[0] = "Lima 1"; _nomes[1] = "Lima 2"; _nomes[2] = "Laranja 1"; _nomes[3] = "Laranja 2"; }
+        if (nomes is not null)
+            for (int i = 0; i < 4; i++) _nomes[i] = nomes[i];
         _partida.Evento += AoEvento;
         Retratar();
     }
@@ -93,6 +100,8 @@ public sealed class SessaoLocal : ISessao
         pl.EmPontoDecisivo = p.Placar.EmPontoDecisivo;
         pl.Vencedor = p.Placar.Vencedor;
         pl.Resumo = p.Placar.Resumo();
+        pl.PontosCorridos = p.Placar.PontosCorridos;
+        pl.Empate = p.Placar.Empate;
         r.Mensagem = p.Mensagem?.Texto ?? "";
         r.MensagemEmDestaque = p.Mensagem?.Destaque == true;
         r.MensagemSuave = p.Mensagem?.Suave == true;

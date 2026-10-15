@@ -20,6 +20,7 @@ public partial class PartidaNode : Node3D
     public const string CenaDoMenu = "res://cenas/Menu.tscn";
     public const string CenaDaPartida = "res://cenas/Partida.tscn";
     public const string CenaDaCarreira = "res://cenas/Carreira.tscn";
+    public const string CenaDoRodizio = "res://cenas/Rodizio.tscn";
 
     public ISessao Sessao { get; private set; } = null!;
 
@@ -62,11 +63,20 @@ public partial class PartidaNode : Node3D
     /// </summary>
     private EstadoDaCarreira.JogoPedido? _jogoDaCarreira;
     private bool _resultadoDaCarreiraGuardado;
-    /// <summary>O modo desta partida: o da Configuracao, ou Local no jogo da carreira (você e a IA, sempre).</summary>
+    /// <summary>
+    /// O jogo do Americano/Mexicano que ESTA partida decide, tomado do <see cref="EstadoDoRodizio"/> no _Ready, como o da
+    /// carreira: mora na instância, e a partida largada no meio o leva com ela.
+    /// </summary>
+    private EstadoDoRodizio.JogoPedido? _jogoDoRodizio;
+    private bool _resultadoDoRodizioGuardado;
+    /// <summary>O que impediu o resultado do rodízio de ser guardado (a tela de fim diz); null = guardado, ou nada a guardar.</summary>
+    private string? _problemaDoRodizio;
+    /// <summary>O modo desta partida: o da Configuracao, ou Local no jogo da carreira e do rodízio (você e a IA, sempre).</summary>
     private ModoDeJogo _modo;
     private Dificuldade _dificuldade;
     private uint? _semente;
     internal bool EmCarreira => _jogoDaCarreira is not null;
+    internal bool EmRodizio => _jogoDoRodizio is not null;
     /// <summary>A linha de comando vale só pra primeira partida do processo: voltar ao menu e escolher outro modo não pode ser atropelado por ela.</summary>
     private static bool _linhaDeComandoLida;
 
@@ -100,6 +110,7 @@ public partial class PartidaNode : Node3D
             Configuracao.LerLinhaDeComando(args);
             PerfilLocal.LerLinhaDeComando(args);
             EstadoDaCarreira.LerLinhaDeComando(args);
+            EstadoDoRodizio.LerLinhaDeComando(args);
             LerArgumentosDaPartida(args);
         }
         _bot = _botPedido;
@@ -107,17 +118,26 @@ public partial class PartidaNode : Node3D
         _latenciaDeTeste = _latenciaPedida;
         _perdaDeTeste = _perdaPedida;
         _replay.Ligado = !_semReplayPedido;
+        // Os dois pedidos são tomados sempre: o que sobrasse ficaria esperando a próxima partida, que o decidiria por engano.
         _jogoDaCarreira = EstadoDaCarreira.TomarJogoPedido();
-        _modo = _jogoDaCarreira is null ? Configuracao.Modo : ModoDeJogo.Local;
-        _dificuldade = _jogoDaCarreira?.Dificuldade ?? Configuracao.Dificuldade;
-        _semente = _jogoDaCarreira?.Semente ?? Configuracao.Semente;
+        _jogoDoRodizio = EstadoDoRodizio.TomarJogoPedido();
+        if (_jogoDaCarreira is not null && _jogoDoRodizio is not null)
+        {
+            // Uma tela abre uma partida; dois pedidos juntos é defeito de quem pediu. Fica o da carreira (o mais antigo).
+            GD.PushError($"Partida: a carreira e o rodízio pediram jogo ao mesmo tempo; o jogo {_jogoDoRodizio.Jogo.Numero} do rodízio fica sem ser jogado.");
+            _jogoDoRodizio = null;
+        }
+        _modo = _jogoDaCarreira is null && _jogoDoRodizio is null ? Configuracao.Modo : ModoDeJogo.Local;
+        _dificuldade = _jogoDaCarreira?.Dificuldade ?? _jogoDoRodizio?.Dificuldade ?? Configuracao.Dificuldade;
+        _semente = _jogoDaCarreira?.Semente ?? _jogoDoRodizio?.Semente ?? Configuracao.Semente;
         EntradaLocal.ConfigurarMapa(coop: _modo == ModoDeJogo.CoopLocal);
-        if (EmCarreira && EstadoDaCarreira.Automatico) { _bot = true; _replay.Ligado = false; }
+        if ((EmCarreira && EstadoDaCarreira.Automatico) || (EmRodizio && EstadoDoRodizio.Automatico)) { _bot = true; _replay.Ligado = false; }
         if (_jogoDaCarreira is { Jogo: var jogo } && EstadoDaCarreira.Atual is { } carreira)
         {
             string eu = carreira.DuplaDoJogador.Nome;
             _nomesDasDuplas = [eu, jogo.DuplaA == eu ? jogo.DuplaB : jogo.DuplaA];
         }
+        else if (_jogoDoRodizio is { } doRodizio) _nomesDasDuplas = doRodizio.NomesDasDuplas;
         _automatica = _bot || Configuracao.SairApos is not null || Configuracao.Screenshot is not null;
         Sessao = CriarSessao(out string quem);
         LigarOPerfil();
@@ -197,6 +217,8 @@ public partial class PartidaNode : Node3D
             Humanos = humanos,
             ModoDeGolpe = Configuracao.ModoDeGolpe,
             Semente = _semente,
+            // O jogo do rodízio é de pontos corridos (24 pode acabar 13-11 ou 12-12); o ponto de ouro e os sets não valem.
+            PontosCorridos = _jogoDoRodizio?.PontosPorJogo,
         };
         ISessao sessao;
         switch (modo)
@@ -232,13 +254,15 @@ public partial class PartidaNode : Node3D
                 break;
             }
             default:
-                sessao = new SessaoLocal(opcoes, Configuracao.NomeDoJogador, Configuracao.Destro);
+                // No rodízio parceiro e rivais são gente da tabela: os quatro nomes vêm do pedido (o humano, com o nome do evento).
+                sessao = new SessaoLocal(opcoes, Configuracao.NomeDoJogador, Configuracao.Destro, _jogoDoRodizio?.Nomes);
                 quem = modo switch
                 {
                     ModoDeJogo.Demonstracao => "4 IAs",
                     ModoDeJogo.CoopLocal => $"coop local, golpe {Configuracao.ModoDeGolpe}",
                     _ => $"1 humano, golpe {Configuracao.ModoDeGolpe}",
                 };
+                if (_jogoDoRodizio is { } pedido) quem += $", {EstadoDoRodizio.NomeDoFormato(pedido.Formato)}: jogo {pedido.Jogo.Numero} de {pedido.PontosPorJogo} pontos corridos";
                 break;
         }
         if (_latenciaDeTeste > 0 || _perdaDeTeste > 0) quem += $", rede ruim de teste: +{_latenciaDeTeste} ms e {_perdaDeTeste:P0} de perda na saída";
@@ -259,7 +283,7 @@ public partial class PartidaNode : Node3D
         _pausa.ContinuarPedido += Continuar;
         _pausa.SairProMenuPedido += IrProMenu;
         _pausa.OpcoesPedidas += IrProMenu;   // atalho: as opções moram no menu; trocar dentro da partida fica pro M3
-        _fim.JogarDeNovoPedido += () => TrocarDeCena(EmCarreira ? CenaDaCarreira : CenaDaPartida);
+        _fim.JogarDeNovoPedido += () => TrocarDeCena(EmCarreira ? CenaDaCarreira : EmRodizio ? CenaDoRodizio : CenaDaPartida);
         _fim.MenuPedido += IrProMenu;
         var dicas = new DicaDeControles { Name = "Dicas" };
         dicas.Definir(new Dica("Espaço", "A", "sacar / balançar"), new Dica("Shift", "B", "lob"), new Dica("Esc", "Start", "pausa"));
@@ -348,6 +372,7 @@ public partial class PartidaNode : Node3D
         try
         {
             GuardarResultadoDaCarreira();   // acabou, mas saiu antes da tela de fim (no replay do último ponto): o resultado vale
+            GuardarResultadoDoRodizio();
             RegistrarNoPerfil();   // saiu no meio (menu, fechar o jogo): a abandonada conta golpes e tempo, não partida
         }
         finally   // o que falhar acima não pode prender a porta da sala nem deixar o menu surdo ao fechar da janela
@@ -367,6 +392,19 @@ public partial class PartidaNode : Node3D
         if (Sessao is not SessaoLocal { Partida: var partida } || !partida.Placar.Acabou) return false;
         _resultadoDaCarreiraGuardado = true;
         EstadoDaCarreira.InformarResultado(pedido.Jogo, partida.Placar);
+        return true;
+    }
+
+    /// <summary>
+    /// O jogo do rodízio terminado vai pro rodízio, uma vez, como o da carreira: na tela de fim ou na saída. Largado no
+    /// meio, fica sem resultado. Devolve true quando tentou agora; o que deu errado fica em <see cref="_problemaDoRodizio"/>.
+    /// </summary>
+    private bool GuardarResultadoDoRodizio()
+    {
+        if (_jogoDoRodizio is not { } pedido || _resultadoDoRodizioGuardado) return false;
+        if (Sessao is not SessaoLocal { Partida: var partida } || !partida.Placar.Acabou) return false;
+        _resultadoDoRodizioGuardado = true;
+        _problemaDoRodizio = EstadoDoRodizio.InformarResultado(pedido, partida.Placar);
         return true;
     }
 
@@ -395,6 +433,7 @@ public partial class PartidaNode : Node3D
         int? vencedor = r.Placar.Vencedor;
         bool vitoria = vencedor == meuTime && Sessao.MotivoDoFim is null;
         string resultado = Sessao.MotivoDoFim is string motivo ? char.ToUpperInvariant(motivo[0]) + motivo[1..]
+            : r.Placar.Empate ? "Empate"   // pontos corridos: 12-12 em 24 não tem vencedor
             : demonstracao ? $"{Dupla(r, vencedor ?? 0)} venceu"
             : vencedor is null ? "Partida encerrada" : vitoria ? "Vitória!" : "Derrota";
         var estatisticas = new List<(string, string)>();
@@ -418,6 +457,8 @@ public partial class PartidaNode : Node3D
         {
             if (GuardarResultadoDaCarreira())
                 estatisticas.Insert(0, ("Carreira", "resultado guardado — \"Jogar de novo\" volta pra etapa"));
+            if (GuardarResultadoDoRodizio() && _jogoDoRodizio is { } doRodizio && _problemaDoRodizio is null)
+                estatisticas.Insert(0, (EstadoDoRodizio.NomeDoFormato(doRodizio.Formato), "resultado guardado"));
             var conquistas = RegistrarNoPerfil();
             if (GravaNoPerfil)
             {
@@ -427,11 +468,19 @@ public partial class PartidaNode : Node3D
                 foreach (var conquista in conquistas) estatisticas.Add((perfil.Gravado ? "Conquista!" : "Conquista (não salva)", conquista.Nome.Portugues));
             }
         }
-        finally   // a carreira e o perfil nunca podem deixar a partida sem tela de fim (e sem pausa, que espera o fim)
+        finally   // a carreira, o rodízio e o perfil nunca podem deixar a partida sem tela de fim (e sem pausa, que espera o fim)
         {
-            _fim.Mostrar(resultado, vitoria || demonstracao, Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r), estatisticas, aviso);
+            // O rodízio que não guardou o placar diz por quê: o jogador não volta pra tabela achando que contou.
+            if (_problemaDoRodizio is string problema && _jogoDoRodizio is { } comProblema)
+                aviso = string.Join("\n", new[] { aviso, $"{EstadoDoRodizio.NomeDoFormato(comProblema.Formato)}: {problema}" }.OfType<string>());
+            PontosCorridosFinais? corridos = partida is { Placar.PontosCorridos: int total } comPontos
+                ? new PontosCorridosFinais(comPontos.Placar.Pontos[0], comPontos.Placar.Pontos[1], total)
+                : null;
+            string voltar = _jogoDoRodizio is { } pedido ? $"Voltar ao {EstadoDoRodizio.NomeDoFormato(pedido.Formato)}" : "Jogar de novo";
+            _fim.Mostrar(resultado, vitoria || demonstracao, Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r), estatisticas, aviso, corridos, voltar);
         }
         if (EstadoDaCarreira.Automatico && EmCarreira) Callable.From(() => TrocarDeCena(CenaDaCarreira)).CallDeferred();
+        if (EstadoDoRodizio.Automatico && EmRodizio) Callable.From(() => TrocarDeCena(CenaDoRodizio)).CallDeferred();
         GD.Print($"Fim: {resultado} — {r.Placar.Resumo} — {string.Join(", ", estatisticas.Select(e => $"{e.Item1} {e.Item2}"))}");
     }
 
@@ -479,6 +528,7 @@ public partial class PartidaNode : Node3D
 
     private bool GravaNoPerfil => Sessao.JogadoresLocais.Count > 0 && (!_automatica || PerfilLocal.CaminhoPedido is not null);
 
+    // O rodízio conta como partida local contra a IA: o perfil (Padel.Core.Perfil) não tem um modo "rodízio".
     private ModoDaPartida ModoDoPerfil() =>
         EmCarreira ? ModoDaPartida.Carreira
         : _modo == ModoDeJogo.CoopLocal ? ModoDaPartida.Coop
@@ -564,13 +614,23 @@ public partial class PartidaNode : Node3D
         r.Acontecimentos.Clear();
     }
 
-    private DadosDoPlacar DadosDoPlacar(RetratoDaPartida r) => new(
-        Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r),
-        r.Placar.Games[0], r.Placar.Games[1], r.Placar.Pontos[0], r.Placar.Pontos[1],
-        r.Placar.Vencedor is null ? r.Placar.TimeSacando : -1,
-        r.Placar.EmTieBreak, r.Placar.EmPontoDecisivo,
-        r.Mensagem.Length > 0 ? r.Mensagem : null, r.MensagemEmDestaque, r.MensagemSuave,
-        r.PingMs, r.Placar.Vencedor is not null);
+    /// <summary>
+    /// O placar de TV a partir de um retrato (o ao vivo, ou o quadro do replay). O formato — pontos corridos e empate —
+    /// vem sempre do retrato ao vivo: o do replay copia o placar dele campo a campo sem esses dois, e o formato não muda
+    /// no meio da partida.
+    /// </summary>
+    private DadosDoPlacar DadosDoPlacar(RetratoDaPartida r)
+    {
+        var aoVivo = Sessao.Retrato.Placar;
+        bool encerrada = r.Placar.Vencedor is not null || aoVivo.Empate;
+        return new(
+            Dupla(r, 0), Dupla(r, 1), SetsDoPlacar(r),
+            r.Placar.Games[0], r.Placar.Games[1], r.Placar.Pontos[0], r.Placar.Pontos[1],
+            encerrada ? -1 : r.Placar.TimeSacando,
+            r.Placar.EmTieBreak, r.Placar.EmPontoDecisivo,
+            r.Mensagem.Length > 0 ? r.Mensagem : null, r.MensagemEmDestaque, r.MensagemSuave,
+            r.PingMs, encerrada, aoVivo.PontosCorridos);
+    }
 
     private SetAnterior[] SetsDoPlacar(RetratoDaPartida r)
     {

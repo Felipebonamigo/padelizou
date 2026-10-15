@@ -3,8 +3,9 @@ using Godot;
 namespace Padel.Godot.Interface;
 
 /// <summary>
-/// Fim de partida: o resultado, o placar dos sets (o mesmo quadro da transmissão), as estatísticas em pares
-/// rótulo/valor, e Jogar de novo / Menu — cada um só emite o seu sinal. Processa mesmo com a árvore pausada.
+/// Fim de partida: o resultado, o placar dos sets (o mesmo quadro da transmissão) — ou, nos pontos corridos, os pontos
+/// finais —, as estatísticas em pares rótulo/valor, e Jogar de novo / Menu — cada um só emite o seu sinal. O "Jogar de
+/// novo" muda de nome quando volta pra outro lugar (o rodízio: "Voltar ao Americano"). Processa mesmo com a árvore pausada.
 /// </summary>
 public partial class TelaDeFim : Control
 {
@@ -14,6 +15,7 @@ public partial class TelaDeFim : Control
     private readonly Label _resultado;
     private readonly Label _aviso;
     private readonly QuadroDoPlacar _quadro;
+    private readonly QuadroDePontosCorridos _quadroCorrido;
     private readonly GridContainer _estatisticas;
     private readonly Button _jogarDeNovo;
     private Tween? _entrada;
@@ -39,6 +41,8 @@ public partial class TelaDeFim : Control
 
         _quadro = new QuadroDoPlacar { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Fundo = new Color(TemaPadelizou.MarinhoClaro, 0.6f) };
         coluna.AddChild(_quadro);
+        _quadroCorrido = new QuadroDePontosCorridos { SizeFlagsHorizontal = SizeFlags.ShrinkBegin, Fundo = new Color(TemaPadelizou.MarinhoClaro, 0.6f), Visible = false };
+        coluna.AddChild(_quadroCorrido);
         coluna.AddChild(TemaPadelizou.Espaco(10));
 
         coluna.AddChild(TemaPadelizou.Rotulo("ESTATÍSTICAS", TemaPadelizou.Secao));
@@ -77,14 +81,25 @@ public partial class TelaDeFim : Control
     /// <param name="sets">Os sets jogados, do ponto de vista da casa.</param>
     /// <param name="estatisticas">Pares rótulo/valor, na ordem de exibição (dois por linha).</param>
     /// <param name="aviso">Uma linha de alerta embaixo da manchete (ex.: o perfil não foi salvo). Null esconde.</param>
+    /// <param name="pontosCorridos">A partida foi de pontos corridos: mostra os pontos finais (e o empate) no lugar dos sets.</param>
+    /// <param name="rotuloDeJogarDeNovo">O texto do primeiro botão — o sinal é o mesmo; quem ouve decide pra onde ele leva.</param>
     public void Mostrar(string resultado, bool vitoria, string duplaCasa, string duplaRivais,
-        IReadOnlyList<SetAnterior> sets, IReadOnlyList<(string Rotulo, string Valor)> estatisticas, string? aviso = null)
+        IReadOnlyList<SetAnterior> sets, IReadOnlyList<(string Rotulo, string Valor)> estatisticas, string? aviso = null,
+        PontosCorridosFinais? pontosCorridos = null, string rotuloDeJogarDeNovo = "Jogar de novo")
     {
         _resultado.Text = resultado;
         _aviso.Text = aviso ?? "";
         _aviso.Visible = !string.IsNullOrEmpty(aviso);
         _resultado.AddThemeColorOverride("font_color", vitoria ? TemaPadelizou.Lima : TemaPadelizou.Branco);
-        _quadro.Atualizar(new DadosDoPlacar(duplaCasa, duplaRivais, sets, 0, 0, "", "", -1, PartidaEncerrada: true));
+        _jogarDeNovo.Text = rotuloDeJogarDeNovo;
+        _quadro.Visible = pontosCorridos is null;
+        _quadroCorrido.Visible = pontosCorridos is not null;
+        if (pontosCorridos is { } finais)
+            _quadroCorrido.Atualizar(new DadosDoPlacar(duplaCasa, duplaRivais, [], 0, 0,
+                finais.Casa.ToString(System.Globalization.CultureInfo.InvariantCulture), finais.Rivais.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                -1, PartidaEncerrada: true, PontosCorridos: finais.Total));
+        else
+            _quadro.Atualizar(new DadosDoPlacar(duplaCasa, duplaRivais, sets, 0, 0, "", "", -1, PartidaEncerrada: true));
 
         foreach (var filho in _estatisticas.GetChildren())
         {

@@ -56,6 +56,58 @@ if quero carreira-nova-sem-arquivo; then
     resultado "carreira-nova-sem-arquivo (--carreira-nova sem --carreira recusa e não apaga o save)" "$p"
 fi
 
+# ---- O rodízio de teste (--rodizio-sozinho) só mexe no --rodizio ARQ, e joga o evento até o fim ----
+
+# O user:// inteiro, arquivo a arquivo (nome e md5), menos os logs do próprio Godot.
+listagem() { (cd "$1" && find . -path ./logs -prune -o -type f -print | sort | while read -r f; do echo "$f $(md5sum < "$f" | cut -d' ' -f1)"; done); }
+
+if quero rodizio-sozinho-com-arquivo; then
+    # Americano de 8 (o padrão da tela), 24 pontos: 7 rodadas, o humano simulado joga uma partida em cada.
+    xdg="$tmp/r1"; u=$(user_de "$xdg"); mkdir -p "$u"; printf '%s' "$sentinela" > "$u/rodizio.json"; antes=$(listagem "$u")
+    jogo "$xdg" "$tmp/r1.log" 400 res://cenas/Rodizio.tscn -- --rodizio-sozinho --rodizio "$tmp/r1-rodizio.json"
+    codigo=$?; p=""
+    [ "$codigo" -ne 0 ] && p+=" saiu com código $codigo;"
+    grep -q "Rodízio: evento encerrado" "$tmp/r1.log" || p+=" não chegou ao fim do evento ($(grep "Rodízio:" "$tmp/r1.log" | tail -1 | cut -c1-120));"
+    jogos=$(grep -c "Rodízio: jogo " "$tmp/r1.log")
+    [ "$jogos" -eq 7 ] || p+=" esperava 7 partidas do humano (Americano de 8), vieram $jogos;"
+    if [ -f "$tmp/r1-rodizio.json" ]; then
+        grep -q '"PontosA": null' "$tmp/r1-rodizio.json" && p+=" o evento no --rodizio ARQ ficou com jogo sem resultado;"
+    else
+        p+=" não gravou o evento no --rodizio ARQ;"
+    fi
+    depois=$(listagem "$u")
+    [ "$depois" != "$antes" ] && p+=" mexeu no user:// (antes: $(echo "$antes" | tr '\n' ' ')| depois: $(echo "$depois" | tr '\n' ' '));"
+    grep -q "Exception" "$tmp/r1.log" && p+=" exceção no log ($(grep -m1 "Exception" "$tmp/r1.log" | cut -c1-120));"
+    # Fechar logo depois da última partida, com os sons dela ainda no servidor de áudio, sai acusando vazamento.
+    grep -qE "leaked at exit|still in use at exit" "$tmp/r1.log" && p+=" saiu sujo ($(grep -m1 -E "leaked at exit|still in use at exit" "$tmp/r1.log" | cut -c1-120));"
+    resultado "rodizio-sozinho-com-arquivo (--rodizio-sozinho --rodizio ARQ joga o evento inteiro sem tocar no user://)" "$p"
+fi
+
+if quero rodizio-sozinho-sem-arquivo; then
+    xdg="$tmp/r2"; u=$(user_de "$xdg"); mkdir -p "$u"; printf '%s' "$sentinela" > "$u/rodizio.json"; antes=$(md5 "$u/rodizio.json")
+    jogo "$xdg" "$tmp/r2.log" 60 res://cenas/Rodizio.tscn -- --rodizio-sozinho
+    codigo=$?; p=""
+    { [ "$codigo" -eq 0 ] || [ "$codigo" -eq 124 ]; } && p+=" deveria recusar e sair com erro (veio código $codigo);"
+    grep -q -- "--rodizio ARQ" "$tmp/r2.log" || p+=" não disse que falta o --rodizio ARQ;"
+    [ "$(md5 "$u/rodizio.json")" != "$antes" ] && p+=" mexeu no user://rodizio.json;"
+    resultado "rodizio-sozinho-sem-arquivo (--rodizio-sozinho sem --rodizio recusa)" "$p"
+fi
+
+if quero rodizio-sai-apos-o-fim; then
+    # Como na carreira: a partida do rodízio que acaba antes do prazo sai do jogo, e a volta pra tela do rodízio
+    # (agendada pelo fim) não pode engolir o Quit e seguir jogando o evento.
+    xdg="$tmp/r3"; mkdir -p "$(user_de "$xdg")"
+    jogo "$xdg" "$tmp/r3.log" 150 res://cenas/Rodizio.tscn -- --rodizio "$tmp/r3-rodizio.json" --rodizio-sozinho --sair-apos 100000
+    codigo=$?; p=""
+    [ "$codigo" -eq 124 ] && p+=" não saiu sozinho (timeout);"
+    [ "$codigo" -ne 0 ] && [ "$codigo" -ne 124 ] && p+=" saiu com código $codigo;"
+    [ "$(grep -c "Saindo após" "$tmp/r3.log")" -eq 1 ] || p+=" esperava um 'Saindo após' só (veio $(grep -c "Saindo após" "$tmp/r3.log"));"
+    depois=$(sed -n '/Saindo após/,$p' "$tmp/r3.log" | grep -c "Rodízio: jogo")
+    [ "$depois" -gt 0 ] && p+=" seguiu jogando o rodízio depois do 'Saindo após' ($depois jogo(s));"
+    grep -q "Exception" "$tmp/r3.log" && p+=" exceção no log ($(grep -m1 "Exception" "$tmp/r3.log" | cut -c1-120));"
+    resultado "rodizio-sai-apos-o-fim (--sair-apos no rodízio automático: a partida que acaba antes sai do jogo)" "$p"
+fi
+
 # ---- Rodada automática (--sair-apos, --screenshot) só grava perfil com --perfil ARQ ----
 
 sem_perfil() {   # sem_perfil NOME ARGS... — a rodada termina e o user://perfil.json não aparece

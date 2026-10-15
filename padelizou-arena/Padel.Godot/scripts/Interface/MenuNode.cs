@@ -6,7 +6,8 @@ using Padel.Core;
 namespace Padel.Godot.Interface;
 
 /// <summary>
-/// Tela inicial: Jogar (contra a IA), Carreira, Coop local, Perfil, Online (criar sala / entrar numa sala), Opções, Sair.
+/// Tela inicial: Jogar (contra a IA), Carreira, Americano (o rodízio: Americano ou Mexicano), Coop local, Online (criar
+/// sala / entrar numa sala), Perfil, Opções, Sair.
 /// Navega por teclado, controle (direcional, analógico, A/B) e mouse, com foco sempre visível; pensado pra
 /// ler bem a 1280x800 (Steam Deck). Atrás, a quadra girando devagar.
 /// Na primeira abertura lê user://configuracao.json e a linha de comando; se ela pedir partida direta
@@ -17,7 +18,10 @@ public partial class MenuNode : Node
 {
     public const string CenaDaPartida = "res://cenas/Partida.tscn";
     public const string CenaDaCarreira = "res://cenas/Carreira.tscn";
+    public const string CenaDoRodizio = "res://cenas/Rodizio.tscn";
     private string _cenaDestino = CenaDaPartida;
+    /// <summary>A cena que o último botão pediu (pra conferência, que não deixa a troca acontecer).</summary>
+    internal string CenaDestino => _cenaDestino;
     private const float MargemLateral = 96f;
 
     private enum Tela { Principal, Online, Opcoes, Perfil }
@@ -56,6 +60,7 @@ public partial class MenuNode : Node
             foreach (var aviso in Configuracao.LerLinhaDeComando(args)) GD.PushWarning(aviso);
             PerfilLocal.LerLinhaDeComando(args);
             EstadoDaCarreira.LerLinhaDeComando(args);
+            EstadoDoRodizio.LerLinhaDeComando(args);
         }
         Configuracao.AplicarVolume();
 
@@ -193,6 +198,7 @@ public partial class MenuNode : Node
         coluna.AddChild(botoes);
         _jogar = BotaoDoMenu(botoes, "Jogar", () => $"Você e um parceiro da IA contra uma dupla da IA.\n{ResumoDaPartida()}", () => Iniciar(ModoDeJogo.Local));
         _carreira = BotaoDoMenu(botoes, "Carreira", () => "Um circuito de etapas com grupos, chave e ranking: você e um parceiro da IA contra as duplas do circuito.\nO progresso fica salvo.", () => Iniciar(ModoDeJogo.Local, CenaDaCarreira));
+        BotaoDoMenu(botoes, "Americano", () => "Americano ou Mexicano: de 4 a 16 jogadores, a dupla muda a cada rodada, jogos de pontos corridos e classificação individual.\nO evento fica salvo.", () => Iniciar(ModoDeJogo.Local, CenaDoRodizio));
         _coop = BotaoDoMenu(botoes, "Coop local", () => $"Você e um amigo na mesma dupla, cada um com um controle.\nControles conectados agora: {Input.GetConnectedJoypads().Count}.", () => Iniciar(ModoDeJogo.CoopLocal));
         _botaoOnline = BotaoDoMenu(botoes, "Online", () => "Crie uma sala pra um amigo entrar pelo seu IP, ou entre na sala dele.", () => Mostrar(Tela.Online));
         _botaoPerfil = BotaoDoMenu(botoes, "Perfil", () => "Seus números e as 20 conquistas.", () => Mostrar(Tela.Perfil));

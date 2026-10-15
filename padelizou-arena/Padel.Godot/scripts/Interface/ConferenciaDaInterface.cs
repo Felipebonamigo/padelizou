@@ -1,5 +1,6 @@
 using Godot;
 using Padel.Core;
+using Padel.Core.Rodizio;
 using Padel.Core.Torneio;
 
 namespace Padel.Godot.Interface;
@@ -44,6 +45,9 @@ public static class ConferenciaDaInterface
                 PerfilLocal.CaminhoPedido = Arquivo("perfil-do-jogo.json");
                 EstadoDaCarreira.UsarArquivo(Arquivo("carreira-do-jogo.json"));
                 EstadoDaCarreira.Automatico = false;
+                EstadoDoRodizio.UsarArquivo(Arquivo("rodizio-do-jogo.json"));
+                EstadoDoRodizio.Automatico = false;
+                RodizioNode.TrocarDeCena = RodizioNode.TrocarDeCenaDeVerdade;
                 try
                 {
                     await caso.Rodar(no);
@@ -59,6 +63,7 @@ public static class ConferenciaDaInterface
         finally
         {
             Configuracao.RestaurarPadroes();
+            RodizioNode.TrocarDeCena = RodizioNode.TrocarDeCenaDeVerdade;
             no.GetTree().Paused = false;
             try { Directory.Delete(_pasta, recursive: true); }
             catch (IOException) { }   // sobra de pasta temporária não reprova a conferência
@@ -898,6 +903,339 @@ public static class ConferenciaDaInterface
             finally { tela.QueueFree(); }
         }),
 
+        // ---- Rodízio (Americano e Mexicano): o menu, a tela, a partida de pontos corridos e o arquivo ----
+        new("menu: o botão Americano fica entre Carreira e Coop local e abre a cena do rodízio", async no =>
+        {
+            var menu = GD.Load<PackedScene>(PartidaNode.CenaDoMenu).Instantiate<MenuNode>();
+            no.AddChild(menu);
+            try
+            {
+                await Quadro(no);
+                var americano = BotaoComTexto(menu, "Americano") ?? throw new Falha("o menu deveria ter o botão Americano");
+                var ordem = americano.GetParent().GetChildren().OfType<Button>().Select(b => b.Text).ToList();
+                int i = ordem.IndexOf("Americano");
+                Exigir(i > 0 && ordem[i - 1] == "Carreira" && i + 1 < ordem.Count && ordem[i + 1] == "Coop local",
+                    $"o Americano deveria vir entre Carreira e Coop local; a ordem é [{string.Join(", ", ordem)}]");
+                americano.EmitSignal(BaseButton.SignalName.Pressed);
+                Igual(PartidaNode.CenaDoRodizio, menu.CenaDestino, "a cena que o Americano abre");
+            }
+            finally { Descartar(menu); }   // antes da cortina acabar: a troca de cena de verdade levaria a conferência junto
+            var tela = GD.Load<PackedScene>(PartidaNode.CenaDoRodizio)?.Instantiate() ?? throw new Falha($"{PartidaNode.CenaDoRodizio} não carregou");
+            try { Exigir(tela is RodizioNode, $"a raiz de {PartidaNode.CenaDoRodizio} deveria ser o RodizioNode, veio {tela.GetType().Name}"); }
+            finally { tela.Free(); }
+        }),
+        Sincrono("rodízio: instanciar a cena e liberá-la sem entrar na árvore não deixa nó órfão", () =>
+        {
+            // O rótulo de aviso nascia no inicializador do campo e só virava filho no _Ready: instanciada e liberada sem
+            // entrar na árvore (o caso do menu, acima), a cena deixava o rótulo órfão, e o Godot fechava acusando vazamento.
+            double antes = Performance.GetMonitor(Performance.Monitor.ObjectOrphanNodeCount);
+            var tela = GD.Load<PackedScene>(PartidaNode.CenaDoRodizio).Instantiate();
+            tela.Free();
+            Igual(antes, Performance.GetMonitor(Performance.Monitor.ObjectOrphanNodeCount), "nós órfãos depois de instanciar e liberar a cena do rodízio");
+        }),
+        new("rodízio: sem evento salvo a tela oferece criar; um Americano de 8 abre a rodada 1 com 2 quadras, salvo em JSON", async no =>
+        {
+            EstadoDoRodizio.UsarArquivo(Arquivo($"rodizio-novo-{Guid.NewGuid():N}.json"));   // nenhum evento salvo
+            Configuracao.NomeDoJogador = "Ana";
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                Exigir(EstadoDoRodizio.Atual is null, "sem arquivo, nenhum evento deveria começar sozinho");
+                var criar = BotaoComTexto(tela, "Criar evento") ?? throw new Falha($"a tela deveria oferecer 'Criar evento'; mostra [{Juntar(TextosDe(tela))}]");
+                Seletor(tela, "Formato").Selecionar(0);        // Americano
+                Seletor(tela, "Jogadores").Selecionar(8 - 4);  // de 4 a 16
+                Seletor(tela, "Pontos").Selecionar(1);         // 16, 24, 32
+                criar.EmitSignal(BaseButton.SignalName.Pressed);
+                await Quadro(no);
+                var rodizio = EstadoDoRodizio.Atual ?? throw new Falha("'Criar evento' deveria deixar o evento carregado");
+                Igual(FormatoDoRodizio.Americano, rodizio.Regras.Formato, "formato");
+                Igual(24, rodizio.Regras.PontosPorJogo, "pontos por jogo");
+                Igual(8, rodizio.Jogadores.Count, "jogadores");
+                Igual(0, rodizio.RodadaAtual, "rodada");
+                var jogos = rodizio.JogosDaRodadaAtual;
+                Igual(2, jogos.Count, "jogos na rodada 1 (um por quadra)");
+                Exigir(jogos.Select(j => j.Quadra).OrderBy(q => q).SequenceEqual([1, 2]), $"as quadras deveriam ser 1 e 2, vieram {string.Join(", ", jogos.Select(j => j.Quadra))}");
+                var humanos = rodizio.Jogadores.Where(j => j.Humano).Select(j => j.Nome).ToList();
+                Exigir(humanos.SequenceEqual(["Ana"]), $"o humano é o jogador das opções, e só ele; vieram [{string.Join(", ", humanos)}]");
+                int forcas = rodizio.Jogadores.Where(j => !j.Humano).Select(j => j.Forca).Distinct().Count();
+                Exigir(forcas >= 4, $"os outros 7 deveriam ter forças variadas; só {forcas} forças diferentes");
+                Exigir(File.Exists(EstadoDoRodizio.Caminho), "o evento criado deveria estar no disco");
+                Igual(rodizio.Salvar(), File.ReadAllText(EstadoDoRodizio.Caminho), "o arquivo (o JSON do próprio TorneioDeRodizio)");
+                var textos = TextosDe(tela);
+                Exigir(textos.Any(t => t.Contains("Quadra 1", StringComparison.Ordinal)) && textos.Any(t => t.Contains("Quadra 2", StringComparison.Ordinal)),
+                    $"a rodada atual deveria mostrar as duas quadras; mostra [{Juntar(textos)}]");
+                Exigir(BotaoComTexto(tela, "Jogar") is not null, "com 8 jogadores o humano joga na rodada 1: a tela deveria oferecer Jogar");
+            }
+            finally { tela.QueueFree(); }
+        }),
+        new("rodízio: um Mexicano de 6 tem 1 quadra e a tela diz quem folga", async no =>
+        {
+            EstadoDoRodizio.UsarArquivo(Arquivo($"rodizio-novo-{Guid.NewGuid():N}.json"));   // nenhum evento salvo
+            Configuracao.NomeDoJogador = "Ana";
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                var criar = BotaoComTexto(tela, "Criar evento") ?? throw new Falha("a tela deveria oferecer 'Criar evento'");
+                Seletor(tela, "Formato").Selecionar(1);        // Mexicano
+                Seletor(tela, "Jogadores").Selecionar(6 - 4);
+                Seletor(tela, "Pontos").Selecionar(0);         // 16
+                criar.EmitSignal(BaseButton.SignalName.Pressed);
+                await Quadro(no);
+                var rodizio = EstadoDoRodizio.Atual ?? throw new Falha("'Criar evento' deveria deixar o evento carregado");
+                Igual(FormatoDoRodizio.Mexicano, rodizio.Regras.Formato, "formato");
+                Igual(16, rodizio.Regras.PontosPorJogo, "pontos por jogo");
+                Igual(1, rodizio.JogosDaRodadaAtual.Count, "jogos na rodada 1");
+                var folgam = rodizio.FolgasDaRodada(0);
+                Igual(2, folgam.Count, "quem folga na rodada 1");
+                var textos = TextosDe(tela);
+                Exigir(folgam.All(nome => textos.Any(t => t.Contains("Folga", StringComparison.Ordinal) && t.Contains(nome, StringComparison.Ordinal))),
+                    $"a tela deveria dizer que {string.Join(" e ", folgam)} folgam; mostra [{Juntar(textos)}]");
+            }
+            finally { tela.QueueFree(); }
+        }),
+        new("rodízio: o Jogar abre a partida do humano com pontos corridos, as duplas certas e a dificuldade dos rivais", async no =>
+        {
+            Configuracao.Dificuldade = Dificuldade.Dificil;
+            Configuracao.SetsParaVencer = 2;
+            var jogo = RodizioComJogoPronto();
+            var rodizio = EstadoDoRodizio.Atual ?? throw new Falha("o evento deveria estar carregado");
+            string? cenaPedida = null;
+            RodizioNode.TrocarDeCena = (_, cena) => { cenaPedida = cena; return Error.Ok; };
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                var jogar = BotaoComTexto(tela, "Jogar") ?? throw new Falha($"a tela deveria oferecer Jogar; mostra [{Juntar(TextosDe(tela))}]");
+                jogar.EmitSignal(BaseButton.SignalName.Pressed);
+                Igual(PartidaNode.CenaDaPartida, cenaPedida, "a cena que o Jogar abre");
+            }
+            finally { tela.QueueFree(); }
+            var minha = jogo.DuplaA.Tem("Ana") ? jogo.DuplaA : jogo.DuplaB;
+            var rivais = jogo.DuplaA.Tem("Ana") ? jogo.DuplaB : jogo.DuplaA;
+            string parceiro = minha.Jogador1 == "Ana" ? minha.Jogador2 : minha.Jogador1;
+            int forcaDosRivais = (rodizio.Jogador(rivais.Jogador1).Forca + rodizio.Jogador(rivais.Jogador2).Forca + 1) / 2;
+            var partida = await AbrirPartida(no);
+            try
+            {
+                if (partida.Sessao is not SessaoLocal local) throw new Falha($"a partida do rodízio deveria ser local, veio {partida.Sessao.GetType().Name}");
+                Exigir(partida.EmRodizio, "a partida aberta pelo Jogar do rodízio deveria ser do rodízio");
+                Igual<int?>(24, local.Partida.Opcoes.PontosCorridos, "pontos corridos das opções da partida");
+                Igual<int?>(24, local.Partida.Placar.PontosCorridos, "pontos corridos do placar");
+                Exigir(local.Partida.Opcoes.Humanos.SequenceEqual([true, false, false, false]), "só o humano nos controles, no time 0");
+                var nomes = partida.NomesDasDuplas ?? throw new Falha("a partida do rodízio deveria ter os nomes das duplas");
+                Igual($"Ana / {parceiro}", nomes[0], "a dupla do humano");
+                Igual($"{rivais.Jogador1} / {rivais.Jogador2}", nomes[1], "a dupla rival");
+                Igual(parceiro, local.Retrato.Jogadores[1].Nome, "o parceiro em quadra");
+                Igual(rivais.Jogador1, local.Retrato.Jogadores[2].Nome, "o 1º rival em quadra");
+                Igual(rivais.Jogador2, local.Retrato.Jogadores[3].Nome, "o 2º rival em quadra");
+                Igual(EstadoDaCarreira.DificuldadePara(forcaDosRivais), local.Partida.Opcoes.Dificuldade, $"a dificuldade (rivais de força média {forcaDosRivais})");
+                Exigir(local.Partida.Opcoes.Semente is not null, "a partida do rodízio deveria ter a semente do jogo");
+                var placar = partida.GetNodeOrNull("Placar") ?? throw new Falha("a partida deveria ter o placar de TV");
+                Exigir(TextosDe(placar).Any(t => t.Contains("DE 24", StringComparison.Ordinal)), $"o placar de TV deveria dizer que o jogo é de 24; mostra [{Juntar(TextosDe(placar))}]");
+            }
+            finally { FecharPartida(partida); }
+            Igual(Dificuldade.Dificil, Configuracao.Dificuldade, "a dificuldade das opções do jogador");
+            Igual(2, Configuracao.SetsParaVencer, "o formato das opções do jogador");
+            Igual<uint?>(null, Configuracao.Semente, "a semente (a avulsa seguinte sairia sempre igual)");
+        }),
+        new("rodízio: o placar da partida volta ao rodízio, a classificação soma e o disco guarda", async no =>
+        {
+            var jogo = RodizioComJogoPronto();
+            EstadoDoRodizio.PrepararJogo(jogo);
+            var partida = await AbrirPartida(no);
+            int meus, deles;
+            try
+            {
+                if (partida.Sessao is not SessaoLocal local) throw new Falha($"a partida do rodízio deveria ser local, veio {partida.Sessao.GetType().Name}");
+                JogarAteOFim(local.Partida);
+                for (int i = 0; i < 120 * 30 && !partida.FimMostrado; i++) await QuadroDeFisica(no);
+                Exigir(partida.FimMostrado, "a tela de fim deveria ter entrado");
+                meus = local.Partida.Placar.Pontos[0];
+                deles = local.Partida.Placar.Pontos[1];
+                Igual(24, meus + deles, "a partida de 24 pontos corridos soma 24");
+                var fim = partida.GetNode("Telas/Fim");
+                Exigir(BotaoComTexto(fim, "Voltar ao Americano") is not null, $"a tela de fim deveria oferecer a volta ao rodízio; mostra [{Juntar(TextosDe(fim))}]");
+                Exigir(TextosDe(fim).Contains(meus.ToString()) && TextosDe(fim).Contains(deles.ToString()), $"a tela de fim deveria mostrar {meus} e {deles}; mostra [{Juntar(TextosDe(fim))}]");
+            }
+            finally { FecharPartida(partida); }
+            bool euEmA = jogo.DuplaA.Tem("Ana");
+            var noDisco = JogoDoRodizioNoDisco(jogo.Numero);
+            Igual<int?>(euEmA ? meus : deles, noDisco.PontosA, "pontos da DuplaA no disco");
+            Igual<int?>(euEmA ? deles : meus, noDisco.PontosB, "pontos da DuplaB no disco");
+            var linha = TorneioDeRodizio.Carregar(File.ReadAllText(EstadoDoRodizio.Caminho)).Classificacao().First(l => l.Jogador == "Ana");
+            Igual(meus, linha.Pontos, "pontos da Ana na classificação");
+            Igual(1, linha.Jogos, "jogos da Ana na classificação");
+        }),
+        new("rodízio: partida empatada — a tela de fim diz Empate e o rodízio recebe 12 a 12", async no =>
+        {
+            var jogo = RodizioComJogoPronto();
+            EstadoDoRodizio.PrepararJogo(jogo);
+            var partida = await AbrirPartida(no);
+            try
+            {
+                if (partida.Sessao is not SessaoLocal local) throw new Falha($"a partida do rodízio deveria ser local, veio {partida.Sessao.GetType().Name}");
+                var placar = local.Partida.Placar;
+                for (int i = 0; i < 24; i++) placar.PontoPara(i % 2);   // o placar chega a 12-12; a partida vê o fim quando o ponto em andamento acabar
+                Exigir(placar.Empate, $"o placar deveria estar empatado, está {placar.Resumo()}");
+                JogarAteOFim(local.Partida);
+                for (int i = 0; i < 120 * 30 && !partida.FimMostrado; i++) await QuadroDeFisica(no);
+                Exigir(partida.FimMostrado, "a tela de fim deveria ter entrado");
+                var textos = TextosDe(partida.GetNode("Telas/Fim"));
+                Exigir(textos.Contains("Empate"), $"a manchete da tela de fim deveria ser 'Empate'; mostra [{Juntar(textos)}]");
+                Exigir(textos.Any(t => t.Contains("EMPATE", StringComparison.Ordinal)), $"o quadro da tela de fim deveria marcar o empate; mostra [{Juntar(textos)}]");
+            }
+            finally { FecharPartida(partida); }
+            var noDisco = JogoDoRodizioNoDisco(jogo.Numero);
+            Igual<int?>(12, noDisco.PontosA, "pontos da DuplaA no disco");
+            Igual<int?>(12, noDisco.PontosB, "pontos da DuplaB no disco");
+            var linha = TorneioDeRodizio.Carregar(File.ReadAllText(EstadoDoRodizio.Caminho)).Classificacao().First(l => l.Jogador == "Ana");
+            Igual(12, linha.Pontos, "pontos da Ana");
+            Igual(1, linha.Empates, "empates da Ana");
+        }),
+        new("rodízio: a partida do rodízio abandonada leva o jogo com ela — a próxima partida não decide esse jogo", async no =>
+        {
+            var jogo = RodizioComJogoPronto();
+            EstadoDoRodizio.PrepararJogo(jogo);   // o "Jogar" da tela do rodízio
+            var doRodizio = await AbrirPartida(no);
+            try { Exigir(doRodizio.EmRodizio, "a partida aberta pelo Jogar do rodízio deveria ser do rodízio"); }
+            finally { FecharPartida(doRodizio); }   // Pausa → Sair pro menu: sai da árvore sem tela de fim
+            Configuracao.Modo = ModoDeJogo.Local;   // no menu, Jogar
+            var avulsa = await AbrirPartida(no);
+            try
+            {
+                if (avulsa.Sessao is not SessaoLocal local) throw new Falha($"a avulsa deveria ser local, veio {avulsa.Sessao.GetType().Name}");
+                Exigir(!avulsa.EmRodizio, "a partida avulsa aberta depois do rodízio abandonado ainda é do rodízio: no fim ela decidiria o jogo");
+                Exigir(avulsa.NomesDasDuplas is null, $"a avulsa ficou com os nomes das duplas do rodízio: {string.Join(" x ", avulsa.NomesDasDuplas ?? [])}");
+                Igual<int?>(null, local.Partida.Opcoes.PontosCorridos, "pontos corridos da avulsa (ela é de games e sets)");
+            }
+            finally { FecharPartida(avulsa); }
+            Exigir(!JogoDoRodizioNoDisco(jogo.Numero).Jogado, "o jogo do rodízio não pode ter resultado: ninguém o jogou até o fim");
+        }),
+        new("rodízio: a partida que acabou e foi largada no replay do último ponto guarda o resultado", async no =>
+        {
+            var jogo = RodizioComJogoPronto();
+            EstadoDoRodizio.PrepararJogo(jogo);
+            var partida = await AbrirPartida(no);
+            try
+            {
+                if (partida.Sessao is not SessaoLocal local) throw new Falha($"a partida do rodízio deveria ser local, veio {partida.Sessao.GetType().Name}");
+                JogarAteOFim(local.Partida);   // o Core até o fim, sem quadro nenhum: a tela de fim ainda não entrou
+            }
+            finally { FecharPartida(partida); }
+            Exigir(JogoDoRodizioNoDisco(jogo.Numero).Jogado, "a partida terminou: o resultado deveria estar no rodízio (sair no replay não desfaz o placar)");
+        }),
+        new("rodízio: Simular mostra os outros jogos da rodada e Próxima rodada abre a seguinte, salva", async no =>
+        {
+            var jogo = RodizioComJogoPronto();
+            var rodizio = EstadoDoRodizio.Atual ?? throw new Falha("o evento deveria estar carregado");
+            var outro = rodizio.JogosDaRodadaAtual.First(j => j.Numero != jogo.Numero);
+            (int a, int b) = outro.PontosA == 20 ? (19, 5) : (20, 4);   // o placar da Ana diferente do outro jogo
+            rodizio.InformarResultado(jogo.Numero, a, b);
+            EstadoDoRodizio.Salvar();
+            string doOutro = RodizioNode.TextoDoPlacar(outro.PontosA ?? -1, outro.PontosB ?? -1);
+            var jogadorDoOutro = outro.DuplaA.Jogador1;
+            var escondida = EstadoDoRodizio.ClassificacaoVisivel().First(l => l.Jogador == jogadorDoOutro);
+            Igual(0, escondida.Pontos, $"{jogadorDoOutro} antes de Simular: o jogo dele ainda não apareceu");
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                Exigir(!TextosDe(tela).Any(t => t.Contains(doOutro, StringComparison.Ordinal)), $"antes de Simular o placar do outro jogo ({doOutro}) não aparece; mostra [{Juntar(TextosDe(tela))}]");
+                var simular = BotaoComTexto(tela, "Simular os outros jogos da rodada") ?? throw new Falha($"a tela deveria oferecer Simular; mostra [{Juntar(TextosDe(tela))}]");
+                simular.EmitSignal(BaseButton.SignalName.Pressed);
+                Exigir(TextosDe(tela).Any(t => t.Contains(doOutro, StringComparison.Ordinal)), $"depois de Simular o placar do outro jogo ({doOutro}) deveria aparecer; mostra [{Juntar(TextosDe(tela))}]");
+                var visivel = EstadoDoRodizio.ClassificacaoVisivel();
+                Exigir(visivel.SequenceEqual(rodizio.Classificacao()), "depois de Simular a classificação da tela é a do rodízio");
+                var proxima = BotaoComTexto(tela, "Próxima rodada") ?? throw new Falha($"a tela deveria oferecer Próxima rodada; mostra [{Juntar(TextosDe(tela))}]");
+                proxima.EmitSignal(BaseButton.SignalName.Pressed);
+                Igual(1, rodizio.RodadaAtual, "rodada depois de Próxima rodada");
+                Igual(1, TorneioDeRodizio.Carregar(File.ReadAllText(EstadoDoRodizio.Caminho)).RodadaAtual, "rodada no disco");
+                Exigir(TextosDe(tela).Any(t => t.Contains("rodada 2", StringComparison.OrdinalIgnoreCase)), $"a tela deveria mostrar a rodada 2; mostra [{Juntar(TextosDe(tela))}]");
+            }
+            finally { tela.QueueFree(); }
+        }),
+        new("placar de TV em pontos corridos: sem games nem sets, os pontos em número e \"de 24\"", async no =>
+        {
+            var placar = Placar.DePontosCorridos(24);
+            for (int i = 0; i < 22; i++) placar.PontoPara(i < 13 ? 0 : 1);   // 13-9
+            var dados = DadosDoPlacar.De(placar, "Ana / Bia", "Caio / Duda");
+            Igual<int?>(24, dados.PontosCorridos, "PontosCorridos");
+            Igual("13", dados.PontosCasa, "PontosCasa");
+            Igual("9", dados.PontosRivais, "PontosRivais");
+            Igual(0, dados.SetsAnteriores.Count, "sets anteriores");
+            var tv = new PlacarDeTvNode();
+            no.AddChild(tv);
+            try
+            {
+                tv.Atualizar(dados);
+                await Quadro(no);
+                var textos = TextosDe(tv);
+                Exigir(textos.Contains("13") && textos.Contains("9"), $"os pontos deveriam aparecer em número; mostra [{Juntar(textos)}]");
+                Exigir(textos.Any(t => t.Contains("DE 24", StringComparison.Ordinal)), $"o placar deveria dizer que o jogo é de 24; mostra [{Juntar(textos)}]");
+                Exigir(Achar<QuadroDoPlacar>(tv) is not { Visible: true }, "o quadro de games e sets não aparece nos pontos corridos");
+                tv.Atualizar(DadosDoPlacar.De(TestePlacarNode.Normal(), "Casa", "Rivais"));
+                await Quadro(no);
+                Exigir(Achar<QuadroDoPlacar>(tv) is { Visible: true }, "de volta aos games e sets, o quadro de games e sets aparece");
+                Exigir(Achar<QuadroDePontosCorridos>(tv) is not { Visible: true }, "de volta aos games e sets, o quadro dos pontos corridos some");
+            }
+            finally { Descartar(tv); }
+        }),
+        new("rodízio de um jogo mais novo: a tela diz, e o arquivo fica intacto byte a byte", async no =>
+        {
+            string doFuturo = System.Text.RegularExpressions.Regex.Replace(TextoDeUmRodizio(), "\"Versao\":\\s*1", "\"Versao\": 2");
+            string caminho = Arquivo("rodizio-do-futuro.json");
+            File.WriteAllText(caminho, doFuturo);
+            EstadoDoRodizio.UsarArquivo(caminho);
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                Exigir(File.ReadAllText(caminho) == doFuturo, "o arquivo do rodízio de um jogo mais novo foi reescrito");
+                Exigir(!AoLado("rodizio-do-futuro.json").Any(), $"nada deveria ser criado ao lado: {string.Join(", ", AoLado("rodizio-do-futuro.json").Select(Path.GetFileName))}");
+                Exigir(TextosDe(tela).Any(t => t.Contains("mais nova", StringComparison.Ordinal)), $"a tela deveria dizer que o evento é de uma versão mais nova; mostra [{Juntar(TextosDe(tela))}]");
+                Exigir(BotaoComTexto(tela, "Criar evento") is null, "criar outro evento gravaria por cima do da versão mais nova");
+            }
+            finally { tela.QueueFree(); }
+        }),
+        new("rodízio ilegível (arquivo cortado): guardado ao lado antes de começar outro, e a tela diz onde", async no =>
+        {
+            string inteiro = TextoDeUmRodizio();
+            string cortado = inteiro[..(inteiro.Length / 2)];
+            string caminho = Arquivo("rodizio-cortado.json");
+            File.WriteAllText(caminho, cortado);
+            EstadoDoRodizio.UsarArquivo(caminho);
+            var tela = await AbrirRodizio(no);
+            try
+            {
+                var guardados = Directory.GetFiles(_pasta, "rodizio-cortado.json.ilegivel-*");
+                Igual(1, guardados.Length, "cópia guardada do rodízio ilegível");
+                Igual(cortado, File.ReadAllText(guardados[0]), "conteúdo da cópia guardada");
+                Exigir(TextosDe(tela).Any(t => t.Contains(Path.GetFileName(guardados[0]), StringComparison.Ordinal)), $"a tela deveria dizer onde o rodízio ilegível foi guardado; mostra [{Juntar(TextosDe(tela))}]");
+                Exigir(BotaoComTexto(tela, "Criar evento") is not null, "guardado o ilegível, a tela deveria oferecer criar outro evento");
+            }
+            finally { tela.QueueFree(); }
+        }),
+        new("rodízio que não deu pra ler (arquivo preso por outro programa): não começa outro e oferece tentar de novo", async no =>
+        {
+            string texto = TextoDeUmRodizio();
+            string caminho = Arquivo("rodizio-preso.json");
+            File.WriteAllText(caminho, texto);
+            EstadoDoRodizio.UsarArquivo(caminho);
+            Control tela;
+            using (new FileStream(caminho, FileMode.Open, System.IO.FileAccess.Read, FileShare.None))
+            {
+                tela = await AbrirRodizio(no);
+                Exigir(EstadoDoRodizio.Atual is null, "com o arquivo preso, nenhum evento deveria ser carregado");
+                Exigir(BotaoComTexto(tela, "Criar evento") is null, "com o arquivo preso, criar outro evento gravaria por cima do de verdade");
+            }
+            try
+            {
+                Igual(texto, File.ReadAllText(caminho), "o arquivo do rodízio");
+                var tentar = BotaoComTexto(tela, "Tentar de novo") ?? throw new Falha($"a tela deveria oferecer 'Tentar de novo'; mostra [{Juntar(TextosDe(tela))}]");
+                tentar.EmitSignal(BaseButton.SignalName.Pressed);
+                Exigir(EstadoDoRodizio.Atual is not null, "solto o arquivo, 'Tentar de novo' deveria abrir o evento");
+                Igual(texto, File.ReadAllText(caminho), "o arquivo do rodízio depois de abrir");
+            }
+            finally { tela.QueueFree(); }
+        }),
+
         // ---- Entrada da partida (EntradaLocal): sozinho x coop no sofá ----
         Sincrono("sozinho: qualquer controle joga (A, B, direcional) e o L é lob", () =>
         {
@@ -1082,6 +1420,57 @@ public static class ConferenciaDaInterface
         await Quadro(no);
         return tela;
     }
+
+    /// <summary>
+    /// Um Americano de 8 (24 pontos, semente 11) num arquivo da pasta temporária, com a humana "Ana": o jogo dela na
+    /// rodada 1 — com 8 ninguém folga.
+    /// </summary>
+    private static JogoDoRodizio RodizioComJogoPronto()
+    {
+        EstadoDoRodizio.UsarArquivo(Arquivo($"rodizio-{Guid.NewGuid():N}.json"));
+        EstadoDoRodizio.Nova(new RegrasDoRodizio(FormatoDoRodizio.Americano, 24), EstadoDoRodizio.JogadoresDoEvento("Ana", 8, 11), 11);
+        var rodizio = EstadoDoRodizio.Atual ?? throw new Falha("o evento novo não ficou carregado");
+        return rodizio.JogosPendentes.FirstOrDefault(j => j.Envolve("Ana")) ?? throw new Falha("com 8 jogadores a Ana joga na rodada 1");
+    }
+
+    /// <summary>O jogo como está no arquivo do rodízio (relido do disco, não da memória).</summary>
+    private static JogoDoRodizio JogoDoRodizioNoDisco(int numero) =>
+        TorneioDeRodizio.Carregar(File.ReadAllText(EstadoDoRodizio.Caminho)).Jogos.First(j => j.Numero == numero);
+
+    /// <summary>O texto de um rodízio válido, como o jogo grava (feito e descartado num arquivo à parte).</summary>
+    private static string TextoDeUmRodizio()
+    {
+        string caminho = Arquivo($"rodizio-modelo-{Guid.NewGuid():N}.json");
+        EstadoDoRodizio.UsarArquivo(caminho);
+        EstadoDoRodizio.Nova(new RegrasDoRodizio(), EstadoDoRodizio.JogadoresDoEvento("Ana", 8, 5), 5);
+        string texto = File.ReadAllText(caminho);
+        File.Delete(caminho);
+        EstadoDoRodizio.UsarArquivo(null);
+        return texto;
+    }
+
+    /// <summary>A tela do rodízio de verdade, filha do nó da conferência, depois do primeiro quadro.</summary>
+    private static async Task<Control> AbrirRodizio(Node no)
+    {
+        var tela = GD.Load<PackedScene>(PartidaNode.CenaDoRodizio).Instantiate<Control>();
+        no.AddChild(tela);
+        await Quadro(no);
+        return tela;
+    }
+
+    private static SeletorDeOpcao Seletor(Node tela, string nome) =>
+        tela.FindChild(nome, recursive: true, owned: false) as SeletorDeOpcao ?? throw new Falha($"a tela deveria ter o seletor '{nome}'");
+
+    /// <summary>O primeiro nó do tipo na árvore (a própria raiz inclusive), ou null.</summary>
+    private static T? Achar<T>(Node raiz) where T : Node
+    {
+        if (raiz is T achado) return achado;
+        foreach (var filho in raiz.GetChildren())
+            if (Achar<T>(filho) is T neto) return neto;
+        return null;
+    }
+
+    private static string Juntar(IEnumerable<string> textos) => string.Join(" | ", textos.Where(t => t.Length > 0));
 
     /// <summary>Todos os textos visíveis de uma tela (rótulos, textos ricos, botões), na ordem da árvore.</summary>
     private static List<string> TextosDe(Node raiz)

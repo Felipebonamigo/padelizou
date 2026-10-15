@@ -59,6 +59,13 @@ public sealed class RetratoDoPlacar
     public bool EmPontoDecisivo;
     public int? Vencedor;
     public string Resumo = "";
+    /// <summary>
+    /// O total da partida de pontos corridos (Americano/Mexicano; os <see cref="Pontos"/> são números); null no padel de
+    /// games e sets. Só a partida local tem pontos corridos — o online recusa (<see cref="OpcoesDaPartida.ValeOnline"/>).
+    /// </summary>
+    public int? PontosCorridos;
+    /// <summary>A partida de pontos corridos acabou empatada (<see cref="Vencedor"/> fica null). Fora dela, sempre false.</summary>
+    public bool Empate;
 }
 
 /// <summary>Um acontecimento da partida com o lugar onde aconteceu (pra som 3D e efeito).</summary>

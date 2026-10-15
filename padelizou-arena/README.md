@@ -30,7 +30,9 @@ O jogo abre no menu. Argumentos depois de `--`: `--auto` (ninguém humano), `--a
 golpe), `--semente N`, `--sair-apos SEGUNDOS`, `--screenshot ARQUIVO.png` (com tela), `--facil`, `--dificil`,
 `--coop`, `--nome NOME`, `--host PORTA`, `--conectar IP:PORTA`, `--perfil ARQ` (grava o perfil noutro arquivo; a rodada
 automática — `--bot`, carreira automática, `--sair-apos`, `--screenshot` — só grava perfil com ele), `--carreira ARQ` (a
-carreira noutro arquivo; `--carreira-sozinha` e `--carreira-nova`, que são de teste, exigem ele e recusam sem ele).
+carreira noutro arquivo; `--carreira-sozinha` e `--carreira-nova`, que são de teste, exigem ele e recusam sem ele),
+`--rodizio ARQ` (o evento de Americano/Mexicano noutro arquivo; `--rodizio-sozinho`, de teste, exige ele: o humano
+simulado joga e a tela anda sozinha até o fim do evento).
 Qualquer um de `--auto`, `--sair-apos`, `--host` e `--conectar` pula o menu direto pra partida. Sem tela, o
 `--screenshot` recusa e sai com erro (não há quadro desenhado); com tela, foto que não grava sai com 1.
 `ferramentas/conferir_rodadas_de_teste.sh GODOT` prova isso tudo com o jogo de verdade, num `user://` só dele.

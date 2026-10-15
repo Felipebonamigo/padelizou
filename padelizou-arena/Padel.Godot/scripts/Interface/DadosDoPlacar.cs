@@ -17,16 +17,24 @@ public readonly record struct SetAnterior(int GamesCasa, int GamesRivais, int? T
     };
 }
 
+/// <summary>O placar final de uma partida de pontos corridos, do ponto de vista da casa, e o total que ela valia.</summary>
+public readonly record struct PontosCorridosFinais(int Casa, int Rivais, int Total)
+{
+    public bool Empate => Casa == Rivais;
+}
+
 /// <summary>
 /// Tudo que o placar de TV mostra, só com primitivos — quem monta pode ser a partida local, o cliente de rede
 /// ou uma cena de teste. Time 0 é a casa, 1 os rivais.
 /// </summary>
-/// <param name="PontosCasa">"0", "15", "30", "40", "AD" ou o número do tie-break.</param>
+/// <param name="PontosCasa">"0", "15", "30", "40", "AD" ou o número do tie-break; nos pontos corridos, o número de pontos.</param>
 /// <param name="TimeQueSaca">0 ou 1; outro valor esconde a marca de saque.</param>
 /// <param name="PontoDecisivo">40-40 com ponto de ouro: quem ganhar leva o game.</param>
 /// <param name="MensagemSuave">Dica (ex.: "aperte pra sacar"), mostrada mais discreta que o anúncio de ponto.</param>
 /// <param name="PingMs">Latência do online; null esconde o indicador.</param>
-/// <param name="PartidaEncerrada">Some com games e pontos do set em andamento: sobram os sets.</param>
+/// <param name="PartidaEncerrada">Some com games e pontos do set em andamento: sobram os sets. Nos pontos corridos, ficam os pontos finais.</param>
+/// <param name="PontosCorridos">O total da partida de pontos corridos (Americano/Mexicano: 24 pode acabar 13-11 ou 12-12): sem games
+/// nem sets, o placar mostra os pontos e "de 24" (<see cref="QuadroDePontosCorridos"/>). null = padel de games e sets.</param>
 public sealed record DadosDoPlacar(
     string DuplaCasa,
     string DuplaRivais,
@@ -42,7 +50,8 @@ public sealed record DadosDoPlacar(
     bool MensagemEmDestaque = false,
     bool MensagemSuave = false,
     int? PingMs = null,
-    bool PartidaEncerrada = false)
+    bool PartidaEncerrada = false,
+    int? PontosCorridos = null)
 {
     /// <summary>
     /// Monta a partir do placar do Core e da mensagem da partida — o atalho pra quem tem o Core na mão
@@ -63,7 +72,8 @@ public sealed record DadosDoPlacar(
         mensagem?.Destaque ?? false,
         mensagem?.Suave ?? false,
         pingMs,
-        placar.Acabou);
+        placar.Acabou,
+        placar.PontosCorridos);
 
     /// <summary>Igualdade de verdade, com os sets comparados item a item (a do record compara a referência da lista).</summary>
     public bool MesmoConteudo(DadosDoPlacar? outro) =>

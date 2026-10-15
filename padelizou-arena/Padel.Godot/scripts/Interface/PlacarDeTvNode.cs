@@ -3,7 +3,8 @@ using Godot;
 namespace Padel.Godot.Interface;
 
 /// <summary>
-/// O placar da partida no estilo das transmissões de padel: o <see cref="QuadroDoPlacar"/> no canto de cima,
+/// O placar da partida no estilo das transmissões de padel: o <see cref="QuadroDoPlacar"/> no canto de cima (ou,
+/// na partida de pontos corridos do Americano/Mexicano, o <see cref="QuadroDePontosCorridos"/> no mesmo lugar),
 /// a faixa de mensagem que sobe do rodapé e sai com animação curta, e o ping do online no canto oposto.
 /// API só com primitivos: <see cref="Atualizar"/> recebe um <see cref="DadosDoPlacar"/>; pode ser chamado todo
 /// quadro — o que não mudou não é redesenhado. Não conhece a Partida nem a rede.
@@ -16,6 +17,7 @@ public partial class PlacarDeTvNode : CanvasLayer
     private const float Deslize = 26f;
 
     private QuadroDoPlacar _quadro = null!;
+    private QuadroDePontosCorridos _quadroCorrido = null!;
     private Control _faixaAncora = null!;
     private PanelContainer _faixa = null!;
     private StyleBoxFlat _estiloDaFaixa = null!;
@@ -39,6 +41,8 @@ public partial class PlacarDeTvNode : CanvasLayer
 
         _quadro = new QuadroDoPlacar { Position = new Vector2(Margem, Margem - 4) };
         raiz.AddChild(_quadro);
+        _quadroCorrido = new QuadroDePontosCorridos { Position = new Vector2(Margem, Margem - 4), Visible = false };
+        raiz.AddChild(_quadroCorrido);
 
         // Faixa de mensagem: uma âncora na largura toda, presa no rodapé; a animação mexe nos offsets dela.
         _faixaAncora = new Control { MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, 0) };
@@ -102,7 +106,12 @@ public partial class PlacarDeTvNode : CanvasLayer
             _pendente = dados;
             return;
         }
-        _quadro.Atualizar(dados);
+        // Pontos corridos não têm games nem sets: o outro quadro, no mesmo lugar. Só um aparece.
+        bool corridos = dados.PontosCorridos is not null;
+        _quadro.Visible = !corridos;
+        _quadroCorrido.Visible = corridos;
+        if (corridos) _quadroCorrido.Atualizar(dados);
+        else _quadro.Atualizar(dados);
         AtualizarFaixa(dados.Mensagem ?? "", dados.MensagemEmDestaque, dados.MensagemSuave);
         AtualizarPing(dados.PingMs);
     }
