@@ -298,11 +298,60 @@ public class FormacaoTests
     // ───────────── Revisão de 14/10: o cambio e a formação do time do humano ─────────────
 
     /// <summary>
+    /// Revisão de 15/10: a trava de um cambio por trajetória bloqueava o cambio legítimo — o replanejamento (quique,
+    /// parede) passa a bola pro outro jogador, que vai buscá-la na metade de quem agora fica, e quem fica não trocava: os dois
+    /// na mesma metade até o golpe (no Difícil, 21 trajetórias). Aqui: com quem fica seguindo a formação e o atraso dela já
+    /// vencido, o cambio pedido (o alvo de quem vai na bola na metade dele, passando do centro por mais de 1/4 da separação)
+    /// não pode ficar pendente por mais de um passo.
+    /// </summary>
+    [Theory]
+    [InlineData(Dificuldade.Dificil)]
+    [InlineData(Dificuldade.Medio)]
+    public void Com_o_parceiro_na_metade_de_quem_fica_o_cambio_sai_mesmo_quando_o_plano_troca_quem_vai(Dificuldade dificuldade)
+    {
+        int pendentes = 0, amostras = 0;
+        var exemplos = new List<string>();
+        for (uint semente = 1; semente <= 8; semente++)
+        {
+            var partida = new Partida(new OpcoesDaPartida { Humanos = OpcoesDaPartida.NinguemHumano, Semente = semente, Dificuldade = dificuldade });
+            var ia = partida.IAs[1];
+            float sep = ia.Perfil.SeparacaoDaDupla;
+            float t = 0;
+            int seguidos = 0;
+            while (!partida.Acabou && t < SegundosPorPartida)
+            {
+                partida.Avancar(Passo);
+                t += Passo;
+                bool pedido = false;
+                if (partida.Estado == EstadoDaPartida.Rally && ia.Responsavel is Jogador vai && ia.AlvoXDoResponsavel is float alvo
+                    && ia.TempoDoPlano is float idade && idade >= ia.Perfil.AtrasoDaFormacao + 2 * Passo)
+                {
+                    var fica = partida.JogadoresDoTime(1).First(j => j != vai);
+                    if (ia.FormacaoDe(fica) == ia.Posicao)
+                    {
+                        amostras++;
+                        int ladoDaVaga = fica.Lado * (fica.Indice == 0 ? 1 : -1) * (ia.LadosTrocados ? -1 : 1);
+                        pedido = alvo * ladoDaVaga > 0 && (alvo - ia.CentroDaDupla) * ladoDaVaga > sep / 4;
+                        if (pedido && seguidos >= 1 && exemplos.Count < 3)
+                            exemplos.Add($"semente {semente}, {t:F2} s: J{vai.Indice} vai a x = {alvo:F2}, J{fica.Indice} fica do mesmo lado (centro {ia.CentroDaDupla:F2})");
+                    }
+                }
+                seguidos = pedido ? seguidos + 1 : 0;
+                if (seguidos >= 2) pendentes++;
+            }
+        }
+        Assert.True(amostras > 1000, $"poucas amostras: {amostras}");
+        Assert.True(pendentes == 0, $"{pendentes} passos com o cambio pedido e não feito: {string.Join("; ", exemplos)}");
+    }
+
+
+    /// <summary>
     /// O cambio é o parceiro invadir a metade de quem fica — e só isso. Antes da revisão de 14/10, nesta cena, 54 de 150
     /// cambios no Difícil (3 de 55 no Médio) eram com o alvo do parceiro ainda na metade dele (o centro da dupla anda com a
     /// bola: junto à lateral, o parceiro que ia buscá-la no meio da metade dele contava como invasor) — quem ficava
-    /// atravessava a quadra cruzando o parceiro. Corrigido isso, ainda 11 de 70 cambios se desfaziam na mesma trajetória da
-    /// bola, em menos de 0,6 s: o vai-e-volta que quem joga vê. Aqui: IA × IA, a dupla rival (time 1), 8 sementes de 300 s.
+    /// atravessava a quadra cruzando o parceiro. "Desfeito" é o vai-e-volta com o mesmo jogador indo na bola, na mesma
+    /// trajetória, em menos de 0,6 s; um segundo cambio porque o plano passou a bola pro outro é legítimo (revisão de 15/10:
+    /// os 11 de 70 que se viam eram todos desses). Aqui: IA × IA, a dupla rival (time 1), 8 sementes de 300 s.
     /// </summary>
     [Theory]
     [InlineData(Dificuldade.Dificil)]
@@ -317,6 +366,7 @@ public class FormacaoTests
             var ia = partida.IAs[1];
             float t = 0, ultimoGolpe = 0;
             float? ultimoCambio = null;
+            Jogador? responsavelNoUltimoCambio = null;
             partida.Evento += ev => { if (ev.Tipo == TipoDeEventoDaPartida.Golpe) ultimoGolpe = t; };
             bool antes = ia.LadosTrocados;
             while (!partida.Acabou && t < SegundosPorPartida)
@@ -336,8 +386,9 @@ public class FormacaoTests
                         comOParceiroNaMetadeDele++;
                         if (exemplos.Count < 3) exemplos.Add($"semente {semente}, {t:F2} s: alvo do parceiro x = {alvo:F2}, quem fica em x = {quemFica.X:F2}");
                     }
-                    if (ultimoCambio is float c && ultimoGolpe <= c && t - c < 0.6f) desfeitosNaMesmaTrajetoria++;
+                    if (ultimoCambio is float c && ultimoGolpe <= c && t - c < 0.6f && responsavel == responsavelNoUltimoCambio) desfeitosNaMesmaTrajetoria++;
                     ultimoCambio = t;
+                    responsavelNoUltimoCambio = responsavel;
                 }
                 antes = agora;
             }

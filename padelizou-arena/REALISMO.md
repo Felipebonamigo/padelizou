@@ -56,33 +56,33 @@ Os ralis mais longos têm duas causas. Uma é defeito corrigido: com a regra ant
 **A dupla da IA joga em formação** (25/09, `FormacaoTests`; `IA.LugarNaFormacao`, os números em `PerfilDeIA`). Antes, quem não ia na bola ficava no meio da sua metade, a 3,2 m (rede) ou 6,5 m (fundo) da rede, pela formação do time, que só mudava no golpe do próprio time — e a dupla na rede lobeada ficava com um lá atrás e o outro na rede. Agora os dois andam como um bloco:
 
 - **Profundidade.** A dupla sobe depois de um golpe que dá tempo (lob, bandeja, víbora, chiquita, smash) ou batido da frente, e **recua** quando a bola do adversário vai passar por cima dela (o ponto em que quem vai na bola a pega fica atrás da linha de saque). Quem não bateu acompanha depois do `AtrasoDaFormacao`. Subindo, quem está mais à frente **espera** o parceiro — olhando onde ele vai estar daqui a V/(2a), o que quem sai parado perde pra quem já corre — e chegam juntos à rede (cena: 1,07 s e 1,05 s; antes, 0,47 s e 1,05 s). Enquanto um vai na bola, o outro fica a `FolgaDoBloco` da profundidade dele, até 8 m (1 m atrás da linha de saque): lobeados na rede, os dois passam da linha de saque em 1,05 s no Difícil.
-- **Largura.** O centro da dupla segue o x da bola (`AcompanhamentoDaBola`, com o mesmo atraso, um filtro de primeira ordem) e os dois ficam a `SeparacaoDaDupla` um do outro. Se o parceiro foi buscar a bola bem do lado de cá — invadiu a metade da quadra de quem fica e passou do centro por mais de ¼ da separação —, quem fica troca de lado e cobre o vazio: o **cambio**, no máximo um por trajetória da bola. As duas travas vieram da revisão de 14/10: o centro anda com a bola, e com ela junto à lateral o parceiro que ia buscá-la no meio da metade dele contava como invasor (no Difícil, 54 de 150 cambios eram assim, com quem ficava cruzando a quadra pelo parceiro); e a releitura da bola (quique, parede) desfazia a troca no meio do caminho (11 de 70 cambios desfeitos em menos de 0,6 s).
+- **Largura.** O centro da dupla segue o x da bola (`AcompanhamentoDaBola`, com o mesmo atraso, um filtro de primeira ordem) e os dois ficam a `SeparacaoDaDupla` um do outro. Se o parceiro foi buscar a bola bem do lado de cá — invadiu a metade da quadra de quem fica e passou do centro por mais de ¼ da separação —, quem fica troca de lado e cobre o vazio: o **cambio**, no máximo um por trajetória da bola e por quem vai nela. A primeira trava veio da revisão de 14/10: o centro anda com a bola, e com ela junto à lateral o parceiro que ia buscá-la no meio da metade dele contava como invasor (no Difícil, 54 de 150 cambios eram assim, com quem ficava cruzando a quadra pelo parceiro). A segunda impede o mesmo jogador indo na bola de desfazer a troca no meio do caminho. Ela nasceu como "um cambio por trajetória", e a revisão de 15/10 mostrou que isso bloqueava o cambio legítimo: quando o replanejamento (quique, parede) passa a bola pro outro, ele vai buscá-la na metade de quem agora fica, e quem fica precisa trocar — no Difícil, 1.429 passos de 8 partidas com os dois na mesma metade.
 - **Níveis** (atraso / acompanhamento da bola / separação / folga / chance de desencontro): Fácil 0,7 s / 0,15 / 5 m / 2,5 m / 30 % — em 3 de cada 10 mudanças quem não bateu nem percebe e fica onde estava, um na rede e outro no fundo; Médio 0,35 s / 0,35 / 4 m / 1 m / 0; Difícil 0,10 s / 0,5 / 3,6 m / 0,5 m / 0; Parceiro 0,2 s / 0,4 / 3,8 m / 0,8 m / 0.
 - **Parceiro de um humano.** Lê a formação do humano, porque o humano não segue a IA (e guarda a da dupla: se o humano vira IA no meio do ponto, os dois seguem a formação certa): ele entrou na zona de rede (a menos de 4,5 m), a IA sobe; voltou pra trás de 5,5 m, a IA volta pro fundo — com histerese entre os dois. Na largura fica no meio da sua metade (e troca se o humano tomar a dela), sem roubar a bola do humano no meio. Copiar a profundidade do humano passo a passo, inclusive a corrida dele atrás da bola, foi medido e descartado: no frente a frente de rede (12 sementes, 120 s) o humano simulado batia 6,9 vezes, contra 8,3 antes; lendo a formação, 8,9.
 
-Medido em 14/10 (remedido depois da revisão: os números de 25/09 eram de antes da troca da libm, que muda as trajetórias, e não se reproduziam), "antes" no `73871f4` e "depois" com as travas do cambio — IA × IA, a dupla do nível contra o Parceiro, sementes 1–4, 300 s, fora de ±0,3 s dos golpes da dupla e do 1,5 s depois do saque (a regra do saque põe cada dupla com um na rede e outro no fundo); gradiente com 12 partidas de 1 set, sementes 42–53:
+Medido em 14/10 e 15/10 (remedido depois das revisões: os números de 25/09 eram de antes da troca da libm, que muda as trajetórias, e não se reproduziam), "antes" no `73871f4` e "depois" com as duas travas do cambio de 15/10 — IA × IA, a dupla do nível contra o Parceiro, sementes 1–4, 300 s, fora de ±0,3 s dos golpes da dupla e do 1,5 s depois do saque (a regra do saque põe cada dupla com um na rede e outro no fundo); gradiente com 12 partidas de 1 set, sementes 42–53:
 
 | | antes | depois |
 |---|---|---|
-| Diferença média de profundidade entre os dois (Fácil / Médio / Difícil) | 1,04 / 1,07 / 1,28 m | 1,03 / 0,72 / 0,51 m |
-| Tempo com um na rede e outro no fundo (mais de 2,5 m de diferença), mesma ordem | 15,3 / 13,9 / 19,1 % | 15,1 / 5,6 / 0,9 % |
-| Inclinação do x do centro da dupla no x da bola (correlação), mesma ordem | 0,024 / 0,029 / 0,041 (0,12 / 0,14 / 0,19) | 0,069 / 0,17 / 0,28 (0,35 / 0,51 / 0,54) |
-| Sets vencidos contra o Parceiro, mesma ordem | 0 / 0 / 12 de 12 | 0 / 0 / 12 de 12 |
-| % dos pontos contra o Parceiro, mesma ordem | 23,1 / 36,9 / 63,3 | 21,6 / 37,4 / 58,3 |
-| Golpes por ponto, sem o saque, mesma ordem | 3,9 / 6,8 / 11,5 | 4,0 / 7,8 / 13,1 |
+| Diferença média de profundidade entre os dois (Fácil / Médio / Difícil) | 1,04 / 1,07 / 1,28 m | 1,12 / 0,74 / 0,50 m |
+| Tempo com um na rede e outro no fundo (mais de 2,5 m de diferença), mesma ordem | 15,3 / 13,9 / 19,1 % | 17,9 / 6,4 / 0,9 % |
+| Inclinação do x do centro da dupla no x da bola (correlação), mesma ordem | 0,024 / 0,029 / 0,041 (0,12 / 0,14 / 0,19) | 0,069 / 0,18 / 0,27 (0,37 / 0,54 / 0,53) |
+| Sets vencidos contra o Parceiro, mesma ordem | 0 / 0 / 12 de 12 | 0 / 1 / 11 de 12 |
+| % dos pontos contra o Parceiro, mesma ordem | 23,1 / 36,9 / 63,3 | 22,2 / 36,1 / 57,6 |
+| Golpes por ponto, sem o saque, mesma ordem | 3,8 / 6,8 / 11,5 | 3,8 / 8,3 / 12,5 |
 
-No Fácil a profundidade quase não muda: a formação dele desencontra de propósito (30 % das mudanças).
+No Fácil a dupla fica até um pouco mais separada: a formação dele desencontra de propósito (30 % das mudanças).
 
 Contra o humano simulado (`ferramentas/Calibracao`, 24 partidas por célula, até 4 games), % dos pontos do humano, antes → depois (mesmas versões):
 
 | Humano | Fácil | Médio | Difícil |
 |---|---|---|---|
-| Iniciante | 70,2 → 60,6 | 43,9 → 37,6 (partidas: 21 → 4 %) | 29,0 → 19,3 |
-| Intermediário | 80,0 → 72,6 | 60,0 → 56,8 | 34,0 → 34,2 |
-| Avançado | 82,3 → 75,0 | 63,1 → 60,1 | 37,8 → 39,7 |
-| Profissional | 82,9 → 79,6 | 65,3 → 63,9 | 37,2 → 43,4 |
+| Iniciante | 70,2 → 60,6 | 43,9 → 37,5 (partidas: 21 → 4 %) | 29,0 → 19,6 |
+| Intermediário | 80,0 → 72,6 | 60,0 → 55,8 | 34,0 → 32,8 |
+| Avançado | 82,3 → 75,1 | 63,1 → 59,9 | 37,8 → 40,1 |
+| Profissional | 82,9 → 79,6 | 65,3 → 64,7 | 37,2 → 44,8 |
 
-Os golpes bons do humano (erro < 0,3) caem 2 a 13 pontos (Intermediário × Médio: 61 → 55 %). Separando as duas metades da mudança (medido em 25/09, na base de antes da troca da libm): só a formação das duplas de IA (o parceiro do humano como antes) deixa o Fácil mais forte (o humano faz 1,5 a 7,6 pontos a menos) e o Difícil um pouco mais fraco (0,7 a 3,9 a mais); só o parceiro seguindo o humano tira do time do humano 0,8 a 13,5 pontos contra todos os níveis — o humano simulado só sobe à rede depois de lob ou remate do time (ou se já está na frente), e o parceiro agora fica no fundo com ele em vez de segurar a rede sozinho. **O equilíbrio se deslocou e fica como está** (D10, decisão do Felipe em 15/10).
+Os golpes bons do humano (erro < 0,3) caem 2 a 11 pontos (Intermediário × Médio: 61 → 55 %). Separando as duas metades da mudança (medido em 25/09, na base de antes da troca da libm): só a formação das duplas de IA (o parceiro do humano como antes) deixa o Fácil mais forte (o humano faz 1,5 a 7,6 pontos a menos) e o Difícil um pouco mais fraco (0,7 a 3,9 a mais); só o parceiro seguindo o humano tira do time do humano 0,8 a 13,5 pontos contra todos os níveis — o humano simulado só sobe à rede depois de lob ou remate do time (ou se já está na frente), e o parceiro agora fica no fundo com ele em vez de segurar a rede sozinho. **O equilíbrio se deslocou e fica como está** (D10, decisão do Felipe em 15/10).
 
 ## Mecânica — o que falta (entra no M1)
 

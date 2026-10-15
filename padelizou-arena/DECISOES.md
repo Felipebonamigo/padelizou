@@ -129,7 +129,7 @@ de antes, e o alvo é do Felipe (ex.: "Intermediário x Médio perto de 50 % das
 `REALISMO.md` ("o que falta").
 
 A formação das duplas (Onda 5, 14/10) deslocou o equilíbrio de novo, também sem reajuste: o humano simulado faz menos
-pontos contra o Fácil e o Médio (Iniciante x Médio: 43,9 → 37,6 % dos pontos, 21 → 4 % das partidas). Tabela no
+pontos contra o Fácil e o Médio (Iniciante x Médio: 43,9 → 37,5 % dos pontos, 21 → 4 % das partidas; remedido em 15/10). Tabela no
 `REALISMO.md` ("A dupla da IA joga em formação").
 
 **Decisão do Felipe (15/10/2026): deixa o equilíbrio como está.** As alavancas e as medições seguem no `REALISMO.md`,

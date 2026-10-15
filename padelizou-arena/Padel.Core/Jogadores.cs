@@ -496,8 +496,12 @@ public sealed class IA
     private readonly bool[] _esperaOParceiro = new bool[2];
     /// <summary>Verdadeiro se o Indice 0 está na vaga da esquerda (no referencial da dupla) e o 1 na da direita: saque do outro lado ou cambio.</summary>
     private bool _ladosTrocados;
-    /// <summary>O CriadoEm do plano (a trajetória da bola) em que a dupla fez o último cambio: um por trajetória.</summary>
+    /// <summary>
+    /// O CriadoEm do plano (a trajetória da bola) e quem ia na bola no último cambio: um cambio por trajetória e por quem vai.
+    /// O mesmo jogador indo na bola não desfaz a troca no meio do caminho; o plano que passa a bola pro outro, sim, pede outra.
+    /// </summary>
     private float _cambioNaTrajetoria = float.NegativeInfinity;
+    private Jogador? _quemIaNoCambio;
     /// <summary>O x da bola como a dupla o acompanha (atrasado de <see cref="PerfilDeIA.AtrasoDaFormacao"/>).</summary>
     private float _xDaBolaLido;
     /// <summary>A profundidade do parceiro humano como a IA a acompanha (idem), e se ela o lê na rede ou no fundo.</summary>
@@ -517,6 +521,10 @@ public sealed class IA
     public bool LadosTrocados => _ladosTrocados;
     /// <summary>A formação que o jogador (deste time) segue agora; difere de <see cref="Posicao"/> enquanto ele não acompanhou a dupla.</summary>
     public Formacao FormacaoDe(Jogador j) => _formacao[j.Indice];
+    /// <summary>O centro da dupla na largura (x, no mundo), como <c>LugarNaFormacao</c> o usa agora (depuração e teste).</summary>
+    public float CentroDaDupla => Centro();
+    /// <summary>Segundos desde que a trajetória do plano começou (o CriadoEm dele); null sem plano (depuração e teste).</summary>
+    public float? TempoDoPlano => _plano is Plano p ? _relogio - p.CriadoEm : null;
 
     public void AoSacar(Partida partida, int timeSacador)
     {
@@ -732,8 +740,7 @@ public sealed class IA
     {
         int i = j.Indice;
         float separacao = Perfil.SeparacaoDaDupla;
-        float limiteDoCentro = MathF.Max(0, LimiteLateralDoCorpo - separacao / 2);
-        float centro = Util.Limitar(Perfil.AcompanhamentoDaBola * _xDaBolaLido, -limiteDoCentro, limiteDoCentro);
+        float centro = Centro();
         if (parceiro.Humano)
         {
             // O humano não segue a IA: a IA lê a formação DELE. Subiu = entrou na zona de rede; voltou = passou da linha da
@@ -758,9 +765,13 @@ public sealed class IA
             {
                 float dele = MathF.Abs(plano.AlvoY);
                 profundidade = Util.Limitar(Util.Limitar(minha, dele - folga, dele + folga), ProfundidadeDaRede, ProfundidadeMaximaDoBloco);
-                // Um cambio por trajetória: a releitura (quique, parede, o x afinando) não desfaz a troca no meio do caminho.
-                if (plano.CriadoEm != _cambioNaTrajetoria && CobrirOOutroLado(j, XDoCorpo(plano, parceiro), centro))
+                // Um cambio por trajetória e por quem vai na bola: o mesmo jogador não desfaz a troca no meio do caminho, mas o
+                // replanejamento (quique, parede) que passa a bola pro outro pede outra troca (revisão de 15/10).
+                if ((plano.CriadoEm != _cambioNaTrajetoria || parceiro != _quemIaNoCambio) && CobrirOOutroLado(j, XDoCorpo(plano, parceiro), centro))
+                {
                     _cambioNaTrajetoria = plano.CriadoEm;
+                    _quemIaNoCambio = parceiro;
+                }
             }
         }
         else if (_esperaOParceiro[i] && _formacao[i] == _formacao[parceiro.Indice])
@@ -775,6 +786,14 @@ public sealed class IA
             else _esperaOParceiro[i] = false;
         }
         return (centro + j.Lado * VagaDe(j) * separacao / 2, profundidade);
+    }
+
+    /// <summary>O centro da dupla na largura: segue o x da bola lido, sem deixar a vaga de fora passar do limite do corpo.</summary>
+    private float Centro()
+    {
+        float separacao = Perfil.SeparacaoDaDupla;
+        float limiteDoCentro = MathF.Max(0, LimiteLateralDoCorpo - separacao / 2);
+        return Util.Limitar(Perfil.AcompanhamentoDaBola * _xDaBolaLido, -limiteDoCentro, limiteDoCentro);
     }
 
     /// <summary>+1 se o jogador está na vaga da direita da dupla (no referencial dela), -1 se na da esquerda.</summary>
