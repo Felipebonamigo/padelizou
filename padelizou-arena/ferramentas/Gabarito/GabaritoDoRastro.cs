@@ -9,7 +9,25 @@ using Padel.Core;
 /// </summary>
 static class GabaritoDoRastro
 {
-    private sealed record Caso(string Nome, float X, float Y, float Z, Velocidade V, int Lado, bool EmJogo = true, bool AteOVidro = false);
+    private sealed record Caso(string Nome, float X, float Y, float Z, Velocidade V, int Lado, bool EmJogo = true, bool AteOVidro = false, bool JaQuicou = false);
+
+    /// <summary>Uma bola junto ao vidro de fundo que, no primeiro passo, quica (o 2º quique) e bate no vidro (revisão de 15/10).</summary>
+    private static Caso QuiqueEVidroNoMesmoPasso()
+    {
+        for (float y0 = 9.80f; y0 < 9.999f; y0 += 0.0005f)
+            for (float z0 = 0.005f; z0 < 0.2f; z0 += 0.005f)
+            {
+                var b = new Bola();
+                b.Posicionar(0, y0, z0);
+                var v = new Velocidade(0, 12, -3, 0);
+                b.Lancar(v);
+                var eventos = new List<EventoDaBola>();
+                b.Avancar(RastroFantasma.Passo, eventos);
+                if (eventos.Count >= 2 && eventos[0].Tipo == TipoDeEventoDaBola.Quique && eventos[1].Tipo == TipoDeEventoDaBola.Parede)
+                    return new Caso("2º quique e vidro no mesmo passo", 0, y0, z0, v, 1, JaQuicou: true);
+            }
+        throw new InvalidOperationException("a cena do quique e vidro no mesmo passo sumiu");
+    }
 
     private static readonly Caso[] Casos =
     [
@@ -21,6 +39,7 @@ static class GabaritoDoRastro
         new("lob alto que passa de 3 s", 0, 5, 1, new Velocidade(0, 0.5f, 16, 0), 1),
         new("bola fora de jogo", 0, 5, 1, new Velocidade(0, 0, 0, 0), 1, EmJogo: false),
         new("saída de fundo do lado −1", -1, 8, 1, new Velocidade(0, -20, 3, 0), -1),
+        QuiqueEVidroNoMesmoPasso(),
     ];
 
     public static void Gravar(string pasta, string commit)
@@ -38,7 +57,7 @@ static class GabaritoDoRastro
             if (c.EmJogo) bola.Lancar(c.V);
             // O nível Padrão pede o rastro no passo em que a bola bate no vidro, já quicada.
             int passosAntes = 0;
-            bool jaQuicou = false;
+            bool jaQuicou = c.JaQuicou;
             if (c.AteOVidro)
             {
                 var eventos = new List<EventoDaBola>();
