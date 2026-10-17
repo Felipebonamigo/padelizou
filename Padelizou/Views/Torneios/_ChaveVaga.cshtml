@@ -21,14 +21,9 @@ else
     var venceu2 = jogo.VencedorId == jogo.Dupla2Id;
     var aoVivo = jogo.Status == "AoVivo";
 
-    string Nome(Padelizou.Models.Dupla? d)
-    {
-        if (d == null) return "A definir";
-        if (d.EhTime) return d.NomeTime ?? "Time";
-        var n1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
-        var n2 = d.Jogador2?.ComoChamar.Split(' ')[0] ?? "?";
-        return $"{n1} / {n2}";
-    }
+    // O mesmo chip do grupo (foto, selo do time e nome com sobrenome), e não o primeiro nome:
+    // ver _ChaveDoMataMata. 14/10/2026.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
 
     <div class="pdz-chave-vaga @(aoVivo ? "pdz-chave-vaga-aovivo" : "")">
         <div class="pdz-chave-quando">
@@ -51,12 +46,12 @@ else
             }
         </div>
 
-        <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
-            <span class="pdz-chave-nome">@Nome(jogo.Dupla1)</span>
+        <span class="pdz-chave-lado pdz-chave-lado-chips @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+            <span class="pdz-chave-nome pdz-chave-nome-chips pdz-chip-compacto"><partial name="_LadoDaPartida" model="jogo.Dupla1" view-data="chipComSelo" /></span>
             <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla1)</span>
         </span>
-        <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
-            <span class="pdz-chave-nome">@Nome(jogo.Dupla2)</span>
+        <span class="pdz-chave-lado pdz-chave-lado-chips @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+            <span class="pdz-chave-nome pdz-chave-nome-chips pdz-chip-compacto"><partial name="_LadoDaPartida" model="jogo.Dupla2" view-data="chipComSelo" /></span>
             <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla2)</span>
         </span>
     </div>

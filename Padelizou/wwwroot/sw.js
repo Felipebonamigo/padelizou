@@ -51,7 +51,11 @@
 // por mais uma abertura — e é justamente o organizador com o celular na mão, marcando presença no
 // meio do torneio, quem a correção existe pra atender. Conferido no `origin/main` ANTES de
 // escolher o número (estava em v37).
-const CACHE_NAME = "padelizou-static-v38";
+// ⚠️ v39 pelo mesmo motivo do v38: mudou o `site.css` (nome completo na chave e no grupo, mais a
+// regra órfã `.pdz-jl-prometido` que saiu junto). Sem virar o número, o app instalado serve a
+// CÓPIA GUARDADA do CSS velho por mais uma abertura. Conferido no `origin/main` ANTES de escolher
+// o número (estava em v38).
+const CACHE_NAME = "padelizou-static-v39";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,
