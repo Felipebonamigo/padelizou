@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/10/2026** — 🏷️ **NOME E SOBRENOME (E O TIME) NO MATA-MATA, E O GRUPO QUEBRA EM DUAS LINHAS.** ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** 🗣️ Jogadores, com o print do ER: *"no mata-mata não dá pra saber qual time elas representam e também não tem o sobrenome"* · *"no grupo, às vezes não aparece o nome e sobrenome, porque não cabe no mobile — coloque nem que seja em duas linhas"*.
+> Última atualização: **17/10/2026** — 🏷️ **NOME E SOBRENOME (E O TIME) NO MATA-MATA, E O GRUPO QUEBRA EM DUAS LINHAS.** ✅ **SEM MIGRATION.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1562-81e60da`** (deploy runs **446** e **447**; `/healthz` 200 nos dois). PR #380. 🗣️ Jogadores, com o print do ER: *"no mata-mata não dá pra saber qual time elas representam e também não tem o sobrenome"* · *"no grupo, às vezes não aparece o nome e sobrenome, porque não cabe no mobile — coloque nem que seja em duas linhas"*.
 >
 > 📌 **MATA-MATA:** a vaga escrevia só o primeiro nome ("Marcos / Emerson", e duas duplas "Lucas / Lucas" sem como separar). Agora desenha o MESMO chip da tabela do grupo (`_LadoDaPartida` com `EscudoComoSelo`: foto, **selo do time** e nome com sobrenome) — nos jogos reais (`_ChaveDoMataMata` e `_ChaveVaga`) e na dupla já conhecida de uma vaga futura (quem folgou a 1ª). Cartão da campeã: nome e sobrenome. `Cartao()` virou `async Task` (o parcial é TagHelper). **GRUPO:** `.pdz-chip-compacto .pdz-chip-nome` quebra em vez de cortar com reticências (`overflow-wrap: anywhere`).
 >
