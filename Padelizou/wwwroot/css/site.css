@@ -1994,6 +1994,15 @@ button, a, input, select { touch-action: manipulation; }
     white-space: nowrap;
 }
 
+/* A vaga do mata-mata com o CHIP do grupo (foto + selo do time + nome com sobrenome). O nome
+   quebra em vez de cortar, e o placar desce pro meio da altura da dupla (14/10/2026). */
+.pdz-chave-lado.pdz-chave-lado-chips { align-items: center; }
+.pdz-chave-nome.pdz-chave-nome-chips {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
 .pdz-chave-games {
     flex: 0 0 auto;
     font-weight: 700;
@@ -2508,10 +2517,13 @@ a.pdz-grupo-jogo[href]:focus-visible {
 /* !important porque o chip usa d-block, que também é !important no Bootstrap. */
 .pdz-chip-compacto .pdz-chip-clube { display: none !important; }
 .pdz-chip-compacto .pdz-chip-texto { min-width: 0; }
+/* QUEBRA EM DUAS LINHAS, e não corta com reticências (14/10/2026). 🗣️ Jogadores: *"no grupo, às
+   vezes não aparece o nome e sobrenome, porque não cabe no mobile"*. Cortar escondia justo o
+   sobrenome — que é o que separa dois "Lucas" no mesmo grupo. `overflow-wrap: anywhere` porque um
+   sobrenome comprido de uma palavra só ignoraria o `min-width: 0` e sairia da caixa. */
 .pdz-chip-compacto .pdz-chip-nome {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 .pdz-chip-compacto a { min-width: 0; max-width: 100%; }
 
@@ -3183,16 +3195,6 @@ a.pdz-grupo-jogo[href]:focus-visible {
     font-size: .7rem;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
-}
-
-/* O horário que o sorteio prometeu, quando a realidade saiu diferente (14/09/2026). Riscado
-   porque é o que DEIXOU de valer — o número que vale é o grande, em cima. Discreto de propósito:
-   ele explica, não compete. */
-.pdz-jl-prometido {
-    display: block;
-    font-size: .7rem;
-    color: var(--pdz-muted);
-    text-decoration: line-through;
 }
 
 .pdz-jl-etiquetas {
