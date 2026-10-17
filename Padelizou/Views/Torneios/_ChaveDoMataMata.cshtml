@@ -42,6 +42,13 @@
     // tracejar todas não separa nada, só deixa o quadro inteiro com cara de rascunho.
     bool temJogoReal = porNumero.Values.Any(v => v.Jogo != null);
 
+    // ⚠️ O CHIP DO GRUPO, E NÃO MAIS O PRIMEIRO NOME (14/10/2026). 🗣️ Reclamação de jogadores:
+    // *"no mata-mata não dá pra saber qual time elas representam e também não tem o sobrenome"*.
+    // "Marcos / Emerson" e "Lucas / Lucas" não identificam ninguém, e a tabela do grupo já
+    // mostrava foto, SELO DO TIME e nome com sobrenome — é o mesmo parcial (`_LadoDaPartida`),
+    // porque uma segunda regra de nome é a cópia que um dia discorda da primeira.
+    var chipComSelo = new ViewDataDictionary(ViewData) { ["EscudoComoSelo"] = true };
+
     string NomeDaDupla(Padelizou.Models.Dupla? d)
     {
         if (d == null) return "A definir";
@@ -49,6 +56,15 @@
         var n1 = d.Jogador1?.ComoChamar.Split(' ')[0] ?? "?";
         var n2 = d.Jogador2 == null ? "parceiro" : d.Jogador2.ComoChamar.Split(' ')[0];
         return $"{n1} / {n2}";
+    }
+
+    // Só pro cartão da CAMPEÃ, que não leva chip: nome e sobrenome dos dois, em vez de "Rafael /
+    // Eduardo". O que vale é o `ComoChamar` (apelido, ou primeiro e último nome).
+    string NomeCompletoDaDupla(Padelizou.Models.Dupla? d)
+    {
+        if (d == null) return "A definir";
+        if (d.EhTime) return d.NomeTime ?? "Time";
+        return $"{d.Jogador1?.ComoChamar ?? "?"} / {d.Jogador2?.ComoChamar ?? "parceiro"}";
     }
 
     // "Quem ganhar o jogo 3", não "Vencedor do jogo 3": é como a pessoa fala e pergunta
@@ -99,7 +115,7 @@
 }
 
 @{
-    void Cartao(QuadroDoMataMata.Vaga vaga)
+    async Task Cartao(QuadroDoMataMata.Vaga vaga)
     {
         var jogo = vaga.Jogo;
         var previsto = previstos.TryGetValue(vaga.Numero, out var p) ? p : null;
@@ -152,12 +168,12 @@
 
             @if (jogo != null)
             {
-                <span class="pdz-chave-lado @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
-                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla1)</span>
+                <span class="pdz-chave-lado pdz-chave-lado-chips @(venceu1 ? "pdz-chave-venceu" : venceu2 ? "text-muted" : "")">
+                    <span class="pdz-chave-nome pdz-chave-nome-chips pdz-chip-compacto"><partial name="_LadoDaPartida" model="jogo.Dupla1" view-data="chipComSelo" /></span>
                     <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla1)</span>
                 </span>
-                <span class="pdz-chave-lado @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
-                    <span class="pdz-chave-nome">@NomeDaDupla(jogo.Dupla2)</span>
+                <span class="pdz-chave-lado pdz-chave-lado-chips @(venceu2 ? "pdz-chave-venceu" : venceu1 ? "text-muted" : "")">
+                    <span class="pdz-chave-nome pdz-chave-nome-chips pdz-chip-compacto"><partial name="_LadoDaPartida" model="jogo.Dupla2" view-data="chipComSelo" /></span>
                     <span class="pdz-chave-games">@Padelizou.Services.PlacarNaTela.DaChave(jogo.Status, jogo.GamesDupla2)</span>
                 </span>
             }
@@ -179,8 +195,15 @@
 
                        Na prévia não aparece nenhuma: lá ninguém tem nome ainda, e a ausência de
                        linha chegando na vaga já conta quem passou direto. *@
-                    <span class="pdz-chave-lado @(lado?.ComNome != null || lado?.Rotulo != null ? "" : "text-muted")">
-                        <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
+                    <span class="pdz-chave-lado @(lado?.ComNome != null || lado?.Rotulo != null ? "" : "text-muted") @(lado?.ComNome is { EhTime: false } ? "pdz-chave-lado-chips" : "")">
+                        @if (lado?.Rotulo == null && lado?.ComNome is { } duplaDaVaga && !duplaDaVaga.EhTime)
+                        {
+                            <span class="pdz-chave-nome pdz-chave-nome-chips pdz-chip-compacto"><partial name="_LadoDaPartida" model="duplaDaVaga" view-data="chipComSelo" /></span>
+                        }
+                        else
+                        {
+                            <span class="pdz-chave-nome">@RotuloDoLado(lado)</span>
+                        }
                         @if (lado?.EhBye == true)
                         {
                             <span class="pdz-chave-selobye">folgou a 1ª</span>
@@ -280,7 +303,7 @@
                             {
                                 <span class="pdz-chd-liga @(liga.Reta ? "pdz-chd-liga-reta" : "")" style="@liga.Estilo"></span>
                             }
-                            @{ Cartao(porNumero[posicao.Jogo.Numero]); }
+                            @{ await Cartao(porNumero[posicao.Jogo.Numero]); }
                         </div>
                     }
                 </div>
@@ -298,7 +321,7 @@
                             <img src="~/image/pnatinha-feliz-recorte.webp" asp-append-version="true" alt=""
                                  width="96" height="100" class="rounded-3" />
                             <div class="fw-bold mt-1" style="color: var(--pdz-ink);">Campeão</div>
-                            <div class="fw-bold" style="color: var(--padel-green);">@NomeDaDupla(campea)</div>
+                            <div class="fw-bold" style="color: var(--padel-green);">@NomeCompletoDaDupla(campea)</div>
                         }
                         else
                         {
