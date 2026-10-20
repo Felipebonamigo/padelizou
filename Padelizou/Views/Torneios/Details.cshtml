@@ -1995,9 +1995,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
                                                              .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                         {
-                            <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
+                            <option value="@cat.Id" data-nome="@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)" data-legenda="@Padelizou.Services.CategoriaNaTela.Legenda(cat.Nome)">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
                         }
                     </select>
+                @* A legenda da categoria ESCOLHIDA. Na lista ela aparece, mas o campo fechado é estreito
+                   e o iOS mostra só "Mista B": a pessoa decide e perde a informação. Preenchida pelo
+                   script (data-legenda da opção); vazia e escondida pras categorias sem legenda. *@
+                <div class="alert alert-info border-0 mt-2 mb-0 py-2 small" id="pdzLegendaCategoria" role="status" style="display:none;"></div>
                 </div>
 
                 <p class="text-muted small">No Torneio Americano a inscrição é individual — o sistema sorteia os parceiros a cada rodada.</p>
@@ -2063,9 +2067,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
                                                          .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                     {
-                        <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
+                        <option value="@cat.Id" data-nome="@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)" data-legenda="@Padelizou.Services.CategoriaNaTela.Legenda(cat.Nome)">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
                     }
                 </select>
+                @* A legenda da categoria ESCOLHIDA. Na lista ela aparece, mas o campo fechado é estreito
+                   e o iOS mostra só "Mista B": a pessoa decide e perde a informação. Preenchida pelo
+                   script (data-legenda da opção); vazia e escondida pras categorias sem legenda. *@
+                <div class="alert alert-info border-0 mt-2 mb-0 py-2 small" id="pdzLegendaCategoria" role="status" style="display:none;"></div>
 
                 @* Dois avisos, ambos preenchidos pelo script: entrar numa categoria mais fraca
                    do que a declarada no cadastro, e inscrever alguém que não é você. Nenhum
@@ -7789,6 +7797,35 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         });
     })();
 
+    // ── Legenda da categoria escolhida ──────────────────────────────────────────────────
+    // "Mista B" diz a letra, não os níveis. A lista de opções já traz a legenda, mas depois de
+    // escolher o campo fica estreito (no iPhone mostra só "Mista B"), então ela vira uma caixa
+    // fixa abaixo do seletor. Categoria sem legenda esconde a caixa.
+    (function () {
+        var select = document.querySelector('#inscricao select[name="categoriaId"]');
+        var caixa = document.getElementById('pdzLegendaCategoria');
+        if (!select || !caixa) return;
+
+        function mostrar() {
+            var opcao = select.options[select.selectedIndex];
+            var legenda = opcao ? opcao.getAttribute('data-legenda') : null;
+            caixa.textContent = '';
+            if (!legenda) { caixa.style.display = 'none'; return; }
+
+            var icone = document.createElement('i');
+            icone.className = 'bi bi-info-circle-fill me-1';
+            var nome = document.createElement('strong');
+            nome.textContent = opcao.getAttribute('data-nome') || '';
+            caixa.appendChild(icone);
+            caixa.appendChild(nome);
+            caixa.appendChild(document.createTextNode(': ' + legenda));
+            caixa.style.display = '';
+        }
+
+        select.addEventListener('change', mostrar);
+        mostrar();
+    })();
+
     // ── Categoria mais fraca que a do cadastro ──────────────────────────────────────────
     // Quem marcou "sou 4ª" nas Preferências e se inscreve na 5ª ouve a pergunta antes de
     // confirmar. Não é trava: pode ser que o jogador tenha caído de nível, que o parceiro
@@ -7816,8 +7853,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
         }
 
         function avaliar() {
-            var escolhida = select.options[select.selectedIndex]
-                ? select.options[select.selectedIndex].text : '';
+            // data-nome é o nome SEM a legenda: "Mista E: 7ª Masc, 7ª Fem e 6ª Fem" valeria
+            // 7ª categoria pra esta régua, que procura o número no texto.
+            var opcao = select.options[select.selectedIndex];
+            var escolhida = opcao ? (opcao.getAttribute('data-nome') || opcao.text) : '';
             var forcaEscolhida = forca(escolhida);
 
             var frases = Object.keys(window.pdzJogadores || {})
