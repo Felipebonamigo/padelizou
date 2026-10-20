@@ -10,8 +10,9 @@ namespace Padelizou.Tests;
 public class LegendaDasCategoriasMistasTests
 {
     [Theory]
+    [InlineData("Categoria Mista A", "3ª Masc e 2ª Fem")]
     [InlineData("Categoria Mista B", "4ª Masc e 3ª Fem")]
-    [InlineData("Categoria Mista C", "5ª Fem e 4ª Masc")]
+    [InlineData("Categoria Mista C", "5ª Masc e 4ª Fem")]
     [InlineData("Categoria Mista D", "6ª Masc e 5ª Fem")]
     [InlineData("Categoria Mista E", "7ª Masc, 7ª Fem e 6ª Fem")]
     public void Cada_mista_conhecida_tem_a_legenda_dos_niveis(string nome, string esperada)
@@ -25,7 +26,6 @@ public class LegendaDasCategoriasMistasTests
         => Assert.Equal("4ª Masc e 3ª Fem", CategoriaNaTela.Legenda(nome));
 
     [Theory]
-    [InlineData("Categoria Mista A")]      // o Felipe não definiu os níveis da A
     [InlineData("Categoria Mista F")]
     [InlineData("4ª Categoria Masculina")]
     [InlineData("Categoria Casais")]
@@ -42,7 +42,7 @@ public class LegendaDasCategoriasMistasTests
     public void ComLegenda_sem_legenda_e_igual_ao_nome_curto()
     {
         Assert.Equal("4ª Masculina", CategoriaNaTela.ComLegenda("4ª Categoria Masculina"));
-        Assert.Equal("Mista A", CategoriaNaTela.ComLegenda("Categoria Mista A"));
+        Assert.Equal("Mista F", CategoriaNaTela.ComLegenda("Categoria Mista F"));
     }
 
     [Fact]
