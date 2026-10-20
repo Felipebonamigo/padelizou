@@ -35,14 +35,14 @@ public static class CategoriaNaTela
     // inscreve precisa saber que "Mista B" é 4ª Masc + 3ª Fem.
     //
     // ⚠️ SÓ EXIBIÇÃO, e por NOME CURTO — a `Categoria` do torneio não guarda os níveis (copia só
-    // nome e código do catálogo), então a legenda mora aqui, como a ordem. Mista A não está
-    // na lista porque os níveis dela não foram definidos: sem legenda, não inventamos uma.
-    // Mista nova: acrescentar a linha aqui.
+    // nome e código do catálogo), então a legenda mora aqui, como a ordem. Categoria fora da
+    // lista fica sem legenda: não inventamos níveis. Mista nova: acrescentar a linha aqui.
     private static readonly Dictionary<string, string> LegendasDasMistas =
         new(StringComparer.OrdinalIgnoreCase)
         {
+            ["Mista A"] = "3ª Masc e 2ª Fem",
             ["Mista B"] = "4ª Masc e 3ª Fem",
-            ["Mista C"] = "5ª Fem e 4ª Masc",
+            ["Mista C"] = "5ª Masc e 4ª Fem",
             ["Mista D"] = "6ª Masc e 5ª Fem",
             ["Mista E"] = "7ª Masc, 7ª Fem e 6ª Fem",
         };
