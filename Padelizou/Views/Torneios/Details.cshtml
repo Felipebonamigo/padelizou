@@ -1995,7 +1995,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
                                                              .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                         {
-                            <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
+                            <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
                         }
                     </select>
                 </div>
@@ -2063,7 +2063,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes && !c.ChaveDireta)
                                                          .OrderBy(c => Padelizou.Services.CategoriaNaTela.Ordem(c.Nome)))
                     {
-                        <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.Curto(cat.Nome)</option>
+                        <option value="@cat.Id">@Padelizou.Services.CategoriaNaTela.ComLegenda(cat.Nome)</option>
                     }
                 </select>
 
@@ -4964,6 +4964,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                                     <span>
                                         <strong style="color: var(--pdz-ink);">@cat.Nome</strong>
+                                        @if (Padelizou.Services.CategoriaNaTela.Legenda(cat.Nome) is { } legendaDaCat)
+                                        {
+                                            <span class="text-muted small">(@legendaDaCat)</span>
+                                        }
                                         <span class="text-muted small ms-1">
                                             @inscritosNaCat inscrito(s)@(cat.LimiteDuplas != null ? $" · limite {cat.LimiteDuplas}" : " · sem limite")
                                         </span>
@@ -5017,7 +5021,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <option value="">-- Adicionar categoria --</option>
                                 @foreach (var c in disponiveis)
                                 {
-                                    <option value="@c.Id">@c.Nome</option>
+                                    <option value="@c.Id">@Padelizou.Services.CategoriaNaTela.ComLegenda(c.Nome)</option>
                                 }
                             </select>
                             <input type="number" name="limiteDuplas" min="1" class="form-control form-control-sm"

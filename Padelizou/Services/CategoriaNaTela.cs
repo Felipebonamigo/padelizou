@@ -31,6 +31,30 @@ public static class CategoriaNaTela
         return texto.Trim();
     }
 
+    // Os níveis que formam cada mista (Felipe, 20/10/2026): o nome diz a letra, e quem se
+    // inscreve precisa saber que "Mista B" é 4ª Masc + 3ª Fem.
+    //
+    // ⚠️ SÓ EXIBIÇÃO, e por NOME CURTO — a `Categoria` do torneio não guarda os níveis (copia só
+    // nome e código do catálogo), então a legenda mora aqui, como a ordem. Mista A não está
+    // na lista porque os níveis dela não foram definidos: sem legenda, não inventamos uma.
+    // Mista nova: acrescentar a linha aqui.
+    private static readonly Dictionary<string, string> LegendasDasMistas =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Mista B"] = "4ª Masc e 3ª Fem",
+            ["Mista C"] = "5ª Fem e 4ª Masc",
+            ["Mista D"] = "6ª Masc e 5ª Fem",
+            ["Mista E"] = "7ª Masc, 7ª Fem e 6ª Fem",
+        };
+
+    // A legenda da categoria, ou null quando não há uma definida.
+    public static string? Legenda(string? nome) =>
+        LegendasDasMistas.TryGetValue(Curto(nome), out var legenda) ? legenda : null;
+
+    // "Mista B: 4ª Masc e 3ª Fem" — ou só o nome curto, quando não há legenda.
+    public static string ComLegenda(string? nome) =>
+        Legenda(nome) is { } legenda ? $"{Curto(nome)}: {legenda}" : Curto(nome);
+
     // A ordem em que as categorias se leem: pelo NÍVEL, da mais forte pra mais fraca, com a
     // masculina na frente da feminina do mesmo degrau — e mista e casais fechando a lista.
     //
