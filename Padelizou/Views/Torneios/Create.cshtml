@@ -1506,7 +1506,7 @@
                             <div class="form-check mb-2 d-flex align-items-center gap-2">
                                 <div class="flex-grow-1">
                                     <input class="form-check-input border-secondary" type="checkbox" name="categoriasSelecionadas" value="@cat.Id" id="cat_@cat.Id" checked="@categoriasMarcadas.Contains(cat.Id)">
-                                    <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome</label>
+                                    <label class="form-check-label text-muted" for="cat_@cat.Id">@cat.Nome@if (Padelizou.Services.CategoriaNaTela.Legenda(cat.Nome) is { } legendaDaMista) { <span class="d-block small text-muted">@legendaDaMista</span> }</label>
                                 </div>
                                 <input type="number" name="limiteCategoria[@cat.Id]" min="1" class="form-control form-control-sm" placeholder="Vagas" style="width: 90px;" title="Limite de duplas nesta categoria (opcional)" value="@(limitesCopiados.TryGetValue(cat.Id, out var vagasCopiadas) ? vagasCopiadas.ToString() : "")" />
                             </div>
