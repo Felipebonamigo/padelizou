@@ -150,23 +150,6 @@
         </div>
     }
 
-    @* CANCELADOS: seção só de quem organiza. É aqui que ele reencontra o torneio pra resolver
-       as devoluções — some da lista pública, mas não pode sumir DELE. Aparece aberta, e não
-       recolhida como Finalizados, porque cancelamento costuma ter dinheiro pendente. *@
-    @if (cancelados.Any())
-    {
-        <h5 class="pdz-section-title mb-1">Cancelados</h5>
-        <p class="text-muted small mb-3">
-            <i class="bi bi-eye-slash"></i> Só você vê estes aqui — eles saíram da lista pública.
-        </p>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao">
-            @foreach (var torneio in cancelados)
-            {
-                <partial name="_TorneioCard" model="torneio" />
-            }
-        </div>
-    }
-
     <h5 class="pdz-section-title mb-3">
         <button class="btn btn-sm btn-outline-secondary rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#secaoFinalizados">
             Finalizados (@finalizados.Count) <i class="bi bi-chevron-down"></i>
@@ -187,6 +170,32 @@
             }
         </div>
     </div>
+
+    @* CANCELADOS: seção só de quem organiza. É aqui que ele reencontra o torneio pra resolver
+       as devoluções — some da lista pública, mas não pode sumir DELE.
+       RECOLHIDA E NO FIM, como Finalizados (Felipe, 23/10/2026: *"os cancelados tem q ficar
+       minimizado também, e no final da pagina"*). Antes aparecia aberta, no meio da lista, e
+       empurrava o botão de Finalizados pra baixo; o dinheiro pendente não some por isso, porque
+       o botão mostra QUANTOS há e a busca por nome abre a seção sozinha. *@
+    @if (cancelados.Any())
+    {
+        <h5 class="pdz-section-title mb-3 mt-4">
+            <button class="btn btn-sm btn-outline-secondary rounded-pill" type="button" data-bs-toggle="collapse" data-bs-target="#secaoCancelados">
+                Cancelados (@cancelados.Count) <i class="bi bi-chevron-down"></i>
+            </button>
+        </h5>
+        <div class="collapse" id="secaoCancelados">
+            <p class="text-muted small mb-3">
+                <i class="bi bi-eye-slash"></i> Só você vê estes aqui — eles saíram da lista pública.
+            </p>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 mb-5 torneio-secao">
+                @foreach (var torneio in cancelados)
+                {
+                    <partial name="_TorneioCard" model="torneio" />
+                }
+            </div>
+        </div>
+    }
 
     @* ── Torneios por cidade ────────────────────────────────────────────────────────────────
        Não é enfeite de rodapé: é por estes links que o buscador CHEGA nas páginas de cidade,
@@ -242,11 +251,12 @@
                         aviso.innerHTML = '<p>Nenhum torneio encontrado com esse nome.</p>';
                         secao.appendChild(aviso);
                     }
-                    // Expande a seção de Finalizados automaticamente quando a busca encontra algo lá dentro
+                    // Expande a seção recolhida (Finalizados ou Cancelados) quando a busca
+                    // encontra algo lá dentro
                     if (termo.length > 0 && algumVisivel) {
-                        var colapsoFinalizados = document.getElementById('secaoFinalizados');
-                        if (secao.closest('#secaoFinalizados') && !colapsoFinalizados.classList.contains('show')) {
-                            new bootstrap.Collapse(colapsoFinalizados, { show: true });
+                        var colapso = secao.closest('.collapse');
+                        if (colapso && !colapso.classList.contains('show')) {
+                            new bootstrap.Collapse(colapso, { show: true });
                         }
                     }
                 }
