@@ -97,8 +97,26 @@ public static class ImpactoDaTroca
     /// </summary>
     public static Dictionary<string, int> Contar(Torneio torneio, IList<Partida> jogos,
         IReadOnlyCollection<Dupla> duplas, SedesDoTorneio sedes) =>
-        AuditoriaDaGrade.Conferir(torneio, jogos.ToList(), duplas, sedes)
+        Contar(AuditoriaDaGrade.Conferir(torneio, jogos.ToList(), duplas, sedes));
+
+    /// <summary>A mesma contagem, sobre achados já auditados — pra quem também precisa do texto deles.</summary>
+    public static Dictionary<string, int> Contar(IEnumerable<AuditoriaDaGrade.Achado> achados) =>
+        achados
             .Where(a => ReparoDaGrade.Peso(a.Regra) > 0)
             .GroupBy(a => a.Regra)
             .ToDictionary(g => g.Key, g => g.Count());
+
+    /// <summary>
+    /// Os conflitos de PESSOA (alguém em dois jogos ao mesmo tempo) que a mexida criou, com o texto
+    /// da auditoria — que diz quem e em quais jogos. A contagem sozinha ("+1") mandaria o
+    /// organizador procurar o conflito na lista.
+    /// </summary>
+    public static List<string> ConflitosDePessoaNovos(IEnumerable<AuditoriaDaGrade.Achado> antes,
+        IEnumerable<AuditoriaDaGrade.Achado> depois)
+    {
+        var jaHavia = antes.Where(a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos)
+            .Select(a => a.Descricao).ToHashSet();
+        return depois.Where(a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos && !jaHavia.Contains(a.Descricao))
+            .Select(a => a.Descricao).ToList();
+    }
 }
