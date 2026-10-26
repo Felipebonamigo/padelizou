@@ -72,7 +72,7 @@ namespace Padelizou.Controllers
             // faria a consulta a cada toque, que é exatamente a latência que este caminho
             // existe pra não pagar.
             var formatoDaMesa = pontosTieBreak1 >= 0 || pontosTieBreak2 >= 0
-                ? FormatoDaPartida.De(await _context.Torneios.FindAsync(partida.TorneioId.Value), partida.Fase)
+                ? FormatoDaPartida.De(await _context.Torneios.FindAsync(partida.TorneioId.Value), partida)
                 : null;
 
             // ⚠️ QUEM ORDENA DOIS PLACARES É O RELÓGIO DO SERVIDOR, e não o do aparelho
@@ -197,7 +197,7 @@ namespace Padelizou.Controllers
                 // O formato da FASE manda (Services/FormatoDaPartida): num torneio até 4,
                 // digitar 9 seria um placar que aquele jogo não pode ter — e numa soma de 7,
                 // 5x5 também não.
-                var formato = FormatoDaPartida.De(torneio, partida.Fase);
+                var formato = FormatoDaPartida.De(torneio, partida);
 
                 // ⚠️ LADO NEGATIVO É "NÃO TOQUEI NESTE" (12/09/2026), e fica com o que está no
                 // banco. 🗣️ Felipe: *"quando um de um lado marcava e o outro junto as vezes, um
@@ -282,7 +282,7 @@ namespace Padelizou.Controllers
                     salvos = mexidos,
                     placares = doTorneio.Select(p =>
                     {
-                        var f = FormatoDaPartida.De(torneio, p.Fase);
+                        var f = FormatoDaPartida.De(torneio, p);
                         int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
                         return new
                         {
@@ -422,7 +422,7 @@ namespace Padelizou.Controllers
             if (partida != null && partida.Status == "AoVivo" && (games1.HasValue || games2.HasValue))
             {
                 var formatoDaPartida = FormatoDaPartida.De(
-                    await _context.Torneios.FindAsync(partida.TorneioId ?? 0), partida.Fase);
+                    await _context.Torneios.FindAsync(partida.TorneioId ?? 0), partida);
 
                 var (g1, g2) = FormatoDaPartida.PlacarValido(formatoDaPartida,
                     games1 ?? partida.GamesDupla1 ?? 0,

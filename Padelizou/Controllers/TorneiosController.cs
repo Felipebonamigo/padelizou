@@ -1721,7 +1721,7 @@ namespace Padelizou.Controllers
             {
                 foreach (var p in (List<Partida>)ViewBag.AoVivo)
                 {
-                    var f = FormatoDaPartida.De(torneioDaTela, p.Fase);
+                    var f = FormatoDaPartida.De(torneioDaTela, p);
                     int g1 = p.GamesDupla1 ?? 0, g2 = p.GamesDupla2 ?? 0;
                     tetos[p.Id] = (FormatoDaPartida.TetoDoLado(f, g1, g2), FormatoDaPartida.TetoDoLado(f, g2, g1));
                     vencedores[p.Id] = QuemVenceu.LadoJaDecidido(f, p.SetsDupla1, p.SetsDupla2, g1, g2) ?? 0;

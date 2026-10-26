@@ -1544,6 +1544,75 @@
                 });
             });
         </script>
+
+        @* MODAL: o FORMATO DE UM JOGO, decidido na hora (26/10/2026).
+
+           🗣️ Felipe: *"na hora de por o 'jogo começou' [...] uma opção para 'alterar formato do
+           jogo' [...] para que possa trocar a cada jogo se quiser"*. Vale até o primeiro ponto
+           (Services/FormatoDoJogo). Os campos são os mesmos da regra da final no cadastro do
+           torneio — sets, games por set e tie-break —, e "voltar ao formato da fase" manda games
+           vazio. *@
+        <div class="modal fade" id="modalFormatoDoJogo" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form asp-controller="Torneios" asp-action="AlterarFormatoDoJogo" asp-route-id="@Model.TorneioId" method="post" class="modal-content">
+                    <partial name="_CampoDosFiltros" />
+                    <input type="hidden" name="partidaId" id="formatoJogoId" value="" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-sliders"></i> Formato deste jogo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Jogo: <strong id="formatoJogoRotulo">—</strong>. Vale só para este jogo, e só até o
+                            primeiro ponto marcado.
+                        </p>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-bold" for="formatoSets">Sets</label>
+                                <input type="number" name="sets" id="formatoSets" class="form-control" min="1" max="@Padelizou.Services.FormatoDoJogo.MaxSets" value="1" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-bold" for="formatoGames">Games por set</label>
+                                <input type="number" name="games" id="formatoGames" class="form-control" min="1" max="@Padelizou.Services.FormatoDoJogo.MaxGames" value="9" required />
+                            </div>
+                        </div>
+                        <label class="form-label small fw-bold mt-2" for="formatoTieBreak">Tie-break no empate</label>
+                        <select name="pontosTieBreak" id="formatoTieBreak" class="form-select">
+                            <option value="0">Sem contagem — o último game decide</option>
+                            <option value="@Padelizou.Services.TieBreakDoJogo.PontosPadrao">Tie-break de 7 pontos</option>
+                            <option value="@Padelizou.Services.TieBreakDoJogo.SuperTieBreak">Super tie-break de 10 pontos</option>
+                        </select>
+                        <div class="form-text">Ex.: set de 9 = 1 set, 9 games. Dois sets de 6 com super tie = 3 sets, 6 games, super tie-break.</div>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        @* `formnovalidate` + games vazio: o servidor lê como "voltar ao da fase". *@
+                        <button type="submit" class="btn btn-outline-secondary" id="formatoVoltarAoDaFase" formnovalidate
+                                onclick="document.getElementById('formatoGames').value='';">
+                            Voltar ao formato da fase
+                        </button>
+                        <button type="submit" class="btn btn-padel fw-bold">Salvar formato</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            // O botão da linha traz o jogo e o formato próprio dele, se já tiver.
+            document.addEventListener('DOMContentLoaded', function () {
+                var modal = document.getElementById('modalFormatoDoJogo');
+                if (!modal) return;
+                modal.addEventListener('show.bs.modal', function (evento) {
+                    var botao = evento.relatedTarget;
+                    if (!botao) return;
+                    document.getElementById('formatoJogoId').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('formatoJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
+                    document.getElementById('formatoSets').value = botao.getAttribute('data-sets') || '1';
+                    document.getElementById('formatoGames').value = botao.getAttribute('data-games') || '9';
+                    document.getElementById('formatoTieBreak').value = botao.getAttribute('data-tiebreak') || '0';
+                });
+            });
+        </script>
     }
 
     @* SUB-ABA: CLASSIFICAÇÃO (só Americano) *@

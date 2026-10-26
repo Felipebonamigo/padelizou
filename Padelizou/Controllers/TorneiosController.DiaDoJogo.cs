@@ -465,5 +465,38 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", new { id });
         }
 
+        // TROCAR O FORMATO DE UM JOGO NA HORA (26/10/2026). 🗣️ *"na hora de por o 'jogo começou'
+        // [...] uma opção para 'alterar formato do jogo' [...] para que possa trocar a cada jogo"*.
+        // Regras em Services/FormatoDoJogo; quem lê o formato é FormatoDaPartida.De(torneio, partida).
+        //
+        // A régua é a do DIA DE JOGO (organizador e quem opera o balcão), a mesma de começar o jogo:
+        // decidir "a final vai ser set de 9" é uma decisão de quadra, tomada por quem está nela.
+        // `games` vazio = volta ao formato da fase.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AlterarFormatoDoJogo(int id, int partidaId, int? sets, int? games,
+            int? pontosTieBreak, string? voltarPara = null, string? filtros = null)
+        {
+            if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var jogo = await _context.Partidas.FirstOrDefaultAsync(p => p.Id == partidaId);
+            if (FormatoDoJogo.MotivoParaNaoAlterar(jogo, id) is { } motivo)
+            {
+                TempData["Erro"] = motivo;
+                return VoltarPara(voltarPara, id, filtros);
+            }
+
+            FormatoDoJogo.Aplicar(jogo!, sets, games, pontosTieBreak);
+            await _context.SaveChangesAsync();
+
+            var torneio = await _context.Torneios.FindAsync(id);
+            var formato = FormatoDoJogo.Descrever(FormatoDaPartida.De(torneio, jogo));
+            TempData["Sucesso"] = jogo!.GamesDoJogo == null
+                ? $"O jogo {jogo.Codigo} voltou ao formato da fase: {formato}."
+                : $"O jogo {jogo.Codigo} agora é {formato}.";
+            return VoltarPara(voltarPara, id, filtros);
+        }
+
     }
 }

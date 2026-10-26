@@ -197,7 +197,7 @@
             // O alvo do tie-break vai por partida pelo mesmo motivo do limite de games: é
             // configuração por FASE ("7 nos grupos, 10 na final"). Zero = desligado, que é o
             // torneio que não usa contagem — e a Mesa então nem desenha o bloco.
-            var f = Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p.Fase);
+            var f = Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p);
             int alvo = Padelizou.Services.TieBreakDoJogo.PodeAcontecer(f) ? f.PontosTieBreak : 0;
             return $"{{id:{p.Id},games:{f.Games},tieBreak:{alvo}}}";
         });

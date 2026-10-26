@@ -305,6 +305,14 @@
             @* W.O.: sem este selo o jogo aparece como um 6x0 comum, e quem varre a lista
                depois não tem como saber que ninguém entrou em quadra — o placar é o mesmo
                de propósito (ver Services/EncerramentoPorWo). *@
+            @* Formato PRÓPRIO deste jogo — sem isto, quem olha a lista acha que a final segue a
+               regra das semis. Só o número: "até" ou "soma" é do torneio, não do jogo. *@
+            @if (jogo.GamesDoJogo is int gamesProprios)
+            {
+                <span class="pdz-jl-etiqueta" title="Formato trocado só para este jogo">
+                    <i class="bi bi-sliders"></i> @(jogo.SetsDoJogo is > 1 ? $"{jogo.SetsDoJogo} sets de {gamesProprios}" : $"set de {gamesProprios}")@(jogo.PontosTieBreakDoJogo == Padelizou.Services.TieBreakDoJogo.SuperTieBreak ? " + super tie" : "")
+                </span>
+            }
             @if (Padelizou.Services.EncerramentoPorWo.Foi(jogo))
             {
                 <span class="pdz-jl-etiqueta pdz-jl-wo" title="Alguém não compareceu — não contou pro Padelímetro">
@@ -352,6 +360,22 @@
                                 <i class="bi bi-play-fill"></i>
                             </button>
                         </form>
+                    }
+                    @* FORMATO DESTE JOGO (26/10/2026) — "a final vai ser set de 9", decidido na hora.
+                       Some quando já há placar: o servidor recusaria (Services/FormatoDoJogo), e
+                       botão que só serve pra ouvir "não" é armadilha. *@
+                    @if (!Padelizou.Services.FormatoDoJogo.TemPlacar(jogo))
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal" data-bs-target="#modalFormatoDoJogo"
+                                data-jogo-id="@jogo.Id"
+                                data-jogo-rotulo="@rotuloDoJogo"
+                                data-sets="@jogo.SetsDoJogo"
+                                data-games="@jogo.GamesDoJogo"
+                                data-tiebreak="@jogo.PontosTieBreakDoJogo"
+                                title="Formato deste jogo" aria-label="Formato deste jogo">
+                            <i class="bi bi-sliders"></i>
+                        </button>
                     }
                     <button type="button" class="btn btn-sm btn-outline-secondary"
                             data-bs-toggle="modal" data-bs-target="#modalTrocarHorario"
