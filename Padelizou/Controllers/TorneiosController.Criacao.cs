@@ -1090,7 +1090,7 @@ namespace Padelizou.Controllers
             if (catPadrao is not { Ativa: true })
             {
                 TempData["Erro"] = "Categoria inválida.";
-                return RedirectToAction("Details", new { id = torneioId });
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
             }
 
             // Casa pelo NOME, que é o que o jogador vê na tela: duas linhas com o mesmo nome
@@ -1101,7 +1101,7 @@ namespace Padelizou.Controllers
             if (jaTem)
             {
                 TempData["Erro"] = $"O torneio já tem a categoria \"{catPadrao.Nome}\".";
-                return RedirectToAction("Details", new { id = torneioId });
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
             }
 
             _context.Categorias.Add(new Categoria
@@ -1114,7 +1114,7 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Categoria \"{catPadrao.Nome}\" adicionada.";
-            return RedirectToAction("Details", new { id = torneioId });
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
         }
 
         [HttpPost]
@@ -1141,7 +1141,7 @@ namespace Padelizou.Controllers
             if (motivo != null)
             {
                 TempData["Erro"] = motivo;
-                return RedirectToAction("Details", new { id = torneioId });
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
             }
 
             var nome = categoria.Nome;
@@ -1149,7 +1149,7 @@ namespace Padelizou.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Categoria \"{nome}\" removida.";
-            return RedirectToAction("Details", new { id = torneioId });
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
         }
 
         // O limite de vagas muda sozinho, sem precisar tirar e pôr a categoria de volta —
@@ -1170,7 +1170,9 @@ namespace Padelizou.Controllers
             TempData["Sucesso"] = categoria.LimiteDuplas == null
                 ? $"\"{categoria.Nome}\" ficou sem limite de vagas."
                 : $"\"{categoria.Nome}\" agora aceita {categoria.LimiteDuplas} dupla(s).";
-            return RedirectToAction("Details", new { id = categoria.TorneioId });
+            // Volta pra LINHA mexida, não pro topo (Felipe, 26/10/2026: *"ao alterar um e salvar, ele
+            // volta para o inicio"*). O script do Details abre a aba Gerenciar e rola até ela.
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, fragment: $"categoria-{categoria.Id}");
         }
 
         [HttpPost]

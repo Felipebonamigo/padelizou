@@ -2050,6 +2050,9 @@ namespace Padelizou.Controllers
             var sedes = await SedesAsync(id);
             string rotulo;
             Partida? real = null;
+            // O Conferir grade de ANTES da hora nova — só pro jogo real: a prévia não sabe quem joga.
+            List<Padelizou.Services.AuditoriaDaGrade.Achado>? achadosAntes = null;
+            List<Dupla>? duplasDoTorneio = null;
 
             if (referencia.EhPrevia)
             {
@@ -2087,6 +2090,17 @@ namespace Padelizou.Controllers
                     TempData["Erro"] = motivo ?? "Não encontrei o jogo.";
                     return VoltarPara(voltarPara, id, filtros);
                 }
+
+                // 🗣️ Felipe, 26/10/2026: *"tem que avisar do conflito"*. A troca ⇄ e as setas já
+                // mediam o Conferir grade antes e depois (ImpactoDaTroca); a hora digitada gravava
+                // calada, e alguém em dois jogos ao mesmo tempo só aparecia se o organizador
+                // lembrasse de conferir. Os nomes vêm da auditoria — por isso os jogadores juntos.
+                duplasDoTorneio = await _context.Duplas
+                    .Include(d => d.Jogador1)
+                    .Include(d => d.Jogador2)
+                    .Where(d => d.Categoria!.TorneioId == id)
+                    .ToListAsync();
+                achadosAntes = Padelizou.Services.AuditoriaDaGrade.Conferir(torneio, partidas, duplasDoTorneio, sedes);
 
                 var quadras = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
                 HorarioNaMao.Definir(real, hora, HorarioNaMao.ClubeParaOHorario(real, hora, torneio, quadras));
@@ -2130,6 +2144,26 @@ namespace Padelizou.Controllers
                         $"{ReservasDeHorario.Rotulo(r, nomeDaCategoria.GetValueOrDefault(r.CategoriaId))} " +
                         $"({r.Horario:dd/MM HH:mm})")) +
                     ". A fase anterior passou desse horário — o jogo volta pra grade.";
+            }
+
+            // O QUE A HORA NOVA FEZ COM O CONFERIR GRADE — a mesma conta e o mesmo texto da troca ⇄.
+            // AVISA, não trava: o organizador pode estar no meio de um remanejo de vários jogos. Na
+            // mesma mensagem de Sucesso porque a página Jogos só mostra Sucesso e Erro.
+            if (achadosAntes != null && duplasDoTorneio != null)
+            {
+                var achadosDepois = Padelizou.Services.AuditoriaDaGrade.Conferir(torneio, partidas, duplasDoTorneio, sedes);
+                var impacto = Padelizou.Services.ImpactoDaTroca.Comparar(
+                    Padelizou.Services.ImpactoDaTroca.Contar(achadosAntes),
+                    Padelizou.Services.ImpactoDaTroca.Contar(achadosDepois));
+                if (impacto.Grau != Padelizou.Services.ImpactoDaTroca.Nivel.Igual)
+                {
+                    var selo = impacto.Grau == Padelizou.Services.ImpactoDaTroca.Nivel.Melhora ? "✅" : "⚠️";
+                    TempData["Sucesso"] += $" {selo} Conferir grade — {impacto.Texto}.";
+                }
+
+                var conflitos = Padelizou.Services.ImpactoDaTroca.ConflitosDePessoaNovos(achadosAntes, achadosDepois);
+                if (conflitos.Count > 0)
+                    TempData["Sucesso"] += " ⚠️ " + string.Join(" ", conflitos);
             }
 
             return VoltarPara(voltarPara, id, filtros);
