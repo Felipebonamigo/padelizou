@@ -307,7 +307,7 @@ namespace Padelizou.Controllers
             var torneio = partida.TorneioId is int torneioId
                 ? await _context.Torneios.FindAsync(torneioId)
                 : null;
-            ViewBag.Formato = FormatoDaPartida.De(torneio, partida.Fase);
+            ViewBag.Formato = FormatoDaPartida.De(torneio, partida);
 
             return View(partida);
         }
@@ -576,7 +576,7 @@ namespace Padelizou.Controllers
             int? vencedorAntes = partida.VencedorId;
 
             EncerramentoPorWo.Registrar(partida, duplaQueNaoCompareceuId,
-                FormatoDaPartida.De(partida.Categoria?.Torneio, partida.Fase));
+                FormatoDaPartida.De(partida.Categoria?.Torneio, partida));
 
             bool woTardioTrocouVencedor = !acabouDeTerminar && partida.VencedorId != vencedorAntes;
 
@@ -887,7 +887,7 @@ namespace Padelizou.Controllers
             {
                 var formatoDoTieBreak = FormatoDaPartida.De(
                     partida.TorneioId is int idDoFormato ? await _context.Torneios.FindAsync(idDoFormato) : null,
-                    partida.Fase);
+                    partida);
 
                 if (TieBreakDoJogo.PodeAcontecer(formatoDoTieBreak))
                 {

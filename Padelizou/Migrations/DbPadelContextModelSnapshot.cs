@@ -2808,6 +2808,9 @@ namespace Padelizou.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int?>("GamesDoJogo")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("GamesDupla1")
                         .HasColumnType("integer");
 
@@ -2850,8 +2853,14 @@ namespace Padelizou.Migrations
                     b.Property<int?>("PontosTieBreak2")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("PontosTieBreakDoJogo")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("SendoTransmitida")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("SetsDoJogo")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("SetsDupla1")
                         .HasColumnType("integer");

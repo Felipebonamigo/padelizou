@@ -70,6 +70,23 @@ public static class FormatoDaPartida
         return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem, torneio.PontosTieBreakMataMata);
     }
 
+    // O formato de UM JOGO: o próprio, quando o organizador trocou na hora (Partida.GamesDoJogo),
+    // ou o da fase dele. ⚠️ Quem tem o jogo em mãos chama ESTE, e não `De(torneio, partida.Fase)` —
+    // senão a Mesa deixaria marcar até 6 numa final trocada pra set de 9 (FormatoDoJogoTests guarda
+    // isso). Contagem ("até" ou "soma") continua sendo do torneio, como em toda fase.
+    public static Formato De(Torneio? torneio, Partida? partida)
+    {
+        if (partida?.GamesDoJogo is int games && games > 0)
+        {
+            var contagem = torneio == null
+                ? ContagemDeGamesDoTorneio.Ate
+                : ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
+            return Valido(partida.SetsDoJogo ?? 0, games, contagem, partida.PontosTieBreakDoJogo ?? TieBreakDoJogo.Desligado);
+        }
+
+        return De(torneio, partida?.Fase);
+    }
+
     // Torneio antigo (ou criado por formulário incompleto) tem zero gravado nessas colunas.
     // Zero viraria uma Mesa onde não dá pra marcar nem um game — melhor cair no padrão do
     // que travar a quadra.

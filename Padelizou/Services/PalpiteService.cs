@@ -29,6 +29,9 @@ public class PalpiteService : IPalpiteService
                 // O placar de verdade entra pra tela poder dizer QUEM CRAVOU depois do jogo.
                 p.VencedorId, p.GamesDupla1, p.GamesDupla2, p.SetsDupla1, p.SetsDupla2,
                 p.MotivoDoEncerramento,
+                // O formato próprio do jogo (Partida.GamesDoJogo): sem ele o palpite aceitaria um
+                // placar de set de 6 numa final trocada pra set de 9.
+                p.SetsDoJogo, p.GamesDoJogo, p.PontosTieBreakDoJogo,
             })
             .ToListAsync();
 
@@ -62,7 +65,8 @@ public class PalpiteService : IPalpiteService
                                          meuVoto.SetsDupla1, meuVoto.SetsDupla2);
 
             var formato = FormatoDaPartida.De(
-                p.TorneioId is int t ? torneios.GetValueOrDefault(t) : null, p.Fase);
+                p.TorneioId is int t ? torneios.GetValueOrDefault(t) : null,
+                new Partida { Fase = p.Fase, SetsDoJogo = p.SetsDoJogo, GamesDoJogo = p.GamesDoJogo, PontosTieBreakDoJogo = p.PontosTieBreakDoJogo });
 
             var comPlacar = votosDaPartida
                 .Select(v => PlacaresPossiveis.Lido(v.GamesDupla1, v.GamesDupla2, v.SetsDupla1, v.SetsDupla2))
@@ -186,7 +190,7 @@ public class PalpiteService : IPalpiteService
         // ⚠️ TODA a validação do placar acontece AQUI, e não na tela. A tela oferece fichas com
         // os placares possíveis; quem RECUSA é o servidor — um POST montado à mão não passa por
         // view nenhuma, e é ele que gravaria o "6 x 9" que nenhum jogo termina.
-        var formato = FormatoDaPartida.De(await TorneioDaPartidaAsync(partida), partida.Fase);
+        var formato = FormatoDaPartida.De(await TorneioDaPartidaAsync(partida), partida);
         var placar = ValidarPlacar(formato, partida, duplaEscolhidaId, placarLado1, placarLado2);
 
         var voto = await _context.PalpitesPartida

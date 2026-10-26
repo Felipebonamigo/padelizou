@@ -73,6 +73,18 @@ public partial class Partida
     // as DUAS vagas dele têm dono, em qualquer ordem.
     public int? NumeroNaFase { get; set; }
 
+    // O FORMATO DESTE JOGO, quando ele não segue o da fase (26/10/2026).
+    //
+    // 🗣️ Um organizador: *"tem alguns torneios que deixam para decidir na hora como a final será
+    // disputada, por exemplo em um set de 9 ou 2 de 6"*. 🗣️ Felipe: na hora do "jogo começou", uma
+    // opção de alterar o formato — jogo a jogo. Mesmo molde do desvio da final
+    // (Torneio.GamesSoDaFinal): o GAMES é o interruptor — nulo = segue a fase, e é o que todo jogo
+    // anterior a isto tem gravado. Quem traduz é Services/FormatoDaPartida.De(torneio, partida);
+    // as regras de quando dá pra trocar estão em Services/FormatoDoJogo.
+    public int? SetsDoJogo { get; set; }
+    public int? GamesDoJogo { get; set; }
+    public int? PontosTieBreakDoJogo { get; set; }
+
     // O HORÁRIO QUE O SORTEIO PROMETEU — escrito UMA VEZ, quando o jogo nasce, e nunca mais.
     //
     // 🗣️ Felipe, depois do 2ª Etapa ER PADEL TOUR: *"temos que seguir a grade prevista, por que o
