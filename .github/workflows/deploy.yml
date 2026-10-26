@@ -63,6 +63,48 @@ jobs:
             exit 1
           fi
 
+      # DESCOBRIR O BUILD AQUI, AUTENTICADO, e não na VPS (26/10/2026). O deploy do #387 em
+      # dev ficou 10 min recebendo 403 e desistiu com o build já publicado: o deploy.sh
+      # resolvia sha → build perguntando à API do GitHub SEM token, a cada 10 s, e a cota
+      # anônima (60/hora por IP) acabou com dois deploys na mesma hora. Aqui o token é o do
+      # próprio run (cota autenticada, separada da VPS), e o servidor recebe só o nome
+      # build-N-sha7 — caminho em que o deploy.sh nem consulta a API. Token na linha do ssh,
+      # não: ficaria visível na lista de processos do servidor.
+      - name: Descobrir o build
+        id: build
+        if: inputs.acao == 'deploy'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          procurar() {
+            gh api "repos/$REPO/releases?per_page=30" --jq '.[].tag_name' | grep -E "$1" | head -1 || true
+          }
+
+          if [ -z "$BUILD" ]; then
+            TAG=$(procurar '^build-[0-9]+-[0-9a-f]{7}$')
+          elif [[ "$BUILD" == build-* ]]; then
+            TAG="$BUILD"
+          else
+            # Recebeu um sha: espera o CI gerar o build dele (até 10 min), como o deploy.sh fazia.
+            SHA7="${BUILD:0:7}"
+            for i in $(seq 1 60); do
+              TAG=$(procurar "^build-[0-9]+-${SHA7}\$")
+              [ -n "$TAG" ] && break
+              echo "  aguardando o CI gerar o build do commit $SHA7... ($i/60)"
+              sleep 10
+            done
+          fi
+
+          # Vira argumento de comando remoto: só entra se for exatamente build-N-sha7.
+          if ! printf '%s' "$TAG" | grep -Eq '^build-[0-9]+-[0-9a-f]{7}$'; then
+            echo "ERRO: não encontrei build pra '${BUILD:-o mais recente}'. O CI passou?"
+            exit 1
+          fi
+          echo "==> Build: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Preparar o acesso ao VPS
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -105,12 +147,14 @@ jobs:
           VPS_USER: ${{ vars.VPS_USER || 'root' }}
           AMBIENTE: ${{ inputs.ambiente }}
           ACAO: ${{ inputs.acao }}
-          BUILD: ${{ inputs.build }}
+          # O build JÁ RESOLVIDO no passo acima — nunca o input cru: com sha, a VPS voltaria a
+          # perguntar à API sem token.
+          TAG: ${{ steps.build.outputs.tag }}
         run: |
           if [ "$ACAO" = "rollback" ]; then
             COMANDO="/opt/padelizou-deploy/rollback.sh $AMBIENTE"
           else
-            COMANDO="/opt/padelizou-deploy/deploy.sh $AMBIENTE $BUILD"
+            COMANDO="/opt/padelizou-deploy/deploy.sh $AMBIENTE $TAG"
           fi
 
           # -tt não: sem tty o log sai limpo e o exit code do script remoto
@@ -130,11 +174,13 @@ jobs:
           ACAO: ${{ inputs.acao }}
           BUILD: ${{ inputs.build }}
           RESULTADO: ${{ job.status }}
+          TAG: ${{ steps.build.outputs.tag }}
         run: |
           {
             echo "## $ACAO em $AMBIENTE — $RESULTADO"
             echo ""
             echo "- Build pedido: \`${BUILD:-o mais recente}\`"
+            if [ -n "$TAG" ]; then echo "- Build instalado: \`$TAG\`"; fi
             echo "- Disparado por: @${{ github.actor }}"
             if [ "$AMBIENTE" = "prod" ]; then
               echo "- Site: https://padelizou.com.br/healthz"

@@ -40,6 +40,12 @@ cria atalho pra subir código que não passou nos testes.
 | **acao** | `deploy` publica; `rollback` volta pra versão anterior. |
 | **build** | Vazio = o build mais recente. Ou `build-12-ab12cd3`, ou o sha de um commit (aí ele espera o CI daquele commit ficar pronto). |
 
+🔑 **Quem descobre o build é o WORKFLOW, autenticado** (26/10/2026): ele resolve sha/vazio → `build-N-sha7`
+com o token do próprio run e manda ao servidor só o nome. Antes era o `deploy.sh` que perguntava à
+API do GitHub **sem token** — cota de 60 consultas/hora por IP — e dois deploys na mesma hora
+esgotavam a cota (o `dev` do #387 morreu com 403 e o build já publicado). Rodando o `deploy.sh` na
+mão com sha, exporte `GITHUB_TOKEN` antes; com o nome do build ele nem consulta a API.
+
 ## Configuração — uma vez só
 
 Enquanto isso não estiver feito, o workflow falha no primeiro passo. É de propósito:

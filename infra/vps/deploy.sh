@@ -49,7 +49,17 @@ if [ -e "$LIVE" ] && [ ! -L "$LIVE" ]; then
   exit 1
 fi
 
-api() { curl -fsS "https://api.github.com/repos/$REPO/$1"; }
+# A API do GitHub sem token tem cota de 60 consultas/hora por IP — e a espera pelo build do
+# sha pergunta a cada 10 s. Com GITHUB_TOKEN no ambiente (quem roda na mão por SSH: export
+# GITHUB_TOKEN=...), a consulta vai autenticada. O workflow Deploy já não depende disto: ele
+# resolve o build do lado do GitHub e manda só o build-N-sha7, caminho que não consulta a API.
+api() {
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    curl -fsS -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/$REPO/$1"
+  else
+    curl -fsS "https://api.github.com/repos/$REPO/$1"
+  fi
+}
 
 # ── 1. Descobre qual build instalar ─────────────────────────────────────────
 TAG=""
