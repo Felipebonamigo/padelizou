@@ -4958,7 +4958,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                Tirar é mais delicado que pôr: categoria com gente dentro guarda inscrição
                de quem já pagou, então a regra fica no servidor (CategoriasDoTorneio) e a
                tela só explica por que o botão não aparece. *@
-            <div class="card bg-light border-0 shadow-sm mt-4">
+            <div class="card bg-light border-0 shadow-sm mt-4" id="categoriasDoTorneio">
                 <div class="card-body">
                     <h6 class="fw-bold text-muted text-uppercase mb-3">Categorias do torneio</h6>
 
@@ -4968,7 +4968,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                         @foreach (var cat in Model.Categorias.Where(c => !c.DeTimes).OrderBy(c => c.Nome))
                         {
                             var inscritosNaCat = cat.Duplas.Count;
-                            <li class="list-group-item bg-transparent px-0">
+                            <li class="list-group-item bg-transparent px-0" id="categoria-@cat.Id">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                                     <span>
                                         <strong style="color: var(--pdz-ink);">@cat.Nome</strong>
@@ -8330,4 +8330,28 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
     document.addEventListener('DOMContentLoaded', pdzIrProJogoDaHash);
     window.addEventListener('hashchange', pdzIrProJogoDaHash);
+</script>
+
+@*
+    A HASH `#categoria-N` / `#categoriasDoTorneio` VOLTA PRO CARD DE CATEGORIAS.
+
+    🗣️ Felipe, 26/10/2026: *"ao alterar um e salvar, ele volta para o inicio, ele deve se manter
+    aonde esta a tela"*. Salvar limite, adicionar e remover categoria redirecionam com a hash da
+    linha mexida (ou do card); aqui a aba Gerenciar (#admin) abre e a página rola até lá. Mesmo
+    caminho do `#jogo-N` acima: aba primeiro, rolar depois — e pelo `pdzMostrarAba`, que espera o
+    painel existir na tela antes de medir.
+*@
+<script>
+    function pdzIrPraCategoriaDaHash() {
+        // Conferido antes de virar seletor: a hash é texto que qualquer um põe na URL.
+        if (!/^#(categoria-\d+|categoriasDoTorneio)$/.test(location.hash) || !window.bootstrap) return;
+
+        var alvo = location.hash;
+        pdzMostrarAba('#torneioTabs', '#admin', function () {
+            var linha = document.querySelector(alvo);
+            if (linha) linha.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', pdzIrPraCategoriaDaHash);
 </script>
