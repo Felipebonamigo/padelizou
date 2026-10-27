@@ -21,15 +21,20 @@ public class PagamentosController : Controller
     private readonly IPagamentoInscricaoService _inscricoes;
     private readonly IAsaasService _asaas;
     private readonly ILogger<PagamentosController> _logger;
+    private readonly IPushNotificationService? _push;
 
+    // `push` é opcional no fim só pra quem constrói o controller na mão (os testes antigos): a
+    // injeção de dependência sempre o preenche.
     public PagamentosController(DbPadelContext context, IOptions<AsaasSettings> settings,
-        IPagamentoInscricaoService inscricoes, IAsaasService asaas, ILogger<PagamentosController> logger)
+        IPagamentoInscricaoService inscricoes, IAsaasService asaas, ILogger<PagamentosController> logger,
+        IPushNotificationService? push = null)
     {
         _context = context;
         _settings = settings.Value;
         _inscricoes = inscricoes;
         _asaas = asaas;
         _logger = logger;
+        _push = push;
     }
 
     private int ObterJogadorIdLogado() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -107,8 +112,49 @@ public class PagamentosController : Controller
         pagamento!.Status = PixDireto.AguardandoConfirmacao;
         await _context.SaveChangesAsync();
 
+        await AvisarQuemConfirmaAsync(pagamento);
+
         TempData["Sucesso"] = "Aviso recebido! Assim que o Pix aparecer no extrato, a gente confirma por aqui.";
         return RedirectToAction("Pix", new { id });
+    }
+
+    // QUEM CONFIRMA PRECISA SABER QUE TEM PIX ESPERANDO (27/10/2026). 🗣️ O Jônatas pagou às 14h11,
+    // clicou "já paguei" e só foi liberado depois de mandar WhatsApp pro Felipe às 19h53 — o "já
+    // paguei" mudava o status e não avisava ninguém. Só o ADMIN RAIZ: é o único que confirma
+    // (AdminController.ConfirmarPix). App + WhatsApp: pessoal, urgente e acionável (AlcanceDoAviso).
+    //
+    // ⚠️ Acessório: a declaração já foi gravada, e falhar o aviso não a desfaz.
+    private async Task AvisarQuemConfirmaAsync(Pagamento pagamento)
+    {
+        if (_push == null) return;
+
+        try
+        {
+            var raizes = await _context.Jogadores
+                .Where(j => j.IsAdminRaiz && j.ExcluidoEm == null)
+                .Select(j => j.Id)
+                .ToListAsync();
+            if (raizes.Count == 0) return;
+
+            var quem = await _context.Jogadores
+                .Where(j => j.Id == pagamento.JogadorId)
+                .Select(j => j.Nome)
+                .FirstOrDefaultAsync() ?? "Alguém";
+            var oQue = pagamento.Tipo == PixDireto.TipoAssinatura ? "a mensalidade do professor" : "a taxa do torneio";
+            var valor = pagamento.Valor.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+
+            foreach (var raiz in raizes)
+            {
+                await _push.EnviarParaJogadorAsync(raiz, "Pix esperando conferência",
+                    $"{quem} disse que pagou {oQue} (R$ {valor}, {PixDireto.TxId(pagamento.Id)}). " +
+                    "Confira no extrato e confirme pra liberar.",
+                    "/Admin/PixDireto", AlcanceDoAviso.AppEWhatsApp);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao avisar o admin do Pix declarado no pagamento {Id}.", pagamento.Id);
+        }
     }
 
     // ── A fatura do gateway, mas dentro de casa ───────────────────────────────────────────
