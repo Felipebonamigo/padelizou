@@ -83,11 +83,49 @@ namespace padelizou.Controllers
                     .ThenBy(l => l.Nome)
                     .ToList();
 
+            // O botão de restaurar só aparece pro raiz, e só enquanto houver o que restaurar.
+            if (admin.IsAdminRaiz)
+            {
+                var paraRestaurar = await RestauracaoDoCancelamentoPorBloqueio.CandidatasAsync(_context, agora, plano.Value);
+                ViewBag.AulasParaRestaurar = paraRestaurar.Count;
+                ViewBag.ProfessoresParaRestaurar = paraRestaurar.Select(a => a.ProfessorId).Distinct().Count();
+            }
+
             ViewBag.Resumo = ProfessoresNoAdmin.Resumir(linhas, meses, agora);
             ViewBag.Meses = meses;
             ViewBag.Cfg = plano.Value;
 
             return View(linhas);
+        }
+
+        // DESFAZ O QUE O BLOQUEIO CANCELOU ANTES DA HORA (28/10/2026) — ver
+        // Services/RestauracaoDoCancelamentoPorBloqueio. Só o raiz: mexe na agenda de todos os
+        // professores de uma vez e manda aviso pra todos os alunos deles.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RestaurarAulasCanceladasPeloBloqueio(
+            [FromServices] IOptions<PlanoProfessorSettings> plano)
+        {
+            var admin = await ObterJogadorAdminRaizAsync();
+            if (admin == null) return Forbid();
+
+            var r = await RestauracaoDoCancelamentoPorBloqueio.RestaurarAsync(
+                _context, _pushNotificationService, DateTime.Now, plano.Value, _logger);
+
+            _logger?.LogInformation(
+                "Restauração do bloqueio pelo admin {AdminId}: {Restauradas} aulas de {Professores} professores, {Puladas} puladas por conflito.",
+                admin.Id, r.Restauradas, r.Professores, r.PuladasPorConflito);
+
+            if (r.Restauradas == 0 && r.PuladasPorConflito == 0)
+                TempData["Sucesso"] = "Não havia aula cancelada pelo bloqueio pra restaurar.";
+            else
+                TempData["Sucesso"] = $"{r.Restauradas} aula(s) de {r.Professores} professor(es) voltaram pra agenda. "
+                    + "Alunos e professores foram avisados."
+                    + (r.PuladasPorConflito > 0
+                        ? $" {r.PuladasPorConflito} ficaram canceladas porque o professor já marcou outra aula no mesmo horário."
+                        : "");
+
+            return RedirectToAction(nameof(Professores));
         }
 
         // ===================== CORTESIA E PLANO, PELA MÃO DO DONO =====================

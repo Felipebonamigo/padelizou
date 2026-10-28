@@ -80,6 +80,28 @@
         </a>
     </div>
 
+    @* ── Restaurar o que o bloqueio cancelou antes da hora (28/10/2026) ───────────────
+       Só o raiz recebe a contagem, e o card some quando não sobra nada: o botão existe pra
+       desfazer o defeito de 21/10, não como ferramenta do dia a dia. *@
+    @if (ViewBag.AulasParaRestaurar is int paraRestaurar && paraRestaurar > 0)
+    {
+        <div class="card border-danger shadow-sm mb-3">
+            <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <div class="fw-bold text-danger"><i class="bi bi-arrow-counterclockwise"></i> Aulas canceladas por engano</div>
+                    <div class="small text-muted">
+                        @paraRestaurar aula(s) futura(s) de @ViewBag.ProfessoresParaRestaurar professor(es) foram canceladas
+                        pelo bloqueio antes do prazo. Restaurar põe todas de volta como confirmadas e avisa alunos e professores.
+                    </div>
+                </div>
+                <form asp-action="RestaurarAulasCanceladasPeloBloqueio" method="post"
+                      onsubmit="return confirm('Restaurar @paraRestaurar aula(s) e avisar alunos e professores?');">
+                    <button type="submit" class="btn btn-danger rounded-pill">Restaurar todas</button>
+                </form>
+            </div>
+        </div>
+    }
+
     @* ── Os números de cima ──────────────────────────────────────────────────────────── *@
     <div class="row g-2 mb-3">
         <div class="col-6 col-lg-3">

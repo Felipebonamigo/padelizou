@@ -30,8 +30,8 @@ public static class BloqueioDoProfessor
     public static DateTime? BloqueiaEm(Jogador professor, PlanoProfessorSettings cfg) =>
         Prazo(professor, cfg, cfg.DiasAteOBloqueio);
 
-    // A conta das duas datas, com o número de dias por parâmetro: bloqueio e cancelamento
-    // partem do MESMO ponto e só diferem nisso.
+    // A conta do bloqueio. O cancelamento parte DELE (ver CancelaAulasEm), nunca de uma segunda
+    // passada por aqui.
     private static DateTime? Prazo(Jogador professor, PlanoProfessorSettings cfg, int dias)
     {
         // ⚠️ A TRAVA QUE IMPEDE O DEPLOY DE FECHAR A BASE INTEIRA NUM SEGUNDO. Sem ela, subir
@@ -87,12 +87,18 @@ public static class BloqueioDoProfessor
     // O INSTANTE EM QUE AS AULAS JÁ MARCADAS CAEM (item 4). Nulo pelos mesmos motivos do
     // BloqueiaEm — dormente, ou relógio que nunca começou.
     //
-    // ⚠️ MORA AQUI, COLADO NO BLOQUEIO, e não no serviço que cancela: as duas datas saem do
-    // MESMO ponto de partida (o fim do último direito), e a escada de avisos precisa das duas
-    // pra saber quando parar de repetir. Uma segunda conta noutro arquivo é como elas passam a
-    // discordar no primeiro refactor.
+    // ⚠️ MORA AQUI, COLADO NO BLOQUEIO, e não no serviço que cancela: a escada de avisos precisa
+    // das duas datas pra saber quando parar de repetir. Uma segunda conta noutro arquivo é como
+    // elas passam a discordar no primeiro refactor.
+    //
+    // ⚠️ É O BLOQUEIO + O PRAZO, e não uma segunda passada no `Prazo` (28/10/2026). Passando pelo
+    // `Prazo`, a estreia era PISO das duas datas: pra quem tinha vencido havia mais de um mês, ou
+    // nunca teve relógio, bloqueio e cancelamento viravam o MESMO 21/10 10h — e as aulas caíram
+    // no tique em que a agenda fechou, sem o mês que a escada de avisos promete
+    // (`AvisosDoPlanoDoProfessor.AlcanceDe` conta o diário como `Cancelar − Bloqueio`). Pro
+    // cliente em dia o resultado é o mesmo de antes: fim + 6 + 24 = fim + 30.
     public static DateTime? CancelaAulasEm(Jogador professor, PlanoProfessorSettings cfg) =>
-        Prazo(professor, cfg, cfg.DiasAteCancelarAsAulas);
+        BloqueiaEm(professor, cfg)?.AddDays(cfg.DiasAteCancelarAsAulas - cfg.DiasAteOBloqueio);
 
     // A agenda está fechada AGORA?
     public static bool EstaBloqueado(Jogador professor, DateTime agora, PlanoProfessorSettings cfg)
