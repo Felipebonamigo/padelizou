@@ -103,9 +103,12 @@ public class RestaurarAulasCanceladasPeloBloqueioTests
     }
 
     [Fact]
-    public async Task Aula_que_ja_passou_nao_volta()
+    public async Task Aula_que_ja_passou_tambem_volta_pra_receber_presenca()
     {
-        // Ressuscitar o dia 24/10 poria na agenda uma aula que não aconteceu, esperando presença.
+        // 🗣️ O Jônatas, depois da primeira restauração: a semana passada inteira ainda vermelha.
+        // Aquelas aulas ACONTECERAM — ele deu aula com a agenda dizendo "cancelada" —, e
+        // cancelada fica fora do financeiro e da ficha do aluno. Voltam Confirmada, pra ele
+        // marcar presença como em qualquer aula dada.
         var c = Montar();
         var passada = Caida(c, new DateTime(2026, 10, 24, 9, 0, 0));
         c.Ctx.Aulas.Add(passada);
@@ -113,8 +116,45 @@ public class RestaurarAulasCanceladasPeloBloqueioTests
 
         var r = await Restaurar(c);
 
+        Assert.Equal(1, r.Restauradas);
+        Assert.Equal(PoliticaAula.Confirmada, (await Recarregar(c, passada.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Aula_que_ja_passou_nao_avisa_o_aluno()
+    {
+        // "Sua aula voltou" sobre uma aula de semana passada é ruído — e assusta.
+        var c = Montar();
+        c.Ctx.Aulas.Add(Caida(c, new DateTime(2026, 10, 24, 9, 0, 0)));
+        await c.Ctx.SaveChangesAsync();
+        var push = Substitute.For<IPushNotificationService>();
+
+        await Restaurar(c, push);
+
+        await push.DidNotReceive().EnviarParaJogadorAsync(c.Aluno.Id,
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
+    }
+
+    [Fact]
+    public async Task Horario_passado_ja_dado_noutra_aula_fica_de_fora()
+    {
+        // O professor recriou a aula na mão e já fechou a presença: restaurar a cancelada
+        // por cima duplicaria a aula no financeiro.
+        var c = Montar();
+        var quando = new DateTime(2026, 10, 24, 9, 0, 0);
+        var caida = Caida(c, quando);
+        var refeita = new Aula
+        {
+            ProfessorId = c.Prof.Id, AlunoId = c.Aluno.Id, LocalAulaId = c.Local.Id,
+            DataHora = quando, DuracaoMinutos = 60, Preco = 100m, Status = PoliticaAula.Realizada,
+        };
+        c.Ctx.Aulas.AddRange(caida, refeita);
+        await c.Ctx.SaveChangesAsync();
+
+        var r = await Restaurar(c);
+
         Assert.Equal(0, r.Restauradas);
-        Assert.Equal(PoliticaAula.Cancelada, (await Recarregar(c, passada.Id)).Status);
+        Assert.Equal(1, r.PuladasPorConflito);
     }
 
     [Fact]

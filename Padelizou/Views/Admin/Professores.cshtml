@@ -90,8 +90,9 @@
                 <div>
                     <div class="fw-bold text-danger"><i class="bi bi-arrow-counterclockwise"></i> Aulas canceladas por engano</div>
                     <div class="small text-muted">
-                        @paraRestaurar aula(s) futura(s) de @ViewBag.ProfessoresParaRestaurar professor(es) foram canceladas
-                        pelo bloqueio antes do prazo. Restaurar põe todas de volta como confirmadas e avisa alunos e professores.
+                        @paraRestaurar aula(s) de @ViewBag.ProfessoresParaRestaurar professor(es) foram canceladas
+                        pelo bloqueio antes do prazo. Restaurar põe todas de volta como confirmadas — as que já passaram,
+                        pro professor marcar a presença — e avisa os professores e os alunos das próximas aulas.
                     </div>
                 </div>
                 <form asp-action="RestaurarAulasCanceladasPeloBloqueio" method="post"

@@ -19,7 +19,7 @@ public class TraducaoDaRestauracaoDoBloqueioTests
         var agora = new DateTime(2026, 10, 28);
 
         var sql = RestauracaoDoCancelamentoPorBloqueio
-            .ConsultaDasCandidatas(ctx, agora, agora.AddDays(-7), agora.AddDays(17))
+            .ConsultaDasCandidatas(ctx, agora.AddDays(-7), agora.AddDays(17))
             .ToQueryString();
 
         Assert.Contains("SELECT", sql);
