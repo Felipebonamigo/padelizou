@@ -120,7 +120,8 @@ namespace padelizou.Controllers
                 TempData["Sucesso"] = "Não havia aula cancelada pelo bloqueio pra restaurar.";
             else
                 TempData["Sucesso"] = $"{r.Restauradas} aula(s) de {r.Professores} professor(es) voltaram pra agenda. "
-                    + "Alunos e professores foram avisados."
+                    + "As que já passaram voltaram confirmadas, pro professor marcar a presença. "
+                    + "Professores e alunos das próximas aulas foram avisados."
                     + (r.PuladasPorConflito > 0
                         ? $" {r.PuladasPorConflito} ficaram canceladas porque o professor já marcou outra aula no mesmo horário."
                         : "");

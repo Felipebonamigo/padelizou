@@ -28,26 +28,29 @@ public static class RestauracaoDoCancelamentoPorBloqueio
                 .AddHours(BloqueioDoProfessor.HoraDoBloqueio))
             : null;
 
-    // As aulas que o botão traz de volta: cancelamento do SISTEMA, dentro da janela, e que
-    // ainda vão acontecer. Aula que já passou não volta — ficaria esperando presença de um dia
-    // em que ninguém foi à quadra.
+    // As aulas que o botão traz de volta: cancelamento do SISTEMA, dentro da janela —
+    // INCLUSIVE as que já passaram. 🗣️ Depois da primeira restauração, o Jônatas ainda via a
+    // semana passada inteira vermelha: aquelas aulas ACONTECERAM, com a agenda dizendo
+    // "cancelada", e cancelada fica fora do financeiro e da ficha do aluno. Voltam Confirmada,
+    // pra ele fechar a presença como em qualquer aula dada.
+    //
+    // `agora` fica na assinatura: é ele que separa a aula futura (avisa o aluno) da passada.
     public static async Task<List<Aula>> CandidatasAsync(DbPadelContext context, DateTime agora,
         PlanoProfessorSettings cfg, CancellationToken ct = default)
     {
         if (Janela(cfg) is not { } janela) return new List<Aula>();
         var (de, ate) = janela;
 
-        return await ConsultaDasCandidatas(context, agora, de, ate).ToListAsync(ct);
+        return await ConsultaDasCandidatas(context, de, ate).ToListAsync(ct);
     }
 
     // As duas consultas ficam expostas pra TraducaoDaRestauracaoDoBloqueioTests compilá-las
     // contra o Npgsql — o InMemory da suíte não valida SQL.
-    public static IQueryable<Aula> ConsultaDasCandidatas(DbPadelContext context, DateTime agora, DateTime de, DateTime ate) =>
+    public static IQueryable<Aula> ConsultaDasCandidatas(DbPadelContext context, DateTime de, DateTime ate) =>
         context.Aulas
             .Where(a => a.Status == PoliticaAula.Cancelada
                      && a.CanceladaPor == PoliticaAula.CanceladaPeloSistema
-                     && a.CanceladaEm >= de && a.CanceladaEm < ate
-                     && a.DataHora >= agora);
+                     && a.CanceladaEm >= de && a.CanceladaEm < ate);
 
     public static IQueryable<Guid> ConsultaDasSeriesSemFim(DbPadelContext context, List<Guid> series, List<int> idsCandidatas) =>
         context.Aulas
@@ -64,12 +67,15 @@ public static class RestauracaoDoCancelamentoPorBloqueio
 
         var idsProfessores = candidatas.Select(a => a.ProfessorId).Distinct().ToList();
 
-        // O que está de pé HOJE na agenda desses professores: o que ele encaixou depois de ver
-        // a agenda vazia não pode ganhar uma aula restaurada por cima.
+        // O que ocupa o horário na agenda desses professores: o que ele encaixou depois de ver a
+        // agenda vazia não pode ganhar uma aula restaurada por cima. No passado, a aula que ele
+        // recriou na mão e já fechou (Realizada, Faltou, A recuperar) também ocupa — restaurar
+        // por cima duplicaria a aula no financeiro. Só cancelada e recusada liberam o horário.
+        var inicio = candidatas.Min(a => a.DataHora).AddDays(-1);
         var ativas = await context.Aulas
             .Where(a => idsProfessores.Contains(a.ProfessorId)
-                     && a.DataHora >= agora.AddDays(-1)
-                     && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada))
+                     && a.DataHora >= inicio
+                     && a.Status != PoliticaAula.Cancelada && a.Status != PoliticaAula.Recusada)
             .Select(a => new { a.ProfessorId, a.DataHora, a.DuracaoMinutos, a.TurmaId })
             .ToListAsync(ct);
 
@@ -116,7 +122,7 @@ public static class RestauracaoDoCancelamentoPorBloqueio
         foreach (var doProfessor in restauradas.GroupBy(a => a.ProfessorId))
         {
             var nome = professores.TryGetValue(doProfessor.Key, out var n) ? n : "seu professor";
-            await AvisarAsync(push, doProfessor.Key, nome, doProfessor.ToList(), logger);
+            await AvisarAsync(push, doProfessor.Key, nome, doProfessor.ToList(), agora, logger);
         }
 
         return new Resultado(restauradas.Count, puladas, restauradas.Select(a => a.ProfessorId).Distinct().Count());
@@ -126,9 +132,11 @@ public static class RestauracaoDoCancelamentoPorBloqueio
     // como no cancelamento — quem recebeu "suas aulas foram canceladas" precisa saber que
     // voltaram, senão a aula restaurada vira falta.
     private static async Task AvisarAsync(IPushNotificationService push, int professorId, string professor,
-        List<Aula> aulas, ILogger? logger)
+        List<Aula> aulas, DateTime agora, ILogger? logger)
     {
-        foreach (var grupo in aulas.Where(a => a.AlunoId != null).GroupBy(a => a.AlunoId!.Value))
+        // Só a aula que AINDA VAI ACONTECER avisa o aluno: "sua aula voltou" sobre a semana
+        // passada é ruído, e assusta.
+        foreach (var grupo in aulas.Where(a => a.AlunoId != null && a.DataHora >= agora).GroupBy(a => a.AlunoId!.Value))
         {
             var quantas = grupo.Count();
             var quais = quantas == 1 ? "Sua aula" : $"Suas {quantas} aulas";
@@ -141,8 +149,9 @@ public static class RestauracaoDoCancelamentoPorBloqueio
 
         await Tentar(logger, () => push.EnviarParaJogadorAsync(professorId,
             "Suas aulas voltaram",
-            $"{aulas.Count} aula(s) futuras que o Padelizou cancelou por engano voltaram pra sua agenda, "
-            + "e seus alunos foram avisados. Desculpe o transtorno.",
+            $"{aulas.Count} aula(s) que o Padelizou cancelou por engano voltaram pra sua agenda. "
+            + "As que já passaram estão confirmadas: marque a presença como em qualquer aula dada. "
+            + "Os alunos das próximas foram avisados. Desculpe o transtorno.",
             "/Aulas/MinhaAgenda"));
     }
 
