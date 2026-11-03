@@ -447,6 +447,22 @@
                                                         <button type="submit" class="btn btn-sm btn-padel w-100">Salvar</button>
                                                     </div>
 
+                                                    @* O padrão de quem paga a quadra (CadastroDoAluno.PagaQuadraPorFora).
+                                                       Mudar leva junto as aulas futuras dele; as passadas
+                                                       ficam. Hidden "false" DEPOIS do checkbox: o binder
+                                                       pega o primeiro valor. *@
+                                                    <div class="col-12">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" id="quadra-@idCadastro"
+                                                                   name="pagaQuadra" value="true" @(aluno.PagaQuadraPorFora ? "checked" : "") />
+                                                            <input type="hidden" name="pagaQuadra" value="false" />
+                                                            <label class="form-check-label small" for="quadra-@idCadastro">
+                                                                Paga a quadra direto pro clube
+                                                            </label>
+                                                            <div class="form-text">Vira o padrão das aulas novas e muda as futuras dele. Dá pra trocar uma aula só no Editar.</div>
+                                                        </div>
+                                                    </div>
+
                                                     <div class="col-12">
                                                         <label class="form-label small text-muted mb-0">Anotações (opcional)</label>
                                                         <input type="text" name="observacao" maxlength="500" value="@aluno.Observacao"

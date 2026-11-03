@@ -42,6 +42,15 @@ public class CadastroDoAluno
     // ALUNO o sistema nunca pede CPF — é justamente o dado que o professor não tem.
     public string? ResponsavelCpf { get; set; }
 
+    // ---- Quem paga a QUADRA ----
+    // 🗣️ Jônatas (Portal Padel), 31/10/2026: "se ele paga quadra para mim sempre ou pro clube".
+    // O PADRÃO deste aluno: ligado, toda aula nova dele nasce com `Aula.AlunoPagaQuadra`
+    // marcado (o aluno acerta o aluguel direto com o clube, e o custo do local não entra
+    // como despesa do professor). A verdade continua sendo a da AULA — dá pra trocar uma só
+    // no Editar. Mudar o padrão leva junto as aulas futuras ainda não dadas (Felipe, 02/11:
+    // "futuras mudam junto"); as passadas ficam, já entraram no financeiro.
+    public bool PagaQuadraPorFora { get; set; }
+
     // Alergia, horário que não pode, o que combinaram. Texto livre porque é caderno.
     public string? Observacao { get; set; }
 

@@ -33,6 +33,15 @@ namespace padelizou.Controllers
             // cada letra do nome seria pior em toda quadra com sinal ruim.
             ViewBag.PrecosCombinados = await PrecosCombinadosDoProfessorAsync(professorId.Value);
 
+            // Os alunos que pagam a quadra direto pro clube (ficha), pela mesma chave dos
+            // acordos: a tela pré-marca "O aluno paga a quadra por fora" ao escolher um deles,
+            // e o professor ainda pode desmarcar naquela aula.
+            ViewBag.QuadraPorFora = (await _context.CadastrosDeAlunos
+                    .Where(f => f.ProfessorId == professorId && f.PagaQuadraPorFora)
+                    .ToListAsync())
+                .Select(f => PrecoDaAula.Chave(f.AlunoId, f.NomeAvulso))
+                .ToList();
+
             // Os alunos que já fizeram aula com ele, pré-carregados pelo mesmo motivo do
             // parágrafo acima: a lista inteira de um professor cabe folgada numa página, e
             // filtrar no navegador funciona com o sinal que a quadra tiver.
@@ -814,7 +823,7 @@ namespace padelizou.Controllers
 
         [HttpPost]
         public async Task<IActionResult> Editar(int aulaId, int localId, string? data, string? hora, decimal preco,
-            int? duracaoMinutos = null, string? esporte = null)
+            int? duracaoMinutos = null, string? esporte = null, bool? alunoPagaQuadra = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -909,7 +918,12 @@ namespace padelizou.Controllers
             var esporteValido = EsporteDaAula.Todos.Contains(esporte) ? esporte! : aula.Esporte;
             var esporteMudou = esporteValido != aula.Esporte;
 
-            if (!mudanca.MudouAlgo && !esporteMudou)
+            // Quem paga a quadra é desta AULA só (Models/Aula.AlunoPagaQuadra) — nem a série
+            // nem a turma vão junto; o padrão do aluno mora na ficha. Nulo = campo ausente.
+            var quadraMudou = alunoPagaQuadra is bool pagaQuadraNova && pagaQuadraNova != aula.AlunoPagaQuadra;
+            if (quadraMudou) aula.AlunoPagaQuadra = alunoPagaQuadra!.Value;
+
+            if (!mudanca.MudouAlgo && !esporteMudou && !quadraMudou)
             {
                 TempData["Sucesso"] = "Nada mudou nessa aula.";
                 return RedirectToAction("MinhaAgenda", new { data = aula.DataHora.ToString("yyyy-MM-dd") });
@@ -1017,7 +1031,9 @@ namespace padelizou.Controllers
                 }
             }
 
-            TempData["Sucesso"] = EdicaoDeAula.ResumoParaOProfessor(mudanca);
+            TempData["Sucesso"] = !mudanca.MudouAlgo && !esporteMudou && quadraMudou
+                ? (aula.AlunoPagaQuadra ? "Pronto: nesta aula o aluno paga a quadra por fora." : "Pronto: nesta aula a quadra é por sua conta.")
+                : EdicaoDeAula.ResumoParaOProfessor(mudanca);
 
             // Aluno sem conta não recebe aviso nenhum — não há pra onde mandar. O professor
             // combina por fora, e a tela já entrega a mensagem pronta pra ele mandar.

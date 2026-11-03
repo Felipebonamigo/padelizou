@@ -497,7 +497,7 @@ namespace padelizou.Controllers
         [HttpPost]
         public async Task<IActionResult> SalvarCadastroDoAluno(int? alunoId, string? nomeAvulso,
             string? celular, string? responsavelNome, string? responsavelCelular, string? responsavelCpf,
-            string? observacao)
+            string? observacao, bool? pagaQuadra = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -550,11 +550,39 @@ namespace padelizou.Controllers
             ficha.ResponsavelCpf = Documentos.SomenteDigitosOuNulo(responsavelCpf);
             ficha.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
 
+            // Quem paga a QUADRA (ver Models/CadastroDoAluno.PagaQuadraPorFora). Nulo = o
+            // formulário não mandou o campo, e nada muda. Só leva as aulas junto quando o
+            // PADRÃO mudou: salvar a ficha pra corrigir o celular não pode desfazer a aula que
+            // o professor trocou à mão no Editar.
+            var aulasDaQuadraMudadas = 0;
+            if (pagaQuadra is bool novoPadrao && novoPadrao != ficha.PagaQuadraPorFora)
+            {
+                ficha.PagaQuadraPorFora = novoPadrao;
+
+                // Só as FUTURAS ainda por dar: as que passaram já entraram no financeiro
+                // (Felipe, 02/11: "futuras mudam junto"). Cancelada/recusada não tem custo.
+                var agora = DateTime.Now;
+                var futuras = await _context.Aulas
+                    .Where(a => a.ProfessorId == professorId && a.DataHora >= agora
+                        && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada)
+                        && (alunoId != null ? a.AlunoId == alunoId : a.AlunoId == null))
+                    .ToListAsync();
+
+                // A chave do nome ignora maiúscula/espaço — mesma régua do resto da ficha.
+                var chave = PrecoDaAula.Chave(alunoId, nome);
+                foreach (var aula in futuras.Where(a => PrecoDaAula.Chave(a) == chave && a.AlunoPagaQuadra != novoPadrao))
+                {
+                    aula.AlunoPagaQuadra = novoPadrao;
+                    aulasDaQuadraMudadas++;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            TempData["SucessoPrecoAluno"] = CadastrosDeAlunos.TemResponsavel(ficha)
+            TempData["SucessoPrecoAluno"] = (CadastrosDeAlunos.TemResponsavel(ficha)
                 ? $"Ficha salva. A cobrança deste aluno sai no nome de {ficha.ResponsavelNome}."
-                : "Ficha salva.";
+                : "Ficha salva.")
+                + (aulasDaQuadraMudadas > 0 ? $" {aulasDaQuadraMudadas} aula(s) futura(s) acompanharam quem paga a quadra." : "");
             return RedirectToAction("Dashboard");
         }
 
