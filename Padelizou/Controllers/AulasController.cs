@@ -151,6 +151,7 @@ namespace padelizou.Controllers
                         ResponsavelCelular = cadastro?.ResponsavelCelular,
                         ResponsavelCpf = cadastro?.ResponsavelCpf,
                         Observacao = cadastro?.Observacao,
+                        PagaQuadraPorFora = cadastro?.PagaQuadraPorFora ?? false,
                         ContaSugeridaId = sugestao?.Id,
                         ContaSugeridaNome = sugestao?.Nome,
                     };

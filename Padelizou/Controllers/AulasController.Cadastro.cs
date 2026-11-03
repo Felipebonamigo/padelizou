@@ -403,13 +403,101 @@ namespace padelizou.Controllers
             return RedirectToAction("Dashboard");
         }
 
+        // Troca o nome de um aluno SEM CONTA — e só dele: aluno com conta tem o nome do
+        // próprio perfil, que não é do professor (decisão do Felipe, 02/11/2026).
+        //
+        // 🗣️ Jônatas (Portal Padel): "queria conseguir alterar as informações dos alunos
+        // cadastrados — tipo o nome do aluno". O aluno sem conta É o nome: a mesma string liga
+        // aulas, ficha, preço combinado e faturas (PrecoDaAula.Chave). Por isso troca nas
+        // quatro de uma vez — trocar só nas aulas partiria o aluno em dois e o desconto e o
+        // responsável sumiriam calados.
+        //
+        // Nome já usado por OUTRO aluno é recusado: renomear não junta dois alunos (mesma
+        // escolha do RenomearClube). Trocar só maiúscula/espaço do mesmo nome é permitido.
+        [HttpPost]
+        public async Task<IActionResult> RenomearAluno(string? nomeAvulso, string? novoNome)
+        {
+            var professorId = await ObterProfessorLogadoAsync();
+            if (professorId == null) return RedirectToAction("Perfil", "Auth");
+
+            var antigo = (nomeAvulso ?? "").Trim();
+            var novo = (novoNome ?? "").Trim();
+
+            if (novo.Length == 0)
+            {
+                TempData["ErroPrecoAluno"] = "Escreva o novo nome do aluno.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // 100 é o tamanho das colunas de nome avulso (DbPadelContext).
+            if (novo.Length > 100)
+            {
+                TempData["ErroPrecoAluno"] = "O nome pode ter no máximo 100 letras.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var chaveAntiga = PrecoDaAula.Chave(null, antigo);
+            var chaveNova = PrecoDaAula.Chave(null, novo);
+
+            // atalho: carrega as aulas sem conta do professor e casa pela chave em memória
+            // (a chave ignora maiúscula e espaço, e é a régua de todo o resto da tela). Filtrar
+            // no banco com lower()/btrim() se um professor passar de alguns milhares de aulas.
+            var aulasSemConta = await _context.Aulas
+                .Where(a => a.ProfessorId == professorId && a.AlunoId == null && a.NomeAlunoAvulso != null)
+                .ToListAsync();
+            var fichas = await _context.CadastrosDeAlunos
+                .Where(f => f.ProfessorId == professorId && f.AlunoId == null)
+                .ToListAsync();
+            var precos = await _context.PrecosDeAluno
+                .Where(p => p.ProfessorId == professorId && p.AlunoId == null)
+                .ToListAsync();
+            var faturas = await _context.FaturasDeAlunos
+                .Where(f => f.ProfessorId == professorId && f.AlunoId == null)
+                .ToListAsync();
+
+            var aulas = aulasSemConta.Where(a => PrecoDaAula.Chave(null, a.NomeAlunoAvulso) == chaveAntiga).ToList();
+
+            // Tem que ser aluno da agenda DESTE professor — o nome vem do formulário.
+            if (antigo.Length == 0 || aulas.Count == 0)
+            {
+                TempData["ErroPrecoAluno"] = "Não achei esse aluno na sua agenda.";
+                return RedirectToAction("Dashboard");
+            }
+
+            if (chaveNova != chaveAntiga)
+            {
+                var ocupado = aulasSemConta.Any(a => PrecoDaAula.Chave(null, a.NomeAlunoAvulso) == chaveNova)
+                    || fichas.Any(f => PrecoDaAula.Chave(null, f.NomeAvulso) == chaveNova)
+                    || precos.Any(p => PrecoDaAula.Chave(null, p.NomeAvulso) == chaveNova)
+                    || faturas.Any(f => PrecoDaAula.Chave(null, f.NomeAvulso) == chaveNova);
+                if (ocupado)
+                {
+                    TempData["ErroPrecoAluno"] =
+                        $"Já existe um aluno chamado \"{novo}\". Renomear não junta os dois — escolha outro nome.";
+                    return RedirectToAction("Dashboard");
+                }
+            }
+
+            foreach (var aula in aulas) aula.NomeAlunoAvulso = novo;
+            foreach (var f in fichas.Where(f => PrecoDaAula.Chave(null, f.NomeAvulso) == chaveAntiga)) f.NomeAvulso = novo;
+            foreach (var p in precos.Where(p => PrecoDaAula.Chave(null, p.NomeAvulso) == chaveAntiga)) p.NomeAvulso = novo;
+            // Só a CHAVE da fatura muda (pra ela seguir no histórico do aluno). O PagadorNome é
+            // documento congelado no fechamento e fica como foi cobrado.
+            foreach (var f in faturas.Where(f => PrecoDaAula.Chave(null, f.NomeAvulso) == chaveAntiga)) f.NomeAvulso = novo;
+
+            await _context.SaveChangesAsync();
+
+            TempData["SucessoPrecoAluno"] = $"Pronto: \"{antigo}\" agora se chama \"{novo}\".";
+            return RedirectToAction("Dashboard");
+        }
+
         // ---- A ficha do aluno: celular e QUEM PAGA ----
         // O responsável existe porque nem sempre o aluno é quem paga (criança, principalmente),
         // e a cobrança do mês precisa sair no nome de quem paga. Ver Models/CadastroDoAluno.
         [HttpPost]
         public async Task<IActionResult> SalvarCadastroDoAluno(int? alunoId, string? nomeAvulso,
             string? celular, string? responsavelNome, string? responsavelCelular, string? responsavelCpf,
-            string? observacao)
+            string? observacao, bool? pagaQuadra = null)
         {
             var professorId = await ObterProfessorLogadoAsync();
             if (professorId == null) return RedirectToAction("Perfil", "Auth");
@@ -462,11 +550,39 @@ namespace padelizou.Controllers
             ficha.ResponsavelCpf = Documentos.SomenteDigitosOuNulo(responsavelCpf);
             ficha.Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim();
 
+            // Quem paga a QUADRA (ver Models/CadastroDoAluno.PagaQuadraPorFora). Nulo = o
+            // formulário não mandou o campo, e nada muda. Só leva as aulas junto quando o
+            // PADRÃO mudou: salvar a ficha pra corrigir o celular não pode desfazer a aula que
+            // o professor trocou à mão no Editar.
+            var aulasDaQuadraMudadas = 0;
+            if (pagaQuadra is bool novoPadrao && novoPadrao != ficha.PagaQuadraPorFora)
+            {
+                ficha.PagaQuadraPorFora = novoPadrao;
+
+                // Só as FUTURAS ainda por dar: as que passaram já entraram no financeiro
+                // (Felipe, 02/11: "futuras mudam junto"). Cancelada/recusada não tem custo.
+                var agora = DateTime.Now;
+                var futuras = await _context.Aulas
+                    .Where(a => a.ProfessorId == professorId && a.DataHora >= agora
+                        && (a.Status == PoliticaAula.Pendente || a.Status == PoliticaAula.Confirmada)
+                        && (alunoId != null ? a.AlunoId == alunoId : a.AlunoId == null))
+                    .ToListAsync();
+
+                // A chave do nome ignora maiúscula/espaço — mesma régua do resto da ficha.
+                var chave = PrecoDaAula.Chave(alunoId, nome);
+                foreach (var aula in futuras.Where(a => PrecoDaAula.Chave(a) == chave && a.AlunoPagaQuadra != novoPadrao))
+                {
+                    aula.AlunoPagaQuadra = novoPadrao;
+                    aulasDaQuadraMudadas++;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
-            TempData["SucessoPrecoAluno"] = CadastrosDeAlunos.TemResponsavel(ficha)
+            TempData["SucessoPrecoAluno"] = (CadastrosDeAlunos.TemResponsavel(ficha)
                 ? $"Ficha salva. A cobrança deste aluno sai no nome de {ficha.ResponsavelNome}."
-                : "Ficha salva.";
+                : "Ficha salva.")
+                + (aulasDaQuadraMudadas > 0 ? $" {aulasDaQuadraMudadas} aula(s) futura(s) acompanharam quem paga a quadra." : "");
             return RedirectToAction("Dashboard");
         }
 

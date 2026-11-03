@@ -165,6 +165,18 @@
                             <div class="form-text" id="aviso-preco"></div>
                         </div>
 
+                        @* Quem paga a quadra NESTA aula — só ela; o padrão do aluno mora na
+                           ficha (painel → editar). O hidden "false" vem DEPOIS do checkbox: o
+                           binder pega o primeiro valor, então marcado = true, desmarcado = false.
+                           Sem o hidden, desmarcar não mandaria nada e o servidor manteria. *@
+                        <div class="form-check mb-3">
+                            <input type="checkbox" class="form-check-input" id="check-aluno-paga-quadra"
+                                   name="alunoPagaQuadra" value="true" @(Model.AlunoPagaQuadra ? "checked" : "") />
+                            <input type="hidden" name="alunoPagaQuadra" value="false" />
+                            <label class="form-check-label" for="check-aluno-paga-quadra">O aluno paga a quadra por fora</label>
+                            <div class="form-text">Vale só para esta aula. O aluguel não entra como custo seu no financeiro.</div>
+                        </div>
+
                         <button type="submit" class="btn btn-padel w-100 rounded-pill fw-bold py-2">
                             <i class="bi bi-check-circle"></i> Salvar mudanças
                         </button>

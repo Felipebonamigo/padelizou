@@ -596,6 +596,9 @@ namespace Padelizou.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<bool>("PagaQuadraPorFora")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("ProfessorId")
                         .HasColumnType("integer");
 

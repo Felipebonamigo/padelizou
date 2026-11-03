@@ -6,6 +6,10 @@
     // certo quando ele digita o nome de um aluno que tem preço combinado.
     var precosCombinados = ViewBag.PrecosCombinados as Dictionary<string, decimal> ?? new Dictionary<string, decimal>();
 
+    // Quem paga a quadra direto pro clube, pela ficha (CadastroDoAluno.PagaQuadraPorFora) —
+    // chaves no formato de PrecoDaAula.Chave, iguais às dos acordos acima.
+    var quadraPorFora = ViewBag.QuadraPorFora as List<string> ?? new List<string>();
+
     // A tabela de preços de cada local vai inteira pro JS: trocar o tamanho da aula não pode
     // depender de rede, senão na quadra com sinal ruim o campo fica vazio.
     var tabelaDeLocais = Model.ToDictionary(
@@ -313,6 +317,7 @@
             // tamanho da aula, e uma ida ao servidor por clique falharia na quadra sem sinal.
             var LOCAIS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(tabelaDeLocais));
             var COMBINADOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(precosCombinados));
+            var QUADRA_POR_FORA = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(quadraPorFora));
             var MEUS_ALUNOS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(alunosParaJs));
 
             // ── As datas da aula fixa ────────────────────────────────────────────────────
@@ -484,7 +489,20 @@
                 return Object.prototype.hasOwnProperty.call(COMBINADOS, chave) ? COMBINADOS[chave] : null;
             }
 
+            // O padrão da ficha pré-marca "O aluno paga a quadra por fora" — só quando a
+            // PESSOA muda: trocar o tamanho ou o local não pode desfazer o que o professor
+            // marcou ou desmarcou à mão pra esta aula.
+            var ultimaChaveDaQuadra = null;
+            function marcarQuadraDoAluno() {
+                var id = $inputAlunoId.val();
+                var chave = id ? ('aluno-' + id) : ('avulso-' + ($inputNome.val() || '').trim().toLowerCase());
+                if (chave === ultimaChaveDaQuadra) return;
+                ultimaChaveDaQuadra = chave;
+                $('#check-aluno-paga-quadra').prop('checked', QUADRA_POR_FORA.indexOf(chave) !== -1);
+            }
+
             function atualizarSugestao() {
+                marcarQuadraDoAluno();
                 var local = LOCAIS[$selectLocal.val()];
 
                 // Fora do `if` de propósito: o nome do tamanho é do tamanho, não do local —

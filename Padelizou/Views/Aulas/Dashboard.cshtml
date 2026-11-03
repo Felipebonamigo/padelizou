@@ -278,6 +278,15 @@
                                         <tr>
                                             <td>
                                                 @aluno.Nome
+                                                @* A porta da ficha que aparece no CELULAR: a coluna
+                                                   "quem paga" some abaixo de md, e era o único
+                                                   jeito de abrir a ficha (nome, celular, quadra). *@
+                                                <button type="button"
+                                                        class="btn btn-sm btn-link p-0 ms-1 text-decoration-none small"
+                                                        data-bs-toggle="collapse" data-bs-target="#@idCadastro"
+                                                        title="Editar o cadastro deste aluno">
+                                                    <i class="bi bi-pencil"></i> editar
+                                                </button>
                                                 @* Quem foi marcado só pelo nome não vê nada no
                                                    próprio app. Quando cria conta, é aqui que o
                                                    professor junta o histórico à conta dela. *@
@@ -385,6 +394,24 @@
                                            continua sendo o aluno na agenda. *@
                                         <tr class="collapse" id="@idCadastro">
                                             <td colspan="6" class="bg-light">
+                                                @* Renomear só existe pro aluno SEM conta: o de conta tem
+                                                   o nome do próprio perfil. Troca nas aulas, na ficha,
+                                                   no preço e nas faturas (AulasController.RenomearAluno). *@
+                                                @if (aluno.AlunoId == null && !string.IsNullOrWhiteSpace(aluno.NomeAvulso))
+                                                {
+                                                    <form asp-controller="Aulas" asp-action="RenomearAluno" method="post"
+                                                          class="row g-2 align-items-end pt-2">
+                                                        <input type="hidden" name="nomeAvulso" value="@aluno.NomeAvulso" />
+                                                        <div class="col-8 col-md-5">
+                                                            <label class="form-label small text-muted mb-0">Nome do aluno</label>
+                                                            <input type="text" name="novoNome" maxlength="100" required value="@aluno.NomeAvulso"
+                                                                   class="form-control form-control-sm" />
+                                                        </div>
+                                                        <div class="col-4 col-md-2">
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Renomear</button>
+                                                        </div>
+                                                    </form>
+                                                }
                                                 <form asp-controller="Aulas" asp-action="SalvarCadastroDoAluno" method="post"
                                                       class="row g-2 align-items-end py-2">
                                                     <input type="hidden" name="alunoId" value="@aluno.AlunoId" />
@@ -418,6 +445,22 @@
                                                     </div>
                                                     <div class="col-12 col-md-2">
                                                         <button type="submit" class="btn btn-sm btn-padel w-100">Salvar</button>
+                                                    </div>
+
+                                                    @* O padrão de quem paga a quadra (CadastroDoAluno.PagaQuadraPorFora).
+                                                       Mudar leva junto as aulas futuras dele; as passadas
+                                                       ficam. Hidden "false" DEPOIS do checkbox: o binder
+                                                       pega o primeiro valor. *@
+                                                    <div class="col-12">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input" id="quadra-@idCadastro"
+                                                                   name="pagaQuadra" value="true" @(aluno.PagaQuadraPorFora ? "checked" : "") />
+                                                            <input type="hidden" name="pagaQuadra" value="false" />
+                                                            <label class="form-check-label small" for="quadra-@idCadastro">
+                                                                Paga a quadra direto pro clube
+                                                            </label>
+                                                            <div class="form-text">Vira o padrão das aulas novas e muda as futuras dele. Dá pra trocar uma aula só no Editar.</div>
+                                                        </div>
                                                     </div>
 
                                                     <div class="col-12">

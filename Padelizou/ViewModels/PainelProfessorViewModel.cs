@@ -44,6 +44,9 @@ public class AlunoResumo
     public string? ResponsavelCpf { get; set; }
     public string? Observacao { get; set; }
 
+    // O padrão de quem paga a quadra (CadastroDoAluno.PagaQuadraPorFora).
+    public bool PagaQuadraPorFora { get; set; }
+
     // Uma conta do Padelizou com ESTE celular, pra quem ainda está como nome solto na agenda.
     // É o encontro entre o cadastro rápido do professor e a campanha de "se cadastrem
     // certinho": quando a pessoa finalmente cria conta, o professor vê o convite pra juntar
