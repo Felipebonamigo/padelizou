@@ -1375,12 +1375,16 @@ namespace padelizou.Controllers
             // nasce LIGADA, caixa desmarcada não vai no POST, e uma aba aberta antes do deploy
             // não manda o campo. Sem o nulo, ela RELIGARIA a véspera de quem desligou a cada
             // salvamento de qualquer outra preferência.
-            bool? notificarVesperaDaAula = null)
+            bool? notificarVesperaDaAula = null,
+            // O tamanho de camiseta do perfil (04/11/2026 — Services/CamisetaDeBrinde). Nulo = aba
+            // anterior ao deploy, sem o campo: mantém; "nenhum" limpa.
+            string? tamanhoCamiseta = null)
         {
             var jogadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
             var jogador = await _context.Jogadores.FindAsync(jogadorId);
             if (jogador == null) return NotFound();
 
+            jogador.TamanhoCamiseta = CamisetaDeBrinde.TamanhoDoPerfil(tamanhoCamiseta, jogador.TamanhoCamiseta);
             jogador.LadoQuadra = ladoQuadra;
             jogador.Lateralidade = lateralidade;
             jogador.Instagram = string.IsNullOrWhiteSpace(instagram) ? null : instagram.Trim().TrimStart('@');

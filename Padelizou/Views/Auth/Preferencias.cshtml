@@ -46,6 +46,23 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <form asp-controller="Auth" asp-action="Preferencias" method="post">
+                        @* O TAMANHO DE CAMISETA (04/11/2026). 🗣️ Felipe: "deixe salvo no perfil, para uso
+                           futuro em outros torneios". Fica AQUI e não no _PreferenciasFields porque
+                           aquele também desenha o Cadastro, que não grava este campo. "nenhum" é o
+                           limpar — o vazio o binder transforma em nulo, e nulo é "não mexa". *@
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small d-block" for="tamanhoCamiseta">
+                                Tamanho de camiseta
+                            </label>
+                            <select class="form-select" name="tamanhoCamiseta" id="tamanhoCamiseta">
+                                <option value="@Padelizou.Services.CamisetaDeBrinde.SemTamanho">Não informar</option>
+                                @foreach (var t in Padelizou.Services.CamisetaDeBrinde.Tamanhos)
+                                {
+                                    <option value="@t.Codigo" selected="@(t.Codigo == Model.TamanhoCamiseta)">@t.Nome</option>
+                                }
+                            </select>
+                            <div class="form-text">Usado quando um torneio dá camiseta de brinde — dá pra trocar em cada torneio.</div>
+                        </div>
                         <partial name="_PreferenciasFields" model="preferencias" />
                         <button type="submit" class="btn btn-padel btn-lg w-100 rounded-pill mt-3">Salvar Preferências</button>
                     </form>

@@ -2148,6 +2148,10 @@ namespace Padelizou.Migrations
                     b.Property<DateTime?>("SolicitouOrganizadorEm")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("TamanhoCamiseta")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<DateTime?>("TermosAceitosEm")
                         .HasColumnType("timestamp without time zone");
 

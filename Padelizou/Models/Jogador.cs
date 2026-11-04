@@ -192,6 +192,12 @@ public partial class Jogador
     // "Esquerda" / "Direita" / "Ambos"
     public string? LadoQuadra { get; set; }
 
+    // O TAMANHO DE CAMISETA DA PESSOA (04/11/2026) — código de Services/CamisetaDeBrinde.Tamanhos
+    // ("M", "BLP"...). 🗣️ Felipe: *"deixe salvo no perfil, para uso futuro em outros torneios"*.
+    // É o PADRÃO: a escolha de cada torneio mora em CamisetaDoAtleta. Nulo = não informou.
+    [StringLength(10)]
+    public string? TamanhoCamiseta { get; set; }
+
     // "Destro" / "Canhoto"
     public string? Lateralidade { get; set; }
 

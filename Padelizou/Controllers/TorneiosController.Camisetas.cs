@@ -55,13 +55,39 @@ namespace Padelizou.Controllers
                 // de massa, e um e-mail por inscrito estouraria a cota do Gmail (EMAIL.md).
                 var url = Url.Action("Details", "Torneios", new { id });
                 var prazo = torneio.CamisetaEscolhaAte is DateTime ate ? $" até {ate:dd/MM}" : "";
-                foreach (var jogadorId in await CamisetaDeBrinde.InscritosAsync(_context, id))
+                var inscritos = await CamisetaDeBrinde.InscritosAsync(_context, id);
+
+                // 🗣️ Felipe: *"salvo no perfil, para uso futuro em outros torneios"*. Quem já tem
+                // tamanho no perfil (e o torneio oferece) já sai anotado — o aviso diz qual, pra
+                // trocar se quiser. Nunca por cima de uma escolha que já existe (brinde religado).
+                var jaEscolheram = await _context.CamisetasDosAtletas
+                    .Where(c => c.TorneioId == id)
+                    .Select(c => c.JogadorId)
+                    .ToListAsync();
+                var perfis = await _context.Jogadores
+                    .Where(j => inscritos.Contains(j.Id) && j.TamanhoCamiseta != null)
+                    .Select(j => new { j.Id, j.TamanhoCamiseta })
+                    .ToListAsync();
+                var anotados = new Dictionary<int, string>();
+                foreach (var p in perfis)
+                {
+                    if (jaEscolheram.Contains(p.Id) || p.TamanhoCamiseta is not string t
+                        || !CamisetaDeBrinde.Oferecidos(torneio).Contains(t)) continue;
+                    _context.CamisetasDosAtletas.Add(new CamisetaDoAtleta { TorneioId = id, JogadorId = p.Id, Tamanho = t });
+                    anotados[p.Id] = t;
+                }
+                if (anotados.Count > 0) await _context.SaveChangesAsync();
+
+                foreach (var jogadorId in inscritos)
                 {
                     try
                     {
+                        var corpo = anotados.TryGetValue(jogadorId, out var doPerfil)
+                            ? $"\"{torneio.Nome}\" vai ter camiseta de brinde. Anotamos {CamisetaDeBrinde.NomeDo(doPerfil)}, do seu perfil — dá pra trocar{prazo} na página do torneio."
+                            : $"\"{torneio.Nome}\" vai ter camiseta de brinde. Escolha seu tamanho{prazo} na página do torneio.";
                         await _pushService.EnviarParaJogadorAsync(jogadorId,
-                            "Escolha o tamanho da sua camiseta",
-                            $"\"{torneio.Nome}\" vai ter camiseta de brinde. Escolha seu tamanho{prazo} na página do torneio.",
+                            "Camiseta de brinde",
+                            corpo,
                             url, AlcanceDoAviso.AppSemEmail);
                         avisados++;
                     }
@@ -125,6 +151,11 @@ namespace Padelizou.Controllers
                 atual.Tamanho = tamanho;
                 atual.EscolhidaEm = DateTime.Now;
             }
+
+            // A própria pessoa escolheu: vira o tamanho do perfil dela, pros próximos torneios.
+            if (await _context.Jogadores.FindAsync(jogadorId) is Jogador eu)
+                CamisetaDeBrinde.GuardarNoPerfil(eu, tamanho, eleMesmo: true);
+
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = $"Camiseta {CamisetaDeBrinde.NomeDo(tamanho)} anotada.";

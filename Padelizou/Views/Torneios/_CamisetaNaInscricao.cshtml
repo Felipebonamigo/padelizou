@@ -1,0 +1,29 @@
+@model Padelizou.Models.Torneio
+@* O TAMANHO DA CAMISETA DE BRINDE NO FORMULÁRIO DE INSCRIÇÃO (04/11/2026). 🗣️ Felipe, com o
+   print do formulário: "não achei aonde escolho minha camiseta". Um por jogador — o nome do
+   campo vem em ViewData["CampoCamiseta"] (camiseta1, camiseta2 ou camiseta). Opcional: a
+   inscrição entra igual sem ele. Regras em Services/CamisetaDeBrinde. *@
+@{
+    var campoCamiseta = ViewData["CampoCamiseta"] as string ?? "camiseta";
+}
+@if (Padelizou.Services.CamisetaDeBrinde.AceitaEscolha(Model, DateTime.Now))
+{
+    <div class="mt-2">
+        <label class="form-label small fw-bold mb-1" for="pdzCamiseta_@campoCamiseta">
+            <i class="bi bi-gift"></i> Tamanho da camiseta de brinde
+        </label>
+        <select class="form-select" name="@campoCamiseta" id="pdzCamiseta_@campoCamiseta">
+            @* Vazio = o tamanho do perfil de cada jogador, se o torneio oferece
+               (CamisetaDeBrinde.AnotarNaInscricaoAsync). *@
+            <option value="">Usar o do perfil / escolher depois</option>
+            @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
+            {
+                <option value="@codigo">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
+            }
+        </select>
+        @if (Model.CamisetaEscolhaAte is DateTime ateCamiseta)
+        {
+            <div class="form-text">Dá pra escolher ou trocar até @ateCamiseta.ToString("dd/MM"), na página do torneio.</div>
+        }
+    </div>
+}

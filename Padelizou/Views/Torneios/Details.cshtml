@@ -383,7 +383,7 @@
                         <option value="">@(minhaCamiseta == null ? "Escolha seu tamanho" : "Não quero camiseta")</option>
                         @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
                         {
-                            <option value="@codigo" selected="@(codigo == minhaCamiseta)">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
+                            <option value="@codigo" selected="@(codigo == (minhaCamiseta ?? ViewBag.MeuTamanhoDoPerfil as string))">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
                         }
                     </select>
                     <button type="submit" class="btn btn-success btn-sm fw-bold">Salvar</button>
@@ -1451,7 +1451,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <span class="badge bg-secondary mb-2 ms-1">@prazoAmericano</span>
                                             }
                                         }
-                                        <partial name="_JogadorChip" model="inscricao.Jogador" />
+                                        <div class="d-flex align-items-center gap-2">
+                                            <partial name="_JogadorChip" model="inscricao.Jogador" />
+                                            <partial name="_CamisetaAoLadoDoNome" model="inscricao.Jogador" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { inscricao.JogadorId }) })' />
+                                        </div>
 
                                         @* Sair do Americano. O botão da lista de duplas nunca
                                            chegou aqui: inscrição de Americano é individual e
@@ -1521,12 +1524,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <span class="badge bg-secondary mb-2 ms-1">@prazoDupla</span>
                                         }
                                     }
-                                    <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                    <div class="d-flex align-items-center gap-2">
+                                        <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                        <partial name="_CamisetaAoLadoDoNome" model="dupla.Jogador1" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { dupla.Jogador1Id, dupla.Jogador2Id }) })' />
+                                    </div>
                                     @* Inscrição sem parceiro tem Jogador2 nulo — o chip
                                        espera um jogador de verdade e explodia a tela toda. *@
                                     @if (dupla.Jogador2 != null)
                                     {
-                                        <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                        <div class="d-flex align-items-center gap-2">
+                                            <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                            <partial name="_CamisetaAoLadoDoNome" model="dupla.Jogador2" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { dupla.Jogador1Id, dupla.Jogador2Id }) })' />
+                                        </div>
                                     }
                                     else
                                     {
@@ -2058,6 +2067,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     <small class="text-muted d-block mt-1">Comece pelo CPF: se já houver cadastro, o nome vem sozinho.</small>
                 </div>
 
+                <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta" })' />
                 <partial name="_SoQuemEDoTime" model="Model" />
 
                 @* O escape do organizador, também aqui. Este formulário NUNCA teve a caixa —
@@ -2191,6 +2201,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <div class="col-4"><input type="text" name="estado1" class="form-control" placeholder="UF" required /></div>
                             </div>
                             </div> @* fim do pdzCamposPorCpf1 *@
+                            <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta1" })' />
                         </div>
                     </div>
                 </div>
@@ -2287,6 +2298,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="col-4"><input type="text" name="estado2" class="form-control" placeholder="UF" required /></div>
                                 </div>
                                 </div> @* fim do pdzCamposPorCpf *@
+                                <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta2" })' />
                             </div>
 
                             <p class="small text-muted mb-0" id="pdzAvisoSemParceiro" style="display:none;">

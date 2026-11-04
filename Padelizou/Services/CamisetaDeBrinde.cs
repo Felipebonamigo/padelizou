@@ -22,6 +22,33 @@ public static class CamisetaDeBrinde
         ("BLG", "Babylook G"), ("BLGG", "Babylook GG"), ("BLXG", "Babylook XG"), ("BLXGG", "Babylook XGG"),
     };
 
+    public static bool CodigoValido(string? codigo) =>
+        codigo != null && Tamanhos.Any(t => t.Codigo == codigo);
+
+    // ── O TAMANHO DO PERFIL (Jogador.TamanhoCamiseta) ────────────────────────────────────
+    // 🗣️ Felipe: *"deixe salvo no perfil, para uso futuro em outros torneios"*.
+
+    // O "não quero informar" das Preferências. Valor próprio porque o vazio o binder já
+    // transforma em nulo, e nulo lá quer dizer "aba antiga sem o campo — não mexa".
+    public const string SemTamanho = "nenhum";
+
+    public static string? TamanhoDoPerfil(string? enviado, string? atual) =>
+        enviado == SemTamanho ? null
+        : CodigoValido(enviado) ? enviado
+        : atual;
+
+    // ⚠️ A própria pessoa sobrescreve; quem escolhe POR ELA (o parceiro na inscrição) só
+    // preenche perfil vazio — a mesma régua do celular e da cidade em DuplasController.Create.
+    public static void GuardarNoPerfil(Jogador jogador, string tamanho, bool eleMesmo)
+    {
+        if (!CodigoValido(tamanho)) return;
+        if (eleMesmo || string.IsNullOrEmpty(jogador.TamanhoCamiseta)) jogador.TamanhoCamiseta = tamanho;
+    }
+
+    // O tamanho do perfil serve NESTE torneio? Só se o organizador oferece.
+    public static string? DoPerfilSeServir(Torneio torneio, Jogador jogador) =>
+        jogador.TamanhoCamiseta is string t && Oferecidos(torneio).Contains(t) ? t : null;
+
     public static bool EhBabylook(string codigo) => codigo.StartsWith("BL", StringComparison.Ordinal);
 
     public static string NomeDo(string codigo) =>
@@ -47,6 +74,47 @@ public static class CamisetaDeBrinde
         torneio.OfereceCamiseta
         && (torneio.CamisetaEscolhaAte is not DateTime ate || agora.Date <= ate.Date);
 
+    // O TAMANHO ESCOLHIDO NO FORMULÁRIO DE INSCRIÇÃO (🗣️ Felipe, com o print: *"não achei aonde
+    // escolho minha camiseta"*). Anota (ou troca) sem salvar — quem chama salva junto com o
+    // resto da inscrição. Aceita jogador ainda sem Id (CPF novo): a linha vai pela navegação.
+    //
+    // ⚠️ NUNCA derruba a inscrição: vazio, tamanho não oferecido, prazo vencido ou brinde
+    // desligado só não anotam nada. Vazio também não APAGA escolha anterior — no formulário,
+    // "não escolhi" quer dizer "não mexi", e o "não quero" mora no card da página do torneio.
+    //
+    // Campo vazio usa o tamanho do PERFIL (se o torneio oferece e ainda não há escolha). Tamanho
+    // marcado também vai pro perfil, pela régua de GuardarNoPerfil (`quemInscreve`).
+    public static async Task AnotarNaInscricaoAsync(DbPadelContext context, Torneio torneio, Jogador jogador,
+        string? tamanho, DateTime agora, int? quemInscreve)
+    {
+        if (!AceitaEscolha(torneio, agora)) return;
+
+        var atual = jogador.Id == 0 ? null : await context.CamisetasDosAtletas.FindAsync(torneio.Id, jogador.Id);
+
+        if (string.IsNullOrWhiteSpace(tamanho))
+        {
+            // Não escolheu aqui: vale o perfil, mas nunca por cima de uma escolha que já existe.
+            if (atual != null || DoPerfilSeServir(torneio, jogador) is not string doPerfil) return;
+            tamanho = doPerfil;
+        }
+        else
+        {
+            if (!Oferecidos(torneio).Contains(tamanho)) return;
+            GuardarNoPerfil(jogador, tamanho, eleMesmo: jogador.Id != 0 && jogador.Id == quemInscreve);
+        }
+
+        if (atual == null)
+            context.CamisetasDosAtletas.Add(new CamisetaDoAtleta
+            {
+                TorneioId = torneio.Id, Jogador = jogador, Tamanho = tamanho, EscolhidaEm = agora,
+            });
+        else
+        {
+            atual.Tamanho = tamanho;
+            atual.EscolhidaEm = agora;
+        }
+    }
+
     // Quem está inscrito, pelas DUAS portas (dupla e individual/americano), uma vez por pessoa:
     // quem joga duas categorias leva uma camiseta só.
     public static async Task<List<int>> InscritosAsync(DbPadelContext context, int torneioId)
@@ -71,6 +139,12 @@ public static class CamisetaDeBrinde
         await context.Duplas.AnyAsync(d => d.Categoria.TorneioId == torneioId
                                         && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
         || await context.InscricoesAmericanas.AnyAsync(i => i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId);
+
+    // QUEM VÊ O TAMANHO AO LADO DO NOME, na lista de inscritos (🗣️ Felipe: *"para saber que já
+    // selecionou"*). Tamanho de roupa é dado pessoal: o organizador (que encomenda) e quem é da
+    // MESMA inscrição. ⚠️ `quemOlha` nulo nunca casa com `Jogador2Id` nulo da dupla sem parceiro.
+    public static bool PodeVerNaLista(bool podeGerenciar, int? quemOlha, IEnumerable<int?> daInscricao) =>
+        podeGerenciar || (quemOlha is int eu && daInscricao.Contains(eu));
 
     public sealed record Pedido(string Nome, string Tamanho);
     public sealed record PorTamanho(string Tamanho, int Quantas);

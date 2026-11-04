@@ -1285,10 +1285,22 @@ namespace Padelizou.Controllers
 
                 // A camiseta de brinde do próprio atleta (Services/CamisetaDeBrinde).
                 if (torneio.OfereceCamiseta && (inscritoEmDupla || inscritoNoAmericano))
+                {
                     ViewBag.MinhaCamiseta = (await _context.CamisetasDosAtletas.FindAsync(id, quemOlha))?.Tamanho;
+                    // Sem escolha ainda: o select já vem no tamanho do perfil (se servir aqui).
+                    if (await _context.Jogadores.FindAsync(quemOlha) is Jogador euNoTorneio)
+                        ViewBag.MeuTamanhoDoPerfil = CamisetaDeBrinde.DoPerfilSeServir(torneio, euNoTorneio);
+                }
                 ViewBag.SigoEsteTorneio = await _context.SeguidoresTorneio
                     .AnyAsync(s => s.TorneioId == id && s.JogadorId == quemOlha);
             }
+
+            // O tamanho de cada atleta, pro selo ao lado do nome na lista de inscritos. QUEM VÊ é
+            // decidido na tela por CamisetaDeBrinde.PodeVerNaLista (organizador e a própria dupla).
+            if (torneio.OfereceCamiseta)
+                ViewBag.CamisetasPorJogador = (IReadOnlyDictionary<int, string>)await _context.CamisetasDosAtletas
+                    .Where(c => c.TorneioId == id)
+                    .ToDictionaryAsync(c => c.JogadorId, c => c.Tamanho);
 
             return View(torneio);
         }
