@@ -1451,7 +1451,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <span class="badge bg-secondary mb-2 ms-1">@prazoAmericano</span>
                                             }
                                         }
-                                        <partial name="_JogadorChip" model="inscricao.Jogador" />
+                                        <div class="d-flex align-items-center gap-2">
+                                            <partial name="_JogadorChip" model="inscricao.Jogador" />
+                                            <partial name="_CamisetaAoLadoDoNome" model="inscricao.Jogador" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { inscricao.JogadorId }) })' />
+                                        </div>
 
                                         @* Sair do Americano. O botão da lista de duplas nunca
                                            chegou aqui: inscrição de Americano é individual e
@@ -1521,12 +1524,18 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <span class="badge bg-secondary mb-2 ms-1">@prazoDupla</span>
                                         }
                                     }
-                                    <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                    <div class="d-flex align-items-center gap-2">
+                                        <partial name="_JogadorChip" model="dupla.Jogador1" />
+                                        <partial name="_CamisetaAoLadoDoNome" model="dupla.Jogador1" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { dupla.Jogador1Id, dupla.Jogador2Id }) })' />
+                                    </div>
                                     @* Inscrição sem parceiro tem Jogador2 nulo — o chip
                                        espera um jogador de verdade e explodia a tela toda. *@
                                     @if (dupla.Jogador2 != null)
                                     {
-                                        <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                        <div class="d-flex align-items-center gap-2">
+                                            <partial name="_JogadorChip" model="dupla.Jogador2" />
+                                            <partial name="_CamisetaAoLadoDoNome" model="dupla.Jogador2" view-data='@(new ViewDataDictionary(ViewData) { ["VeCamiseta"] = Padelizou.Services.CamisetaDeBrinde.PodeVerNaLista(ViewBag.PodeGerenciar == true, meuJogadorId, new int?[] { dupla.Jogador1Id, dupla.Jogador2Id }) })' />
+                                        </div>
                                     }
                                     else
                                     {

@@ -140,3 +140,60 @@ public class CamisetaNaInscricaoTests
         Assert.Contains("[\"CampoCamiseta\"] = \"camiseta\"", details);
     }
 }
+
+// 04/11/2026 — O TAMANHO AO LADO DO NOME NA LISTA DE INSCRITOS. 🗣️ Felipe, com o print da lista
+// de duplas: *"coloque a camiseta e o tamanho ao lado do nome, para saber que já selecionou"*.
+//
+// ⚠️ Tamanho de roupa é dado pessoal: quem vê é o ORGANIZADOR (é pra ele encomendar) e quem é
+// da MESMA inscrição (o próprio atleta e o parceiro). Pra quem só passou na página, nada.
+public class CamisetaAoLadoDoNomeTests
+{
+    [Fact]
+    public void Organizador_ve_o_tamanho_de_todo_mundo()
+    {
+        Assert.True(CamisetaDeBrinde.PodeVerNaLista(podeGerenciar: true, quemOlha: 99, daInscricao: new int?[] { 1, 2 }));
+    }
+
+    [Fact]
+    public void Atleta_ve_o_seu_e_o_do_parceiro()
+    {
+        Assert.True(CamisetaDeBrinde.PodeVerNaLista(false, quemOlha: 2, daInscricao: new int?[] { 1, 2 }));
+    }
+
+    [Fact]
+    public void Quem_e_de_outra_dupla_ou_nao_esta_logado_nao_ve()
+    {
+        Assert.False(CamisetaDeBrinde.PodeVerNaLista(false, quemOlha: 3, daInscricao: new int?[] { 1, 2 }));
+        // Dupla sem parceiro tem Jogador2Id nulo: o visitante deslogado (nulo) não pode casar com ele.
+        Assert.False(CamisetaDeBrinde.PodeVerNaLista(false, quemOlha: null, daInscricao: new int?[] { 1, null }));
+    }
+
+    [Fact]
+    public async Task A_pagina_do_torneio_entrega_o_tamanho_de_cada_atleta()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = TestInfra.MontarTorneio(ctx, qtdDuplas: 1, status: "Inscrições Abertas");
+        torneio.OfereceCamiseta = true;
+        torneio.TamanhosDeCamiseta = "M,G";
+        var dupla = ctx.Duplas.Single();
+        ctx.CamisetasDosAtletas.Add(new CamisetaDoAtleta { TorneioId = torneio.Id, JogadorId = dupla.Jogador1Id, Tamanho = "G" });
+        ctx.SaveChanges();
+
+        var resultado = await TestInfra.NovoTorneiosController(ctx, dupla.Jogador1Id).Details(torneio.Id, null, null);
+
+        var view = Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(resultado);
+        var tamanhos = Assert.IsAssignableFrom<IReadOnlyDictionary<int, string>>(view.ViewData["CamisetasPorJogador"]);
+        Assert.Equal("G", tamanhos[dupla.Jogador1Id]);
+    }
+
+    [Fact]
+    public void A_lista_de_duplas_e_a_do_americano_mostram_o_selo()
+    {
+        var details = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "Padelizou", "Views", "Torneios", "Details.cshtml"));
+
+        Assert.Contains("_CamisetaAoLadoDoNome", details);
+        Assert.True(details.Split("_CamisetaAoLadoDoNome").Length - 1 >= 3,
+            "O selo precisa estar no jogador 1, no jogador 2 e na inscrição do Americano.");
+    }
+}

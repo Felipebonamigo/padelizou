@@ -1,0 +1,20 @@
+@model Padelizou.Models.Jogador
+@* O SELO DA CAMISETA AO LADO DO NOME, na lista de inscritos (04/11/2026). 🗣️ Felipe: "coloque a
+   camiseta e o tamanho ao lado do nome, para saber que já selecionou". Quem vê já foi decidido
+   por quem chama (ViewData["VeCamiseta"], via CamisetaDeBrinde.PodeVerNaLista); aqui só se
+   desenha. Sem escolha: selo apagado "escolher" — é a dupla dela, e é o lembrete. *@
+@{
+    var tamanhos = ViewData["CamisetasPorJogador"] as IReadOnlyDictionary<int, string>;
+}
+@if (ViewData["VeCamiseta"] is true && tamanhos != null)
+{
+    if (tamanhos.TryGetValue(Model.Id, out var tamanhoDoAtleta))
+    {
+        <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle flex-shrink-0"
+              title="Camiseta de brinde">👕 @Padelizou.Services.CamisetaDeBrinde.NomeDo(tamanhoDoAtleta)</span>
+    }
+    else
+    {
+        <span class="badge bg-light text-muted border flex-shrink-0" title="Ainda não escolheu o tamanho">👕 escolher</span>
+    }
+}

@@ -1290,6 +1290,13 @@ namespace Padelizou.Controllers
                     .AnyAsync(s => s.TorneioId == id && s.JogadorId == quemOlha);
             }
 
+            // O tamanho de cada atleta, pro selo ao lado do nome na lista de inscritos. QUEM VÊ é
+            // decidido na tela por CamisetaDeBrinde.PodeVerNaLista (organizador e a própria dupla).
+            if (torneio.OfereceCamiseta)
+                ViewBag.CamisetasPorJogador = (IReadOnlyDictionary<int, string>)await _context.CamisetasDosAtletas
+                    .Where(c => c.TorneioId == id)
+                    .ToDictionaryAsync(c => c.JogadorId, c => c.Tamanho);
+
             return View(torneio);
         }
         public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,

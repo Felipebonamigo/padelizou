@@ -100,6 +100,12 @@ public static class CamisetaDeBrinde
                                         && (d.Jogador1Id == jogadorId || d.Jogador2Id == jogadorId))
         || await context.InscricoesAmericanas.AnyAsync(i => i.Categoria.TorneioId == torneioId && i.JogadorId == jogadorId);
 
+    // QUEM VÊ O TAMANHO AO LADO DO NOME, na lista de inscritos (🗣️ Felipe: *"para saber que já
+    // selecionou"*). Tamanho de roupa é dado pessoal: o organizador (que encomenda) e quem é da
+    // MESMA inscrição. ⚠️ `quemOlha` nulo nunca casa com `Jogador2Id` nulo da dupla sem parceiro.
+    public static bool PodeVerNaLista(bool podeGerenciar, int? quemOlha, IEnumerable<int?> daInscricao) =>
+        podeGerenciar || (quemOlha is int eu && daInscricao.Contains(eu));
+
     public sealed record Pedido(string Nome, string Tamanho);
     public sealed record PorTamanho(string Tamanho, int Quantas);
     public sealed record Resumo(List<PorTamanho> PorTamanho, List<Pedido> Pedidos, int SemEscolha);
