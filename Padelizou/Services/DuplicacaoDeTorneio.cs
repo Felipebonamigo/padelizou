@@ -45,6 +45,11 @@ public static class DuplicacaoDeTorneio
         // semana e fica com a edição que passou.
         nameof(Torneio.InstagramDoOrganizador),
 
+        // A camiseta de brinde e os tamanhos: a próxima etapa do circuito costuma ter a mesma.
+        // A data limite NÃO (ver a outra lista) — é da etapa que passou.
+        nameof(Torneio.OfereceCamiseta),
+        nameof(Torneio.TamanhosDeCamiseta),
+
         // Onde e como acontece
         nameof(Torneio.ClubeId),
         nameof(Torneio.LocalTorneio),
@@ -157,6 +162,7 @@ public static class DuplicacaoDeTorneio
 
         // Da edição que passou.
         nameof(Torneio.RecadoAosInscritos),
+        nameof(Torneio.CamisetaEscolhaAte),
         nameof(Torneio.LinkDasFotos),
         nameof(Torneio.MotivoCancelamento),
         nameof(Torneio.CanceladoEm),

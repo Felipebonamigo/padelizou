@@ -494,6 +494,22 @@ public partial class Torneio
     // fundos", "confirma no grupo do zap"). Aparece na tela de inscrição e no comprovante.
     public string? RecadoAosInscritos { get; set; }
 
+    // ---- Camiseta de brinde (04/11/2026) ----
+    // 🗣️ Mila (ER Padel): *"esqueci que esse vai ter camiseta — como altero ali?"*. O organizador
+    // liga o brinde, diz quais tamanhos tem e até quando aceita; cada inscrito escolhe o dele
+    // (opcional) em `CamisetaDoAtleta`. As regras moram em Services/CamisetaDeBrinde.
+    public bool OfereceCamiseta { get; set; }
+
+    // Os códigos oferecidos, em CSV na ordem da tabela ("P,M,G,BLM"). Nulo com o brinde
+    // desligado. Texto, e não tabela: é uma lista curta e fechada (CamisetaDeBrinde.Tamanhos),
+    // e uma tabela de 12 linhas por torneio só pra isso seria cerimônia.
+    [StringLength(80)]
+    public string? TamanhosDeCamiseta { get; set; }
+
+    // Último DIA em que o inscrito escolhe ou troca (vale o dia inteiro). Nulo = sem prazo.
+    // 🗣️ Felipe: *"tem uma data limite às vezes para receber a camisa de brinde"*.
+    public DateTime? CamisetaEscolhaAte { get; set; }
+
     // Convite do grupo do torneio no WhatsApp ("https://chat.whatsapp.com/..."). Nulo = este
     // torneio não tem grupo, e aí não há botão nenhum.
     //

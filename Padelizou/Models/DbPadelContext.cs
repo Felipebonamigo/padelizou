@@ -41,6 +41,8 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<CategoriaPadrao> CategoriasPadrao { get; set; }
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public virtual DbSet<TorneioMarcador> TorneioMarcadores { get; set; }
+    // O tamanho da camiseta de brinde, uma linha por (torneio, atleta). Ver Models/CamisetaDoAtleta.
+    public virtual DbSet<CamisetaDoAtleta> CamisetasDosAtletas { get; set; }
     // Quem já chegou ao clube, uma linha por PESSOA por torneio (Models/PresencaNoTorneio).
     public virtual DbSet<PresencaNoJogo> Presencas { get; set; }
     public DbSet<Clube> Clubes { get; set; }
@@ -399,6 +401,22 @@ public partial class DbPadelContext : DbContext
         // Mesma chave do organizador: uma linha por (torneio, pessoa). Jogador em Restrict
         // pelo mesmo motivo das outras tabelas de vínculo — um segundo caminho de cascade a
         // partir de Jogador é o conflito já visto em JogoSemanal/CandidaturaParceiro.
+        // A CAMISETA DE BRINDE, uma linha por (torneio, atleta): a PK composta segura "uma camiseta
+        // por pessoa" sem C#. Jogador em Restrict, como nas outras tabelas de vínculo (segundo
+        // caminho de cascade a partir de Jogador); Torneio em Cascade — a escolha não sobrevive
+        // ao torneio.
+        modelBuilder.Entity<CamisetaDoAtleta>(entity =>
+        {
+            entity.HasKey(c => new { c.TorneioId, c.JogadorId });
+            entity.HasOne(c => c.Jogador)
+                .WithMany()
+                .HasForeignKey(c => c.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(c => c.Torneio)
+                .WithMany()
+                .HasForeignKey(c => c.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<TorneioMarcador>(entity =>
         {
             entity.HasKey(tm => new { tm.TorneioId, tm.JogadorId });

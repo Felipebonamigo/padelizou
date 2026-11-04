@@ -918,6 +918,10 @@ namespace Padelizou.Controllers
                 // esta página é a mais pesada do site e um planejador existe pra ser girado.
                 ViewBag.PlanejamentoResumo = await ResumoDoPlanejamentoAsync(torneio);
 
+                // Quantas camisetas de cada tamanho (o que vai pro fornecedor). Só com o brinde ligado.
+                if (torneio.OfereceCamiseta)
+                    ViewBag.ResumoDeCamisetas = await CamisetaDeBrinde.ResumoAsync(_context, id);
+
                 ViewBag.Organizadores = await _context.TorneioOrganizadores
                     .Include(o => o.Jogador)
                     .Where(o => o.TorneioId == id)
@@ -1278,6 +1282,10 @@ namespace Padelizou.Controllers
                     .AnyAsync(i => i.Categoria!.TorneioId == id && i.JogadorId == quemOlha);
 
                 ViewBag.EstouInscritoNesteTorneio = inscritoEmDupla || inscritoNoAmericano;
+
+                // A camiseta de brinde do próprio atleta (Services/CamisetaDeBrinde).
+                if (torneio.OfereceCamiseta && (inscritoEmDupla || inscritoNoAmericano))
+                    ViewBag.MinhaCamiseta = (await _context.CamisetasDosAtletas.FindAsync(id, quemOlha))?.Tamanho;
                 ViewBag.SigoEsteTorneio = await _context.SeguidoresTorneio
                     .AnyAsync(s => s.TorneioId == id && s.JogadorId == quemOlha);
             }

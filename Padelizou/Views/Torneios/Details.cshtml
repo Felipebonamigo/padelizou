@@ -365,6 +365,49 @@
     </div>
 }
 
+@* A CAMISETA DE BRINDE do próprio atleta (04/11/2026): só pra quem está inscrito e só com o
+   brinde ligado. Escolher é opcional; depois da data limite fica só a leitura. *@
+@if (Model.OfereceCamiseta && ViewBag.EstouInscritoNesteTorneio == true)
+{
+    var minhaCamiseta = ViewBag.MinhaCamiseta as string;
+    var aceitaCamiseta = Padelizou.Services.CamisetaDeBrinde.AceitaEscolha(Model, DateTime.Now);
+    <div class="alert alert-success border-0 d-flex align-items-start gap-2">
+        <i class="bi bi-gift-fill fs-5"></i>
+        <div class="flex-grow-1">
+            <strong class="d-block">Camiseta de brinde</strong>
+            @if (aceitaCamiseta)
+            {
+                <form asp-controller="Torneios" asp-action="EscolherCamiseta" method="post" class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <select name="tamanho" class="form-select form-select-sm" style="max-width: 200px;" aria-label="Tamanho da camiseta">
+                        <option value="">@(minhaCamiseta == null ? "Escolha seu tamanho" : "Não quero camiseta")</option>
+                        @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
+                        {
+                            <option value="@codigo" selected="@(codigo == minhaCamiseta)">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
+                        }
+                    </select>
+                    <button type="submit" class="btn btn-success btn-sm fw-bold">Salvar</button>
+                </form>
+                <div class="small mt-1">
+                    @(minhaCamiseta == null ? "Você ainda não escolheu." : $"Sua escolha: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}.")
+                    @if (Model.CamisetaEscolhaAte is DateTime ateCamiseta)
+                    {
+                        <span>Dá pra escolher ou trocar até @ateCamiseta.ToString("dd/MM").</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <span>
+                    @(minhaCamiseta == null
+                        ? "O prazo pra escolher a camiseta acabou e você não escolheu. Fale com o organizador."
+                        : $"Sua camiseta: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}. O prazo pra trocar já acabou.")
+                </span>
+            }
+        </div>
+    </div>
+}
+
 @* ── O CARTAZ DE DIVULGAÇÃO ───────────────────────────────────────────────────────────
    A peça do ANTES, como o card de campeão é a do depois — e, como ele, é PRA TODO MUNDO:
    o organizador é quem mais divulga, mas cada inscrito que chama a turma no grupo é
@@ -3713,6 +3756,88 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <i class="bi bi-eye-slash-fill"></i> Ocultar do público
                             </button>
                         </form>
+                    }
+                </div>
+            </div>
+
+            @* ── CAMISETA DE BRINDE (04/11/2026) ─────────────────────────────────────────────
+               Formulário próprio, como o da Divulgação: ligar AVISA os inscritos, e esse efeito
+               não pode sair do "Salvar Alterações" de quem só mexeu no preço. Regras em
+               Services/CamisetaDeBrinde. *@
+            @{
+                var tamanhosOferecidos = Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model);
+                var resumoCamisetas = ViewBag.ResumoDeCamisetas as Padelizou.Services.CamisetaDeBrinde.Resumo;
+            }
+            <div class="card bg-light border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6 class="fw-bold text-uppercase text-muted mb-2">
+                        <i class="bi bi-gift"></i> Camiseta de brinde
+                    </h6>
+                    <form asp-controller="Torneios" asp-action="ConfigurarCamisetas" method="post" class="mb-0">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" role="switch" id="ofereceCamiseta"
+                                   name="ofereceCamiseta" value="true" @(Model.OfereceCamiseta ? "checked" : "") />
+                            <label class="form-check-label fw-bold" for="ofereceCamiseta">Este torneio dá camiseta</label>
+                        </div>
+                        <div class="small text-muted mb-2">
+                            Cada inscrito escolhe o próprio tamanho na página do torneio (é opcional).
+                            Ao ligar, quem já está inscrito recebe um aviso pra escolher.
+                        </div>
+                        @foreach (var grupo in new[] { false, true })
+                        {
+                            <div class="small fw-bold mt-2">@(grupo ? "Babylook" : "Tradicional")</div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var t in Padelizou.Services.CamisetaDeBrinde.Tamanhos.Where(t => Padelizou.Services.CamisetaDeBrinde.EhBabylook(t.Codigo) == grupo))
+                                {
+                                    <div class="form-check form-check-inline me-0">
+                                        <input class="form-check-input" type="checkbox" name="tamanhos" value="@t.Codigo"
+                                               id="tam_@t.Codigo" @(tamanhosOferecidos.Contains(t.Codigo) ? "checked" : "") />
+                                        <label class="form-check-label" for="tam_@t.Codigo">@(grupo ? t.Nome.Replace("Babylook ", "") : t.Nome)</label>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="mt-3" style="max-width: 260px;">
+                            <label class="form-label small fw-bold mb-1" for="camisetaEscolhaAte">Aceitar escolha até (opcional)</label>
+                            <input type="date" class="form-control form-control-sm" id="camisetaEscolhaAte" name="escolhaAte"
+                                   value="@(Model.CamisetaEscolhaAte?.ToString("yyyy-MM-dd"))" />
+                            <div class="form-text">Vale o dia inteiro. Depois disso ninguém escolhe nem troca.</div>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-sm fw-bold mt-3">
+                            <i class="bi bi-check2"></i> Salvar camiseta
+                        </button>
+                    </form>
+
+                    @if (Model.OfereceCamiseta && resumoCamisetas != null)
+                    {
+                        <hr />
+                        <div class="fw-bold mb-1">Pedidos: @resumoCamisetas.Pedidos.Count</div>
+                        @if (resumoCamisetas.PorTamanho.Count > 0)
+                        {
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                @foreach (var p in resumoCamisetas.PorTamanho)
+                                {
+                                    <span class="badge bg-dark">@p.Tamanho: @p.Quantas</span>
+                                }
+                            </div>
+                        }
+                        @if (resumoCamisetas.SemEscolha > 0)
+                        {
+                            <div class="small text-muted mb-2">@resumoCamisetas.SemEscolha inscrito(s) ainda não escolheram.</div>
+                        }
+                        @if (resumoCamisetas.Pedidos.Count > 0)
+                        {
+                            <details>
+                                <summary class="small">Ver quem pediu qual</summary>
+                                <ul class="small mb-0 mt-2">
+                                    @foreach (var p in resumoCamisetas.Pedidos)
+                                    {
+                                        <li>@p.Nome — @p.Tamanho</li>
+                                    }
+                                </ul>
+                            </details>
+                        }
                     }
                 </div>
             </div>
