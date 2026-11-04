@@ -21,14 +21,16 @@ public class CamisetaDeBrindeTests
     // ── Os tamanhos ───────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Tradicional_e_babylook_vao_do_PP_ao_XGG()
+    public void Tradicional_e_babylook_vao_do_PP_ao_XGG_passando_pelo_XG()
     {
+        // 🗣️ Organizadora, no áudio: *"camiseta do P ao GG, e XG"*. XG e XGG são tamanhos
+        // diferentes no mercado; a lista tem os dois e cada organizador marca os que tem.
         var nomes = CamisetaDeBrinde.Tamanhos.Select(t => t.Nome).ToList();
 
-        Assert.Equal(12, nomes.Count);
-        Assert.Equal(new[] { "PP", "P", "M", "G", "GG", "XGG" }, nomes.Take(6));
-        Assert.Equal(new[] { "Babylook PP", "Babylook P", "Babylook M", "Babylook G", "Babylook GG", "Babylook XGG" },
-            nomes.Skip(6));
+        Assert.Equal(14, nomes.Count);
+        Assert.Equal(new[] { "PP", "P", "M", "G", "GG", "XG", "XGG" }, nomes.Take(7));
+        Assert.Equal(new[] { "Babylook PP", "Babylook P", "Babylook M", "Babylook G", "Babylook GG", "Babylook XG", "Babylook XGG" },
+            nomes.Skip(7));
     }
 
     [Fact]

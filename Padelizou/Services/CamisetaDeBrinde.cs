@@ -13,12 +13,13 @@ namespace Padelizou.Services;
 public static class CamisetaDeBrinde
 {
     // A tabela inteira, na ordem em que aparece na tela e no resumo. O código é o que se grava
-    // (curto, estável); o nome é o que se lê.
+    // (curto, estável); o nome é o que se lê. XG e XGG são tamanhos diferentes no mercado — a
+    // lista tem os dois e cada organizador marca só os que tem.
     public static readonly IReadOnlyList<(string Codigo, string Nome)> Tamanhos = new[]
     {
-        ("PP", "PP"), ("P", "P"), ("M", "M"), ("G", "G"), ("GG", "GG"), ("XGG", "XGG"),
+        ("PP", "PP"), ("P", "P"), ("M", "M"), ("G", "G"), ("GG", "GG"), ("XG", "XG"), ("XGG", "XGG"),
         ("BLPP", "Babylook PP"), ("BLP", "Babylook P"), ("BLM", "Babylook M"),
-        ("BLG", "Babylook G"), ("BLGG", "Babylook GG"), ("BLXGG", "Babylook XGG"),
+        ("BLG", "Babylook G"), ("BLGG", "Babylook GG"), ("BLXG", "Babylook XG"), ("BLXGG", "Babylook XGG"),
     };
 
     public static bool EhBabylook(string codigo) => codigo.StartsWith("BL", StringComparison.Ordinal);
