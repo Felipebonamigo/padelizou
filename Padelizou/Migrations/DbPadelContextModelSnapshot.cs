@@ -668,6 +668,29 @@ namespace Padelizou.Migrations
                     b.ToTable("CaixaDoDia");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.CamisetaDoAtleta", b =>
+                {
+                    b.Property<int>("TorneioId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("EscolhidaEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Tamanho")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.HasKey("TorneioId", "JogadorId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("CamisetaDoAtleta");
+                });
+
             modelBuilder.Entity("Padelizou.Models.CandidaturaParceiro", b =>
                 {
                     b.Property<int>("Id")
@@ -3571,6 +3594,9 @@ namespace Padelizou.Migrations
                     b.Property<bool>("BloquearCategoriaInferior")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("CamisetaEscolhaAte")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<DateTime?>("CanceladoEm")
                         .HasColumnType("timestamp without time zone");
 
@@ -3687,6 +3713,9 @@ namespace Padelizou.Migrations
                     b.Property<bool>("Oculto")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("OfereceCamiseta")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("PagamentoObrigatorioNaInscricao")
                         .HasColumnType("boolean");
 
@@ -3786,6 +3815,10 @@ namespace Padelizou.Migrations
 
                     b.Property<int>("TamanhoGrupo")
                         .HasColumnType("integer");
+
+                    b.Property<string>("TamanhosDeCamiseta")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<DateTime?>("TaxaExternoAdiadaEm")
                         .HasColumnType("timestamp without time zone");
@@ -4535,6 +4568,25 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("Clube");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.CamisetaDoAtleta", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                        .WithMany()
+                        .HasForeignKey("TorneioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Torneio");
                 });
 
             modelBuilder.Entity("Padelizou.Models.CandidaturaParceiro", b =>

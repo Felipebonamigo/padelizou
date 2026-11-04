@@ -1,6 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **04/11/2026** — 👕 **CAMISETA DE BRINDE NO TORNEIO, COM O TAMANHO DE CADA ATLETA.** ⚠️ **COM MIGRATION** (`CamisetaDeBrinde`: `Torneio.OfereceCamiseta` bool default `false`, `Torneio.TamanhosDeCamiseta` varchar(80), `Torneio.CamisetaEscolhaAte` date anulável; tabela nova `CamisetaDoAtleta` com PK (TorneioId, JogadorId), Torneio em Cascade e Jogador em Restrict). 🗣️ Mila (ER Padel): *"esqueci que esse vai ter camiseta — como altero ali?"*. Felipe: babylook também do PP ao XGG; já inscrito é avisado; escolher é **opcional**; o organizador liga/desliga, marca os tamanhos e define uma **data limite**.
+>
+> 📌 **ORGANIZADOR:** card "Camiseta de brinde" na área do organizador do torneio (formulário próprio `ConfigurarCamisetas`, fora do formulão do Editar porque ligar avisa os inscritos). Liga/desliga, marca tamanhos (Tradicional e Babylook, PP→XGG), "aceitar escolha até" (vale o dia inteiro). Ao LIGAR, avisa cada inscrito uma vez (dupla + americano), por **AppSemEmail** (aviso de massa — cota do Gmail). Salvar de novo com ele ligado não reavisa; desligar mantém as escolhas. Mostra contagem por tamanho, quem pediu qual e quantos ainda não escolheram.
+>
+> 📌 **ATLETA:** card verde no topo da página do torneio, só pra inscrito e só com o brinde ligado: escolhe/troca/"não quero" (`EscolherCamiseta`); depois da data limite só leitura. Uma camiseta por PESSOA por torneio (a PK). Duplicação: brinde e tamanhos viajam pra próxima edição, a data não.
+>
+> 🧪 `CamisetaDeBrindeTests` (21), vistos vermelhos por "não existe" antes do código. `has-pending-model-changes` limpo. 7.965 verdes. ⚠️ Telas NÃO conferidas no navegador.
+>
 > Última atualização: **03/11/2026** — ✏️ **FICHA DO ALUNO: RENOMEAR ALUNO SEM CONTA E "PAGA A QUADRA DIRETO PRO CLUBE".** ⚠️ **COM MIGRATION** (`QuadraPorForaNaFicha`: `CadastroDoAluno.PagaQuadraPorFora` bool, default `false`, sem backfill). ⏳ **NÃO PUBLICADO.** 🗣️ Jônatas (Portal Padel), pelo WhatsApp: *"queria conseguir alterar as informações dos alunos cadastrados — tipo o nome do aluno e se ele paga quadra para mim sempre ou pro clube"*. Felipe: *"pode fazer, futuras mudam junto, conta fica fora"*.
 >
 > 📌 **NOME:** `AulasController.RenomearAluno` — só aluno SEM conta (o de conta tem o nome do perfil). Troca, pela chave (`PrecoDaAula.Chave`, que ignora maiúscula/espaço), em `Aula.NomeAlunoAvulso` (só `AlunoId == null`), `CadastroDoAluno`, `PrecoDeAluno` e `FaturaDoAluno.NomeAvulso`; `FaturaDoAluno.PagadorNome` fica congelado (documento). Nome de outro aluno é recusado (renomear não junta dois); só mudar maiúscula do mesmo é permitido; máx. 100. ⚠️ Evento já criado na Google Agenda segue com o nome antigo.
