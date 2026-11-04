@@ -383,7 +383,7 @@
                         <option value="">@(minhaCamiseta == null ? "Escolha seu tamanho" : "Não quero camiseta")</option>
                         @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
                         {
-                            <option value="@codigo" selected="@(codigo == minhaCamiseta)">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
+                            <option value="@codigo" selected="@(codigo == (minhaCamiseta ?? ViewBag.MeuTamanhoDoPerfil as string))">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
                         }
                     </select>
                     <button type="submit" class="btn btn-success btn-sm fw-bold">Salvar</button>

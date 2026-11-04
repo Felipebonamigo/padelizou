@@ -476,9 +476,9 @@ namespace Padelizou.Controllers
             // abandonado deixa uma escolha de quem não entrou — o resumo do organizador só conta
             // inscritos (CamisetaDeBrinde.ResumoAsync), então ela não pesa em nada.
             var agoraCamiseta = DateTime.Now;
-            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador1, camiseta1, agoraCamiseta);
+            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador1, camiseta1, agoraCamiseta, ObterJogadorIdLogado());
             if (!semParceiro && jogador2 != null)
-                await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador2, camiseta2, agoraCamiseta);
+                await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador2, camiseta2, agoraCamiseta, ObterJogadorIdLogado());
 
             // Salva os jogadores (se forem novos) para gerar os IDs que usaremos na dupla
             await _context.SaveChangesAsync();

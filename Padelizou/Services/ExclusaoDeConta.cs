@@ -58,6 +58,8 @@ public static class ExclusaoDeConta
         jogador.Estado = null;
         jogador.Instagram = null;
         jogador.FotoPerfil = null;
+        // Medida de roupa é dado pessoal (04/11/2026, camiseta de brinde — Jogador.TamanhoCamiseta).
+        jogador.TamanhoCamiseta = null;
 
         // O endereço (Cep/Logradouro/Bairro) entrou no modelo em 10/08/2026 — DEPOIS desta
         // exclusão ter sido escrita, em 28/07 — e ficou de fora aqui. A Política de Privacidade

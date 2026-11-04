@@ -30,6 +30,7 @@ public class ExclusaoDeContaTests
         Logradouro = "Rua Exemplo, 123",
         Bairro = "Centro",
         Instagram = "felipebona",
+        TamanhoCamiseta = "G",
         FotoPerfil = "/uploads/fotos-perfil/abc.jpg",
         SenhaHash = "hash-secreto",
         TokenRecuperacao = "token-vivo",
@@ -62,6 +63,8 @@ public class ExclusaoDeContaTests
         Assert.Null(j.Bairro);
         Assert.Null(j.Instagram);
         Assert.Null(j.FotoPerfil);
+        // Medida de roupa é dado pessoal (04/11/2026, camiseta de brinde): não fica de quem saiu.
+        Assert.Null(j.TamanhoCamiseta);
 
         // O CPF não pode continuar lá: é O documento, e a busca por CPF acha qualquer um.
         Assert.DoesNotContain("11144477735", j.Cpf);
@@ -151,7 +154,7 @@ public class ExclusaoDeContaTests
     {
         "Nome", "Apelido", "Cpf", "Login", "Celular", "Cidade", "Estado",
         "Cep", "Logradouro", "Bairro", "Email", "SenhaHash", "TokenRecuperacao",
-        "FotoPerfil", "Instagram",
+        "FotoPerfil", "Instagram", "TamanhoCamiseta",
     };
 
     private static readonly HashSet<string> CamposQueContinuamDePropostio = new()

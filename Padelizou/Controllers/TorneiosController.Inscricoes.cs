@@ -169,7 +169,7 @@ namespace Padelizou.Controllers
             }
 
             // Antes de o caminho se dividir (checkout ou inscrição na hora): o tamanho é da pessoa.
-            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador, camiseta, DateTime.Now);
+            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador, camiseta, DateTime.Now, ObterJogadorIdLogado());
             await _context.SaveChangesAsync();
 
             bool jaInscrito = await _context.InscricoesAmericanas

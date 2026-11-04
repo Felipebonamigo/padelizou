@@ -13,7 +13,9 @@
             <i class="bi bi-gift"></i> Tamanho da camiseta de brinde
         </label>
         <select class="form-select" name="@campoCamiseta" id="pdzCamiseta_@campoCamiseta">
-            <option value="">Escolher depois / não quero</option>
+            @* Vazio = o tamanho do perfil de cada jogador, se o torneio oferece
+               (CamisetaDeBrinde.AnotarNaInscricaoAsync). *@
+            <option value="">Usar o do perfil / escolher depois</option>
             @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
             {
                 <option value="@codigo">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
