@@ -2058,6 +2058,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                     <small class="text-muted d-block mt-1">Comece pelo CPF: se já houver cadastro, o nome vem sozinho.</small>
                 </div>
 
+                <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta" })' />
                 <partial name="_SoQuemEDoTime" model="Model" />
 
                 @* O escape do organizador, também aqui. Este formulário NUNCA teve a caixa —
@@ -2191,6 +2192,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 <div class="col-4"><input type="text" name="estado1" class="form-control" placeholder="UF" required /></div>
                             </div>
                             </div> @* fim do pdzCamposPorCpf1 *@
+                            <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta1" })' />
                         </div>
                     </div>
                 </div>
@@ -2287,6 +2289,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="col-4"><input type="text" name="estado2" class="form-control" placeholder="UF" required /></div>
                                 </div>
                                 </div> @* fim do pdzCamposPorCpf *@
+                                <partial name="_CamisetaNaInscricao" model="Model" view-data='@(new ViewDataDictionary(ViewData) { ["CampoCamiseta"] = "camiseta2" })' />
                             </div>
 
                             <p class="small text-muted mb-0" id="pdzAvisoSemParceiro" style="display:none;">

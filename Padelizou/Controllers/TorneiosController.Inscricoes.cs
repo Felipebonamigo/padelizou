@@ -31,7 +31,9 @@ namespace Padelizou.Controllers
             bool ignorarBloqueio = false,
             // "Pagar agora" ou "pagar depois", quando o torneio aceita as duas — ver
             // Services/QuandoPagarInscricao. Nulo vale como "depois".
-            string? quandoPagar = null)
+            string? quandoPagar = null,
+            // Tamanho da camiseta de brinde (Services/CamisetaDeBrinde). Opcional.
+            string? camiseta = null)
         {
             // Mesma limpeza de DuplasController.Create: CPF com máscara estoura a coluna de
             // 11 chars e derruba a página em vez de avisar o jogador.
@@ -165,6 +167,10 @@ namespace Padelizou.Controllers
                 TempData["Erro"] = bloqueioCategorias;
                 return RedirectToAction("Details", new { id = torneioId });
             }
+
+            // Antes de o caminho se dividir (checkout ou inscrição na hora): o tamanho é da pessoa.
+            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador, camiseta, DateTime.Now);
+            await _context.SaveChangesAsync();
 
             bool jaInscrito = await _context.InscricoesAmericanas
                 .AnyAsync(i => i.CategoriaId == categoriaId && i.JogadorId == jogador.Id);

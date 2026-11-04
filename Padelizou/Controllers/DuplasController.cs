@@ -135,7 +135,10 @@ namespace Padelizou.Controllers
             int? jogador1Id = null,
             // De que lado o jogador 1 joga — só vale na inscrição SEM parceiro. A tela manda
             // pré-selecionado com o lado do perfil; nulo cai em "Ambos" na normalização.
-            string? ladoJogador1 = null)
+            string? ladoJogador1 = null,
+            // O tamanho da camiseta de brinde de cada um (Services/CamisetaDeBrinde). Opcional, e
+            // nunca derruba a inscrição.
+            string? camiseta1 = null, string? camiseta2 = null)
         {
             // A coluna CPF tem 11 chars: se vier "111.444.777-35" do formulário, o INSERT
             // estoura com "value too long" e o jogador só vê a página de erro. A tela pede
@@ -467,6 +470,15 @@ namespace Padelizou.Controllers
                 jogador2.Cidade = string.IsNullOrWhiteSpace(jogador2.Cidade) ? CidadeDigitada(cidade2, cidadesConhecidas) : jogador2.Cidade;
                 jogador2.Estado = string.IsNullOrWhiteSpace(jogador2.Estado) ? estado2?.Trim() : jogador2.Estado;
             }
+
+            // A camiseta vai AQUI, antes de o caminho se dividir entre "dupla agora" e "dupla
+            // quando o pagamento confirmar": o tamanho é da pessoa, não da dupla. Checkout
+            // abandonado deixa uma escolha de quem não entrou — o resumo do organizador só conta
+            // inscritos (CamisetaDeBrinde.ResumoAsync), então ela não pesa em nada.
+            var agoraCamiseta = DateTime.Now;
+            await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador1, camiseta1, agoraCamiseta);
+            if (!semParceiro && jogador2 != null)
+                await CamisetaDeBrinde.AnotarNaInscricaoAsync(_context, torneio, jogador2, camiseta2, agoraCamiseta);
 
             // Salva os jogadores (se forem novos) para gerar os IDs que usaremos na dupla
             await _context.SaveChangesAsync();

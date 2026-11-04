@@ -47,6 +47,34 @@ public static class CamisetaDeBrinde
         torneio.OfereceCamiseta
         && (torneio.CamisetaEscolhaAte is not DateTime ate || agora.Date <= ate.Date);
 
+    // O TAMANHO ESCOLHIDO NO FORMULÁRIO DE INSCRIÇÃO (🗣️ Felipe, com o print: *"não achei aonde
+    // escolho minha camiseta"*). Anota (ou troca) sem salvar — quem chama salva junto com o
+    // resto da inscrição. Aceita jogador ainda sem Id (CPF novo): a linha vai pela navegação.
+    //
+    // ⚠️ NUNCA derruba a inscrição: vazio, tamanho não oferecido, prazo vencido ou brinde
+    // desligado só não anotam nada. Vazio também não APAGA escolha anterior — no formulário,
+    // "não escolhi" quer dizer "não mexi", e o "não quero" mora no card da página do torneio.
+    public static async Task AnotarNaInscricaoAsync(DbPadelContext context, Torneio torneio, Jogador jogador,
+        string? tamanho, DateTime agora)
+    {
+        if (string.IsNullOrWhiteSpace(tamanho)
+            || !AceitaEscolha(torneio, agora)
+            || !Oferecidos(torneio).Contains(tamanho))
+            return;
+
+        var atual = jogador.Id == 0 ? null : await context.CamisetasDosAtletas.FindAsync(torneio.Id, jogador.Id);
+        if (atual == null)
+            context.CamisetasDosAtletas.Add(new CamisetaDoAtleta
+            {
+                TorneioId = torneio.Id, Jogador = jogador, Tamanho = tamanho, EscolhidaEm = agora,
+            });
+        else
+        {
+            atual.Tamanho = tamanho;
+            atual.EscolhidaEm = agora;
+        }
+    }
+
     // Quem está inscrito, pelas DUAS portas (dupla e individual/americano), uma vez por pessoa:
     // quem joga duas categorias leva uma camiseta só.
     public static async Task<List<int>> InscritosAsync(DbPadelContext context, int torneioId)
