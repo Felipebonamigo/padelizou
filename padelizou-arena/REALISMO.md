@@ -84,11 +84,40 @@ Contra o humano simulado (`ferramentas/Calibracao`, 24 partidas por célula, at�
 
 Os golpes bons do humano (erro < 0,3) caem 2 a 11 pontos (Intermediário × Médio: 61 → 55 %). Separando as duas metades da mudança (medido em 25/09, na base de antes da troca da libm): só a formação das duplas de IA (o parceiro do humano como antes) deixa o Fácil mais forte (o humano faz 1,5 a 7,6 pontos a menos) e o Difícil um pouco mais fraco (0,7 a 3,9 a mais); só o parceiro seguindo o humano tira do time do humano 0,8 a 13,5 pontos contra todos os níveis — o humano simulado só sobe à rede depois de lob ou remate do time (ou se já está na frente), e o parceiro agora fica no fundo com ele em vez de segurar a rede sozinho. **O equilíbrio se deslocou e fica como está** (D10, decisão do Felipe em 15/10).
 
+**A saída de parede se espera** (06/11, `SaidaDeParedeTests`; `IA.EsperaDaSaida`, `Partida.Rally`). A bola funda e rápida que vai quicar e bater no vidro não se bate colada nele, com ela fugindo do corpo — o padel espera ela sair da parede e vir de volta. Medido antes da mudança (6 partidas Médio × Médio): a IA batia **132 bolas depois do quique e antes do vidro**, a 8,4 m da rede, baixas (0,57 m) e rápidas (22 m/s), e 114 delas sairiam do vidro de volta a 9 m ou menos. Eram dois defeitos juntos: o plano da IA quase sempre já mirava a saída (a bola que sobe abaixo de 0,9 m não tem ponto batível antes do vidro), mas a raquete automática (`PodeBaterAgora`) batia na bola que passava ao alcance a caminho do vidro, na "última chance"; e, na releitura do quique, o `Prever` recomeçava a contagem de quiques do zero — a bola já quicada virava "voleio", a parede nunca era marcada e o plano de esperar caía no instante em que a bola quicava. Agora:
+
+- Cada candidato do `Prever` sabe se vem **depois de uma parede** (quique e depois vidro, de fundo ou lateral — a parede dupla é o mesmo caso), e o quique que o árbitro já viu conta.
+- Se o ponto escolhido fica a **2 m ou menos do vidro** (`ProfundidadeDeEsperarAParede`) ou já é depois da parede, a IA procura a **saída**: um candidato depois da parede, com ao menos 0,5 m de altura (joelho — abaixo é bola morrendo) e a 1 m dos vidros (`ProfundidadeMaximaDaSaida` 9 m, `LateralMaximaDaSaida` 4 m — o saque que bate no vidro do meio da quadra a 0,67 m e quica 0,4 s depois não é saída), a que alguém da dupla chega com **uma reação de folga** (`FolgaDaEspera` 0,25 s). Entre os que valem, o primeiro a 2 m do vidro (`ProfundidadeDaEsperaDaSaida` — a posição de defesa, a mesma do bloco); os de depois estão mais perto de quem vem da rede, então quem vem de longe encontra a bola mais à frente. Sem a folga, quem estava na rede "esperava" o remate que quicou atrás dele e saía do vidro alto, e chegava a 8 m com a bola já de volta por cima da rede ("voltou pelo vidro" subiu de 3 % para 9 % dos pontos do Médio × Médio; com a folga, 3 %).
+- Enquanto espera, **a partida não deixa quem vai na bola bater nela** (`IA.EsperandoAParede`): vale pra IA e pro modo Automático do humano. A batida na parede replaneja e o plano novo é o de sempre. No modo Manual o humano decide; no Casual e no Padrão o movimento assistido o leva ao ponto da saída, porque o alvo dele é o plano da IA do time — e o rastro-fantasma já mostrava o caminho.
+- **Quem espera**: Médio, Difícil e Parceiro (`PerfilDeIA.EsperaAParede`). O Fácil não sabe: vai pro ponto da saída, mas a raquete dele bate na bola que passa, como antes — quem começa bate colado no vidro e paga.
+
+O equilíbrio deslocou de novo, e **não foi reajustado** (D10): a IA deixa de errar a bola colada no vidro, então os ralis cresceram. IA × IA (8 partidas de 1 set, sementes 1–8, a dupla do nível contra o Parceiro), antes → depois:
+
+| | Fácil | Médio | Difícil |
+|---|---|---|---|
+| Golpes por ponto (com o saque) | 5,5 → 7,5 | 8,7 → 12,8 | 14,1 → 21,9 |
+| Segundos por ponto | 7,7 → 10,5 | 10,2 → 17,0 | 16,3 → 28,6 |
+| % dos pontos do Parceiro | 79 → 82 | 63 → 67 | 41 → 43 |
+| Sets da dupla do nível | 0 → 0 de 8 | 0 → 0 de 8 | 8 → 5 de 8 |
+| Pontos por "voltou pelo vidro" | 1 → 3 % | 3 → 3 % | 2 → 5 % |
+
+Contra o humano simulado (`ferramentas/Calibracao`, 12 partidas por célula, até 4 games), a fatia de pontos do humano quase não muda — o que muda é o rali: os golpes do humano por ponto sobem 1,3 a 1,7 vezes (Avançado × Difícil: 2,7 → 4,5).
+
+| Humano | Fácil | Médio | Difícil |
+|---|---|---|---|
+| Iniciante | 59,5 → 60,8 | 32,8 → 35,5 (partidas: 0 → 8 %) | 17,2 → 16,9 |
+| Intermediário | 71,7 → 68,5 | 55,0 → 57,2 (83 → 75 %) | 32,9 → 32,4 |
+| Avançado | 73,5 → 75,3 | 58,2 → 66,6 (75 → 100 %) | 38,2 → 34,5 (8 → 0 %) |
+| Profissional | 80,2 → 72,4 | 64,7 → 64,0 | 45,8 → 39,9 (17 → 8 %) |
+
+Pontos de 17 s no Médio e 29 s no Difícil (IA × IA) são longos pra um jogo; a causa é a IA só errar por sorteio (`ChanceDeErro`) quando a bola vem confortável, e não fechar o ponto. As alavancas são as de sempre (D10) e o alvo é do Felipe — jogando: a versão com a espera está no branch. O humano simulado **ainda não espera** (`HumanoSimulado.PreverContato` pega o primeiro ponto alcançável): é a parte 2, e vai mudar as medições dele.
+
 ## Mecânica — o que falta (entra no M1)
 
 - ~~Drive x revés, contato ao lado do corpo, chiquita, contrapared, remate por 3 e por 4~~ — feitos em 25/09 (`GolpesEspeciais`, `Jogador.Destro`, `DificuldadeDoGolpe`): bola no corpo e revés alto saem piores; os golpes especiais são achados simulando a própria física, sem altura de parede escrita à mão.
+- ~~Saída de parede (simples e dupla) como intenção~~ — feita em 06/11 pra IA, pro modo Automático e pro movimento assistido ("A saída de parede se espera", acima). Falta o humano simulado esperar também (parte 2) e o PadelSim do `padelizou-game` reproduzir a regra (o gabarito das partidas muda).
 - **Contato na mão**: a bola ainda sai do ponto de contato calculado, não da raquete animada. Depende da animação (M3).
-- **Golpes que faltam**: saída de parede dupla (fundo + lateral) como intenção, globo x lob curto, e a IA mirar a porta.
+- **Golpes que faltam**: globo x lob curto, e a IA mirar a porta.
 - **Salto no smash**, **posição do corpo** na bandeja (lateral, raquete alta).
 - **Fadiga leve**: sprints seguidos reduzem a aceleração por alguns segundos. Decidir no playtest — pode irritar.
 - **Formação: o que ficou de fora.** O cambio acontece quando o plano manda o outro na bola, mas o plano não o prefere: correr de costas custa o mesmo que correr de frente, então quem tem o lob por cima quase sempre vai ele mesmo (o do padel é o parceiro cruzar na diagonal). O começo do ponto segue com as posições da regra do saque. O parceiro de um humano não faz bloco na largura.

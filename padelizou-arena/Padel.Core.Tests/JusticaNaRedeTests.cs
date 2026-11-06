@@ -297,9 +297,10 @@ public class JusticaNaRedeTests
         float piorOutros = 0, piorVelocidadeDosOutros = 0, piorPredito = 0, piorVelocidadePredita = 0;
         uint tickDaPiorVelocidadePredita = 0;
 
-        // 120 s: com a dupla em formação (FormacaoTests) os ralis ficaram mais longos, e 90 s davam 7 pontos — abaixo do
-        // mínimo de 8 que este teste exige pra ver pontos variados.
-        for (int i = 0; i < 120 * Protocolo.TicksPorSegundo; i++)
+        // 180 s: com a dupla em formação (FormacaoTests) os ralis ficaram mais longos, e 90 s davam 7 pontos — abaixo do
+        // mínimo de 8 que este teste exige pra ver pontos variados; com a saída de parede (SaidaDeParedeTests, 06/11) os
+        // ralis cresceram de novo (nesta montagem, pontos de 15 a 25 golpes) e 120 s voltaram a dar 7.
+        for (int i = 0; i < 180 * Protocolo.TicksPorSegundo; i++)
         {
             mesa.Passo();
             uint tick = mesa.Servidor.Tick;
@@ -363,7 +364,7 @@ public class JusticaNaRedeTests
             }
         }
 
-        Assert.True(mesa.Partida.Estatisticas.Pontos >= 8, $"poucos pontos em 120 s: {mesa.Partida.Estatisticas.Pontos}");
+        Assert.True(mesa.Partida.Estatisticas.Pontos >= 8, $"poucos pontos em 180 s: {mesa.Partida.Estatisticas.Pontos}");
         Assert.True(mesa.Partida.Jogadores[2].Golpes >= 8, $"o humano do cliente bateu só {mesa.Partida.Jogadores[2].Golpes} vezes");
         Assert.True(frescos > 2000, $"poucos quadros saídos do instantâneo do próprio tick: {frescos}");
         Assert.True(entreInstantaneos > 4000, $"poucas amostras entre instantâneos: {entreInstantaneos}");

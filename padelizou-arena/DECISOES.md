@@ -135,6 +135,11 @@ pontos contra o Fácil e o Médio (Iniciante x Médio: 43,9 → 37,5 % dos ponto
 **Decisão do Felipe (15/10/2026): deixa o equilíbrio como está.** As alavancas e as medições seguem no `REALISMO.md`,
 para o caso de o playtest pedir outro alvo.
 
+A saída de parede (06/11) deslocou de novo, também sem reajuste: a IA deixou de bater (e errar) a bola colada no vidro e os
+ralis cresceram — Médio × Médio de 8,7 para 12,8 golpes por ponto e de 10 para 17 s; Difícil de 14 para 22 golpes e de 16 para
+29 s; a fatia de pontos do humano simulado quase não muda. Tabelas no `REALISMO.md` ("A saída de parede se espera"). A régua
+continua a mesma: o alvo é do Felipe, jogando.
+
 ## D6 — O que NÃO entra até o 1.0
 
 Servidor dedicado, editor de quadras, consoles, VR, modo carreira com narrativa, mais de 8

@@ -314,7 +314,7 @@ public sealed class Partida
                     if (!j.NaJanelaDoContato || !j.Alcanca(bola)) continue;
                     if (!j.FimDaJanelaDoContato && !j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;
                 }
-                else if (!j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;
+                else if (IAs[j.Time].EsperandoAParede(j) || !j.PodeBaterAgora(bola, dt, Arbitro.QuicouNoReceptor)) continue;   // a saída de parede se espera
                 Golpear(j);
                 break;
             }

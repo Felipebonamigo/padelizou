@@ -54,10 +54,14 @@ public readonly record struct Entrada(float Dx, float Dy, bool AcaoPressionada, 
 ///   profundidade de quem vai.</item>
 /// <item><b>ChanceDeDesencontro</b> (0 a 1): em cada mudança da dupla, a chance de quem não bateu nem perceber e ficar onde
 ///   estava (um na rede e outro no fundo) até a próxima — erro de quem começa.</item>
+/// <item><b>EsperaAParede</b>: a bola funda e rápida que vai bater no vidro depois de quicar é esperada na saída de parede
+///   (<see cref="IA.ProfundidadeDeEsperarAParede"/>), em vez de batida colada no vidro com ela fugindo do corpo. Quem começa
+///   não sabe esperar: o Fácil bate antes do vidro.</item>
 /// </list>
 /// </summary>
 public sealed record PerfilDeIA(float Velocidade, float Reacao, float ErroDeMira, float ErroDePrevisao, float ChanceDeErro, float ChanceDeLob, float ChanceDeRemateParaFora = 0,
-    float AtrasoDaFormacao = 0.35f, float AcompanhamentoDaBola = 0.35f, float SeparacaoDaDupla = 4.0f, float FolgaDoBloco = 1.0f, float ChanceDeDesencontro = 0);
+    float AtrasoDaFormacao = 0.35f, float AcompanhamentoDaBola = 0.35f, float SeparacaoDaDupla = 4.0f, float FolgaDoBloco = 1.0f, float ChanceDeDesencontro = 0,
+    bool EsperaAParede = true);
 
 /// <summary>
 /// Formação, por nível (números explicados em <see cref="PerfilDeIA"/>):
@@ -75,7 +79,7 @@ public sealed record PerfilDeIA(float Velocidade, float Reacao, float ErroDeMira
 public static class Perfis
 {
     public static readonly PerfilDeIA Facil = new(Velocidade: 4.6f, Reacao: 0.45f, ErroDeMira: 1.5f, ErroDePrevisao: 1.1f, ChanceDeErro: 0.14f, ChanceDeLob: 0.2f, ChanceDeRemateParaFora: 0.05f,
-        AtrasoDaFormacao: 0.7f, AcompanhamentoDaBola: 0.15f, SeparacaoDaDupla: 5.0f, FolgaDoBloco: 2.5f, ChanceDeDesencontro: 0.3f);
+        AtrasoDaFormacao: 0.7f, AcompanhamentoDaBola: 0.15f, SeparacaoDaDupla: 5.0f, FolgaDoBloco: 2.5f, ChanceDeDesencontro: 0.3f, EsperaAParede: false);
     public static readonly PerfilDeIA Medio = new(Velocidade: 5.6f, Reacao: 0.25f, ErroDeMira: 0.9f, ErroDePrevisao: 0.7f, ChanceDeErro: 0.07f, ChanceDeLob: 0.3f, ChanceDeRemateParaFora: 0.15f,
         AtrasoDaFormacao: 0.35f, AcompanhamentoDaBola: 0.35f, SeparacaoDaDupla: 4.0f, FolgaDoBloco: 1.0f, ChanceDeDesencontro: 0);
     public static readonly PerfilDeIA Dificil = new(Velocidade: 6.6f, Reacao: 0.10f, ErroDeMira: 0.5f, ErroDePrevisao: 0.35f, ChanceDeErro: 0.025f, ChanceDeLob: 0.35f, ChanceDeRemateParaFora: 0.30f,
@@ -451,6 +455,32 @@ public sealed class IA
     public const float ProfundidadeDoFundo = 6.5f;
     /// <summary>O mais fundo que quem não vai na bola recua junto com o parceiro: ~1 m atrás da linha de saque, a posição de defesa do padel.</summary>
     public const float ProfundidadeMaximaDoBloco = 8.0f;
+    /// <summary>
+    /// A saída de parede (<see cref="PerfilDeIA.EsperaAParede"/>): com o ponto de contato antes do vidro a esta profundidade ou
+    /// mais (a menos de 2 m do vidro, com a bola fugindo do corpo), a IA prefere esperar a bola sair da parede — se ela volta
+    /// a <see cref="ProfundidadeMaximaDaSaida"/> ou menos (ao menos 1 m do vidro) com <see cref="AlturaMinimaDaSaida"/> de
+    /// altura (joelho; abaixo disso é bola morrendo). Medido em 06/11 (Médio x Médio): o contato antes do vidro saía a 8,4 m
+    /// (p10 7,4), a 0,57 m de altura e 22 m/s.
+    /// </summary>
+    public const float ProfundidadeDeEsperarAParede = 8.0f, ProfundidadeMaximaDaSaida = 9.0f, AlturaMinimaDaSaida = 0.5f;
+    /// <summary>
+    /// A saída também tem de estar a 1 m do vidro lateral: a bola que sai do lateral e morre junto dele (o saque que bate no
+    /// vidro do meio da quadra a 0,67 m e quica 0,4 s depois) não é saída que se espera — e o que a esperava perdia o ponto.
+    /// </summary>
+    public const float LateralMaximaDaSaida = 4.0f;
+    /// <summary>
+    /// Onde se espera a saída: a bola de volta a 2 m do vidro — a posição de defesa do padel, a mesma de
+    /// <see cref="ProfundidadeMaximaDoBloco"/> —, ou, se ela não volta tanto, o mais longe do vidro que ela chega com altura.
+    /// Esperar colada no vidro (o primeiro ponto depois da parede) era ficar sem espaço pro braço.
+    /// </summary>
+    public const float ProfundidadeDaEsperaDaSaida = 8.0f;
+    /// <summary>
+    /// Folga (s) com que quem espera a saída tem de chegar ao ponto dela, além do tempo de reação — uma reação a mais. Sem
+    /// ela, quem estava na rede "esperava" o remate que quicou atrás dele e saía do vidro alto: chegava a 8 m com a bola já
+    /// de volta por cima da rede (medido em 06/11: os pontos "voltou pelo vidro" do Médio × Médio foram de 3 % a 9 %). Com
+    /// a folga, a espera só vale onde dá tempo de verdade; senão a bola é batida antes, como sempre foi.
+    /// </summary>
+    public const float FolgaDaEspera = 0.25f;
     /// <summary>Até onde o corpo vai na largura (o mesmo limite do <see cref="Jogador"/>).</summary>
     private const float LimiteLateralDoCorpo = 4.7f;
     /// <summary>O meio de cada metade da largura (<see cref="Jogador.XDaMetade"/>): onde fica o parceiro de um humano.</summary>
@@ -478,9 +508,12 @@ public sealed class IA
         public float YDaBola;
         /// <summary>Drive ou revés, decidido no plano: o passo lateral não troca de lado no meio do caminho.</summary>
         public LadoDoGolpe Lado;
+        /// <summary>O ponto escolhido é a saída de uma parede que a bola ainda não bateu: até lá, quem vai nela não bate na bola que passa.</summary>
+        public bool EsperaAParede;
     }
 
-    private readonly record struct Candidato(float X, float Y, float Z, float T, bool Voleio);
+    /// <summary>Um ponto em que a bola fica batível do nosso lado. DepoisDaParede: ela já quicou e bateu numa parede nossa antes dele — é a saída de parede.</summary>
+    private readonly record struct Candidato(float X, float Y, float Z, float T, bool Voleio, bool DepoisDaParede = false);
 
     public int Time { get; }
     public PerfilDeIA Perfil { get; }
@@ -517,6 +550,12 @@ public sealed class IA
 
     /// <summary>Jogador que está indo buscar a bola, se houver (pra depuração e pra animação).</summary>
     public Jogador? Responsavel => _plano?.Responsavel;
+    /// <summary>
+    /// <paramref name="j"/> vai na bola e o plano é esperá-la sair da parede que ela ainda não bateu: a partida não o deixa
+    /// bater nela enquanto passa a caminho do vidro (a raquete da IA e do modo Automático bate em qualquer bola ao alcance).
+    /// A batida na parede replaneja (<see cref="AoRebater"/>) e o plano novo é o de sempre.
+    /// </summary>
+    public bool EsperandoAParede(Jogador j) => _plano is Plano p && p.Responsavel == j && p.EsperaAParede;
     /// <summary>Onde (x, no mundo) quem vai na bola põe o corpo agora, pela leitura do momento — null sem plano (depuração e teste).</summary>
     public float? AlvoXDoResponsavel => _plano is Plano p ? XDoCorpo(p, p.Responsavel) : null;
     /// <summary>A dupla está com os lados trocados (o Indice 0 na vaga da esquerda): saque do outro lado ou cambio (depuração e teste).</summary>
@@ -615,16 +654,21 @@ public sealed class IA
         Candidato alvo = default;
         foreach (var c in candidatos)
         {
-            Jogador? melhor = null;
-            float melhorFolga = float.NegativeInfinity;
-            foreach (var j in meus)
-            {
-                float distancia = j.DistanciaAte(c.X, c.Y);
-                if (c.Voleio && !(MathF.Abs(j.Y) < 5 && distancia < 2.5f)) continue;
-                float folga = c.T - (j.TempoParaChegar(distancia) + (j.Humano ? 0 : Perfil.Reacao));
-                if (folga >= 0 && folga > melhorFolga) { melhorFolga = folga; melhor = j; }
-            }
-            if (melhor is not null) { escolhido = melhor; alvo = c; break; }
+            if (QuemChega(c, meus) is Jogador melhor) { escolhido = melhor; alvo = c; break; }
+        }
+        bool esperaAParede = false;
+        if (escolhido is not null && Perfil.EsperaAParede && !alvo.Voleio
+            && (alvo.DepoisDaParede || MathF.Abs(alvo.Y) >= ProfundidadeDeEsperarAParede)
+            && EsperaDaSaida(candidatos, meus) is (Candidato saida, Jogador quemVai))
+        {
+            // A saída de parede: a bola funda que vai bater no vidro depois de quicar não se bate colada nele, com ela fugindo
+            // do corpo — espera-se ela sair e vir de volta (REALISMO, "golpes que faltam"; medido em 06/11: 132 bolas por 6
+            // partidas Médio x Médio batidas a 8,4 m, baixas e rápidas, quando 114 voltariam a ≤ 9 m). E quem já ia esperar
+            // (sem ponto batível antes da parede) espera a 2 m do vidro, não colado nele. Sem saída que valha (ou sem tempo
+            // de chegar a ela), fica o plano de sempre — e a raquete bate na bola que passa, como antes.
+            escolhido = quemVai;
+            alvo = saida;
+            esperaAParede = true;
         }
         if (escolhido is null)
         {
@@ -658,9 +702,52 @@ public sealed class IA
             XDaBola = alvo.X,
             YDaBola = alvo.Y,
             RuidoX = ruidoX,
+            EsperaAParede = esperaAParede,
         };
         // A bola vai passar por cima da dupla na rede (quem vai nela vai buscá-la atrás da linha de saque): recuam juntos.
         if (Posicao == Formacao.Rede && MathF.Abs(_plano.AlvoY) >= Quadra.LinhaDeSaque) MudarFormacao(partida, Formacao.Fundo, escolhido);
+    }
+
+    /// <summary>Quem da dupla chega ao candidato a tempo com mais folga (o voleio só de quem já está na rede e perto); null se ninguém.</summary>
+    private Jogador? QuemChega(Candidato c, Jogador[] meus, float folgaMinima = 0)
+    {
+        Jogador? melhor = null;
+        float melhorFolga = float.NegativeInfinity;
+        foreach (var j in meus)
+        {
+            float distancia = j.DistanciaAte(c.X, c.Y);
+            if (c.Voleio && !(MathF.Abs(j.Y) < 5 && distancia < 2.5f)) continue;
+            float folga = c.T - (j.TempoParaChegar(distancia) + (j.Humano ? 0 : Perfil.Reacao));
+            if (folga >= folgaMinima && folga > melhorFolga) { melhorFolga = folga; melhor = j; }
+        }
+        return melhor;
+    }
+
+    /// <summary>
+    /// Onde esperar a saída de parede, se ela existe e alguém chega com folga (<see cref="FolgaDaEspera"/>): entre os
+    /// candidatos depois da parede com altura de jogo (<see cref="AlturaMinimaDaSaida"/>) e a bola de volta a pelo menos 1 m
+    /// dos vidros (<see cref="ProfundidadeMaximaDaSaida"/>, <see cref="LateralMaximaDaSaida"/>), o primeiro a
+    /// <see cref="ProfundidadeDaEsperaDaSaida"/> ou menos a que alguém chega com a folga — os de depois estão mais perto de
+    /// quem vem da rede, então quem está no fundo espera a 2 m do vidro e quem vem de longe encontra a bola mais à frente.
+    /// Se a bola não volta a 2 m do vidro, o mais longe dele a que alguém chega.
+    /// </summary>
+    private (Candidato, Jogador)? EsperaDaSaida(List<Candidato> candidatos, Jogador[] meus)
+    {
+        (Candidato, Jogador)? melhor = null;
+        float menor = float.PositiveInfinity;
+        foreach (var c in candidatos)
+        {
+            if (!c.DepoisDaParede || c.Z < AlturaMinimaDaSaida || MathF.Abs(c.X) > LateralMaximaDaSaida) continue;
+            float profundidade = MathF.Abs(c.Y);
+            if (profundidade > ProfundidadeMaximaDaSaida) continue;
+            float medida = MathF.Max(profundidade, ProfundidadeDaEsperaDaSaida);
+            if (medida > menor) continue;
+            if (QuemChega(c, meus, FolgaDaEspera) is not Jogador quem) continue;
+            menor = medida;
+            melhor = (c, quem);
+            if (profundidade <= ProfundidadeDaEsperaDaSaida) break;
+        }
+        return melhor;
     }
 
     /// <summary>Desvio do erro de leitura (m) com a bola a tantos segundos do ponto de contato: o do perfil a 0,8 s ou mais, até zero.</summary>
@@ -685,9 +772,11 @@ public sealed class IA
         const float passo = 1f / 60f;
         var candidatos = new List<Candidato>();
         var eventos = new List<EventoDaBola>();
-        int quiques = 0;
+        // O quique que já houve conta (o árbitro viu): sem isso, a releitura no quique via a bola quicada como voleio e nunca
+        // via a parede — o plano de esperar a saída caía no exato instante em que a bola quicava.
+        int quiques = arbitro.QuicouNoReceptor ? 1 : 0;
         float t = 0;
-        bool acabou = false;
+        bool acabou = false, parede = false;
         for (int i = 0; i < 240 && clone.EmJogo && !clone.Parada && !acabou; i++)
         {
             eventos.Clear();
@@ -695,6 +784,7 @@ public sealed class IA
             t += passo;
             foreach (var e in eventos)
             {
+                if (e.Tipo == TipoDeEventoDaBola.Parede && e.Lado == meuLado && quiques > 0) parede = true;   // a saída de parede começa aqui
                 if (e.Tipo != TipoDeEventoDaBola.Quique) continue;
                 if (e.Lado == meuLado) quiques += 1; else acabou = true;
                 if (quiques >= 2) acabou = true;
@@ -705,7 +795,7 @@ public sealed class IA
             if (clone.Rolando) break;
             if (clone.Z < 0.35f || clone.Z > 2.3f) continue;
             if (quiques > 0 && clone.Vz > 0 && clone.Z < 0.9f) continue;   // subindo logo depois do quique: espera
-            candidatos.Add(new Candidato(clone.X, clone.Y, clone.Z, t, Voleio: quiques == 0));
+            candidatos.Add(new Candidato(clone.X, clone.Y, clone.Z, t, Voleio: quiques == 0, DepoisDaParede: parede));
             if (candidatos.Count > 150) break;
         }
         return candidatos;
