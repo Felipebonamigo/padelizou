@@ -8,15 +8,16 @@ namespace Padelizou.Services;
 // aqui quer dizer "SÓ na sexta". São escolhas opostas, e um enum só faria o mesmo valor
 // significar as duas coisas dependendo de onde estivesse gravado.
 //
-// Sem `QuintaNoite`: o Felipe pediu três opções ("os 2 jogos na sexta / no sábado de manhã /
-// no sábado à tarde"), e a quinta só existe em torneio que começa nela. Se fizer falta, entra
-// aqui e em `ConcentracaoDeJogos.JanelaDoTurno` — o resto do cálculo não muda.
+// `QuintaNoite` entrou em 09/11/2026 (🗣️ Felipe: *"esse torneio começa na quinta à noite"*) —
+// no FIM, e não na ordem do calendário: a coluna é `int` (Dupla.ConcentrarJogosEm), e inserir no
+// meio trocaria o turno de toda dupla já gravada. A ordem da TELA mora em TurnosDoTorneio.
 public enum TurnoDeConcentracao
 {
     Nenhuma,
     SextaNoite,
     SabadoManha,
     SabadoTarde,
+    QuintaNoite,
 }
 
 // "COLOCAR OS 2 JOGOS NA SEXTA" — o favor que o organizador (e o adm do sistema) concede.
@@ -52,6 +53,7 @@ public static class ConcentracaoDeJogos
 
     public static string Rotulo(TurnoDeConcentracao turno) => turno switch
     {
+        TurnoDeConcentracao.QuintaNoite => "Os 2 jogos na quinta à noite",
         TurnoDeConcentracao.SextaNoite => "Os 2 jogos na sexta à noite",
         TurnoDeConcentracao.SabadoManha => "Os 2 jogos no sábado de manhã",
         TurnoDeConcentracao.SabadoTarde => "Os 2 jogos no sábado à tarde",
@@ -63,6 +65,7 @@ public static class ConcentracaoDeJogos
     // aqui, ao lado do `Rotulo`, pra que os dois textos do mesmo turno nasçam juntos.
     public static string RotuloCurto(TurnoDeConcentracao turno) => turno switch
     {
+        TurnoDeConcentracao.QuintaNoite => "Quinta à noite",
         TurnoDeConcentracao.SextaNoite => "Sexta à noite",
         TurnoDeConcentracao.SabadoManha => "Sábado de manhã",
         TurnoDeConcentracao.SabadoTarde => "Sábado à tarde",
@@ -77,10 +80,12 @@ public static class ConcentracaoDeJogos
     // turno da noite), e o sábado se parte no corte do meio-dia.
     public static (DateTime Inicio, DateTime Fim)? JanelaDoTurno(Torneio torneio, TurnoDeConcentracao turno)
     {
-        if (turno == TurnoDeConcentracao.SextaNoite)
+        // Quinta e sexta são o dia inteiro: nelas só existe o turno da noite.
+        if (turno is TurnoDeConcentracao.QuintaNoite or TurnoDeConcentracao.SextaNoite)
         {
-            return JanelasDeImpedimento.DiaDoTorneio(torneio, DayOfWeek.Friday) is DateTime sexta
-                ? (sexta, sexta.AddDays(1))
+            var dia = turno == TurnoDeConcentracao.QuintaNoite ? DayOfWeek.Thursday : DayOfWeek.Friday;
+            return JanelasDeImpedimento.DiaDoTorneio(torneio, dia) is DateTime noite
+                ? (noite, noite.AddDays(1))
                 : null;
         }
 
