@@ -85,8 +85,9 @@ public static class TurnosDoTorneio
         var lista = new List<TurnoDeConcentracao> { TurnoDeConcentracao.Nenhuma };
         foreach (var turno in new[]
                  {
-                     TurnoDeConcentracao.SextaNoite, TurnoDeConcentracao.SabadoManha,
-                     TurnoDeConcentracao.SabadoTarde,
+                     // Na ordem do calendário — o enum não está (ver TurnoDeConcentracao).
+                     TurnoDeConcentracao.QuintaNoite, TurnoDeConcentracao.SextaNoite,
+                     TurnoDeConcentracao.SabadoManha, TurnoDeConcentracao.SabadoTarde,
                  })
         {
             var existe = torneio.DataInicio is null
