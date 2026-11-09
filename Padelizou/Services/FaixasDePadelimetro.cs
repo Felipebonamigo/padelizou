@@ -164,7 +164,13 @@ public static class FaixasDePadelimetro
     // faixa tem 100 de largura e o seed nasce no MEIO dela (3ª é 650–749 e entra em 700), então
     // bastam +50; e um fim de semana dominante rende +60 a +100 (medido: até +142). O campeão
     // estreante era promovido SEMPRE, contra o "nunca por um dia de sorte" do próprio RANKING.md.
-    public const int FolgaDoRotulo = 50;
+    //
+    // 09/11/2026 — A SUBIDA PASSOU A PEDIR 100. 🗣️ Felipe: "deivid não é 3ª, é 4ª" · "demora mais
+    // para as pessoas trocarem de categoria, não é tão rápido, às vezes ficam ano na mesma". O
+    // Deivid tinha 701 jogando a 4ª (porta 699) depois de +123 em dois torneios, sem título acima
+    // dela. Descer segue com 50 — é a mesma folga da histerese da trava (FolgaDeDescida).
+    public const int FolgaDoRotuloParaSubir = 100;
+    public const int FolgaDoRotuloParaDescer = 50;
 
     // Em calibração o rótulo é a faixa da categoria JOGADA; depois dela o número manda, com
     // folga dos dois lados. Sem categoria na escada (só mista/casal/lendas, ou nome fora da
@@ -180,7 +186,13 @@ public static class FaixasDePadelimetro
         // jeito — só o rótulo espera os 10 jogos.
         if (Padelimetro.EmCalibracao(jogos)) return jogada;
 
-        return nivel > jogada.Teto + FolgaDoRotulo || nivel < jogada.Piso - FolgaDoRotulo
+        // Subir: cada degrau pede FolgaDoRotuloParaSubir além do teto DELE — a faixa de
+        // (nível − folga). Com a folga do tamanho de uma faixa, usar a faixa crua aqui faria
+        // quem passa a porta pular dois degraus (750 na 4ª virava 2ª).
+        if (nivel > jogada.Teto + FolgaDoRotuloParaSubir)
+            return DoNivel(nivel - FolgaDoRotuloParaSubir, feminina);
+
+        return nivel < jogada.Piso - FolgaDoRotuloParaDescer
             ? DoNivel(nivel, feminina)
             : jogada;
     }
@@ -194,15 +206,33 @@ public static class FaixasDePadelimetro
         if (jogada == null) return FaltaPraSubir(nivel, EhFeminina(categoriaQueJoga));
         if (Padelimetro.EmCalibracao(jogos)) return null;
 
-        // Ainda ancorado na categoria jogada: o que muda o rótulo é cruzar a FOLGA. Já fora
-        // dela, o rótulo virou o da faixa crua e o próximo degrau é o teto dela.
+        // O primeiro nível acima deste em que o RÓTULO muda — procurado na própria régua, e
+        // não recalculado à parte: com folgas diferentes pra subir e descer, uma conta paralela
+        // é a segunda régua que um dia diverge da primeira. São no máximo 1000 passos.
         var exibida = FaixaExibida(nivel, categoriaQueJoga, jogos);
-        int teto = exibida == jogada ? jogada.Teto + FolgaDoRotulo : exibida.Teto;
-        return teto >= Padelimetro.Maximo ? null : teto + 1 - nivel;
+        for (int n = nivel + 1; n <= Padelimetro.Maximo; n++)
+            if (FaixaExibida(n, categoriaQueJoga, jogos) != exibida) return n - nivel;
+        return null;
     }
 
     // Quanto falta pra cruzar o teto da faixa atual — o "faltam 40 pra 4ª" do perfil.
     // Nulo já no topo da escada.
+    // A CATEGORIA QUE A PESSOA JOGA — a âncora do rótulo, igual no ranking, no perfil e no card.
+    //
+    // Só torneio que JÁ COMEÇOU (data ≤ hoje): até 09/11/2026 valia a inscrição mais recente por
+    // data, e uma inscrição futura numa categoria acima mudava o rótulo sem a pessoa jogar nada
+    // (o Deivid estava inscrito na 3ª de 20/11). Duas categorias no mesmo torneio: vale a mais
+    // forte (maior entrada) — antes ganhava a que o banco devolvesse primeiro. Torneio sem data
+    // fica por último: só vale quando não há outro. Mista/casal/lendas seguem fora da escada.
+    public static string? CategoriaDeReferencia(IEnumerable<(string? Nome, DateTime? Data)> inscricoes, DateTime hoje) =>
+        inscricoes
+            .Where(i => !ForaDaEscada(i.Nome) && (i.Data == null || i.Data.Value.Date <= hoje.Date))
+            .OrderBy(i => i.Data == null)
+            .ThenByDescending(i => i.Data)
+            .ThenByDescending(i => Entrada(i.Nome))
+            .Select(i => i.Nome)
+            .FirstOrDefault();
+
     public static int? FaltaPraSubir(int nivel, bool feminina)
     {
         var faixa = DoNivel(nivel, feminina);

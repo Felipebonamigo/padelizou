@@ -67,8 +67,9 @@ public class RotuloDaFaixaNaoSobeNumTorneioSoTests
     {
         // Com 10 jogos a calibração acabou. A 3ª é 650–749, então:
         const int dezJogos = 10;
-        Assert.Equal("3ª", Rotulo(799, Terceira, dezJogos));   // teto+50 ainda é 3ª
-        Assert.Equal("2ª", Rotulo(800, Terceira, dezJogos));   // passou da folga → sobe
+        // ⚠️ 09/11/2026: a subida passou a pedir teto+100 (RotuloDaFaixaSobeDevagarTests).
+        Assert.Equal("3ª", Rotulo(849, Terceira, dezJogos));   // teto+100 ainda é 3ª
+        Assert.Equal("2ª", Rotulo(850, Terceira, dezJogos));   // passou da folga → sobe
         Assert.Equal("3ª", Rotulo(600, Terceira, dezJogos));   // piso−50 ainda é 3ª
         Assert.Equal("4ª", Rotulo(599, Terceira, dezJogos));   // passou da folga → desce
     }
@@ -92,8 +93,9 @@ public class RotuloDaFaixaNaoSobeNumTorneioSoTests
         // falta é chegar na folga.
         Assert.Null(FaixasDePadelimetro.FaltaPraMudarDeFaixa(742, Quarta, jogos: 5));
 
-        // 10 jogos, joga a 3ª (teto 749): o rótulo vira "2ª" em 800, então faltam 58 de 742.
-        Assert.Equal(58, FaixasDePadelimetro.FaltaPraMudarDeFaixa(742, Terceira, jogos: 10));
+        // 10 jogos, joga a 3ª (teto 749): o rótulo vira "2ª" em 850 (folga de subida 100 desde
+        // 09/11/2026), então faltam 108 de 742.
+        Assert.Equal(108, FaixasDePadelimetro.FaltaPraMudarDeFaixa(742, Terceira, jogos: 10));
     }
 
     [Fact]
@@ -105,7 +107,7 @@ public class RotuloDaFaixaNaoSobeNumTorneioSoTests
         // esta mudança se propôs a fazer.
         var terceira = FaixasDePadelimetro.DaCategoria(Terceira)!;
         Assert.Equal(terceira.Teto + 1, FaixasDePadelimetro.LinhaDeSubida(terceira));
-        Assert.NotEqual(terceira.Teto + FaixasDePadelimetro.FolgaDoRotulo,
+        Assert.NotEqual(terceira.Teto + FaixasDePadelimetro.FolgaDoRotuloParaSubir,
             FaixasDePadelimetro.LinhaDeSubida(terceira));
     }
 }

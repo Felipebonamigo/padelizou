@@ -215,7 +215,8 @@ Longhi, +142 em 5 jogos), contra os "+60 a +100" que este arquivo prometia.
   já faz — se o número ainda anda rápido porque é um chute, ele não pode estar renomeando
   ninguém. E é o que faz valer o "1 ou 2 torneios dominados" em vez de sempre 1.
 - **Passada a calibração, o número manda, com folga de 50 PROS DOIS LADOS**: sobe com
-  `teto + 50`, desce com `piso − 50`. A de descida já existia escrita aqui e **não estava
+  `teto + 50`, desce com `piso − 50`. ⚠️ **Desde 09/11/2026 a subida pede `teto + 100`** — ver
+  "A subida do rótulo pede 100" abaixo. A de descida já existia escrita aqui e **não estava
   ligada na tela**; a de subida é nova e simétrica.
 - **Sem categoria na escada** (quem só jogou mista, casal ou lendas): rótulo é a faixa crua do
   número, como sempre foi — não há âncora de onde partir.
@@ -231,6 +232,32 @@ A folga do rótulo mora em `FolgaDoRotulo`, separada de propósito.
 histerese de descida **não** está no rótulo — ela exige guardar QUANDO cada um subiu, e isso é
 histórico que o `Jogador` não tem. A folga de 50 pontos cobre o pingue-pongue na prática; se um
 dia faltar, aí é migration e vira decisão de novo.
+
+### A subida do rótulo pede 100, e a âncora é a categoria JOGADA (09/11/2026)
+
+🗣️ Felipe, com o print do Padelímetro: *"deivid não é 3ª, é 4ª, precisamos melhorar"* ·
+*"demora mais para as pessoas trocarem de categoria, não é tão rápido, às vezes ficam ano na
+mesma"*. O caso: Deivid Santos, **701 PDZ, 11 jogos, joga a 4ª** (550–649). Com folga de 50 a
+porta era 699 — passou por 2 pontos, depois de +123 em dois torneios de outubro, sem título
+acima da 4ª (o perfil dele diz "Categoria prevista: 4ª — chegou à final").
+
+🔑 **O que mudou (só o RÓTULO; nenhum PDZ mexe, sem migration, sem replay):**
+
+- **Subir pede 100 além do teto** (`FolgaDoRotuloParaSubir`); **descer segue com 50**
+  (`FolgaDoRotuloParaDescer`). Na 4ª: vira 3ª só em **750**; vira 5ª abaixo de **500**.
+- **Um degrau por vez**: acima da porta o rótulo é a faixa de `(PDZ − 100)`. Como a folga é do
+  tamanho de uma faixa, usar a faixa crua faria 750 na 4ª virar **2ª** direto. Cada degrau
+  pede 100 além do teto dele: 3ª em 750, 2ª em 850, Open em 950.
+- **A âncora ("categoria que joga") é só de torneio que JÁ COMEÇOU** (data ≤ hoje). Antes valia a
+  inscrição mais recente por data, futura inclusive — o Deivid estava inscrito na 3ª de 20/11, e
+  uma inscrição acima mudava o rótulo sem jogar nada. **Duas categorias no mesmo torneio: vale a
+  mais forte** (antes, a que o banco devolvesse primeiro). Torneio sem data só vale sem outro.
+  Uma função só pros três lugares que mostram o rótulo: `FaixasDePadelimetro.CategoriaDeReferencia`
+  (ranking, perfil e card).
+- "Faltam X pra subir de faixa" é procurado na própria régua (primeiro PDZ acima em que o rótulo
+  muda), não numa conta paralela.
+
+📊 Em 09/11 só 4 jogadores estavam fora da calibração; pela régua nova só o Deivid muda (3ª → 4ª).
 
 ### Fases de lançamento (para não queimar o produto)
 

@@ -114,9 +114,9 @@ public class JogadoresController : Controller
         // (mista fica fora da escada de propósito); sem nenhuma, masculina por padrão.
         if (jogador.Padelimetro is int nivelPadelimetro)
         {
-            var categoriaRecente = historicoDuplas
-                .Select(d => d.Categoria.Nome)
-                .FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
+            var categoriaRecente = FaixasDePadelimetro.CategoriaDeReferencia(
+                historicoDuplas.Select(d => ((string?)d.Categoria.Nome, d.Categoria.Torneio?.DataInicio)),
+                DateTime.Today);
             // O RÓTULO não é a faixa crua do número: em calibração ele é o da categoria
             // jogada, e depois dela o número manda com folga dos dois lados (RANKING.md, "O
             // RÓTULO da tela não é a trava"). E o "faltam X" mede o que muda ESTE rótulo.
