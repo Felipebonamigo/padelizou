@@ -1074,7 +1074,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
    ainda consegue selecionar e copiar à mão. *@
 @if (TempData["ConviteLink"] is string conviteLink && !string.IsNullOrWhiteSpace(conviteLink))
 {
-    <div class="alert alert-success">
+    @* `id` = a âncora do redirect do GerarConvite: sem ela, com o Pix do organizador acima, o
+       quadro caía abaixo da dobra e o botão parecia não fazer nada (ConviteCriadoNaTelaTests). *@
+    <div class="alert alert-success" id="conviteCriado" style="scroll-margin-top: 80px;">
         <p class="fw-bold mb-1"><i class="bi bi-link-45deg"></i> Link do convite criado</p>
         <p class="small mb-2">
             Manda pra quem você quer como parceiro. Quem abrir entra com a conta dele e fecha a

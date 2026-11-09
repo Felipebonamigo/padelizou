@@ -1217,7 +1217,10 @@ namespace Padelizou.Controllers
             TempData["ConviteDuplaId"] = dupla.Id;
             TempData["ConviteLink"] = Url.Action(nameof(Convite), "Duplas",
                 new { token = dupla.ConviteToken }, Request.Scheme);
-            return RedirectToAction("Details", "Torneios", new { id = torneio.Id });
+            // ⚠️ COM A ÂNCORA (09/11/2026). 🗣️ Deivid: *"vai lá pra cima e nada"*. O link era
+            // criado, mas o quadro mora depois do Pix do organizador — que aparece justamente pra
+            // quem deve — e caía abaixo da dobra no celular. Ver ConviteCriadoNaTelaTests.
+            return RedirectToAction("Details", "Torneios", new { id = torneio.Id }, "conviteCriado");
         }
 
         // A tela que quem recebeu o link abre. Exige login: é ele quem vai virar parceiro,
