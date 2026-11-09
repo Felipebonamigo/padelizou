@@ -68,14 +68,14 @@ public class CorrecaoDePlacarDesfazPadelimetroTests
 
         // Sem o conserto, A continuaria com o nível de QUEM VENCEU — mesmo tendo perdido.
         // Placar 2x6 (mesma margem, 4 games, de FatorDeGames) com os quatro no mesmo nível
-        // (expectativa 0.5): K=20 (estável) × fator 1,4 × 0,5 = 14 de variação. A perdeu:
-        // 600 - 14 = 586 — e não os 600 "neutros" que sobrariam se a correção só desfizesse
+        // (expectativa 0.5): K=12 (estável, desde 09/11/2026) × fator 1,4 × 0,5 = 8,4 → 8. A perdeu:
+        // 600 - 8 = 592 — e não os 600 "neutros" que sobrariam se a correção só desfizesse
         // o jogo velho sem aplicar o resultado novo.
         jogadorA1 = await ctx.Jogadores.FindAsync(a.Jogador1Id);
-        Assert.Equal(586, jogadorA1!.Padelimetro);
+        Assert.Equal(592, jogadorA1!.Padelimetro);
 
         var jogadorB1 = await ctx.Jogadores.FindAsync(b.Jogador1Id);
-        Assert.Equal(614, jogadorB1!.Padelimetro);   // B, que realmente venceu, sobe: 600 + 14.
+        Assert.Equal(608, jogadorB1!.Padelimetro);   // B, que realmente venceu, sobe: 600 + 8.
 
         // Uma linha de extrato por jogador, não duas — o desfazer removeu a velha antes de
         // reaplicar, não empilhou em cima.

@@ -21,22 +21,22 @@ namespace Padelizou.Services;
 // infla. Quem joga PRA CIMA (nível abaixo da linha de descida da categoria) não leva pena:
 // aventura não é campanha ruim.
 //
-// O tamanho é UM JOGO típico de propósito (K estável entre iguais ≈ ±10): "título vale um
-// jogo ganho a mais, ficar na chave custa um jogo perdido a mais" é uma frase que qualquer
-// jogador confere. Vice e fases do meio não levam nada — esses o Elo já pagou jogo a jogo.
+// O tamanho é UM JOGO típico de propósito: "título vale um jogo ganho a mais, ficar na chave
+// custa um jogo perdido a mais" é uma frase que qualquer jogador confere. Por isso caiu junto
+// com o K em 09/11/2026: K estável 12 entre iguais ≈ ±6, então +5 / −5 / −3 (era +10/−10/−5). Vice e fases do meio não levam nada — esses o Elo já pagou jogo a jogo.
 //
 // Puro como o Padelimetro: recebe fases e números, devolve delta e motivo. Quem decide
 // QUANDO e PRA QUEM aplicar (final fechada, só quem entrou em quadra, porteiros de
 // torneio) é o PadelimetroService.
 public static class CampanhaNoPadelimetro
 {
-    public const int BonusDoCampeao = 10;
+    public const int BonusDoCampeao = 5;
 
     // Ficou na fase de grupos enquanto a categoria seguiu adiante.
-    public const int PenaDeNaoSairDaChave = -10;
+    public const int PenaDeNaoSairDaChave = -5;
 
     // Saiu da chave e caiu logo na estreia do mata-mata — metade da pena de quem nem saiu.
-    public const int PenaDeCairNaEstreia = -5;
+    public const int PenaDeCairNaEstreia = -3;
 
     // A fase de quem nunca foi eliminado no mata-mata: Dupla.UltimaFase nasce valendo isso
     // e jogo de grupo não carimba o perdedor (ver FinalizarPartida).

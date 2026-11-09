@@ -33,11 +33,12 @@ largura. 100 pontos de diferença ≈ 64% de favoritismo; 200 ≈ 76%.
 - Variação de cada jogador = `K_dele × fator_de_games × (resultado − expectativa)`,
   arredondada. O resultado é 1 pra quem venceu, 0 pra quem perdeu — cada um usa o
   próprio K, então parceiro em calibração anda mais rápido que o veterano do lado.
-- **K = 40** nos primeiros 10 jogos ("em calibração", selo cinza), **K = 20** depois.
+- **K = 24** nos primeiros 10 jogos ("em calibração", selo cinza), **K = 12** depois.
+  (Era 40/20 até 09/11/2026 — ver "O número anda mais devagar" abaixo.)
 - **Fator de games**: `1 + 0,1 × min(|diferença de games|, 6)` — 6x0 vale 1,6×, 7x6
   vale 1,1×. Ganhar passeando move mais que ganhar no detalhe.
-- Na prática: vitória contra dupla igual ≈ ±7 a ±13. Um fim de semana dominante rende
-  +60 a +100 — sobe de faixa em 1 ou 2 torneios dominados, nunca por um dia de sorte.
+- Na prática: vitória contra dupla igual ≈ ±4 a ±8. Um fim de semana dominante rende
+  +35 a +60 — quem é claramente de cima troca de rótulo em 6 a 11 torneios (simulado).
 - **E a campanha da categoria também move** — bônus de campeão, pena de quem fica na
   chave, limitados pelas portas da faixa. Régua completa logo abaixo.
 
@@ -53,11 +54,11 @@ A campanha passa a falar direto no número:
 
 | Campanha na categoria | Ajuste |
 |---|---|
-| Campeão | **+10** |
-| Caiu na estreia do mata-mata | **−5** |
-| Não saiu da chave (ficou nos grupos) | **−10** |
+| Campeão | **+5** (era +10) |
+| Caiu na estreia do mata-mata | **−3** (era −5) |
+| Não saiu da chave (ficou nos grupos) | **−5** (era −10) |
 
-- O tamanho é UM JOGO típico de propósito (K estável entre iguais ≈ ±10): "título vale um
+- O tamanho é UM JOGO típico de propósito (K estável entre iguais ≈ ±6 desde 09/11/2026; era ±10): "título vale um
   jogo ganho a mais, ficar na chave custa um jogo perdido a mais" é uma frase que qualquer
   jogador confere no grupo do WhatsApp.
 - Vice e fases do meio não levam nada — esses degraus o Elo já pagou jogo a jogo. E quando
@@ -232,6 +233,26 @@ A folga do rótulo mora em `FolgaDoRotulo`, separada de propósito.
 histerese de descida **não** está no rótulo — ela exige guardar QUANDO cada um subiu, e isso é
 histórico que o `Jogador` não tem. A folga de 50 pontos cobre o pingue-pongue na prática; se um
 dia faltar, aí é migration e vira decisão de novo.
+
+### O número anda mais devagar: K 24/12 e campanha pela metade (09/11/2026)
+
+🗣️ Felipe: *"demora mais para as pessoas trocarem de categoria, não é tão rápido, às vezes ficam
+ano na mesma"* · *"talvez colocar mais um zero no final, ao invés de 1.000 total, fazer 10.000"*.
+Escolha final: *"K 24/12, campanha ±5, sem 10.000"*.
+
+- **Por que não 10.000**: o Elo é proporcional. Tudo ×10 (faixas, entrada, divisor, K) anda
+  exatamente igual — "701" vira "7010" e nada muda de ritmo. Quem dá a velocidade é o **K**.
+- **K 40/20 → 24/12.** Simulação (5 jogos por torneio, jogador da 4ª, porta do rótulo em 750):
+
+  | Nível real | K 40/20 | **K 24/12** |
+  |---|---|---|
+  | 150 acima da 4ª | 2 a 9 torneios | 8 a 18 |
+  | 200 acima (claramente de 3ª) | 2 a 5 | 6 a 11 |
+
+- **Campanha pela metade** pra continuar sendo "um jogo a mais": +5 / −5 / −3.
+- ⚠️ **Exige o replay** (Admin → Recalcular Padelímetro) depois do deploy: sem ele, o número
+  de hoje continua feito com a régua velha e só os jogos novos andam devagar. O replay
+  recalcula TODO MUNDO: os números ficam mais perto da entrada de cada categoria.
 
 ### A subida do rótulo pede 100, e a âncora é a categoria JOGADA (09/11/2026)
 

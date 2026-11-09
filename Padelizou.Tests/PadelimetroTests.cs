@@ -33,10 +33,11 @@ public class PadelimetroMotorTests
     [Fact]
     public void K_dobrado_ate_o_decimo_jogo_depois_estavel()
     {
-        Assert.Equal(40, Padelimetro.K(0));
-        Assert.Equal(40, Padelimetro.K(9));
-        Assert.Equal(20, Padelimetro.K(10));
-        Assert.Equal(20, Padelimetro.K(500));
+        // 40/20 → 24/12 em 09/11/2026 (PadelimetroAndaMaisDevagarTests). Segue o dobro.
+        Assert.Equal(24, Padelimetro.K(0));
+        Assert.Equal(24, Padelimetro.K(9));
+        Assert.Equal(12, Padelimetro.K(10));
+        Assert.Equal(12, Padelimetro.K(500));
 
         Assert.True(Padelimetro.EmCalibracao(9));
         Assert.False(Padelimetro.EmCalibracao(10));
@@ -217,9 +218,9 @@ public class PadelimetroServiceTests
         await new PadelimetroService(ctx).AplicarAsync(partida.Id);
 
         // Todos estrearam pela 5ª masculina (entrada 500), expectativa meio a meio,
-        // K de calibração 40, fator do 6x2 = 1,4: delta = 40 × 1,4 × 0,5 = 28.
-        Assert.All(time1, j => Assert.Equal(528, j.Padelimetro));
-        Assert.All(time2, j => Assert.Equal(472, j.Padelimetro));
+        // K de calibração 24, fator do 6x2 = 1,4: delta = 24 × 1,4 × 0,5 = 16,8 → 17.
+        Assert.All(time1, j => Assert.Equal(517, j.Padelimetro));
+        Assert.All(time2, j => Assert.Equal(483, j.Padelimetro));
         Assert.All(time1.Concat(time2), j => Assert.Equal(1, j.JogosDePadelimetro));
 
         // Extrato: 4 nascimentos + 4 movimentos, com motivo legível.
@@ -229,7 +230,7 @@ public class PadelimetroServiceTests
             .Single(h => h.JogadorId == time1[0].Id && h.PartidaId != null);
         Assert.Contains("Vitória 6x2", doVencedor.Motivo);
         Assert.Equal(500, doVencedor.NivelAntes);
-        Assert.Equal(28, doVencedor.Delta);
+        Assert.Equal(17, doVencedor.Delta);
     }
 
     [Fact]
@@ -271,7 +272,7 @@ public class PadelimetroServiceTests
         await servico.AplicarAsync(partida.Id);
         await servico.AplicarAsync(partida.Id); // a fila offline da Mesa reentrega
 
-        Assert.Equal(528, time1[0].Padelimetro);
+        Assert.Equal(517, time1[0].Padelimetro);
         Assert.Equal(1, time1[0].JogosDePadelimetro);
         Assert.Equal(4, ctx.HistoricosDePadelimetro.Count(h => h.PartidaId == partida.Id));
     }
@@ -285,8 +286,8 @@ public class PadelimetroServiceTests
         await new PadelimetroService(ctx).AplicarAsync(partida.Id);
 
         // Entrada da 2ª masculina é 800 — o 6x2 move a partir dela.
-        Assert.All(time1, j => Assert.Equal(828, j.Padelimetro));
-        Assert.All(time2, j => Assert.Equal(772, j.Padelimetro));
+        Assert.All(time1, j => Assert.Equal(817, j.Padelimetro));
+        Assert.All(time2, j => Assert.Equal(783, j.Padelimetro));
     }
 
     [Fact]
@@ -342,13 +343,13 @@ public class PadelimetroServiceTests
         Assert.All(lista, l => Assert.True(l.EmCalibracao));
 
         var vencedorMasc = lista.Single(l => l.Jogador.Id == timeM1[0].Id);
-        Assert.Equal(528, vencedorMasc.Pdz);
+        Assert.Equal(517, vencedorMasc.Pdz);
         Assert.Equal("5ª", vencedorMasc.FaixaRotulo);
         Assert.Equal("masculina", vencedorMasc.FaixaEscada);
 
         // O MESMO número na escada feminina rotula outra faixa — escala única, faixas próprias.
         var vencedoraFem = lista.Single(l => l.Jogador.Id == timeF1[0].Id);
-        Assert.Equal(528, vencedoraFem.Pdz);
+        Assert.Equal(517, vencedoraFem.Pdz);
         Assert.Equal("2ª", vencedoraFem.FaixaRotulo);
         Assert.Equal("feminina", vencedoraFem.FaixaEscada);
 
@@ -382,9 +383,9 @@ public class PadelimetroServiceTests
         await TestInfra.FinalizarComPlacarAsync(ctx, controller, partida, 6, 4);
 
         // O gancho do FinalizarPartida aplicou: 2ª masculina (entrada 800), 6x4 → fator
-        // 1,2, K 40 → delta 24.
+        // 1,2, K 24 → delta 14,4 → 14.
         var vencedores = new[] { duplas[0].Jogador1Id, duplas[0].Jogador2Id!.Value };
         foreach (var id in vencedores)
-            Assert.Equal(824, ctx.Jogadores.Find(id)!.Padelimetro);
+            Assert.Equal(814, ctx.Jogadores.Find(id)!.Padelimetro);
     }
 }

@@ -17,10 +17,16 @@ public static class Padelimetro
     public const int Maximo = 1000;
 
     // K = quanto um jogo pode mexer no número. Alto no começo porque o seed é um chute
-    // (a categoria da primeira inscrição) e precisa se corrigir em 1–2 torneios.
+    // (a categoria da primeira inscrição) e precisa se corrigir.
+    //
+    // 09/11/2026 — 40/20 → 24/12. 🗣️ Felipe: "demora mais para as pessoas trocarem de
+    // categoria [...] às vezes ficam ano na mesma". Simulado: quem é claramente de 3ª jogando
+    // a 4ª virava 3ª em 2–5 torneios; agora em 6–11. Escala 0–10.000 foi descartada: o Elo é
+    // proporcional, tudo ×10 anda igual — quem dá o ritmo é o K. Mudar o K pede o replay
+    // (Admin → Recalcular Padelímetro), senão o número velho fica feito com a régua velha.
     public const int JogosDeCalibracao = 10;
-    public const int KCalibrando = 40;
-    public const int KEstavel = 20;
+    public const int KCalibrando = 24;
+    public const int KEstavel = 12;
 
     public static int K(int jogosJaContados) =>
         jogosJaContados < JogosDeCalibracao ? KCalibrando : KEstavel;
