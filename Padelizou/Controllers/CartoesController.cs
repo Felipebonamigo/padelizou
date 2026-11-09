@@ -248,14 +248,14 @@ public class CartoesController : Controller
         bool emCalibracao = false;
         if (jogador.Padelimetro is int nivel)
         {
-            var categoriaRecente = await _context.Duplas
+            var inscricoes = await _context.Duplas
                 .AsNoTracking()
                 .Where(d => d.Jogador1Id == id || d.Jogador2Id == id)
-                .OrderByDescending(d => d.Categoria.Torneio.DataInicio)
-                .Select(d => d.Categoria.Nome)
+                .Select(d => new { d.Categoria.Nome, d.Categoria.Torneio.DataInicio })
                 .ToListAsync();
             // Mesmo rótulo do perfil e do ranking — a arte não pode dizer outra faixa.
-            var categoriaDaEscada = categoriaRecente.FirstOrDefault(n => !FaixasDePadelimetro.ForaDaEscada(n));
+            var categoriaDaEscada = FaixasDePadelimetro.CategoriaDeReferencia(
+                inscricoes.Select(i => ((string?)i.Nome, i.DataInicio)), DateTime.Today);
             var rotulo = FaixasDePadelimetro
                 .FaixaExibida(nivel, categoriaDaEscada, jogador.JogosDePadelimetro).Rotulo;
             faixa = rotulo == "Open" ? "Categoria Open" : $"{rotulo} categoria";

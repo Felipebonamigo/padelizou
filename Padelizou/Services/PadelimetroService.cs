@@ -365,13 +365,19 @@ public class PadelimetroService : IPadelimetroService
 
         // Guarda o NOME da categoria, e não só "é feminina": desde 14/09/2026 ela é a ÂNCORA
         // do rótulo, não só a escolha da escada. Ver FaixasDePadelimetro.FaixaExibida.
+        // A âncora de cada um sai da mesma régua do perfil e do card (só torneio já jogado;
+        // empate de data → a mais forte). Ver FaixasDePadelimetro.CategoriaDeReferencia.
+        var hoje = DateTime.Today;
+        var porJogador = inscricoes
+            .SelectMany(i => new[] { (Id: i.Jogador1Id, i.Categoria, i.Data), (Id: i.Jogador2Id ?? -1, i.Categoria, i.Data) })
+            .Where(x => ids.Contains(x.Id))
+            .ToLookup(x => x.Id);
         var categoriaDeCadaUm = new Dictionary<int, string>();
-        foreach (var i in inscricoes.OrderByDescending(i => i.Data)) // mais recente primeiro; a primeira vista vence
+        foreach (var grupo in porJogador)
         {
-            if (FaixasDePadelimetro.ForaDaEscada(i.Categoria)) continue;
-            foreach (var id in new[] { i.Jogador1Id, i.Jogador2Id ?? -1 })
-                if (id > 0 && ids.Contains(id) && !categoriaDeCadaUm.ContainsKey(id))
-                    categoriaDeCadaUm[id] = i.Categoria;
+            var categoria = FaixasDePadelimetro.CategoriaDeReferencia(
+                grupo.Select(x => ((string?)x.Categoria, x.Data)), hoje);
+            if (categoria != null) categoriaDeCadaUm[grupo.Key] = categoria;
         }
 
         return jogadores.Select(j =>
