@@ -83,7 +83,9 @@ public class RotuloDoHistoricoDoPerfilTests
         var tela = Tela("Views", "Shared", "_DestaquesJogador.cshtml");
 
         Assert.DoesNotContain("Split(' ')[0]", tela);
-        Assert.Equal(4, ContarOcorrencias(tela, "NomeBonito.Curto("));
+        // Desde 10/11/2026 os quatro cartões saem de UMA função local (Cartao), então o nome com
+        // sobrenome aparece uma vez no fonte — e vale pros quatro.
+        Assert.Contains("NomeBonito.Curto(pessoa.Nome)", tela);
     }
 
     private static int ContarOcorrencias(string texto, string trecho)
