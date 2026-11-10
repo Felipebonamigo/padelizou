@@ -94,8 +94,35 @@ public static class FaixasDePadelimetro
     // Categoria que não é degrau de escada nenhuma (mista, casal, lendas...). É por aqui que
     // passam as decisões de RÉGUA — faixa, seed e a inferência de escada — pra que uma
     // categoria nova do mesmo feitio entre num lugar só, em vez de em cinco `if`s espalhados.
+    // MESCLA: um atleta de cada um de DOIS degraus vizinhos da mesma escada (10/11/2026).
+    // 🗣️ Felipe: "um atleta de cada categoria, fazendo uma mescla" — A = 2ª e 3ª, B = 3ª e 4ª,
+    // C = 4ª e 5ª, D = 5ª e 6ª, E = 6ª e 7ª, masculina e feminina. O nome é "Categoria
+    // Masculina B" / "Categoria Feminina B" (sem "ª": é isso que a separa dos degraus).
+    //
+    // Fora da escada pelo mesmo motivo da mista: o resultado não diz em qual dos dois degraus
+    // cada um corre, então não há faixa pra campanha mirar nem âncora pro rótulo. Os JOGOS
+    // contam normalmente, e quem estreia nasce na média das duas entradas.
+    private static readonly System.Text.RegularExpressions.Regex Mescla = new(
+        @"\b(Masculin[ao]|Feminin[ao])\s+([A-E])\s*$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    public static bool EhMescla(string? nomeCategoria) => DegrausDaMescla(nomeCategoria) != null;
+
+    // Os dois degraus que a mescla junta, o mais forte primeiro. Nulo se não é mescla.
+    public static (Faixa Forte, Faixa Fraca)? DegrausDaMescla(string? nomeCategoria)
+    {
+        var n = nomeCategoria ?? "";
+        if (EhMista(n)) return null;
+        var m = Mescla.Match(n);
+        if (!m.Success) return null;
+
+        var escada = m.Groups[1].Value.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? Femininas : Masculinas;
+        int forte = char.ToUpperInvariant(m.Groups[2].Value[0]) - 'A' + 1;   // A → 2ª (índice 1)
+        return (escada[forte], escada[forte + 1]);
+    }
+
     public static bool ForaDaEscada(string? nomeCategoria) =>
-        EhMista(nomeCategoria) || EhCasal(nomeCategoria) || EhLendas(nomeCategoria);
+        EhMista(nomeCategoria) || EhCasal(nomeCategoria) || EhLendas(nomeCategoria) || EhMescla(nomeCategoria);
 
     public static bool EhFeminina(string? nomeCategoria) =>
         (nomeCategoria ?? "").Contains("Fem", StringComparison.OrdinalIgnoreCase);
@@ -125,6 +152,8 @@ public static class FaixasDePadelimetro
         // duas réguas — o mesmo lugar da mista sem letra.
         if (EhCasal(nomeCategoria) || EhLendas(nomeCategoria)) return EntradaDeMista("") ?? EntradaNeutra;
         if (EhMista(nomeCategoria)) return EntradaDeMista(nomeCategoria!) ?? EntradaNeutra;
+        if (DegrausDaMescla(nomeCategoria) is var (forte, fraca))
+            return (int)Math.Round((forte.Entrada + fraca.Entrada) / 2.0, MidpointRounding.AwayFromZero);
         return DaCategoria(nomeCategoria)?.Entrada ?? EntradaNeutra;
     }
 

@@ -47,9 +47,14 @@ public static class CategoriaNaTela
             ["Mista E"] = "7ª Masc, 7ª Fem e 6ª Fem",
         };
 
-    // A legenda da categoria, ou null quando não há uma definida.
-    public static string? Legenda(string? nome) =>
-        LegendasDasMistas.TryGetValue(Curto(nome), out var legenda) ? legenda : null;
+    // A legenda da categoria, ou null quando não há uma definida. A da MESCLA sai dos próprios
+    // degraus (FaixasDePadelimetro.DegrausDaMescla): "Masculina B" → "3ª e 4ª Masc".
+    public static string? Legenda(string? nome)
+    {
+        if (FaixasDePadelimetro.DegrausDaMescla(nome) is var (forte, fraca))
+            return $"{forte.Rotulo} e {fraca.Rotulo} {(forte.Escada == "feminina" ? "Fem" : "Masc")}";
+        return LegendasDasMistas.TryGetValue(Curto(nome), out var legenda) ? legenda : null;
+    }
 
     // "Mista B: 4ª Masc e 3ª Fem" — ou só o nome curto, quando não há legenda.
     public static string ComLegenda(string? nome) =>
@@ -96,17 +101,23 @@ public static class CategoriaNaTela
     // Open é o topo (0); depois 2ª..7ª pelo próprio número; Iniciantes fecha a escada. O que
     // não tem nível — Mista A, Casais — cai num degrau só e se desempata pelo nome, que é o
     // que põe "Mista A" antes de "Mista B".
+    //
+    // Em DEZENAS (2ª = 20) desde 10/11/2026, pra caber a MESCLA no meio: "Masculina B" (3ª e 4ª)
+    // é 35 — logo abaixo do degrau mais forte que ela junta.
     private static int Nivel(string texto)
     {
         if (Contem(texto, "Open")) return 0;
-        if (Contem(texto, "Iniciantes")) return 90;
+        if (Contem(texto, "Iniciantes")) return 900;
+
+        if (FaixasDePadelimetro.DegrausDaMescla(texto) is var (forte, _))
+            return Nivel(forte.Rotulo) + 5;
 
         // O número vem sempre antes do "ª" ("4ª Categoria Masculina").
         int posicao = texto.IndexOf('ª');
         if (posicao > 0 && char.IsDigit(texto[posicao - 1]))
-            return texto[posicao - 1] - '0';
+            return (texto[posicao - 1] - '0') * 10;
 
-        return 50;
+        return 500;
     }
 
     private static bool Contem(string texto, string parte) =>
