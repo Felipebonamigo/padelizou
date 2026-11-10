@@ -133,11 +133,13 @@ public class ParceiroResumoVM
     public int Vitorias { get; set; }
 }
 
-// Destaques de relacionamento do jogador (parceria/rivalidade), para os cards do perfil.
-// Cada campo pode ser null se não houver dado suficiente ainda.
+// Destaques de relacionamento do jogador (parceria/rivalidade), para o card do perfil — de
+// QUALQUER perfil desde 10/11/2026. Cada campo pode ser null se não houver dado suficiente.
 public class DestaquesJogadorVM
 {
-    public ParceiroResumoVM? MaisJogouJunto { get; set; }   // parceiro com mais jogos juntos
+    // Quem mais VENCEU junto (desempate: mais jogos). "Melhor", e não "mais frequente" — ver
+    // ParceriasERivalidadesNoPerfilTests.
+    public ParceiroResumoVM? MelhorParceiro { get; set; }
     public ConfrontoResumoVM? MaisEnfrentou { get; set; }   // adversário com mais confrontos
     public ConfrontoResumoVM? MaisTeVenceu { get; set; }    // algoz: mais derrotas suas pra ele
     public ConfrontoResumoVM? VoceMaisVenceu { get; set; }  // freguês: mais vitórias suas sobre ele

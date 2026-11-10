@@ -226,7 +226,15 @@ public class JogadoresController : Controller
             // Destaques reaproveitam as listas já carregadas (sem recarregar partidas).
             ViewBag.Destaques = EstatisticasService.MontarDestaques(parceiros, confrontos);
         }
-        else if (meuId.HasValue)
+        else
+        {
+            // MELHOR PARCEIRO, CARRASCO DE, FREGUÊS DE — no perfil de qualquer um (10/11/2026).
+            // 🗣️ Felipe, com o print de outro sistema: *"o nosso tem que ter"*. É resultado de
+            // padel, público como o ranking (o perfil privado esconde contato, e só).
+            ViewBag.Destaques = await _estatisticas.ObterDestaquesAsync(id);
+        }
+
+        if (!souEuMesmo && meuId.HasValue)
         {
             // É o perfil de outra pessoa: mostra o confronto entre eu e ela
             ViewBag.MeuConfronto = await _estatisticas.ObterHeadToHeadAsync(meuId.Value, id);
