@@ -463,6 +463,19 @@ using (var scope = app.Services.CreateScope())
         ("6ª Categoria Feminina", "6CatF", "Feminina", true),
         ("7ª Categoria Feminina", "7CatF", "Feminina", true),
         ("Categoria Iniciantes Feminina", "ICatF", "Feminina", false),
+        // MESCLA (10/11/2026): um atleta de cada um de dois degraus vizinhos — A = 2ª e 3ª …
+        // E = 6ª e 7ª. Tipo Masculina/Feminina pra caírem na coluna do sexo na criação do
+        // torneio. Ver FaixasDePadelimetro.EhMescla.
+        ("Categoria Masculina A", "MESC-MA", "Masculina", true),
+        ("Categoria Masculina B", "MESC-MB", "Masculina", true),
+        ("Categoria Masculina C", "MESC-MC", "Masculina", true),
+        ("Categoria Masculina D", "MESC-MD", "Masculina", true),
+        ("Categoria Masculina E", "MESC-ME", "Masculina", true),
+        ("Categoria Feminina A", "MESC-FA", "Feminina", true),
+        ("Categoria Feminina B", "MESC-FB", "Feminina", true),
+        ("Categoria Feminina C", "MESC-FC", "Feminina", true),
+        ("Categoria Feminina D", "MESC-FD", "Feminina", true),
+        ("Categoria Feminina E", "MESC-FE", "Feminina", true),
         ("Categoria Mista A", "MISTA-A", "Mista", true),
         ("Categoria Mista B", "MISTA-B", "Mista", true),
         ("Categoria Mista C", "MISTA-C", "Mista", true),
