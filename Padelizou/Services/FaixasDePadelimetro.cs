@@ -181,7 +181,7 @@ public static class FaixasDePadelimetro
         var jogada = DaCategoria(categoriaQueJoga);
         if (jogada == null) return DoNivel(nivel, feminina);
 
-        // O mesmo julgamento que o K = 40 já faz: se o número ainda anda rápido porque é um
+        // O mesmo julgamento que o K de calibração (o dobro do estável) já faz: se o número ainda anda rápido porque é um
         // chute, ele não pode estar renomeando ninguém. O número corre por baixo do mesmo
         // jeito — só o rótulo espera os 10 jogos.
         if (Padelimetro.EmCalibracao(jogos)) return jogada;

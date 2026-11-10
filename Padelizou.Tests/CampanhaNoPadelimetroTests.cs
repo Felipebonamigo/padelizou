@@ -33,15 +33,15 @@ public class CampanhaNoPadelimetroMotorTests
     public void Campeao_ganha_quem_fica_na_chave_perde_e_o_meio_nao_mexe()
     {
         var campeao = CampanhaNoPadelimetro.Ajuste(600, "Campeao", "Semifinal", Quarta);
-        Assert.Equal(10, campeao!.Value.Delta);
+        Assert.Equal(5, campeao!.Value.Delta);   // 10 → 5 em 09/11/2026
         Assert.Contains("Campeão da 4ª Categoria Masculina", campeao.Value.Motivo);
 
         var naChave = CampanhaNoPadelimetro.Ajuste(600, "Grupos", "Semifinal", Quarta);
-        Assert.Equal(-10, naChave!.Value.Delta);
+        Assert.Equal(-5, naChave!.Value.Delta);
         Assert.Contains("Não saiu da chave", naChave.Value.Motivo);
 
         var estreia = CampanhaNoPadelimetro.Ajuste(600, "Semifinal", "Semifinal", Quarta);
-        Assert.Equal(-5, estreia!.Value.Delta);
+        Assert.Equal(-3, estreia!.Value.Delta);
         Assert.Contains("estreia do mata-mata", estreia.Value.Motivo);
 
         // Vice e fase do meio: o Elo já pagou esses degraus jogo a jogo.
@@ -56,8 +56,8 @@ public class CampanhaNoPadelimetroMotorTests
         // VICE — chegou na final, não leva pena de estreia. O campeão e quem ficou no
         // grupo seguem valendo.
         Assert.Null(CampanhaNoPadelimetro.Ajuste(600, "Final", "Final", Quarta));
-        Assert.Equal(10, CampanhaNoPadelimetro.Ajuste(600, "Campeao", "Final", Quarta)!.Value.Delta);
-        Assert.Equal(-10, CampanhaNoPadelimetro.Ajuste(600, "Grupos", "Final", Quarta)!.Value.Delta);
+        Assert.Equal(5, CampanhaNoPadelimetro.Ajuste(600, "Campeao", "Final", Quarta)!.Value.Delta);
+        Assert.Equal(-5, CampanhaNoPadelimetro.Ajuste(600, "Grupos", "Final", Quarta)!.Value.Delta);
     }
 
     [Fact]
@@ -218,10 +218,11 @@ public class CampanhaNoPadelimetroServiceTests
 
         await new PadelimetroService(ctx).AplicarCampanhaAsync(cenario.Categoria.Id);
 
-        Assert.All(cenario.Campeoes, j => Assert.Equal(610, j.Padelimetro));
+        // Campanha ±5 / −3 desde 09/11/2026 (era +10 / −5 / −10).
+        Assert.All(cenario.Campeoes, j => Assert.Equal(605, j.Padelimetro));
         Assert.All(cenario.Vices, j => Assert.Equal(600, j.Padelimetro));
-        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(595, j.Padelimetro));
-        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(590, j.Padelimetro));
+        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(597, j.Padelimetro));
+        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(595, j.Padelimetro));
 
         // Campanha não é jogo: não conta pro K nem pra contagem de jogos.
         Assert.All(ctx.Jogadores, j => Assert.Equal(12, j.JogosDePadelimetro));
@@ -245,7 +246,7 @@ public class CampanhaNoPadelimetroServiceTests
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
 
-        Assert.All(cenario.Campeoes, j => Assert.Equal(610, j.Padelimetro));
+        Assert.All(cenario.Campeoes, j => Assert.Equal(605, j.Padelimetro));
         Assert.Equal(10, ctx.HistoricosDePadelimetro.Count(h => h.CategoriaId != null));
     }
 
@@ -263,7 +264,7 @@ public class CampanhaNoPadelimetroServiceTests
         await new PadelimetroService(ctx).AplicarCampanhaAsync(cenario.Categoria.Id);
 
         // E (jogou) leva a pena; F (só W.O.) fica intocada.
-        Assert.All(cenario.FicaramNaChave.Take(2), j => Assert.Equal(590, j.Padelimetro));
+        Assert.All(cenario.FicaramNaChave.Take(2), j => Assert.Equal(595, j.Padelimetro));
         Assert.All(cenario.FicaramNaChave.Skip(2), j => Assert.Equal(600, j.Padelimetro));
         Assert.Equal(8, ctx.HistoricosDePadelimetro.Count(h => h.CategoriaId != null));
     }
@@ -272,14 +273,15 @@ public class CampanhaNoPadelimetroServiceTests
     public async Task As_penas_do_servico_param_na_linha_de_descida()
     {
         using var ctx = TestInfra.NovoContexto();
-        // Todo mundo a 505 — a 5 pontos da porta de descida da 4ª (500).
-        var cenario = MontarCategoriaJogada(ctx, nivelInicial: 505);
+        // Todo mundo a 502 — a 2 pontos da porta de descida da 4ª (500), MENOS que as duas
+        // penas (−5 e −3, desde 09/11/2026): as duas param na porta.
+        var cenario = MontarCategoriaJogada(ctx, nivelInicial: 502);
 
         await new PadelimetroService(ctx).AplicarCampanhaAsync(cenario.Categoria.Id);
 
         Assert.All(cenario.FicaramNaChave, j => Assert.Equal(500, j.Padelimetro));
         Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(500, j.Padelimetro));
-        Assert.All(cenario.Campeoes, j => Assert.Equal(515, j.Padelimetro));
+        Assert.All(cenario.Campeoes, j => Assert.Equal(507, j.Padelimetro));
     }
 
     [Fact]
@@ -328,11 +330,11 @@ public class CampanhaNoPadelimetroServiceTests
             new EncerramentoDaPartida.LinksDoAviso(null, null));
 
         // Campeões: +12 do jogo (K20 × 1,2 do 6x4 × 0,5) e +10 da campanha.
-        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro));
-        // Vices: −12 do jogo, campanha não mexe.
-        Assert.All(cenario.Vices, j => Assert.Equal(588, j.Padelimetro));
-        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(595, j.Padelimetro));
-        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(590, j.Padelimetro));
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
+        // Vices: −7 do jogo (K 12), campanha não mexe.
+        Assert.All(cenario.Vices, j => Assert.Equal(593, j.Padelimetro));
+        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(597, j.Padelimetro));   // −3
+        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(595, j.Padelimetro));    // −5
 
         // O carimbo saiu do CoroarCampeao de verdade.
         Assert.Equal("Campeao", ctx.Duplas.Single(d => d.Id == cenario.Final.VencedorId).UltimaFase);
@@ -340,7 +342,7 @@ public class CampanhaNoPadelimetroServiceTests
         // A fila offline reentrega o encerramento: nada dobra.
         await encerramento.AplicarAsync(cenario.Final, acabouDeTerminar: false,
             new EncerramentoDaPartida.LinksDoAviso(null, null));
-        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro));
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
         Assert.Equal(10, ctx.HistoricosDePadelimetro.Count(h => h.CategoriaId != null));
     }
 
@@ -361,11 +363,12 @@ public class CampanhaNoPadelimetroServiceTests
         Assert.All(cenario.FicaramNaChave, j => Assert.Contains(j.Id, idsComPena));
         Assert.All(cenario.CairamNaEstreia, j => Assert.Contains(j.Id, idsComPena));
 
-        // Os campeões venceram 3 jogos em calibração (K40) e o Elo já os levou ACIMA da
-        // linha de subida da 4ª (650) — a trava anti-farm segura o bônus. É o desenho:
-        // o número deles já mandou os dois subirem.
-        Assert.All(cenario.Campeoes, j => Assert.True(j.Padelimetro > 650));
-        Assert.DoesNotContain(linhasDeCampanha, h => cenario.Campeoes.Any(c => c.Id == h.JogadorId));
+        // Os campeões venceram 3 jogos em calibração. Com K 40 o Elo já os levava ACIMA da
+        // linha de subida da 4ª (650) e o bônus nem entrava; com K 24 (09/11/2026) eles
+        // ficam abaixo dela, levam o bônus no replay — e o bônus PARA na linha (a trava
+        // anti-farm segue valendo; o caso "já acima" está no motor).
+        Assert.All(cenario.Campeoes, j => Assert.Contains(j.Id, idsComPena));
+        Assert.All(cenario.Campeoes, j => Assert.True(j.Padelimetro <= 650));
 
         // A campanha é datada pela FINAL — senão o gráfico empilharia no dia do recálculo.
         Assert.All(linhasDeCampanha, h => Assert.Equal(cenario.Final.PlacarMarcadoEm, h.CriadoEm));
@@ -392,7 +395,7 @@ public class CampanhaNoPadelimetroServiceTests
         var service = new PadelimetroService(ctx);
         await service.AplicarAsync(cenario.Final.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
-        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro)); // 600 +12 +10
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro)); // 600 +7 +5 (K 12 e campanha ±5 desde 09/11/2026)
 
         var controller = TestInfra.NovoPartidasController(ctx, org.Id);
         await controller.ReabrirPartida(cenario.Final.Id);
@@ -431,16 +434,16 @@ public class CampanhaNoPadelimetroServiceTests
         await service.AplicarAsync(cenario.Final.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
 
-        // Quem ficou na chave (600 − 10 = 590) joga a MISTA da noite e ganha +12: o
+        // Quem ficou na chave (600 − 5 = 595) joga a MISTA da noite e ganha +12: o
         // mesmo número, movido por outra categoria DEPOIS da campanha.
         var jogador = cenario.FicaramNaChave[0];
-        Assert.Equal(590, jogador.Padelimetro);
-        jogador.Padelimetro = 602;
+        Assert.Equal(595, jogador.Padelimetro);
+        jogador.Padelimetro = 607;
         ctx.HistoricosDePadelimetro.Add(new HistoricoDePadelimetro
         {
             JogadorId = jogador.Id,
             PartidaId = 9099,
-            NivelAntes = 590,
+            NivelAntes = 595,
             Delta = 12,
             Motivo = "Vitória 6x2 na Mista",
             CriadoEm = cenario.Final.PlacarMarcadoEm!.Value.AddHours(3),
@@ -450,7 +453,7 @@ public class CampanhaNoPadelimetroServiceTests
         var controller = TestInfra.NovoPartidasController(ctx, org.Id);
         await controller.ReabrirPartida(cenario.Final.Id);
 
-        // Desfazer a campanha devolve SÓ a pena (−10 de volta): a mista fica de pé.
+        // Desfazer a campanha devolve SÓ a pena (−5 de volta): a mista fica de pé.
         // Restaurar o nível absoluto de antes apagaria o +12 junto.
         Assert.Equal(612, jogador.Padelimetro);
     }
@@ -496,8 +499,8 @@ public class CampanhaNoPadelimetroServiceTests
 
         var linha = ctx.HistoricosDePadelimetro
             .Single(h => h.CategoriaId != null && h.JogadorId == jogadorRepetido.Id);
-        Assert.Equal(-5, linha.Delta);
-        Assert.Equal(595, jogadorRepetido.Padelimetro);
+        Assert.Equal(-3, linha.Delta);   // estreia: −3 desde 09/11/2026
+        Assert.Equal(597, jogadorRepetido.Padelimetro);
     }
 
     [Fact]
@@ -515,7 +518,7 @@ public class CampanhaNoPadelimetroServiceTests
         var service = new PadelimetroService(ctx);
         await service.AplicarAsync(cenario.Final.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
-        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro)); // 600 +12 +10
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro)); // 600 +7 +5 (K 12 e campanha ±5 desde 09/11/2026)
 
         // O placar da final estava AO CONTRÁRIO: quem venceu foi a dupla B, 6x4.
         // A correção troca o vencedor, o encerramento re-coroa — e a campanha precisa
@@ -532,12 +535,12 @@ public class CampanhaNoPadelimetroServiceTests
         // manual; agora PadelimetroService.DesfazerPartidaAsync desfaz o extrato do jogo
         // ANTES do encerramento reaplicar com o placar certo, e o "+12" vira "-12" porque A
         // de fato perdeu) e o da CAMPANHA (subtração de delta e reaplicação, como sempre).
-        // A: 600 -12 (perdeu o jogo de verdade) +0 (perdeu o bônus de campeão) = 588.
-        // B: 600 +12 (ganhou o jogo de verdade) +10 (bônus de campeão) = 622.
-        Assert.All(cenario.Campeoes, j => Assert.Equal(588, j.Padelimetro));
-        Assert.All(cenario.Vices, j => Assert.Equal(622, j.Padelimetro));
-        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(595, j.Padelimetro));
-        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(590, j.Padelimetro));
+        // A: 600 -7 (perdeu o jogo de verdade, K 12) +0 (perdeu o bônus de campeão) = 593.
+        // B: 600 +7 (ganhou o jogo de verdade, K 12) +5 (bônus de campeão) = 612.
+        Assert.All(cenario.Campeoes, j => Assert.Equal(593, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(612, j.Padelimetro));
+        Assert.All(cenario.CairamNaEstreia, j => Assert.Equal(597, j.Padelimetro));   // −3
+        Assert.All(cenario.FicaramNaChave, j => Assert.Equal(595, j.Padelimetro));    // −5
 
         var linhasDeCampeao = ctx.HistoricosDePadelimetro
             .Where(h => h.CategoriaId != null && h.Motivo.Contains("Campeão"))
@@ -561,7 +564,7 @@ public class CampanhaNoPadelimetroServiceTests
         var service = new PadelimetroService(ctx);
         await service.AplicarAsync(cenario.Final.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
-        Assert.All(cenario.Campeoes, j => Assert.Equal(622, j.Padelimetro));
+        Assert.All(cenario.Campeoes, j => Assert.Equal(612, j.Padelimetro));
 
         // O organizador descobre que a dupla "campeã" nem compareceu: W.O. tardio sobre
         // a final já finalizada — o TERCEIRO caminho que troca o campeão depois do fato.
@@ -577,9 +580,9 @@ public class CampanhaNoPadelimetroServiceTests
         // encerramento, e como W.O. é excluído (PadelimetroService.Conta), nada reaplica —
         // o jogo simplesmente deixa de existir pro Padelímetro dos quatro.
         // A: 600 +0 (jogo virou W.O., não conta) +0 (perdeu o bônus de campeão) = 600.
-        // B: 600 +0 (jogo virou W.O., não conta) +10 (bônus de campeão) = 610.
+        // B: 600 +0 (jogo virou W.O., não conta) +5 (bônus de campeão) = 605.
         Assert.All(cenario.Campeoes, j => Assert.Equal(600, j.Padelimetro));
-        Assert.All(cenario.Vices, j => Assert.Equal(610, j.Padelimetro));
+        Assert.All(cenario.Vices, j => Assert.Equal(605, j.Padelimetro));
 
         var linhasDeCampeao = ctx.HistoricosDePadelimetro
             .Where(h => h.CategoriaId != null && h.Motivo.Contains("Campeão"))
@@ -604,15 +607,15 @@ public class CampanhaNoPadelimetroServiceTests
         await service.AplicarAsync(cenario.Final.Id);
         await service.AplicarCampanhaAsync(cenario.Categoria.Id);
 
-        // O CAMPEÃO joga a mista da noite: 622 + 8 = 630, com a linha no extrato.
+        // O CAMPEÃO joga a mista da noite: 612 + 8 = 620, com a linha no extrato.
         var campeao = cenario.Campeoes[0];
-        Assert.Equal(622, campeao.Padelimetro);
-        campeao.Padelimetro = 630;
+        Assert.Equal(612, campeao.Padelimetro);
+        campeao.Padelimetro = 620;
         ctx.HistoricosDePadelimetro.Add(new HistoricoDePadelimetro
         {
             JogadorId = campeao.Id,
             PartidaId = 9098,
-            NivelAntes = 622,
+            NivelAntes = 612,
             Delta = 8,
             Motivo = "Vitória 6x3 na Mista",
             CriadoEm = cenario.Final.PlacarMarcadoEm!.Value.AddHours(3),
@@ -622,7 +625,7 @@ public class CampanhaNoPadelimetroServiceTests
         var controller = TestInfra.NovoPartidasController(ctx, org.Id);
         await controller.ReabrirPartida(cenario.Final.Id);
 
-        // Desfez por delta: −10 da campanha e −12 do jogo — o +8 da mista fica de pé.
+        // Desfez por delta: −5 da campanha e −7 do jogo — o +8 da mista fica de pé.
         // (Restaurar nível absoluto o levaria pra 600 e apagaria a mista do número.)
         Assert.Equal(608, campeao.Padelimetro);
         Assert.Equal(12, campeao.JogosDePadelimetro);
