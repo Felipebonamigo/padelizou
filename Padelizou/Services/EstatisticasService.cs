@@ -1191,18 +1191,24 @@ public class EstatisticasService : IEstatisticasService
     {
         return new DestaquesJogadorVM
         {
-            MaisJogouJunto = parceiros
-                .OrderByDescending(p => p.Jogos).ThenByDescending(p => p.Vitorias)
+            // O MELHOR é quem mais VENCEU junto (🗣️ Felipe, com o print "Melhor parceiro 41V·27D"
+            // de outro sistema) — quem só jogou mais vezes não é, necessariamente, o melhor.
+            MelhorParceiro = parceiros
+                .Where(p => p.Vitorias > 0)
+                .OrderByDescending(p => p.Vitorias).ThenByDescending(p => p.Jogos)
                 .FirstOrDefault(),
             MaisEnfrentou = confrontos
                 .OrderByDescending(c => c.Jogos).ThenByDescending(c => c.Vitorias)
                 .FirstOrDefault(),
+            // ⚠️ O SALDO decide o lado (10/11/2026): só "> 0" punha o mesmo adversário de 1V·2D
+            // como carrasco E freguês no mesmo card. Freguês de = quem mais o vence, com saldo
+            // contra; carrasco de = quem ele mais vence, com saldo a favor.
             MaisTeVenceu = confrontos
-                .Where(c => c.Derrotas > 0)
+                .Where(c => c.Derrotas > c.Vitorias)
                 .OrderByDescending(c => c.Derrotas).ThenByDescending(c => c.Jogos)
                 .FirstOrDefault(),
             VoceMaisVenceu = confrontos
-                .Where(c => c.Vitorias > 0)
+                .Where(c => c.Vitorias > c.Derrotas)
                 .OrderByDescending(c => c.Vitorias).ThenByDescending(c => c.Jogos)
                 .FirstOrDefault(),
         };

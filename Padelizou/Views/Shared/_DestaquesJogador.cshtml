@@ -1,80 +1,60 @@
 @model Padelizou.ViewModels.DestaquesJogadorVM
-@* Só renderiza se houver pelo menos um destaque. A condição fica inteira aqui, e não numa
+@* PARCERIAS E RIVALIDADES — no perfil de QUALQUER jogador desde 10/11/2026. 🗣️ Felipe, com o
+   print de outro sistema ("Melhor parceiro 41V·27D · Carrasco de · Freguês de"): "o nosso tem
+   que ter". Em TERCEIRA pessoa de propósito: o mesmo card aparece no perfil dos outros, e
+   texto em segunda pessoa mentiria lá. Ver ParceriasERivalidadesNoPerfilTests.
+
+   Só renderiza se houver pelo menos um destaque. A condição fica inteira aqui, e não numa
    variável `bool` calculada acima, pra que o compilador enxergue que Model não é nulo lá
    dentro — com o bool ele não enxerga, e o aviso que sobrava era o mesmo tipo de descuido
    que já derrubou a tela do Ranking. *@
-@if (Model != null && (Model.MaisJogouJunto != null || Model.MaisEnfrentou != null
+@if (Model != null && (Model.MelhorParceiro != null || Model.MaisEnfrentou != null
     || Model.MaisTeVenceu != null || Model.VoceMaisVenceu != null))
 {
     <div class="card border-0 shadow-sm mb-4 p-3">
-        <h6 class="fw-bold mb-1"><i class="bi bi-stars text-warning"></i> Destaques</h6>
-        <p class="text-muted small mb-3">Suas parcerias e rivalidades (contando torneios e jogos de grupo).</p>
-        <div class="row g-2 row-cols-2 row-cols-md-4">
+        <h6 class="fw-bold mb-1"><i class="bi bi-stars text-warning"></i> Parcerias e rivalidades</h6>
+        <p class="text-muted small mb-2">Contando torneios e jogos de grupo.</p>
 
-            <div class="col">
-                <div class="p-2 rounded-3 bg-light h-100 text-center">
-                    <i class="bi bi-people-fill fs-4 text-primary"></i>
-                    <div class="text-muted mt-1" style="font-size:0.72rem;">Dupla que mais jogou junto</div>
-                    @if (Model.MaisJogouJunto != null)
-                    {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisJogouJunto.Parceiro.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisJogouJunto.Parceiro.Nome)</a>
-                        <div class="small text-muted">@Model.MaisJogouJunto.Jogos jogo(s) juntos</div>
-                    }
-                    else
-                    {
-                        <div class="fw-bold text-muted">—</div>
-                    }
-                </div>
+        @if (Model.MelhorParceiro != null)
+        {
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+                <div class="text-muted text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Melhor parceiro</div>
+                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MelhorParceiro.Parceiro.Id"
+                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MelhorParceiro.Parceiro.Nome)</a>
+                <span class="fw-bold text-nowrap text-primary">@(Model.MelhorParceiro.Vitorias)V · @(Model.MelhorParceiro.Jogos - Model.MelhorParceiro.Vitorias)D</span>
             </div>
+        }
 
-            <div class="col">
-                <div class="p-2 rounded-3 bg-light h-100 text-center">
-                    <i class="bi bi-shuffle fs-4 text-info"></i>
-                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais enfrentou</div>
-                    @if (Model.MaisEnfrentou != null)
-                    {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisEnfrentou.Oponente.Nome)</a>
-                        <div class="small text-muted">@Model.MaisEnfrentou.Jogos confronto(s)</div>
-                    }
-                    else
-                    {
-                        <div class="fw-bold text-muted">—</div>
-                    }
-                </div>
+        @* Carrasco DE fulano: quem este jogador mais venceu. *@
+        @if (Model.VoceMaisVenceu != null)
+        {
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+                <div class="text-success text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Carrasco de</div>
+                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id"
+                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.VoceMaisVenceu.Oponente.Nome)</a>
+                <span class="fw-bold text-nowrap text-success">@(Model.VoceMaisVenceu.Vitorias)V · @(Model.VoceMaisVenceu.Derrotas)D</span>
             </div>
+        }
 
-            <div class="col">
-                <div class="p-2 rounded-3 bg-light h-100 text-center">
-                    <i class="bi bi-emoji-frown-fill fs-4 text-danger"></i>
-                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais te venceu</div>
-                    @if (Model.MaisTeVenceu != null)
-                    {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisTeVenceu.Oponente.Nome)</a>
-                        <div class="small text-danger">@Model.MaisTeVenceu.Derrotas derrota(s) sua(s)</div>
-                    }
-                    else
-                    {
-                        <div class="fw-bold text-muted">—</div>
-                    }
-                </div>
+        @* Freguês DE fulano: quem mais venceu este jogador. *@
+        @if (Model.MaisTeVenceu != null)
+        {
+            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+                <div class="text-danger text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Freguês de</div>
+                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id"
+                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisTeVenceu.Oponente.Nome)</a>
+                <span class="fw-bold text-nowrap text-danger">@(Model.MaisTeVenceu.Vitorias)V · @(Model.MaisTeVenceu.Derrotas)D</span>
             </div>
+        }
 
-            <div class="col">
-                <div class="p-2 rounded-3 bg-light h-100 text-center">
-                    <i class="bi bi-emoji-sunglasses-fill fs-4 text-success"></i>
-                    <div class="text-muted mt-1" style="font-size:0.72rem;">Quem mais perdeu pra você</div>
-                    @if (Model.VoceMaisVenceu != null)
-                    {
-                        <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id" class="fw-bold text-decoration-none d-block" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.VoceMaisVenceu.Oponente.Nome)</a>
-                        <div class="small text-success">@Model.VoceMaisVenceu.Vitorias vitória(s) sua(s)</div>
-                    }
-                    else
-                    {
-                        <div class="fw-bold text-muted">—</div>
-                    }
-                </div>
+        @if (Model.MaisEnfrentou != null)
+        {
+            <div class="d-flex align-items-center gap-2 py-2">
+                <div class="text-muted text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Mais enfrentou</div>
+                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id"
+                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisEnfrentou.Oponente.Nome)</a>
+                <span class="fw-bold text-nowrap text-muted">@(Model.MaisEnfrentou.Vitorias)V · @(Model.MaisEnfrentou.Derrotas)D</span>
             </div>
-
-        </div>
+        }
     </div>
 }
