@@ -1745,7 +1745,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             <div class="collapse mt-2" id="meuParceiro-@dupla.Id">
                                                 <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
                                                       class="border rounded p-2 pdz-form-parceiro"
-                                                      data-categoria="@dupla.CategoriaId">
+                                                      data-categoria="@dupla.CategoriaId" data-manter-posicao>
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
 
                                                     @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
@@ -5368,7 +5368,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                completa pra cobrar está no Financeiro. *@
                                             @if (Model.PrecoInscricao > 0)
                                             {
-                                                <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
+                                                <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post" data-manter-posicao>
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     <button type="submit" class="btn btn-sm text-nowrap @(dupla.Pago ? "btn-outline-secondary" : "btn-outline-success")">
                                                         <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
@@ -5416,7 +5416,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                       data-confirmar-tom="perigo"
                                                       data-confirmar-titulo="Remover do torneio?"
                                                       data-confirmar="@(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.NomeNaTela + (dupla.Jogador2 != null ? " e " + dupla.Jogador2.NomeNaTela : "")) sai do torneio e é avisado. Se houver lista de espera, a vaga é oferecida pra próxima."
-                                                      data-confirmar-ok="Remover">
+                                                      data-confirmar-ok="Remover" data-manter-posicao>
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     <button type="submit" class="btn btn-sm btn-outline-danger"
                                                             title="Remover do torneio" aria-label="Remover @(dupla.EhTime ? dupla.NomeTime : dupla.Jogador1.NomeNaTela) do torneio">
@@ -5453,7 +5453,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         <div class="collapse mt-2" id="trocaParceiro-@dupla.Id">
                                             <form asp-controller="Duplas" asp-action="TrocarParceiro" method="post"
                                                   class="bg-white border rounded p-2 pdz-form-parceiro"
-                                                  data-categoria="@dupla.CategoriaId">
+                                                  data-categoria="@dupla.CategoriaId" data-manter-posicao>
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
 
                                                 @* QUEM SAI DOS DOIS (12/09/2026). 🗣️ Felipe: *"precisamos mudar o alexandre
@@ -5568,7 +5568,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     {
                                         <div class="collapse mt-2" id="trocarCategoria-@dupla.Id">
                                             <form asp-controller="Torneios" asp-action="TrocarCategoriaDupla" method="post"
-                                                  class="bg-white border rounded p-2 d-flex gap-2 align-items-center flex-wrap">
+                                                  class="bg-white border rounded p-2 d-flex gap-2 align-items-center flex-wrap" data-manter-posicao>
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <select name="novaCategoriaId" class="form-select form-select-sm" style="width: auto;" required>
                                                     <option value="" selected disabled>Pra qual categoria?</option>
@@ -5824,16 +5824,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
                                                 + "."
                                                 + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
+                                            @* `data-manter-posicao`: abre o WhatsApp, e no celular voltar ao app
+                                               recarrega a página — a altura fica guardada no clique. *@
                                             <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
                                                target="_blank" rel="noopener"
                                                data-pdz-dupla="@dupla.Id"
-                                               class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp">
+                                               class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link" title="Cobrar no WhatsApp"
+                                               data-manter-posicao>
                                                 <i class="bi bi-whatsapp"></i> Cobrar
                                             </a>
                                         }
                                         @if (Model.PrecoInscricao > 0)
                                         {
-                                            <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post">
+                                            <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post" data-manter-posicao>
                                                 <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                 <input type="hidden" name="voltarPara" value="Pagamentos" />
                                                 <button type="submit" class="btn btn-sm text-nowrap @(dupla.Pago ? "btn-outline-secondary" : "btn-success")">
@@ -5901,7 +5904,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </label>
                                                 <p class="text-muted small mb-2">O que o jogador pediu. Cada um custa @Model.TaxaPorImpedimento.ToString("C").</p>
                                                 <form asp-controller="Torneios" asp-action="AlterarImpedimentoOrganizador" method="post"
-                                                      class="d-flex gap-2 align-items-center flex-wrap">
+                                                      class="d-flex gap-2 align-items-center flex-wrap" data-manter-posicao>
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     @* ⚠️ OS CINCO ERAM ESCRITOS À MÃO AQUI (07/10/2026), sem olhar
                                                        nem os interruptores da criação nem o calendário: o painel do
@@ -5938,7 +5941,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </label>
                                                 <p class="text-muted small mb-2">Ajuda sua, não taxa: <strong>não cobra nada</strong> e não mexe no que a dupla deve.</p>
                                                 <form asp-controller="Torneios" asp-action="AlterarConcentracaoOrganizador" method="post"
-                                                      class="d-flex gap-2 align-items-center flex-wrap">
+                                                      class="d-flex gap-2 align-items-center flex-wrap" data-manter-posicao>
                                                     <input type="hidden" name="duplaId" value="@dupla.Id" />
                                                     @* O seletor vizinho tinha o MESMO problema e ele é ainda mais
                                                        calado: "Os 2 jogos na sexta" num torneio de sábado é gravado,
@@ -7599,6 +7602,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     </script>
 </div>
 
+@* A MEMÓRIA DA ABA E DA ALTURA (10/11/2026) — fora do `@if (torneioComecou)`. 🗣️ Amadeu, no
+   Gerenciar Torneio: "exclui o Balaka, voltou lá pro início; exclui o Eduardo, voltou lá pro
+   início". Durante as inscrições, que é quando se remove inscrito, os dois não carregavam: a
+   página renascia no topo e na aba padrão. Ver GerenciarInscritosFicaNoLugarTests. *@
+<script src="~/js/jogos-abas.js" asp-append-version="true"></script>
+<script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
+@* O "Abrir cobrança 1 de N" só funciona com este script — preso no bloco de baixo, o botão ficava
+   morto durante as inscrições, que é quando se cobra. *@
+<script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
+
 @if (torneioComecou)
 {
     <partial name="_ModalVerVotos" />
@@ -7612,10 +7625,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
     <script src="~/js/saque-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/acao-do-cartao-ao-vivo.js" asp-append-version="true"></script>
     <script src="~/js/seguir-partida-ao-vivo.js" asp-append-version="true"></script>
-    <script src="~/js/jogos-abas.js" asp-append-version="true"></script>
-    <script src="~/js/manter-posicao-na-lista.js" asp-append-version="true"></script>
     <script src="~/js/checkin-sem-recarregar.js" asp-append-version="true"></script>
-    <script src="~/js/cobrar-todos.js" asp-append-version="true"></script>
     @* O cinto das abas recolhidas: só assume onde o `:has()` do site.css não existe (o WebView
        do app Android). Ver o cabeçalho do arquivo. *@
     <script src="~/js/abas-recolhidas.js" asp-append-version="true"></script>
