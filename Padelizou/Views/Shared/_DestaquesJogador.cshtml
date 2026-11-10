@@ -1,60 +1,71 @@
 @model Padelizou.ViewModels.DestaquesJogadorVM
 @* PARCERIAS E RIVALIDADES — no perfil de QUALQUER jogador desde 10/11/2026. 🗣️ Felipe, com o
-   print de outro sistema ("Melhor parceiro 41V·27D · Carrasco de · Freguês de"): "o nosso tem
-   que ter". Em TERCEIRA pessoa de propósito: o mesmo card aparece no perfil dos outros, e
-   texto em segunda pessoa mentiria lá. Ver ParceriasERivalidadesNoPerfilTests.
+   print de outro sistema: "o nosso tem que ter"; e, com o card publicado: "ficou muito igual ao
+   print que eu mandei, não podemos deixar igual". Os NÚMEROS são resultado de padel; o card é
+   nosso — cartões com a foto, barra de vitórias e derrotas e nomes próprios. Em TERCEIRA
+   pessoa: o mesmo card aparece no perfil dos outros, e texto em segunda pessoa mentiria lá.
+   Ver ParceriasERivalidadesNoPerfilTests.
 
    Só renderiza se houver pelo menos um destaque. A condição fica inteira aqui, e não numa
    variável `bool` calculada acima, pra que o compilador enxergue que Model não é nulo lá
    dentro — com o bool ele não enxerga, e o aviso que sobrava era o mesmo tipo de descuido
    que já derrubou a tela do Ranking. *@
+@{
+    // Um cartão: quem, com que rótulo, e o retrospecto em barra. Função local pra que os quatro
+    // cartões não virem quatro cópias que um dia discordam.
+    async Task Cartao(Padelizou.Models.Jogador pessoa, string rotulo, string icone, string cor, int vitorias, int derrotas)
+    {
+        var jogos = vitorias + derrotas;
+        var pctVitorias = jogos == 0 ? 0 : vitorias * 100 / jogos;
+        <div class="col">
+            <a href="@Url.Action("Perfil", "Jogadores", new { id = pessoa.Id })"
+               class="d-block p-3 rounded-3 h-100 text-decoration-none" style="background: var(--pdz-surface-alt);">
+                @* Só o ÍCONE leva a cor: o verde-limão e o azul-claro somem no tema claro, e o texto
+                   na cor do tema (--pdz-ink) é legível nos dois. *@
+                <div class="small fw-bold mb-2" style="color: var(--pdz-ink);"><i class="bi @icone" style="color: @cor;"></i> @rotulo</div>
+                <div class="d-flex align-items-center gap-2">
+                    <partial name="_FotoDoJogador" model='Padelizou.ViewModels.FotoDoJogadorVM.De(pessoa, 40)' />
+                    <span class="fw-bold text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(pessoa.Nome)</span>
+                </div>
+                <div class="progress mt-2" style="height: 6px;" role="img"
+                     aria-label="@vitorias vitória(s) e @derrotas derrota(s)">
+                    <div class="progress-bar bg-success" style="width: @pctVitorias%;"></div>
+                    <div class="progress-bar bg-danger" style="width: @(jogos == 0 ? 0 : 100 - pctVitorias)%;"></div>
+                </div>
+                <div class="small text-muted mt-1">@vitorias @(vitorias == 1 ? "vitória" : "vitórias") · @derrotas @(derrotas == 1 ? "derrota" : "derrotas")</div>
+            </a>
+        </div>
+    }
+}
 @if (Model != null && (Model.MelhorParceiro != null || Model.MaisEnfrentou != null
     || Model.MaisTeVenceu != null || Model.VoceMaisVenceu != null))
 {
     <div class="card border-0 shadow-sm mb-4 p-3">
         <h6 class="fw-bold mb-1"><i class="bi bi-stars text-warning"></i> Parcerias e rivalidades</h6>
-        <p class="text-muted small mb-2">Contando torneios e jogos de grupo.</p>
-
-        @if (Model.MelhorParceiro != null)
-        {
-            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
-                <div class="text-muted text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Melhor parceiro</div>
-                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MelhorParceiro.Parceiro.Id"
-                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MelhorParceiro.Parceiro.Nome)</a>
-                <span class="fw-bold text-nowrap text-primary">@(Model.MelhorParceiro.Vitorias)V · @(Model.MelhorParceiro.Jogos - Model.MelhorParceiro.Vitorias)D</span>
-            </div>
-        }
-
-        @* Carrasco DE fulano: quem este jogador mais venceu. *@
-        @if (Model.VoceMaisVenceu != null)
-        {
-            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
-                <div class="text-success text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Carrasco de</div>
-                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.VoceMaisVenceu.Oponente.Id"
-                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.VoceMaisVenceu.Oponente.Nome)</a>
-                <span class="fw-bold text-nowrap text-success">@(Model.VoceMaisVenceu.Vitorias)V · @(Model.VoceMaisVenceu.Derrotas)D</span>
-            </div>
-        }
-
-        @* Freguês DE fulano: quem mais venceu este jogador. *@
-        @if (Model.MaisTeVenceu != null)
-        {
-            <div class="d-flex align-items-center gap-2 py-2 border-bottom">
-                <div class="text-danger text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Freguês de</div>
-                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisTeVenceu.Oponente.Id"
-                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisTeVenceu.Oponente.Nome)</a>
-                <span class="fw-bold text-nowrap text-danger">@(Model.MaisTeVenceu.Vitorias)V · @(Model.MaisTeVenceu.Derrotas)D</span>
-            </div>
-        }
-
-        @if (Model.MaisEnfrentou != null)
-        {
-            <div class="d-flex align-items-center gap-2 py-2">
-                <div class="text-muted text-uppercase fw-bold flex-shrink-0" style="font-size:.7rem;width:6.5rem;">Mais enfrentou</div>
-                <a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.MaisEnfrentou.Oponente.Id"
-                   class="fw-bold text-decoration-none flex-grow-1 text-truncate" style="color: var(--pdz-ink);">@Padelizou.Services.NomeBonito.Curto(Model.MaisEnfrentou.Oponente.Nome)</a>
-                <span class="fw-bold text-nowrap text-muted">@(Model.MaisEnfrentou.Vitorias)V · @(Model.MaisEnfrentou.Derrotas)D</span>
-            </div>
-        }
+        <p class="text-muted small mb-3">Contando torneios e jogos de grupo.</p>
+        <div class="row g-2 row-cols-1 row-cols-sm-2 row-cols-lg-4">
+            @if (Model.MelhorParceiro != null)
+            {
+                await Cartao(Model.MelhorParceiro.Parceiro, "Parceria mais vitoriosa", "bi-people-fill", "var(--padel-green)",
+                    Model.MelhorParceiro.Vitorias, Model.MelhorParceiro.Jogos - Model.MelhorParceiro.Vitorias);
+            }
+            @* Quem esta pessoa mais venceu, com saldo a favor. *@
+            @if (Model.VoceMaisVenceu != null)
+            {
+                await Cartao(Model.VoceMaisVenceu.Oponente, "Mais venceu", "bi-trophy-fill", "var(--bs-success)",
+                    Model.VoceMaisVenceu.Vitorias, Model.VoceMaisVenceu.Derrotas);
+            }
+            @* Quem mais venceu esta pessoa, com saldo contra. *@
+            @if (Model.MaisTeVenceu != null)
+            {
+                await Cartao(Model.MaisTeVenceu.Oponente, "Mais perdeu para", "bi-shield-fill-exclamation", "var(--bs-danger)",
+                    Model.MaisTeVenceu.Vitorias, Model.MaisTeVenceu.Derrotas);
+            }
+            @if (Model.MaisEnfrentou != null)
+            {
+                await Cartao(Model.MaisEnfrentou.Oponente, "Rival mais frequente", "bi-arrow-left-right", "var(--bs-info)",
+                    Model.MaisEnfrentou.Vitorias, Model.MaisEnfrentou.Derrotas);
+            }
+        </div>
     </div>
 }

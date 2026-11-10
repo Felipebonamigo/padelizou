@@ -99,19 +99,29 @@ public class ParceriasERivalidadesNoPerfilTests
     }
 
     [Fact]
-    public void O_card_fala_em_terceira_pessoa_e_mostra_o_placar()
+    public void O_card_tem_cara_propria_e_nao_copia_o_outro_sistema()
     {
+        // 🗣️ Felipe, com o print do card publicado: *"ficou muito igual ao print que eu mandei,
+        // não podemos deixar igual"*. Os NÚMEROS são os mesmos (são resultado de padel); o card
+        // é nosso: cartões com a foto, barra de vitórias e derrotas e os nossos nomes.
         var card = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
             "Padelizou", "Views", "Shared", "_DestaquesJogador.cshtml"));
 
-        Assert.Contains("Melhor parceiro", card);
-        Assert.Contains("Carrasco de", card);
-        Assert.Contains("Freguês de", card);
-        // O card vale pra qualquer perfil: "te venceu"/"pra você" mentiria no perfil dos outros.
+        Assert.Contains("Parceria mais vitoriosa", card);
+        Assert.Contains("Mais venceu", card);
+        Assert.Contains("Mais perdeu para", card);
+        Assert.Contains("Rival mais frequente", card);
+        Assert.Contains("_FotoDoJogador", card);
+        Assert.Contains("progress", card);
+
+        // O vocabulário e o placar compacto do outro sistema ficam de fora.
+        Assert.DoesNotContain("Melhor parceiro", card);
+        Assert.DoesNotContain("Carrasco", card);
+        Assert.DoesNotContain("Freguês", card);
+        Assert.DoesNotContain(")V · @(", card);
+
+        // O card vale pra qualquer perfil: texto em segunda pessoa mentiria no perfil dos outros.
         Assert.DoesNotContain("te venceu", card);
         Assert.DoesNotContain("pra você", card);
-        // O placar no formato do print: "41V · 27D", sem espaço entre o número e a letra.
-        Assert.Contains("V · @", card);
-        Assert.DoesNotContain(" V · ", card);
     }
 }
