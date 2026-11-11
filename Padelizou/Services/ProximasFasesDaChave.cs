@@ -32,8 +32,10 @@ public static class ProximasFasesDaChave
     // ⚠️ `NumeroNaFase` ANDA JUNTO desde 13/09/2026: sem ele a projeção voltaria a numerar a
     // fase pela ordem de Id, e um jogo nascido fora de ordem seria citado pelo número errado
     // ("Vencedor Semifinal 1" apontando pra Semifinal 2). Nulo = deduz, como sempre foi.
+    // `Vencedor`: o nome de quem venceu, quando o jogo já acabou — é ele que ocupa a vaga
+    // "Vencedor <fase> <n>" na prévia da rodada seguinte (VencedorJaApareceNaPreviaTests).
     public record PartidaDaChave(int Id, string Fase, string Dupla1, string Dupla2, DateTime? Horario,
-                                 int? NumeroNaFase = null);
+                                 int? NumeroNaFase = null, string? Vencedor = null);
 
     // Um lado do confronto que ainda não tem dono: ou a dupla que passou direto (bye, e aí
     // tem nome), ou a procedência ("Vencedor Quartas de Final 1", "1º do Grupo A").
@@ -143,8 +145,14 @@ public static class ProximasFasesDaChave
 
         // Cada jogo da primeira fase entrega um vencedor — citado pelo NÚMERO dele naquela
         // fase; cada bye entrega a própria dupla, que já tem nome.
+        // QUEM JÁ VENCEU OCUPA A VAGA (11/11/2026) — 🗣️ Felipe: *"a dupla que já definiu seu
+        // jogo já pode ir pro chaveamento prévio […] e assim com as demais fases do mata-mata"*.
+        var vencedores = partidasDeMataMata
+            .Where(p => p.Vencedor != null && numeroNaFase.ContainsKey(p.Id))
+            .ToDictionary(p => (p.Fase, numeroNaFase[p.Id]), p => p.Vencedor!);
+
         var lados = daFase
-            .Select((_, i) => new Lado($"Vencedor {primeiraFase} {i + 1}", primeiraFase, i + 1))
+            .Select((_, i) => LadoDoVencedor(primeiraFase, i + 1, vencedores))
             .Concat(byes.Select(b => new Lado(b)))
             .ToList();
 
@@ -158,7 +166,7 @@ public static class ProximasFasesDaChave
                       .ToHashSet());
 
         return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata),
-            Encadear(lados, jaSaoReais), categoriaId);
+            Encadear(lados, jaSaoReais, vencedores), categoriaId);
     }
 
     // ---- Entrada 2: a chave AINDA NEM COMEÇOU (categoria na fase de grupos) ----
@@ -189,7 +197,9 @@ public static class ProximasFasesDaChave
         int jogosJaCriadosNaAbertura = 0,
         // Os nomes que já não são promessa: o grupo fechou e a colocação virou dupla
         // (Services/ClassificadosJaConhecidos).
-        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null)
+        IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null,
+        // Quem já venceu um jogo de mata-mata que já existe (fase, número) → nome.
+        IReadOnlyDictionary<(string Fase, int Numero), string>? vencedores = null)
     {
         var (fase, confrontos, byes) = ChaveProjetada.Montar(
             grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
@@ -207,7 +217,7 @@ public static class ProximasFasesDaChave
             Enumerable.Range(jaReais + 1, confrontos.Count - jaReais).ToList());
 
         var proximos = confrontos
-            .Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1))
+            .Select((_, i) => LadoDoVencedor(fase, i + 1, vencedores))
             // Quem folga a primeira rodada entra DEPOIS dos vencedores, na mesma ordem do
             // avanço de verdade — é o que faz cada vencedor cruzar com uma vaga que passou
             // direto. Aqui o bye ainda não tem nome: é a colocação ("2º do Grupo C").
@@ -216,7 +226,7 @@ public static class ProximasFasesDaChave
 
         var rodadas = new List<RodadaQueVem>();
         if (primeira.Confrontos.Count > 0) rodadas.Add(primeira);
-        rodadas.AddRange(Encadear(proximos));
+        rodadas.AddRange(Encadear(proximos, vencedores: vencedores));
 
         return new CadeiaDeFases(categoria, fimDosGrupos, rodadas, categoriaId);
     }
@@ -232,8 +242,16 @@ public static class ProximasFasesDaChave
     // (estão na lista de jogos de verdade), mas continuam na CORRENTE — é o vencedor deles que
     // ocupa a vaga da rodada seguinte. Sem essa separação, a fase criada pela metade pelo
     // avanço parcial apareceria duas vezes na tela, ou sumiria inteira.
+    // A vaga "Vencedor <fase> <n>": o nome de quem venceu, se o jogo já acabou; senão a procedência.
+    // A procedência (fase, número) fica nos dois casos — é ela que vira o link pro jogo de origem.
+    private static Lado LadoDoVencedor(string fase, int numero,
+        IReadOnlyDictionary<(string Fase, int Numero), string>? vencedores) =>
+        new(vencedores != null && vencedores.TryGetValue((fase, numero), out var nome) ? nome : $"Vencedor {fase} {numero}",
+            fase, numero);
+
     private static List<RodadaQueVem> Encadear(
-        List<Lado> lados, IReadOnlyDictionary<string, HashSet<int>>? jaSaoReais = null)
+        List<Lado> lados, IReadOnlyDictionary<string, HashSet<int>>? jaSaoReais = null,
+        IReadOnlyDictionary<(string Fase, int Numero), string>? vencedores = null)
     {
         var rodadas = new List<RodadaQueVem>();
 
@@ -264,7 +282,7 @@ public static class ProximasFasesDaChave
                     faltam.Select(x => x.Confronto).ToList(),
                     faltam.Select(x => x.Numero).ToList()));
 
-            lados = confrontos.Select((_, i) => new Lado($"Vencedor {fase} {i + 1}", fase, i + 1)).ToList();
+            lados = confrontos.Select((_, i) => LadoDoVencedor(fase, i + 1, vencedores)).ToList();
 
             if (fase == "Final") break;
         }

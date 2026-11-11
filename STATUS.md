@@ -7,6 +7,12 @@
 >
 > 🧪 `ArteDeCadaDiaTests` (6): 5 vistos vermelhos; o "nada mudou, mesma versão" é guarda. 8.115 verdes.
 >
+> Última atualização: **11/11/2026** — 🏷️ **QUEM JÁ VENCEU APARECE COM NOME NO JOGO PREVISTO SEGUINTE, EM QUALQUER FASE.** Sem migration. 🗣️ Felipe: *"a dupla que já definiu seu jogo já pode ir pro chaveamento prévio […] e assim com as demais fases do mata-mata"*.
+>
+> 📌 Do grupo pras quartas já era assim (`ClassificadosJaConhecidos`, 11/09). Faltava dentro do mata-mata: a Quartas 1 acabava, a 2 não, e a Semifinal prevista seguia "Vencedor Quartas de Final 1". `ProximasFasesDaChave.PartidaDaChave` ganhou `Vencedor` (nome, pelo `VencedorId`); `Montar`/`MontarDosGrupos`/`Encadear` trocam a vaga pelo nome via `LadoDoVencedor` — a procedência (fase, número) fica, e segue virando link. O robô passa os vencedores nos dois caminhos (categoria ainda em grupos com abertura parcial, e categoria toda no mata-mata). Só rótulo: o jogo de verdade continua nascendo quando os dois lados existem.
+>
+> 🧪 `VencedorJaApareceNaPreviaTests` (3, vistos vermelhos — 2 da regra e 1 pelo fluxo real). 8.117 verdes.
+>
 > Última atualização: **11/11/2026** — 📌 **O HORÁRIO DO MATA-MATA NÃO MUDA MAIS QUANDO A FASE AVANÇA.** Sem migration. 🗣️ Felipe: *"os jogos têm que seguir o horário do chaveamento, sem alteração depois, a menos que eu faça alguma alteração na mão — tivemos esse problema com o primeiro torneio, que quando foi passando de fase, ele foi mudando os horários do mata-mata"*.
 >
 > 📌 `RoboDoChaveamento.MontarAberturaDesenhadaAsync` cria as quartas AOS POUCOS (cada uma quando os dois grupos dela fecham) e não gravava `NumeroNaFase`; o `AgendarNaGradeAsync` então numerava o jogo novo pela posição NO LOTE (`jogos.IndexOf(p) + 1`) — a "Quartas 3" nascida sozinha virava "1", pegava a reserva (promessa) da Quartas 1 e duas quartas nasciam no mesmo horário, empurrando a outra. Agora grava `NumeroNaFase = i + 1`, a mesma régua do `AvancarFaseAsync`. Jogos já criados em produção não são afetados (têm Id; a numeração deles vem do quadro).
