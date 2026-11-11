@@ -148,4 +148,31 @@ public class GradeNuncaPassaDoFimDoTorneioTests
             $"{r.Fase} {r.Numero} prometida pra {r.Horario:ddd dd/MM HH:mm}, depois do fim"));
         NenhumDepoisDoFim(ctx, torneio);
     }
+
+    // O JOGO SEM SAÍDA VAI PRO PRIMEIRO HORÁRIO LIVRE, NÃO PRO ÚLTIMO. 🗣️ Felipe, com o Chakra: um
+    // jogo de grupo em domingo 16:40 com sábado à tarde e domingo de manhã vazios — e, como o
+    // mata-mata espera o fim dos grupos, quartas, semis e final ficaram "por ordem", sem hora.
+    // Quando a restrição da dupla ("Pôr os 2 jogos em", impedimento) não tem como ser cumprida em
+    // NENHUM horário que resta, esperar não ajuda: o motor pulava horário até sobrarem só os do
+    // FIM da lista e jogava o jogo lá. Agora ele entra no primeiro horário em que as pessoas estão
+    // livres e há quadra.
+    [Fact]
+    public async Task Jogo_que_nao_cabe_no_turno_pedido_entra_no_primeiro_horario_livre()
+    {
+        var (ctx, torneio, org) = await TorneioAsync(9, Quinta.AddDays(3),
+            "2026-11-13=18:00-22:10;2026-11-14=10:00-16:00;2026-11-15=10:00-20:00");
+        // Todo mundo pede "os 2 jogos na quinta à noite": quinta tem 6 horários pra 9 jogos.
+        foreach (var dupla in ctx.Duplas) dupla.ConcentrarJogosEm = TurnoDeConcentracao.QuintaNoite;
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        var sobra = ctx.Partidas.AsNoTracking()
+            .Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto > Quinta.AddDays(1))
+            .Select(p => p.HorarioPrevisto!.Value).ToList();
+        Assert.Equal(3, sobra.Count);
+        // Sexta abre 18h: os 3 que sobraram são 18:00, 18:50 e 19:40 — não 20:30, 21:20 e 22:10.
+        Assert.True(sobra.Max() <= Quinta.AddDays(1).AddHours(19).AddMinutes(40),
+            $"os jogos sem saída foram pro fim: {string.Join(", ", sobra.OrderBy(h => h).Select(h => h.ToString("ddd HH:mm")))}");
+    }
 }
