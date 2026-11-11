@@ -400,7 +400,7 @@
                     <tr class="small text-muted">
                         <th>Dia</th>
                         <th>Abre</th>
-                        <th style="min-width: 120px;">Fecha</th>
+                        <th style="min-width: 120px;">Último jogo até</th>
                         <th class="text-center">Rodadas</th>
                         <th class="text-center">Cabem</th>
                         <th class="text-center">Jogos</th>
@@ -413,14 +413,24 @@
                 {
                     <tr class="@(dia.Rodadas == 0 ? "text-muted" : "")">
                         <td class="fw-bold">@dia.Data.ToString("ddd dd/MM", ptBr)</td>
-                        <td>@Hora(dia.Abre)</td>
-                        @* A hora de fechar É a caixinha: é aqui que ele diz "domingo eu vou embora
-                           às 14h". Vazia, vale o limite geral lá de cima. *@
+                        @* HORÁRIO PRÓPRIO POR DIA (11/11/2026). 🗣️ Felipe: "tem que permitir separar por
+                           dia, que horas começa e que horas termina". As duas caixinhas GRAVAM pelo
+                           "Aplicar horários ao torneio" (Torneio.HorariosPorDia). Vazia = o padrão lá
+                           de cima (abertura do 1º dia / dos demais, e o último jogo). *@
+                        @{
+                            var padraoAbre = dia.Data == Model.DataInicio.Date ? Model.HoraInicio : Model.HoraSeguintes;
+                        }
+                        <td style="min-width: 110px;">
+                            <input type="time" class="form-control form-control-sm"
+                                   name="abertura[@dia.Data.ToString("yyyy-MM-dd")]"
+                                   value="@(dia.Abre == padraoAbre ? "" : Hora(dia.Abre))"
+                                   placeholder="@Hora(padraoAbre)" aria-label="Abre em @dia.Data.ToString("dd/MM")" />
+                        </td>
                         <td>
                             <input type="time" class="form-control form-control-sm"
                                    name="limite[@dia.Data.ToString("yyyy-MM-dd")]"
                                    value="@(dia.Limite == Model.HoraFim ? "" : Hora(dia.Limite))"
-                                   placeholder="@Hora(Model.HoraFim)" />
+                                   placeholder="@Hora(Model.HoraFim)" aria-label="Último jogo começa até em @dia.Data.ToString("dd/MM")" />
                         </td>
                         <td class="text-center">@dia.Rodadas</td>
                         <td class="text-center">@dia.Vagas</td>
@@ -442,10 +452,10 @@
             </table>
         </div>
         <div class="card-footer small text-muted">
-            Mudou alguma hora de fechar? <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Recalcular</button>
+            Mudou o horário de algum dia? <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Recalcular</button>
             <span class="ms-2">
-                A hora de fechar por dia vale <strong>só aqui</strong> — o torneio guarda uma hora limite única.
-                Pra terminar mais cedo de verdade, o caminho é mais quadra.
+                Cada dia pode ter a <strong>própria</strong> hora de abrir e de último jogo — caixinha vazia segue o
+                horário geral lá de cima. Confira a conta e grave em <strong>Aplicar horários ao torneio</strong>, abaixo.
             </span>
         </div>
     </div>
@@ -466,7 +476,7 @@
                         começa <strong>@Model.DataInicio.ToString("dd/MM", ptBr)</strong> às
                         <strong>@Hora(Model.HoraInicio)</strong>, demais dias às <strong>@Hora(Model.HoraSeguintes)</strong>,
                         último jogo começando até <strong>@Hora(Model.HoraFim)</strong>, partidas de
-                        <strong>@Model.Duracao min</strong>.
+                        <strong>@Model.Duracao min</strong>@(string.IsNullOrEmpty(Model.Aberturas) && string.IsNullOrEmpty(Model.Limites) ? "" : " — e os dias com horário próprio da tabela Dia a dia").
                     </p>
                 }
                 else
@@ -480,6 +490,11 @@
                     <input type="hidden" name="horaSeguintes" value="@Hora(Model.HoraSeguintes)" />
                     <input type="hidden" name="horaFim" value="@Hora(Model.HoraFim)" />
                     <input type="hidden" name="duracao" value="@Model.Duracao" />
+                    @* A faixa de cada dia, no formato do link. `porDia` diz que a tabela veio — sem
+                       nenhum dia próprio, isso LIMPA as faixas gravadas. *@
+                    <input type="hidden" name="aberturas" value="@Model.Aberturas" />
+                    <input type="hidden" name="limites" value="@Model.Limites" />
+                    <input type="hidden" name="porDia" value="true" />
                     <button type="submit" class="btn btn-success rounded-pill px-4" disabled="@(!Model.MudouAlgo)">
                         <i class="bi bi-check2"></i> Aplicar horários ao torneio
                     </button>

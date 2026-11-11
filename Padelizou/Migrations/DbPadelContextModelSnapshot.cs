@@ -3695,6 +3695,10 @@ namespace Padelizou.Migrations
                     b.Property<TimeSpan>("HoraInicioDoDia")
                         .HasColumnType("interval");
 
+                    b.Property<string>("HorariosPorDia")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<string>("ImagemCapa")
                         .HasColumnType("text");
 

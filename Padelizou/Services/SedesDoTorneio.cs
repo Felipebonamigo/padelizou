@@ -112,9 +112,9 @@ public sealed class SedesDoTorneio
 
         for (var dia = inicio.Date; dia <= ultimoDia; dia = dia.AddDays(1))
         {
-            var abertura = dia == inicio.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+            var abertura = HorarioDoDia.Do(torneio).Abre(dia, primeiroDaConta: dia == inicio.Date);
 
-            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= HorarioDoDia.Do(torneio).Limite(dia) && hora.Date == dia;
                  hora = hora.AddMinutes(duracao))
             {
                 foreach (var janela in janelas.Values)

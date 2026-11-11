@@ -108,8 +108,7 @@ public static class LevasDaGrade
                 jaEmQuadra
                     .Where(j => j.HorarioPrevisto != null && OrdemDasFases.Posto(j.Fase) < posto)
                     .Select(j => j.HorarioPrevisto!.Value),
-                h => GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes,
-                                           VagasDaGrade.Duracao(torneio)),
+                h => HorarioDoDia.Do(torneio).DepoisDe(h, VagasDaGrade.Duracao(torneio)),
                 torneio.QuantidadeQuadras);
 
         // ── O SEGUNDO PISO: A DEPENDÊNCIA DE RESULTADO ───────────────────────────────────
@@ -190,8 +189,8 @@ public static class LevasDaGrade
 
         return fim == default
             ? null
-            : GradeDeJogos.AberturaDaProximaFase(fim, torneio.HoraFimDoDia,
-                torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
+            // A mesma regra de GradeDeJogos.AberturaDaProximaFase, pelo calendário do torneio.
+            : HorarioDoDia.Do(torneio).DepoisDe(fim, VagasDaGrade.Duracao(torneio));
     }
 
     // A ORDEM DA FILA QUE CHEGA AO ENCAIXE.

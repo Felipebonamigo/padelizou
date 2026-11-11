@@ -77,8 +77,9 @@ public static class HorariosDaGrade
 
         var abertura = torneio.AberturaDaGrade;
         var ate = usados.DefaultIfEmpty(abertura).Max();
-        if (torneio.DataFim is DateTime prazo && prazo.Date.Add(torneio.HoraFimDoDia) > ate)
-            ate = prazo.Date.Add(torneio.HoraFimDoDia);
+        var calendario = HorarioDoDia.Do(torneio);
+        if (torneio.DataFim is DateTime prazo && prazo.Date.Add(calendario.Limite(prazo.Date)) > ate)
+            ate = prazo.Date.Add(calendario.Limite(prazo.Date));
 
         // Teto de 14 dias de grade: existe só pra que uma configuração torta (fim do dia antes
         // da abertura, prazo em outro ano) não vire uma lista sem fim numa página.
@@ -87,8 +88,7 @@ public static class HorariosDaGrade
 
         var daGrade = new List<DateTime>();
         int depoisDoFim = 0;
-        foreach (var horario in GradeDeJogos.Horarios(abertura, torneio.HoraFimDoDia,
-                     quadras: 1, duracao, teto, aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes))
+        foreach (var horario in calendario.Horarios(abertura, quadras: 1, duracao, teto))
         {
             daGrade.Add(horario);
             if (horario >= ate && ++depoisDoFim > SlotsDeFolga) break;

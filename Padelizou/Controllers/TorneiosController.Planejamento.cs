@@ -42,7 +42,8 @@ namespace Padelizou.Controllers
             TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null,
             int? duracao = null, int? jogos = null,
             DateTime? ate = null, string? limites = null,
-            Dictionary<string, string>? limite = null)
+            Dictionary<string, string>? limite = null,
+            string? aberturas = null, Dictionary<string, string>? abertura = null)
         {
             var jogadorId = ObterJogadorIdLogado() ?? 0;
 
@@ -73,6 +74,16 @@ namespace Padelizou.Controllers
                     .Where(par => !string.IsNullOrWhiteSpace(par.Value))
                     .Select(par => $"{par.Key}={par.Value}"))
                 : limites;
+            // A ABERTURA POR DIA (11/11/2026), no mesmo formato e pelo mesmo caminho do fechamento.
+            var aberturasTexto = abertura is { Count: > 0 }
+                ? string.Join(';', abertura
+                    .Where(par => !string.IsNullOrWhiteSpace(par.Value))
+                    .Select(par => $"{par.Key}={par.Value}"))
+                : aberturas;
+            // Tabela enviada = o organizador decidiu cada caixinha (vazia = o padrão do dia). Sem
+            // ela e sem link, a tela abre no que o torneio JÁ TEM gravado por dia.
+            bool veioDaTabela = limite is { Count: > 0 } || abertura is { Count: > 0 }
+                || limites != null || aberturas != null;
 
             // AS QUADRAS SÃO AS DE VERDADE (09/09/2026), com a janela de cada uma — não mais um
             // número girável. "E se eu tivesse 4?" continua respondido por `QuadrasNecessarias`
@@ -80,8 +91,10 @@ namespace Padelizou.Controllers
             // tabela dizer 2 e a conta usar 4.
             var quadrasReais = await QuadrasDoPlanejamentoAsync(id);
 
-            var botoes = Botoes(torneio, dataInicio, horaInicio, horaSeguintes, horaFim,
-                duracao, ate, limitesTexto);
+            var botoes = veioDaTabela
+                ? Botoes(torneio, dataInicio, horaInicio, horaSeguintes, horaFim,
+                    duracao, ate, limitesTexto, aberturasTexto ?? "")
+                : Botoes(torneio, dataInicio, horaInicio, horaSeguintes, horaFim, duracao, ate);
             var plano = MontarPlano(botoes, total, quadrasReais);
 
             return View(new PlanejamentoDeQuadrasVM
@@ -92,10 +105,10 @@ namespace Padelizou.Controllers
                 JogosJaSorteados = sorteados,
                 Simulando = simulando,
                 SoLeitura = !await EhOrganizadorAsync(id, jogadorId),
-                // ⚠️ SÓ PELO QUE O "APLICAR" DE FATO GRAVA. Quadras e hora-de-fechar-por-dia
-                // são botões de SIMULAÇÃO (a primeira precisa de nome e clube, a segunda não
-                // tem coluna) — acender o botão por causa delas faria o organizador apertar
-                // "Aplicar" achando que acabou de contratar a terceira quadra.
+                // ⚠️ SÓ PELO QUE O "APLICAR" DE FATO GRAVA. Quadras são botão de SIMULAÇÃO
+                // (precisam de nome e clube) — acender o botão por causa delas faria o
+                // organizador apertar "Aplicar" achando que contratou a terceira quadra. A faixa
+                // de cada dia GRAVA desde 11/11/2026 (Torneio.HorariosPorDia), e por isso conta.
                 MudouAlgo = Gravavel(botoes) != Gravavel(Botoes(torneio)),
                 DataInicio = botoes.DataInicio,
                 HoraInicio = botoes.Abre,
@@ -105,6 +118,7 @@ namespace Padelizou.Controllers
                 Jogos = total,
                 Ate = botoes.Ate,
                 Limites = botoes.Limites,
+                Aberturas = botoes.Aberturas,
                 Quadras = quadrasReais,
                 Clubes = await _context.Clubes.ParaEscolher().ToListAsync(),
                 NomeDoClubeDoTorneio = await _context.Clubes
@@ -303,8 +317,9 @@ namespace Padelizou.Controllers
         // não há um "inteiro" pra comparar.
         private static (DateTime De, DateTime Ate) JanelaDoTorneioInteiro(Torneio torneio)
         {
-            var abre = (torneio.DataInicio ?? DateTime.Today).Date.Add(torneio.HoraInicioDoDia);
-            var fecha = torneio.DataFim is DateTime fim ? fim.Date.Add(torneio.HoraFimDoDia) : abre;
+            var calendario = HorarioDoDia.Do(torneio);
+            var abre = torneio.AberturaDaGrade;
+            var fecha = torneio.DataFim is DateTime fim ? fim.Date.Add(calendario.Limite(fim)) : abre;
             return (abre, fecha);
         }
 
@@ -326,11 +341,18 @@ namespace Padelizou.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AplicarPlanejamento(
             int id, DateTime? dataInicio = null, TimeSpan? horaInicio = null,
-            TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null, int? duracao = null)
+            TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null, int? duracao = null,
+            // A faixa de cada dia ("yyyy-MM-dd=HH:mm;..."), como a tabela Dia a dia manda.
+            // `porDia` = a tela mandou a tabela (mesmo sem nenhum dia próprio, o que LIMPA as
+            // faixas); sem ele e sem os textos — aba aberta antes deste deploy — as faixas FICAM.
+            string? aberturas = null, string? limites = null, bool? porDia = null)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            var torneio = await _context.Torneios.FindAsync(id);
+            // Com as duplas: o recálculo da grade, lá embaixo, encaixa jogo por dupla.
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas)
+                .FirstOrDefaultAsync(t => t.Id == id);
             if (torneio == null) return NotFound();
 
             var abre = horaInicio ?? torneio.HoraInicioDoDia;
@@ -349,7 +371,40 @@ namespace Padelizou.Controllers
                 return RedirectToAction(nameof(Planejamento), new { id });
             }
 
+            // ── A FAIXA DE CADA DIA ─────────────────────────────────────────────────────────
+            // Só vira faixa própria o dia que DIFERE do padrão: um dia que veio igual não é
+            // gravado, senão mudar o padrão depois não o alcançaria.
+            string? horariosPorDia = torneio.HorariosPorDia;
+            if (aberturas != null || limites != null || porDia == true)
+            {
+                var primeiroDia = (dataInicio ?? torneio.DataInicio ?? DateTime.Today).Date;
+                var abrePorDia = PlanejamentoDeQuadras.LerLimites(aberturas);
+                var fechaPorDia = PlanejamentoDeQuadras.LerLimites(limites);
+                var faixas = new Dictionary<DateTime, HorarioDoDia.Faixa>();
+
+                foreach (var dia in abrePorDia.Keys.Union(fechaPorDia.Keys).OrderBy(d => d))
+                {
+                    var padraoAbre = dia == primeiroDia ? abre : abreSeguintes;
+                    var abreDia = abrePorDia.TryGetValue(dia, out var a) ? a : padraoAbre;
+                    var fechaDia = fechaPorDia.TryGetValue(dia, out var f) ? f : fecha;
+
+                    // ⚠️ FRONTEIRA DE CONFIANÇA, a mesma da hora limite geral logo acima.
+                    if (fechaDia <= abreDia)
+                    {
+                        TempData["Erro"] = $"{dia:dd/MM}: o último jogo precisa começar depois da abertura do dia "
+                            + $"({abreDia:hh\\:mm}).";
+                        return RedirectToAction(nameof(Planejamento), new { id });
+                    }
+
+                    if (abreDia != padraoAbre || fechaDia != fecha)
+                        faixas[dia] = new HorarioDoDia.Faixa(abreDia, fechaDia);
+                }
+
+                horariosPorDia = HorarioDoDia.Escrever(faixas);
+            }
+
             if (dataInicio != null) torneio.DataInicio = dataInicio.Value.Date;
+            torneio.HorariosPorDia = horariosPorDia;
             torneio.HoraInicioDoDia = abre;
             torneio.HoraInicioDiasSeguintes = abreSeguintes;
             torneio.HoraFimDoDia = fecha;
@@ -361,15 +416,39 @@ namespace Padelizou.Controllers
 
             await _context.SaveChangesAsync();
 
-            // ⚠️ NÃO REMARCA JOGO NENHUM: quem já tem `HorarioPrevisto` continua com ele. Estes
-            // campos valem pro PRÓXIMO cálculo de grade (sorteio ou "refazer grade"), e dizer
-            // isso na mensagem evita a leitura mais cara possível — o organizador achar que
-            // acabou de avisar 63 duplas de um horário novo.
-            TempData["Sucesso"] = torneio.Status == "Inscrições Abertas" || torneio.Status == "Chaves em Sorteio"
-                ? "Horários do torneio atualizados."
-                : "Horários do torneio atualizados. Os jogos que já têm horário marcado não mudaram — "
-                  + "isto vale para a próxima vez que a grade for calculada.";
+            // ── COM A CHAVE SORTEADA, A GRADE ACOMPANHA (11/11/2026) ───────────────────────
+            // 🗣️ Felipe: *"que eu possa alterar mesmo depois de chaves prontas e ele recalcule"*.
+            // É o MESMO recálculo do "Recalcular horários" (RefazerGrade): os mesmos confrontos,
+            // finalizados e em quadra intocados, e a promessa re-gravada depois.
+            //
+            // ⚠️ MAS NÃO DEPOIS DE PÚBLICA — a regra dele de 10/10/2026 (GradePublicadaNaoSeRefazTests):
+            // o horário publicado é compromisso com o jogador. A faixa nova fica gravada e a tela
+            // diz que nenhum jogo mudou; trocar UM jogo à mão continua possível.
+            var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
+            if (todos.Any(p => p.Status == "Agendada"))
+            {
+                if (AprovacaoDeChaves.ChavePublicada(torneio))
+                {
+                    TempData["Sucesso"] = "Horários do torneio atualizados. As chaves já estão públicas, então "
+                        + "nenhum jogo foi remarcado — pra mudar um jogo, troque o horário dele na lista de jogos.";
+                    return RedirectToAction(nameof(Planejamento), new { id });
+                }
 
+                var (remarcar, _) = await RecalcularAGradeAsync(torneio, todos);
+                await _context.SaveChangesAsync();
+                await GravarAGradePrevistaAsync(torneio);
+                await _context.SaveChangesAsync();
+
+                var marcados = remarcar.Where(j => j.HorarioPrevisto != null).ToList();
+                TempData["Sucesso"] = marcados.Count == 0
+                    ? "Horários do torneio atualizados — nada foi remarcado: não sobrou horário no expediente."
+                    : $"Horários do torneio atualizados e grade recalculada: {marcados.Count} jogos, de "
+                      + $"{marcados.Min(j => j.HorarioPrevisto):dd/MM HH:mm} a {marcados.Max(j => j.HorarioPrevisto):dd/MM HH:mm}. "
+                      + "Os confrontos não mudaram.";
+                return RedirectToAction(nameof(Planejamento), new { id });
+            }
+
+            TempData["Sucesso"] = "Horários do torneio atualizados.";
             return RedirectToAction(nameof(Planejamento), new { id });
         }
         // ── O CAMINHO ÚNICO, usado pela tela cheia E pelo resumo da aba do torneio ────────
@@ -381,12 +460,12 @@ namespace Padelizou.Controllers
         // girado — mesma função, todos os parâmetros nulos.
         private sealed record BotoesDoPlanejamento(
             DateTime DataInicio, TimeSpan Abre, TimeSpan AbreSeguintes, TimeSpan Fecha,
-            int Duracao, DateTime? Ate, string? Limites);
+            int Duracao, DateTime? Ate, string? Limites, string? Aberturas);
 
         private static BotoesDoPlanejamento Botoes(
             Torneio torneio, DateTime? dataInicio = null, TimeSpan? horaInicio = null,
             TimeSpan? horaSeguintes = null, TimeSpan? horaFim = null,
-            int? duracao = null, DateTime? ate = null, string? limites = null)
+            int? duracao = null, DateTime? ate = null, string? limites = null, string? aberturas = null)
             => new(
                 (dataInicio ?? torneio.DataInicio ?? DateTime.Today).Date,
                 horaInicio ?? torneio.HoraInicioDoDia,
@@ -400,13 +479,44 @@ namespace Padelizou.Controllers
                 // O prazo nasce do torneio (`DataFim`): é ele que já responde "até quando eu
                 // tenho o clube". Sem prazo não há o que faltar — a grade só empurra pra frente.
                 ate ?? torneio.DataFim,
-                string.IsNullOrWhiteSpace(limites) ? null : limites);
+                // Sem tabela enviada (`null`), a faixa que o torneio JÁ TEM por dia; com a tabela,
+                // o que ela mandou — vazio inclusive, que é "todos os dias no padrão".
+                limites == null ? LimitesGravados(torneio) : (string.IsNullOrWhiteSpace(limites) ? null : limites),
+                aberturas == null ? AberturasGravadas(torneio) : (string.IsNullOrWhiteSpace(aberturas) ? null : aberturas));
+
+        // A faixa gravada por dia, no formato da tela ("yyyy-MM-dd=HH:mm;...").
+        private static string? LimitesGravados(Torneio torneio) =>
+            TextoPorDia(HorarioDoDia.Ler(torneio.HorariosPorDia).ToDictionary(f => f.Key, f => f.Value.UltimoJogo));
+
+        private static string? AberturasGravadas(Torneio torneio) =>
+            TextoPorDia(HorarioDoDia.Ler(torneio.HorariosPorDia).ToDictionary(f => f.Key, f => f.Value.Abre));
+
+        private static string? TextoPorDia(Dictionary<DateTime, TimeSpan> horas) =>
+            horas.Count == 0 ? null
+            : string.Join(';', horas.OrderBy(h => h.Key).Select(h => $"{h.Key:yyyy-MM-dd}={h.Value:hh\\:mm}"));
+
+        // As faixas que um conjunto de botões GRAVARIA — só os dias que diferem do padrão, a
+        // mesma régua do AplicarPlanejamento. É o que acende (ou não) o botão de aplicar.
+        private static string? FaixasDe(BotoesDoPlanejamento b)
+        {
+            var abrePorDia = PlanejamentoDeQuadras.LerLimites(b.Aberturas);
+            var fechaPorDia = PlanejamentoDeQuadras.LerLimites(b.Limites);
+            var faixas = new Dictionary<DateTime, HorarioDoDia.Faixa>();
+            foreach (var dia in abrePorDia.Keys.Union(fechaPorDia.Keys))
+            {
+                var padraoAbre = dia == b.DataInicio ? b.Abre : b.AbreSeguintes;
+                var abreDia = abrePorDia.TryGetValue(dia, out var a) ? a : padraoAbre;
+                var fechaDia = fechaPorDia.TryGetValue(dia, out var f) ? f : b.Fecha;
+                if (abreDia != padraoAbre || fechaDia != b.Fecha) faixas[dia] = new HorarioDoDia.Faixa(abreDia, fechaDia);
+            }
+            return HorarioDoDia.Escrever(faixas);
+        }
 
         // O recorte dos botões que o `AplicarPlanejamento` escreve no torneio — os outros são
         // de simulação. Sai daqui, e não de uma lista repetida na tela, pra que acrescentar um
         // campo gravável no futuro acenda o botão sem ninguém precisar lembrar de dois lugares.
-        private static (DateTime, TimeSpan, TimeSpan, TimeSpan, int) Gravavel(BotoesDoPlanejamento b) =>
-            (b.DataInicio, b.Abre, b.AbreSeguintes, b.Fecha, b.Duracao);
+        private static (DateTime, TimeSpan, TimeSpan, TimeSpan, int, string?) Gravavel(BotoesDoPlanejamento b) =>
+            (b.DataInicio, b.Abre, b.AbreSeguintes, b.Fecha, b.Duracao, FaixasDe(b));
 
         // As quadras entram como LISTA, com a janela de cada uma — é o que faz a quadra
         // alugada das 8h às 14h render 8 rodadas e não 20 (Services/PlanejamentoDeQuadras).
@@ -420,7 +530,8 @@ namespace Padelizou.Controllers
                 duracaoMinutos: b.Duracao,
                 totalDeJogos: total,
                 ate: b.Ate,
-                limitesPorDia: PlanejamentoDeQuadras.LerLimites(b.Limites));
+                limitesPorDia: PlanejamentoDeQuadras.LerLimites(b.Limites),
+                aberturasPorDia: PlanejamentoDeQuadras.LerLimites(b.Aberturas));
 
         // Quantos jogos este torneio tem. Depois do sorteio é FATO; antes dele, a projeção das
         // duplas inscritas — a MESMA conta do painel "como essa grade vai ficar", pra que as

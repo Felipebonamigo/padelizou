@@ -240,6 +240,8 @@ public class PlanejamentoDeQuadrasVM
     public int Jogos { get; set; }
     public DateTime? Ate { get; set; }
     public string? Limites { get; set; }
+    // A abertura própria de cada dia, no mesmo formato de `Limites` (11/11/2026).
+    public string? Aberturas { get; set; }
 
     // ── AS QUADRAS DE VERDADE (09/09/2026) — a tabela que o Felipe pediu ──
     //

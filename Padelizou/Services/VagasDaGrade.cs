@@ -147,9 +147,8 @@ public static class VagasDaGrade
 
             int cabem = 0;
             int depoisDoLimite = 0;
-            foreach (var h in GradeDeJogos.Horarios(inicio, torneio.HoraFimDoDia,
-                         torneio.QuantidadeQuadras, Duracao(torneio), teto,
-                         aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes))
+            foreach (var h in HorarioDoDia.Do(torneio).Horarios(inicio,
+                         torneio.QuantidadeQuadras, Duracao(torneio), teto))
             {
                 cabem++;
 
@@ -160,16 +159,15 @@ public static class VagasDaGrade
             quantas = Math.Max(quantas, cabem);
         }
 
-        var horarios = GradeDeJogos.Horarios(
+        // Pelo calendário do torneio: cada dia na própria faixa (Services/HorarioDoDia).
+        var horarios = HorarioDoDia.Do(torneio).Horarios(
             inicio,
-            torneio.HoraFimDoDia,
             torneio.QuantidadeQuadras,
             Duracao(torneio),
             // Pede a mais justamente porque parte vai ser descontada logo abaixo — e, com
             // quadra de horário limitado, também porque parte das vagas nasce morta e o laço
             // logo abaixo precisa ter o que percorrer até juntar `quantas` vagas ÚTEIS.
-            quantas + ocupadas.Count + (sedes != null ? quantas : 0),
-            aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes);
+            quantas + ocupadas.Count + (sedes != null ? quantas : 0));
 
         // Vaga que já tem dono sai da lista: num recálculo no meio do torneio, os jogos que já
         // rolaram e os que estão em quadra continuam ocupando as quadras deles. Sem este

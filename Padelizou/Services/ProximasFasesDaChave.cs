@@ -296,7 +296,10 @@ public static class ProximasFasesDaChave
     public record ConfiguracaoDaGrade(
         int DuracaoMinutos, int Capacidade, IReadOnlyList<string> Quadras,
         TimeSpan UltimoInicioDoDia, TimeSpan AberturaDiasSeguintes,
-        SedesDoTorneio? Sedes = null);
+        SedesDoTorneio? Sedes = null,
+        // O calendário do torneio, com a faixa própria de cada dia (Services/HorarioDoDia).
+        // Nulo = só os dois campos acima, como sempre foi.
+        HorarioDoDia.Calendario? Calendario = null);
 
     // Põe TODAS as cadeias na mesma grade, disputando as mesmas quadras.
     //
@@ -411,7 +414,8 @@ public static class ProximasFasesDaChave
         var emitidos = new List<(int Posto, DateTime Horario)>();
 
         DateTime Seguinte(DateTime h) =>
-            GradeDeJogos.DepoisDe(h, grade.UltimoInicioDoDia, grade.AberturaDiasSeguintes, grade.DuracaoMinutos);
+            grade.Calendario?.DepoisDe(h, grade.DuracaoMinutos)
+            ?? GradeDeJogos.DepoisDe(h, grade.UltimoInicioDoDia, grade.AberturaDiasSeguintes, grade.DuracaoMinutos);
 
         // ── AS QUADRAS SÃO AS DA GRADE DE VERDADE (09/09/2026) ───────────────────────────
         // 🗣️ *"no domingo (dia 13/09) nao tem radar, o radar vai ser só no sabado"* — e a tela
@@ -614,8 +618,9 @@ public static class ProximasFasesDaChave
     // e grade dizendo horas diferentes seria pior que não projetar.
     private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, ConfiguracaoDaGrade grade) =>
         ultimoDaFaseAnterior is DateTime ultimo
-            ? GradeDeJogos.AberturaDaProximaFase(ultimo, grade.UltimoInicioDoDia,
-                                                 grade.AberturaDiasSeguintes, grade.DuracaoMinutos)
+            ? grade.Calendario?.DepoisDe(ultimo, grade.DuracaoMinutos)
+              ?? GradeDeJogos.AberturaDaProximaFase(ultimo, grade.UltimoInicioDoDia,
+                                                    grade.AberturaDiasSeguintes, grade.DuracaoMinutos)
             : null;
 
     // Primeiro cruza com último — a regra de ChaveamentoMataMata.ParearVencedores, aplicada

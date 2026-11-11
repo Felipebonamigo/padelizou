@@ -1072,7 +1072,8 @@ public class RoboDoChaveamento
                     await QuadrasEmUsoAsync(torneioId),
                     torneio.HoraFimDoDia,
                     torneio.HoraInicioDiasSeguintes,
-                    await SedesAsync(torneioId)),
+                    await SedesAsync(torneioId),
+                    HorarioDoDia.Do(torneio)),
                 ocupadas,
                 reservadas);
 

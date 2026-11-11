@@ -107,13 +107,14 @@ public static class PlanejamentoDeQuadras
         int duracaoMinutos,
         int totalDeJogos,
         DateTime? ate = null,
-        IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null)
+        IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null,
+        IReadOnlyDictionary<DateTime, TimeSpan>? aberturasPorDia = null)
         // N quadras sem janela: é a simulação "e se eu tivesse 4?", e é também a forma que
         // o resumo da aba usa. Vira lista pra que exista UM núcleo só — a versão por número
         // não pode ter a própria conta de vagas, senão as duas divergem no primeiro ajuste.
         => Montar(inicio, aberturaDiasSeguintes, limitePadrao,
             Enumerable.Range(1, Math.Max(1, quadras)).Select(i => new Quadra { Nome = $"Quadra {i}" }).ToList(),
-            duracaoMinutos, totalDeJogos, ate, limitesPorDia);
+            duracaoMinutos, totalDeJogos, ate, limitesPorDia, aberturasPorDia);
 
     /// <summary>
     /// O calendário com as quadras DE VERDADE: cada uma rende só as rodadas em que está aberta.
@@ -135,7 +136,10 @@ public static class PlanejamentoDeQuadras
         int duracaoMinutos,
         int totalDeJogos,
         DateTime? ate = null,
-        IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null)
+        IReadOnlyDictionary<DateTime, TimeSpan>? limitesPorDia = null,
+        // A abertura PRÓPRIA de um dia (11/11/2026 — Services/HorarioDoDia). Ausente, vale a de
+        // sempre: a do 1º dia ou a dos demais.
+        IReadOnlyDictionary<DateTime, TimeSpan>? aberturasPorDia = null)
     {
         // Mesma normalização do motor (0 vira 50): torneio com o tempo zerado existe, e sem
         // ela a divisão por duração estouraria — ver GradeDeJogos.Horarios.
@@ -170,7 +174,9 @@ public static class PlanejamentoDeQuadras
                 break;
             }
 
-            var abre = i == 0 ? inicio.TimeOfDay : aberturaDiasSeguintes;
+            var abre = aberturasPorDia != null && aberturasPorDia.TryGetValue(data, out var abreProprio)
+                ? abreProprio
+                : i == 0 ? inicio.TimeOfDay : aberturaDiasSeguintes;
             var limite = limitesPorDia != null && limitesPorDia.TryGetValue(data, out var proprio)
                 ? proprio
                 : limitePadrao;
