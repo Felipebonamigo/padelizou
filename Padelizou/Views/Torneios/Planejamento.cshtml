@@ -220,7 +220,7 @@
         </div>
     </div>
 
-<form method="get" asp-action="Planejamento" asp-route-id="@Model.Torneio.Id">
+<form method="get" asp-action="Planejamento" asp-route-id="@Model.Torneio.Id" id="simulacao-do-planejamento">
 
     @* ── OS BOTÕES ─────────────────────────────────────────────────────────────────────── *@
     <div class="card shadow-sm mb-3">
@@ -484,7 +484,7 @@
                     <p class="text-muted mb-3">Os horários acima são exatamente os que o torneio já tem.</p>
                 }
 
-                <form method="post" asp-action="AplicarPlanejamento" asp-route-id="@Model.Torneio.Id" class="mb-0">
+                <form method="post" asp-action="AplicarPlanejamento" asp-route-id="@Model.Torneio.Id" class="mb-0" id="aplicar-horarios">
                     <input type="hidden" name="dataInicio" value="@Model.DataInicio.ToString("yyyy-MM-dd")" />
                     <input type="hidden" name="horaInicio" value="@Hora(Model.HoraInicio)" />
                     <input type="hidden" name="horaSeguintes" value="@Hora(Model.HoraSeguintes)" />
@@ -495,10 +495,32 @@
                     <input type="hidden" name="aberturas" value="@Model.Aberturas" />
                     <input type="hidden" name="limites" value="@Model.Limites" />
                     <input type="hidden" name="porDia" value="true" />
-                    <button type="submit" class="btn btn-success rounded-pill px-4" disabled="@(!Model.MudouAlgo)">
+                    @* SEMPRE ACESO (11/11/2026). 🗣️ Felipe: *"não está salvando ali a alteração"* — ele
+                       mudava a caixinha e clicava aqui, e o botão gravava (ou nem deixava clicar) o
+                       que a tela tinha ao ABRIR. Agora o script abaixo copia os campos da simulação
+                       COMO ESTÃO na hora de enviar; os escondidos acima só valem sem JavaScript. *@
+                    <button type="submit" class="btn btn-success rounded-pill px-4">
                         <i class="bi bi-check2"></i> Aplicar horários ao torneio
                     </button>
                 </form>
+                <script>
+                    document.getElementById('aplicar-horarios').addEventListener('submit', function () {
+                        var aplicar = this;
+                        var simulacao = document.getElementById('simulacao-do-planejamento');
+                        if (!simulacao) return;
+                        ['dataInicio', 'horaInicio', 'horaSeguintes', 'horaFim', 'duracao'].forEach(function (nome) {
+                            var campo = simulacao.elements[nome], escondido = aplicar.elements[nome];
+                            if (campo && escondido && campo.value) escondido.value = campo.value;
+                        });
+                        Array.prototype.forEach.call(simulacao.querySelectorAll('input[name^="abertura["], input[name^="limite["]'), function (caixa) {
+                            var copia = document.createElement('input');
+                            copia.type = 'hidden';
+                            copia.name = caixa.name;
+                            copia.value = caixa.value;
+                            aplicar.appendChild(copia);
+                        });
+                    });
+                </script>
 
                 <hr />
                 <p class="small text-muted mb-0">
