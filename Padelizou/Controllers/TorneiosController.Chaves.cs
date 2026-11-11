@@ -183,13 +183,12 @@ namespace Padelizou.Controllers
                 // era `InvalidOperationException` e um 500 na cara do organizador, antes de
                 // gravar grupo nenhum. Quem tem meia dupla soma meia semeadura, que é o certo:
                 // o ranking dela é só o do jogador que existe.
-                var duplasOrdenadas = duplas
-                    .OrderByDescending(d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
-                                          + (d.Jogador2Id is int parceiro
-                                              ? pontosPorJogador.GetValueOrDefault(parceiro)
-                                              : 0))
-                    .ThenBy(_ => Guid.NewGuid())
-                    .ToList();
+                //
+                // 11/11/2026: os cabeças ESCOLHIDOS pelo organizador vêm antes do ranking — a
+                // régua inteira mora em Services/CabecasDeChave.
+                var duplasOrdenadas = CabecasDeChave.Ordenar(duplas,
+                    d => pontosPorJogador.GetValueOrDefault(d.Jogador1Id)
+                         + (d.Jogador2Id is int parceiro ? pontosPorJogador.GetValueOrDefault(parceiro) : 0));
 
                 // O normal dos torneios é fechar em grupos de 3 duplas. Quando o total não é
                 // múltiplo de 3, os melhores rankeados resolvem em grupo(s) de 2 (chave direta),

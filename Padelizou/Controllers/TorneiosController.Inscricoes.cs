@@ -296,6 +296,12 @@ namespace Padelizou.Controllers
 
             dupla.Pago = !dupla.Pago;
             dupla.PagoEm = dupla.Pago ? DateTime.Now : null;
+
+            // "Marcar não pago" da DUPLA vale pros dois: as marcas individuais saem junto, senão
+            // a leitura por jogador (Services/PagamentoPorJogador) seguiria dizendo "pago".
+            if (!dupla.Pago)
+                _context.PagamentosManuaisDeJogador.RemoveRange(
+                    await _context.PagamentosManuaisDeJogador.Where(m => m.DuplaId == dupla.Id).ToListAsync());
             await _context.SaveChangesAsync();
 
             // Marcou pago na mão = recebeu por fora (Felipe, 13/10/2026): a fatura do Asaas
@@ -307,6 +313,128 @@ namespace Padelizou.Controllers
             TempData["Sucesso"] = (dupla.Pago ? "Inscrição marcada como paga." : "Inscrição marcada como não paga.")
                 + FraseDasCobrancasCanceladas(canceladas);
             return RedirectToAction(voltarPara == "Financeiro" ? "Financeiro" : "Details", new { id = torneioId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // PAGO / NÃO PAGO DE UM JOGADOR SÓ (11/11/2026 — Felipe: "normalmente a cobrança é
+        // individual"). A régua mora em Services/PagamentoPorJogador; aqui é só o botão.
+        //
+        // - Marcar: grava a marca DESTE jogador, cancela só a fatura aberta DELE no Asaas e, se
+        //   com isso todos os jogadores da inscrição ficaram pagos, a dupla vira paga.
+        // - Desmarcar: a dupla deixa de estar paga — e se ela estava paga INTEIRA (o "Dupla
+        //   pagou"), o parceiro ganha a marca dele, senão sumiria junto um pagamento que houve.
+        // - Quem pagou pelo app não é desmarcado na mão: o dinheiro entrou, e desfazer isso é
+        //   estorno, não clique.
+        public async Task<IActionResult> AlternarPagamentoJogador(int duplaId, int jogadorId, string? voltarPara = null)
+        {
+            var dupla = await _context.Duplas
+                .Include(d => d.Categoria)
+                .Include(d => d.Jogador1)
+                .Include(d => d.Jogador2)
+                .FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // O id vem do formulário: tem que ser um dos dois jogadores ATUAIS desta inscrição.
+            if (jogadorId != dupla.Jogador1Id && jogadorId != dupla.Jogador2Id) return NotFound();
+
+            var manuais = await _context.PagamentosManuaisDeJogador.Where(m => m.DuplaId == dupla.Id).ToListAsync();
+            var confirmados = await CobrancaDaDupla.ConfirmadosDe(_context, dupla.Id).ToListAsync();
+            var nome = NomeBonito.Curto((jogadorId == dupla.Jogador1Id ? dupla.Jogador1 : dupla.Jogador2)?.Nome ?? "Jogador");
+            var destino = voltarPara == "Financeiro" ? "Financeiro" : "Details";
+
+            if (PagamentoPorJogador.Pagou(dupla, jogadorId, manuais, confirmados))
+            {
+                if (confirmados.Any(p => p.JogadorId == jogadorId))
+                {
+                    TempData["Erro"] = $"{nome} pagou pelo app — pra desfazer, é pelo estorno do pagamento.";
+                    return RedirectToAction(destino, new { id = torneioId });
+                }
+
+                if (dupla.Pago)
+                {
+                    int? parceiro = jogadorId == dupla.Jogador1Id ? dupla.Jogador2Id : dupla.Jogador1Id;
+                    if (parceiro is int outro && !manuais.Any(m => m.JogadorId == outro))
+                        _context.PagamentosManuaisDeJogador.Add(new PagamentoManualDoJogador { DuplaId = dupla.Id, JogadorId = outro });
+                    dupla.Pago = false;
+                    dupla.PagoEm = null;
+                }
+
+                _context.PagamentosManuaisDeJogador.RemoveRange(manuais.Where(m => m.JogadorId == jogadorId));
+                await _context.SaveChangesAsync();
+
+                TempData["Sucesso"] = $"{nome} marcado como não pago.";
+                return RedirectToAction(destino, new { id = torneioId });
+            }
+
+            var marca = new PagamentoManualDoJogador { DuplaId = dupla.Id, JogadorId = jogadorId };
+            _context.PagamentosManuaisDeJogador.Add(marca);
+            manuais.Add(marca);
+
+            if (PagamentoPorJogador.TodosPagaram(dupla, manuais, confirmados))
+            {
+                dupla.Pago = true;
+                dupla.PagoEm = DateTime.Now;
+            }
+            await _context.SaveChangesAsync();
+
+            var canceladas = await _pagamentos.CancelarCobrancasAbertasDaInscricaoAsync(torneioId, dupla.Id, null, jogadorId);
+
+            TempData["Sucesso"] = $"{nome} marcado como pago."
+                + (dupla.Pago ? " A dupla está quitada." : "")
+                + FraseDasCobrancasCanceladas(canceladas);
+            return RedirectToAction(destino, new { id = torneioId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // O ORGANIZADOR CRAVA O CABEÇA DE CHAVE (11/11/2026 — Felipe: "permita antes do sorteio,
+        // escolher os cabeças de chave caso seja uma escolha do organizador"). Vazio/0 tira a
+        // escolha. Só antes do sorteio — a MESMA régua `jaSorteou` de trocar categoria: depois
+        // dele, a escolha não mudaria grupo nenhum e só mentiria na tela.
+        //
+        // A posição é única na categoria: escolher o 1 pra outra dupla tira o 1 de quem tinha
+        // (trocar de ideia é um clique, e não um "posição ocupada").
+        public async Task<IActionResult> SalvarCabecaDeChave(int duplaId, int? posicao)
+        {
+            var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId))
+            {
+                TempData["Erro"] = "As chaves já foram sorteadas — os cabeças de chave só podem ser escolhidos antes.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var daCategoria = await _context.Duplas
+                .Where(d => d.CategoriaId == dupla.CategoriaId)
+                .ToListAsync();
+            int maximo = CabecasDeChave.PosicaoMaxima(daCategoria.Count(d => !ForaDoSorteio.FicaDeFora(d)));
+
+            int? nova = posicao is > 0 ? posicao : null;
+            if (nova > maximo)
+            {
+                TempData["Erro"] = $"Esta categoria tem {maximo} dupla(s) no sorteio — escolha de 1 a {maximo}.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            if (nova != null)
+                foreach (var outra in daCategoria.Where(d => d.Id != dupla.Id && d.CabecaDeChave == nova))
+                    outra.CabecaDeChave = null;
+
+            dupla.CabecaDeChave = nova;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = nova == null ? "Cabeça de chave retirado." : $"Cabeça de chave nº {nova} definido.";
+            return RedirectToAction("Details", new { id = torneioId });
         }
 
         [HttpPost]

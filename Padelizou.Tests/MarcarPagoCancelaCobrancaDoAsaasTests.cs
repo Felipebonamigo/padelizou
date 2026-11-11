@@ -149,6 +149,26 @@ public class MarcarPagoCancelaCobrancaDoAsaasTests
         await asaas.DidNotReceive().EstornarAsync("pay_outro_americano", Arg.Any<bool>(), Arg.Any<DevolucaoParcial?>());
     }
 
+    // 11/11/2026 — marcou UM jogador como pago (Services/PagamentoPorJogador): morre só a
+    // fatura dele; a do parceiro segue sendo o jeito dele pagar.
+    [Fact]
+    public async Task So_do_jogador_cancela_so_a_fatura_dele()
+    {
+        var (ctx, servico, asaas, torneio, dupla) = Cenario();
+        using var _ = ctx;
+        var dele = Cobranca(torneio.Id, "pay_dele", "Pendente", dupla.Id);
+        var doParceiro = Cobranca(torneio.Id, "pay_parceiro", "Pendente", dupla.Id);
+        doParceiro.JogadorId = 2;
+        ctx.Pagamentos.AddRange(dele, doParceiro);
+        await ctx.SaveChangesAsync();
+
+        var canceladas = await servico.CancelarCobrancasAbertasDaInscricaoAsync(torneio.Id, dupla.Id, null, somenteDoJogadorId: 1);
+
+        Assert.Equal(1, canceladas);
+        await asaas.Received(1).EstornarAsync("pay_dele", false, null);
+        await asaas.DidNotReceive().EstornarAsync("pay_parceiro", Arg.Any<bool>(), Arg.Any<DevolucaoParcial?>());
+    }
+
     // O gateway recusou (ex.: a pessoa pagou naquele instante): o status fica como estava —
     // gravar "Cancelado" mentiria sobre uma cobrança que pode ter virado dinheiro.
     [Fact]
