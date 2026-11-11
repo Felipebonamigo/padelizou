@@ -616,6 +616,14 @@ public static class GradeDeJogos
                 int vagasRestantes = horarios.Count - i - 1;
                 if (vagasRestantes >= fila.Count) continue;
 
+                // ⚠️ MAS NUNCA NUM HORÁRIO EM QUE NENHUMA QUADRA EXISTE (11/11/2026): todas fora da
+                // janela "disponível de / até". O último recurso marcava o primeiro da fila mesmo
+                // assim, e nascia jogo "às 19h, sem quadra" com a única quadra fechada desde as 14h
+                // — é o mesmo que marcar depois do fim do torneio. Quadra só OCUPADA continua
+                // cedendo como sempre (GradeComHorarioQuebradoTests): o organizador troca o horário.
+                // (GradeNuncaPassaDoFimDoTorneioTests)
+                if (temQuadraCadastrada && !quadras!.Any(q => sede.QuadraAberta(q, horario))) continue;
+
                 jogo = fila.FirstOrDefault(p => Livre(p) && TemOndeJogar(p))
                     ?? fila.FirstOrDefault(Livre)
                     ?? fila[0];

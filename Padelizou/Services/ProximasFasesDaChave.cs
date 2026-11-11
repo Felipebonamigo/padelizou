@@ -326,11 +326,33 @@ public static class ProximasFasesDaChave
     // grade não tem como evitar que a mesma pessoa apareça em duas categorias no mesmo
     // horário. Quem garante isso é o encaixe de verdade (GradeDeJogos.Encaixar), na hora em
     // que a rodada nasce com nome e sobrenome.
+    //
+    // ⚠️ A ORDEM ENTRE CATEGORIAS CEDE QUANDO SEGUI-LA DEIXA JOGO SEM HORA (11/11/2026). Ela é
+    // preferência — "entre categorias são pessoas diferentes" —, e o fim do torneio é regra
+    // (🗣️ *"respeitar as datas e horários pré-estabelecidos"*). Um jogo de grupo de OUTRA categoria
+    // empurrado pro último dia (dupla impedida) segurava o mata-mata de quem já tinha acabado, com
+    // horário livre sobrando antes. Então: tenta com a ordem; se algum jogo ficou sem hora por
+    // causa do teto do torneio, tenta sem a barreira entre categorias e fica com a que marcou mais.
+    // O piso DA PRÓPRIA categoria (esperar o resultado) nunca cede. (GradeNuncaPassaDoFimDoTorneioTests)
     public static List<JogoQueVem> Agendar(
         IReadOnlyList<CadeiaDeFases> cadeias,
         ConfiguracaoDaGrade grade,
         IReadOnlyList<VagaOcupada>? jaMarcados = null,
         IReadOnlyList<HorarioReservado>? reservas = null)
+    {
+        var comOrdem = Agendar(cadeias, grade, jaMarcados, reservas, ordemEntreCategorias: true);
+        if (grade.Calendario?.UltimoInicio == null || comOrdem.All(j => j.Horario != null)) return comOrdem;
+
+        var semOrdem = Agendar(cadeias, grade, jaMarcados, reservas, ordemEntreCategorias: false);
+        return semOrdem.Count(j => j.Horario != null) > comOrdem.Count(j => j.Horario != null) ? semOrdem : comOrdem;
+    }
+
+    private static List<JogoQueVem> Agendar(
+        IReadOnlyList<CadeiaDeFases> cadeias,
+        ConfiguracaoDaGrade grade,
+        IReadOnlyList<VagaOcupada>? jaMarcados,
+        IReadOnlyList<HorarioReservado>? reservas,
+        bool ordemEntreCategorias)
     {
         var vivas = cadeias.Where(c => c.Rodadas.Count > 0).ToList();
         if (vivas.Count == 0) return new List<JogoQueVem>();
@@ -544,7 +566,8 @@ public static class ProximasFasesDaChave
             // ⚠️ SEM `+ duração`: é o horário do último jogo do posto anterior, e não a rodada
             // seguinte a ele — no minuto em que aquele jogo roda ainda sobra quadra. Mesma escolha
             // de LevasDaGrade, e pelo mesmo pedido: *"a menos que fique horario vazio"*.
-            if (horario is DateTime abre && fimDoPostoAnterior is DateTime barreira && barreira > abre)
+            if (ordemEntreCategorias
+                && horario is DateTime abre && fimDoPostoAnterior is DateTime barreira && barreira > abre)
                 horario = barreira;
 
             // O jogo mais tarde da rodada, reservado ou não: é dele que a rodada seguinte abre.
