@@ -106,6 +106,39 @@ public static class CartaoDosJogos
         return artes;
     }
 
+    // O NÚMERO DA ARTE NO LINK DA IMAGEM (`JogosImagem?parte=N`) — a posição na lista INTEIRA
+    // de artes, a partir de 1. As duas pontas moram juntas de propósito: em 11/11/2026 a tela
+    // mandava `ArteDeJogos.Parte` (a parte DENTRO do dia, 1 em todo dia que cabe numa arte só)
+    // e o endpoint lia a posição — todo dia saía com a arte do primeiro (Felipe: "aqui tá
+    // gerando a mesma imagem de dias diferentes").
+    public static int NumeroNoLink(IReadOnlyList<ArteDeJogos> artes, ArteDeJogos arte)
+    {
+        for (int i = 0; i < artes.Count; i++)
+            if (ReferenceEquals(artes[i], arte)) return i + 1;
+        return 0;
+    }
+
+    // A VERSÃO DO CONTEÚDO, pro link da imagem (`&v=`). A imagem sai com cache público de uma
+    // hora (EntregaDeCard) e a URL era a mesma depois de mexer num horário: o navegador seguia
+    // mostrando a arte velha (Felipe, 11/11/2026: "alterei um horário e não alterou aqui na
+    // tela"). Com o conteúdo no link, jogo mudado = URL nova = imagem nova; nada mudado = mesma
+    // URL, e o cache segue valendo. `arte` nula = a imagem única com tudo.
+    public static string Versao(GradeDesenhavel grade, ArteDeJogos? arte)
+    {
+        var texto = new System.Text.StringBuilder()
+            .Append(grade.Torneio).Append('|').Append(grade.Recorte).Append('|').Append(grade.Clube);
+        foreach (var a in arte != null ? new[] { arte } : grade.Artes.ToArray())
+        {
+            texto.Append('#').Append(a.Rotulo);
+            foreach (var j in a.Jogos) texto.Append('\n').Append(j.ToString());
+        }
+        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(texto.ToString()));
+        return Convert.ToHexString(hash, 0, 5).ToLowerInvariant();
+    }
+
+    public static ArteDeJogos? DoLink(IReadOnlyList<ArteDeJogos> artes, int numero) =>
+        numero >= 1 && numero <= artes.Count ? artes[numero - 1] : null;
+
     public static byte[] Desenhar(GradeDesenhavel grade, ArteDeJogos arte, FonteDoCartao fontes, string webRootPath)
     {
         var logo = CartaoCompartilhavel.LerDaMarca(webRootPath, CartaoDeCampeao.LogoDaMarca);

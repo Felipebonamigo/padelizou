@@ -12,7 +12,7 @@
     if (Model.FonteDisponivel && Model.Grade.TemOQueMostrar)
     {
         ViewData["OgImagem"] = Url.Action("JogosImagem", "Torneios",
-            new RouteValueDictionary(Model.Filtros) { ["parte"] = 1 }, Context.Request.Scheme);
+            new RouteValueDictionary(Model.Filtros) { ["parte"] = 1, ["v"] = Padelizou.Services.CartaoDosJogos.Versao(Model.Grade, Model.Grade.Artes.FirstOrDefault()) }, Context.Request.Scheme);
     }
 
     // Os mesmos filtros, só trocando a pergunta das prévias.
@@ -181,7 +181,7 @@
             if (Model.UmaImagem && Model.CabeNumaImagemSo)
             {
                 var inteira = Url.Action("JogosImagem", "Torneios",
-                    new RouteValueDictionary(Model.Filtros) { ["tudo"] = true });
+                    new RouteValueDictionary(Model.Filtros) { ["tudo"] = true, ["v"] = Padelizou.Services.CartaoDosJogos.Versao(Model.Grade, null) });
                 var arquivoInteiro = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(Model.Torneio.Nome)}.png";
 
                 <p class="text-muted small mb-3">
@@ -224,7 +224,7 @@
                 foreach (var arte in Model.Grade.Artes)
                 {
                     var imagem = Url.Action("JogosImagem", "Torneios",
-                        new RouteValueDictionary(Model.Filtros) { ["parte"] = arte.Parte });
+                        new RouteValueDictionary(Model.Filtros) { ["parte"] = Padelizou.Services.CartaoDosJogos.NumeroNoLink(Model.Grade.Artes, arte), ["v"] = Padelizou.Services.CartaoDosJogos.Versao(Model.Grade, arte) });
                     var arquivo = $"jogos-{Padelizou.Controllers.CartoesController.Arquivo(arte.Rotulo)}.png";
 
                     <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">

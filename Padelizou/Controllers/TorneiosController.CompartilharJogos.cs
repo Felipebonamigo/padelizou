@@ -101,7 +101,7 @@ namespace Padelizou.Controllers
                     inteira, $"jogos-{CartoesController.Arquivo(lista.Value.Torneio.Nome)}.png");
             }
 
-            var arte = lista.Value.Grade.Artes.ElementAtOrDefault(parte - 1);
+            var arte = CartaoDosJogos.DoLink(lista.Value.Grade.Artes, parte);
             if (arte == null) return NotFound();
 
             var png = CartaoDosJogos.Desenhar(lista.Value.Grade, arte, fontes, _env.WebRootPath);
