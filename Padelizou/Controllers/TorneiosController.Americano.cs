@@ -145,10 +145,10 @@ namespace Padelizou.Controllers
             // (Aqui o encaixe é posicional mesmo: cada dupla do Americano nasce por jogo,
             // então o detector de conflito por dupla não teria o que detectar — e as
             // rodadas do whist já garantem jogadores distintos dentro da rodada.)
-            var horariosAmericano = GradeDeJogos.Horarios(
-                dataHoraInicio, torneio.HoraFimDoDia, torneio.QuantidadeQuadras,
-                VagasDaGrade.Duracao(torneio), jogosDoAmericano.Count,
-                aberturaDiasSeguintes: torneio.HoraInicioDiasSeguintes).ToList();
+            // Pelo calendário do torneio: cada dia na própria faixa (Services/HorarioDoDia).
+            var horariosAmericano = HorarioDoDia.Do(torneio).Horarios(
+                dataHoraInicio, torneio.QuantidadeQuadras,
+                VagasDaGrade.Duracao(torneio), jogosDoAmericano.Count).ToList();
 
             for (int i = 0; i < jogosDoAmericano.Count; i++)
             {

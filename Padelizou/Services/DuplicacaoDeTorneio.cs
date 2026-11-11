@@ -162,6 +162,8 @@ public static class DuplicacaoDeTorneio
 
         // Da edição que passou.
         nameof(Torneio.RecadoAosInscritos),
+        // A faixa de cada dia tem DATA: a de 13/11 não diz nada sobre a edição de dezembro.
+        nameof(Torneio.HorariosPorDia),
         nameof(Torneio.CamisetaEscolhaAte),
         nameof(Torneio.LinkDasFotos),
         nameof(Torneio.MotivoCancelamento),

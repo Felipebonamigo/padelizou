@@ -70,10 +70,10 @@ public static class PorQueNaoCoube
         // aberta não dá erro nenhum: ele só empurra o torneio pra frente.
         for (var dia = comeco.Date; dia <= fimDoPrazo; dia = dia.AddDays(1))
         {
-            var abertura = dia == comeco.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+            var abertura = HorarioDoDia.Do(torneio).Abre(dia, primeiroDaConta: dia == comeco.Date);
 
             bool temQuadra = false;
-            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= HorarioDoDia.Do(torneio).Limite(dia) && hora.Date == dia;
                  hora = hora.AddMinutes(duracao))
             {
                 if ((sedes.QuadrasAbertasEm(hora) ?? int.MaxValue) > 0) { temQuadra = true; break; }
@@ -157,10 +157,10 @@ public static class PorQueNaoCoube
             // Alguma quadra abre em ALGUM horário deste dia? A pergunta é feita nos horários que a
             // grade de fato ofereceria, e não "no dia inteiro": uma quadra que só abre às 3h da
             // manhã não serve pra nada e não deve inocentar o dia.
-            var abertura = dia == torneio.DataInicio?.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+            var abertura = HorarioDoDia.Do(torneio).Abre(dia, primeiroDaConta: dia == torneio.DataInicio?.Date);
             bool teveQuadra = false;
 
-            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= HorarioDoDia.Do(torneio).Limite(dia) && hora.Date == dia;
                  hora = hora.AddMinutes(duracao))
             {
                 if ((sedes.QuadrasAbertasEm(hora) ?? int.MaxValue) > 0) { teveQuadra = true; break; }
@@ -190,9 +190,9 @@ public static class PorQueNaoCoube
 
         for (var dia = comeco.Date; dia <= fimDoPrazo; dia = dia.AddDays(1))
         {
-            var abertura = dia == comeco.Date ? torneio.HoraInicioDoDia : torneio.HoraInicioDiasSeguintes;
+            var abertura = HorarioDoDia.Do(torneio).Abre(dia, primeiroDaConta: dia == comeco.Date);
 
-            for (var hora = dia.Add(abertura); hora.TimeOfDay <= torneio.HoraFimDoDia && hora.Date == dia;
+            for (var hora = dia.Add(abertura); hora.TimeOfDay <= HorarioDoDia.Do(torneio).Limite(dia) && hora.Date == dia;
                  hora = hora.AddMinutes(duracao))
             {
                 vagas += Math.Min(sedes.QuadrasAbertasEm(hora) ?? quadras, quadras);

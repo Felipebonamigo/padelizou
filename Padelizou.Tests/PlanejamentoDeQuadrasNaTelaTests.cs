@@ -226,25 +226,25 @@ public class PlanejamentoDeQuadrasNaTelaTests
         Assert.True(naAba.Faltam > 0, "o cenário parou de apertar; escolha outro");
     }
 
-    // ⚠️ O BOTÃO "APLICAR" SÓ PODE ACENDER PELO QUE ELE DE FATO GRAVA. O planejador tem sete
-    // botões, e o POST escreve CINCO deles: quadras não se aplicam daqui (quadra tem nome e
-    // clube — ver o comentário do AplicarPlanejamento), e a hora de fechar por dia nem existe
-    // como coluna. Acender o "Aplicar" quando o organizador mexe num desses dois seria a pior
-    // mentira possível desta tela: ele aperta achando que comprou a terceira quadra.
+    // ⚠️ O BOTÃO "APLICAR" SÓ PODE ACENDER PELO QUE ELE DE FATO GRAVA. Quadras não se aplicam
+    // daqui (quadra tem nome e clube — ver o comentário do AplicarPlanejamento): acender o botão
+    // por causa delas faria o organizador apertar achando que comprou a terceira quadra.
+    // ⚠️ A HORA POR DIA PASSOU A GRAVAR em 11/11/2026 (Torneio.HorariosPorDia — 🗣️ Felipe: "tem
+    // que permitir separar por dia, que horas começa e que horas termina"). Este teste dizia o
+    // contrário porque a coluna não existia; agora o fechamento do domingo É aplicável, e o botão
+    // acende. Quadra continua fora: virou a tabela, que grava na hora (09/09/2026).
     [Fact]
-    public async Task Mexer_no_que_o_aplicar_nao_grava_nao_acende_o_botao()
+    public async Task Mexer_no_horario_de_um_dia_acende_o_botao()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, organizador, _) = Cenario(ctx);
         var controller = TestInfra.NovoTorneiosController(ctx, usuarioLogadoId: organizador.Id);
 
-        // A hora de fechar do domingo não é gravável por aqui (não tem coluna). Quadra deixou
-        // de ser botão de simulação em 09/09/2026 — virou a tabela, que grava na hora.
-        var soSimulacao = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(
+        var domingoMaisCedo = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(
             torneio.Id, limites: "2026-09-13=14:00")));
 
-        Assert.False(soSimulacao.MudouAlgo);
-        Assert.Equal(8, soSimulacao.Plano.Dias[2].Rodadas);   // simulou mesmo, só não é aplicável
+        Assert.True(domingoMaisCedo.MudouAlgo);
+        Assert.Equal(8, domingoMaisCedo.Plano.Dias[2].Rodadas);
 
         // Já a hora de início É gravável — e aí o botão tem o que fazer.
         var horarioNovo = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(

@@ -274,6 +274,17 @@ public partial class Torneio
     // um campo.
     public TimeSpan HoraFimDoDia { get; set; } = new(23, 50, 0);
 
+    // HORÁRIO PRÓPRIO POR DIA (11/11/2026). 🗣️ Felipe: *"tem que permitir separar por dia, que
+    // horas começa e que horas termina"*. Texto "yyyy-MM-dd=HH:mm-HH:mm;..." (abre e último jogo
+    // começa até). Nulo, ou dia ausente, = os três campos acima. Quem lê é Services/HorarioDoDia
+    // — e o motor inteiro pergunta só a ele.
+    //
+    // ⚠️ TEXTO NO PRÓPRIO TORNEIO, e não tabela filha: a grade lê o torneio em dezenas de lugares,
+    // e uma tabela exigiria um `Include` em cada um — o `Include` esquecido seria o dia que o
+    // sorteio ignora calado. Assim a faixa vem junto com o torneio, sempre.
+    [StringLength(1000)]
+    public string? HorariosPorDia { get; set; }
+
     // Americano: se der empate em games na liderança, jogam uma partida final pra decidir.
     // No individual, os empatados escolhem um parceiro cada e sai um jogo só (montado pelo
     // organizador); no Americano de Duplas as duas duplas empatadas jogam entre si, e o robô
@@ -361,8 +372,15 @@ public partial class Torneio
 
     // Quando o primeiro jogo entra na quadra.
     [NotMapped]
-    public DateTime AberturaDaGrade =>
-        (DataInicio ?? DateTime.Today).Date.Add(HoraInicioDoDia);
+    // A abertura DESTE dia, que pode ter faixa própria (Services/HorarioDoDia).
+    public DateTime AberturaDaGrade
+    {
+        get
+        {
+            var primeiroDia = (DataInicio ?? DateTime.Today).Date;
+            return primeiroDia.Add(Padelizou.Services.HorarioDoDia.Do(this).Abre(primeiroDia));
+        }
+    }
     public int TamanhoGrupo { get; set; } = 3;
 
     // ⚠️ NINGUÉM LÊ ISTO DESDE 11/09/2026 — quem manda em quantos passam de cada grupo é

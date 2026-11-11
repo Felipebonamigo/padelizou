@@ -1397,8 +1397,7 @@ namespace Padelizou.Controllers
                 .DefaultIfEmpty(agora)
                 .Max();
 
-            var liberaQuadra = GradeDeJogos.DepoisDe(emQuadra, torneio.HoraFimDoDia,
-                torneio.HoraInicioDiasSeguintes, torneio.TempoPrevistoPartidaMinutos);
+            var liberaQuadra = HorarioDoDia.Do(torneio).DepoisDe(emQuadra, torneio.TempoPrevistoPartidaMinutos);
 
             return agora > liberaQuadra ? agora : liberaQuadra;
         }
@@ -2332,9 +2331,11 @@ namespace Padelizou.Controllers
             int total = jogosDeGrupo + jogosDeMataMata;
             var inicio = torneio.AberturaDaGrade;
 
-            var ultimo = PrevisaoDoTorneio.UltimoJogo(
-                inicio, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes,
-                torneio.QuantidadeQuadras, torneio.TempoPrevistoPartidaMinutos, total);
+            // Pelo calendário do torneio, que conhece a faixa própria de cada dia.
+            DateTime? ultimo = total > 0
+                ? HorarioDoDia.Do(torneio).Horarios(inicio, torneio.QuantidadeQuadras,
+                    torneio.TempoPrevistoPartidaMinutos, total).Last()
+                : null;
 
             var duracao = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
             var fim = ultimo?.AddMinutes(duracao) ?? inicio;

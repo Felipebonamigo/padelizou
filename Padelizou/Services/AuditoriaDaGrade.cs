@@ -181,7 +181,7 @@ public static class AuditoriaDaGrade
         // 09/09/2026): um jogo de grupo retardatário no domingo de manhã não faz a eliminatória
         // de sábado à noite ser "fora de ordem". O retardatário em si é apontado logo abaixo.
         DateTime Seguinte(DateTime h) =>
-            GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes, VagasDaGrade.Duracao(torneio));
+            HorarioDoDia.Do(torneio).DepoisDe(h, VagasDaGrade.Duracao(torneio));
 
         var porPosto = jogos
             .Where(j => j.HorarioPrevisto != null)
@@ -375,7 +375,7 @@ public static class AuditoriaDaGrade
             bool AlgumHorarioServe(Partida jogo, bool ehGrupo)
             {
                 for (var h = torneio.AberturaDaGrade; h.Date <= ultimoDia;
-                     h = GradeDeJogos.DepoisDe(h, torneio.HoraFimDoDia, torneio.HoraInicioDiasSeguintes, passo))
+                     h = HorarioDoDia.Do(torneio).DepoisDe(h, passo))
                 {
                     if (!Proibido(jogo.Dupla1Id, h, ehGrupo) && !Proibido(jogo.Dupla2Id, h, ehGrupo)) return true;
                 }
