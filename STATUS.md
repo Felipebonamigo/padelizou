@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/11/2026** — 📌 **O HORÁRIO DO MATA-MATA NÃO MUDA MAIS QUANDO A FASE AVANÇA.** Sem migration. 🗣️ Felipe: *"os jogos têm que seguir o horário do chaveamento, sem alteração depois, a menos que eu faça alguma alteração na mão — tivemos esse problema com o primeiro torneio, que quando foi passando de fase, ele foi mudando os horários do mata-mata"*.
+>
+> 📌 `RoboDoChaveamento.MontarAberturaDesenhadaAsync` cria as quartas AOS POUCOS (cada uma quando os dois grupos dela fecham) e não gravava `NumeroNaFase`; o `AgendarNaGradeAsync` então numerava o jogo novo pela posição NO LOTE (`jogos.IndexOf(p) + 1`) — a "Quartas 3" nascida sozinha virava "1", pegava a reserva (promessa) da Quartas 1 e duas quartas nasciam no mesmo horário, empurrando a outra. Agora grava `NumeroNaFase = i + 1`, a mesma régua do `AvancarFaseAsync`. Jogos já criados em produção não são afetados (têm Id; a numeração deles vem do quadro).
+>
+> 🧪 `HorarioDoChaveamentoNaoMudaAteOFimTests` (5 formatos, 2 categorias, 1–3 quadras): joga o torneio INTEIRO em ordem e confere que nenhum jogo de grupo mudou e que cada eliminatória nasceu no horário gravado na aprovação. Sem a correção: 3 de 5 vermelhos ("Quartas de Final 2: prometido qui 08:00, nasceu qua 23:50"). 8.114 verdes.
+>
 > Última atualização: **11/11/2026** — ❓ **NÃO CABE? O SORTEIO PERGUNTA: MAIS HORÁRIOS OU MAIS QUADRAS.** Sem migration. 🗣️ Felipe: *"caso não caiba, avise na hora de gerar as chaves, e pergunte o que fazer com o que falta, se vai adicionar mais horários ou vai adicionar mais quadras"*.
 >
 > 📌 `GerarChaves(id, sortearMesmoSemCaber)`: torneio Padrão com `DataFim` e horário de verdade — (1) ANTES de sortear, a conta do Planejamento (`MontarPlano` com o total projetado); `Faltam > 0` → não sorteia, `TempData["NaoCabe"]` e redireciona pro Planejamento; (2) DEPOIS de sortear, a grade de verdade (`JogosSemHorarioNaGradeAsync`: jogos sem hora + prévia sem hora, a mesma conta do "Não cabe" da tela); > 0 → chaves sorteadas (ainda em aprovação), `TempData["NaoCabeDepoisDoSorteio"]` e Planejamento. A tela mostra a pergunta com "Adicionar mais horários" (`#dia-a-dia`), "Adicionar mais quadras" (`#quadras-do-torneio`) e, só antes, "Sortear mesmo assim" (POST com confirmação). 4 testes antigos que sorteiam torneio apertado de propósito passaram a usar `sortearMesmoSemCaber: true`.

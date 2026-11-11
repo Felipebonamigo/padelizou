@@ -298,6 +298,13 @@ public class RoboDoChaveamento
                 Dupla1Id = lado1,
                 Dupla2Id = lado2,
                 Status = "Agendada",   // Nasce agendada para ir para a Mesa de Controle!
+                // ⚠️ O NÚMERO DO JOGO NA FASE VAI GRAVADO (11/11/2026). As quartas daqui nascem aos
+                // poucos — cada uma quando os dois grupos dela fecham — e, sem o número, o robô
+                // numerava pela posição NO LOTE: a "Quartas 3" nascida sozinha virava "1" e pegava o
+                // horário prometido da Quartas 1. 🗣️ Felipe: *"quando foi passando de fase, ele foi
+                // mudando os horários do mata-mata"*. É a mesma régua do AvancarFaseAsync.
+                // (HorarioDoChaveamentoNaoMudaAteOFimTests)
+                NumeroNaFase = i + 1,
                 Fase = nomeFase,
                 Codigo = Guid.NewGuid().ToString().Substring(0, 6).ToUpper()   // NOT NULL no banco
             });
