@@ -872,6 +872,28 @@ public class RoboDoChaveamento
             public static Projecao Vazia => new(new(), new());
         }
 
+        // O NOME DE QUEM VENCEU um jogo já encerrado, pela mesma régua do avanço (`VencedorId`, nunca
+        // pelo placar). Nulo enquanto o jogo não acabou — a vaga segue "Vencedor <fase> <n>".
+        private static string? NomeDoVencedor(Partida p) =>
+            p.Status == "Finalizada" && p.VencedorId is int vencedor
+                ? (vencedor == p.Dupla1Id ? p.Dupla1?.NomeDeExibicao : p.Dupla2?.NomeDeExibicao)
+                : null;
+
+        // Os vencedores dos jogos de mata-mata JÁ CRIADOS de uma categoria, por (fase, número).
+        private static Dictionary<(string Fase, int Numero), string> VencedoresDaCategoria(
+            IReadOnlyList<Partida> partidas, int categoriaId)
+        {
+            var doMataMata = partidas
+                .Where(p => p.CategoriaId == categoriaId && !FasesTorneio.EhFaseDeGrupos(p.Fase))
+                .ToList();
+            var numero = ReservasDeHorario.NumeroNaFase(doMataMata);
+            var vencedores = new Dictionary<(string, int), string>();
+            foreach (var p in doMataMata)
+                if (NomeDoVencedor(p) is string nome && numero.TryGetValue(p.Id, out var n))
+                    vencedores[(p.Fase, n)] = nome;
+            return vencedores;
+        }
+
         public async Task<Projecao> ProjetarProximasFasesAsync(
             int torneioId, List<Partida> partidas, IReadOnlyList<ReservaDeHorario>? reservas = null)
         {
@@ -978,7 +1000,10 @@ public class RoboDoChaveamento
                         gruposEmOrdem,
                         jogosDeGrupoPorCategoria.GetValueOrDefault(categoria.Id) ?? new List<Partida>(),
                         ClassificacaoDeGrupos.VagasPorGrupo(categoria),
-                        pontosParaODesempate)));
+                        pontosParaODesempate),
+                    // E quem já venceu um jogo de mata-mata que já existe (11/11/2026): a vaga
+                    // "Vencedor Quartas de Final 1" vira o nome dele (VencedorJaApareceNaPreviaTests).
+                    VencedoresDaCategoria(partidas, categoria.Id)));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
@@ -1034,7 +1059,7 @@ public class RoboDoChaveamento
                         // ⚠️ O "por ordem" TAMBÉM tem hora desde 09/09/2026 (ver
                         // Services/OrdemDeLiberacao) — escondê-la aqui deixaria a projeção das
                         // próximas fases muda justamente pro torneio que mais precisa dela.
-                        p.HorarioPrevisto, p.NumeroNaFase)).ToList(),
+                        p.HorarioPrevisto, p.NumeroNaFase, NomeDoVencedor(p))).ToList(),
                     byes!,
                     porCategoria.First().Categoria.Nome,
                     porCategoria.Key));
