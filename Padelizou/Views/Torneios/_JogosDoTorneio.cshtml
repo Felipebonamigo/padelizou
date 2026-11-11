@@ -1099,9 +1099,12 @@
        terminar. A referência delas não é Id — ver Services/ReferenciaDoJogo. *@
     @if (ehOrganizador)
     {
+        @* As três janelas daqui (trocar horário, definir horário, trocar quadra) levam `data-manter-posicao`
+           (11/11/2026). 🗣️ Felipe: "quando eu troco o horário […] ele volta lá em cima na tela". Ver
+           JanelasDeHorarioFicamNoLugarTests. *@
         <div class="modal fade" id="modalTrocarHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
-                <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content">
+                <form asp-controller="Torneios" asp-action="TrocarHorario" method="post" class="modal-content" data-manter-posicao>
                     <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -1258,7 +1261,7 @@
            troca. Comentário FORA da tag de propósito (ComentarioRazorDentroDeTagTests). *@
         <div class="modal fade" id="modalDefinirHorario" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
-                <form asp-controller="Torneios" asp-action="DefinirHorario" method="post" class="modal-content">
+                <form asp-controller="Torneios" asp-action="DefinirHorario" method="post" class="modal-content" data-manter-posicao>
                     <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
@@ -1372,7 +1375,7 @@
            (Services/TrocaDeQuadra) — recusar deixaria o organizador no mesmo beco. *@
         <div class="modal fade" id="modalTrocarQuadra" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
-                <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content">
+                <form asp-controller="Torneios" asp-action="TrocarQuadra" method="post" class="modal-content" data-manter-posicao>
                     <partial name="_CampoDosFiltros" />
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
