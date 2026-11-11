@@ -55,7 +55,7 @@ public class GradeNuncaPassaDoFimDoTorneioTests
         // Só quinta, das 18h às 19h40 numa quadra: 3 horários pra 9 jogos.
         var (ctx, torneio, org) = await TorneioAsync(9, Quinta, "2026-11-12=18:00-19:40");
 
-        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id, sortearMesmoSemCaber: true);
 
         NenhumDepoisDoFim(ctx, torneio);
     }
@@ -136,7 +136,7 @@ public class GradeNuncaPassaDoFimDoTorneioTests
         var (ctx, torneio, org) = await TorneioAsync(9, Quinta.AddDays(1),
             "2026-11-12=18:00-22:10;2026-11-13=18:00-20:30");
 
-        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id, sortearMesmoSemCaber: true);
         // Aprovar é o que congela a prévia em promessa (ReservaDeHorario).
         await TestInfra.NovoTorneiosController(ctx, org.Id).AprovarChaves(torneio.Id, avisarJogadores: false);
 

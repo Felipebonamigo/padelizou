@@ -15,7 +15,7 @@ namespace Padelizou.Controllers
     {
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> GerarChaves(int id)
+        public async Task<IActionResult> GerarChaves(int id, bool sortearMesmoSemCaber = false)
         {
             var torneio = await _context.Torneios
                 .Include(t => t.Categorias)
@@ -69,6 +69,24 @@ namespace Padelizou.Controllers
             // mesmas quadras. Os horários são atribuídos depois, com todos os jogos na mão.
             // Os jogos de TIMES entram na mesma lista — dividem as mesmas quadras e os
             // mesmos horários, exatamente como se fossem jogadores jogando.
+            // ── SE NÃO CABE, PERGUNTA ANTES DE SORTEAR (11/11/2026) ────────────────────────────
+            // 🗣️ Felipe: *"caso não caiba, avise na hora de gerar as chaves, e pergunte o que fazer
+            // com o que falta, se vai adicionar mais horários ou vai adicionar mais quadras"*. A conta
+            // é a MESMA do Planejamento (vagas do calendário × jogos projetados, mata-mata incluso),
+            // e a pergunta mora lá — é a tela que muda horário e quadra. "Sortear mesmo assim" é a
+            // terceira resposta: o que não couber fica sem horário, nunca depois do último dia.
+            // (GerarChavesPerguntaQuandoNaoCabeTests)
+            if (!sortearMesmoSemCaber && PrecisaDeHorario(torneio))
+            {
+                var plano = MontarPlano(Botoes(torneio), MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                    await QuadrasDoPlanejamentoAsync(id));
+                if (plano.Faltam > 0)
+                {
+                    TempData["NaoCabe"] = plano.Faltam.ToString();
+                    return RedirectToAction(nameof(Planejamento), new { id });
+                }
+            }
+
             var jogosPraAgendar = new List<Partida>();
 
             foreach (var categoria in torneio.Categorias)
@@ -354,7 +372,34 @@ namespace Padelizou.Controllers
             torneio.Status = AprovacaoDeChaves.Pendente;
             await _context.SaveChangesAsync();
 
+            // ── E DEPOIS, PELA GRADE DE VERDADE ────────────────────────────────────────────
+            // A conta de vagas não enxerga que a final espera a semifinal, nem a dupla presa a um
+            // turno. Se a grade sorteada (jogos + prévia do mata-mata) deixou jogo sem hora, a mesma
+            // pergunta — as chaves ficam sorteadas, ainda sem aprovação, e o "Aplicar horários ao
+            // torneio" refaz a grade depois do ajuste.
+            if (PrecisaDeHorario(torneio)
+                && await JogosSemHorarioNaGradeAsync(torneio.Id) is var semHora && semHora > 0)
+            {
+                TempData["NaoCabeDepoisDoSorteio"] = semHora.ToString();
+                return RedirectToAction(nameof(Planejamento), new { id = torneio.Id });
+            }
+
             return ParaAsChaves(torneio.Id);
+        }
+
+        // A pergunta "cabe?" só faz sentido com prazo (`DataFim`) e com horário de verdade: no "por
+        // ordem de liberação" ninguém promete hora, e sem prazo a grade só empurra pra frente.
+        private static bool PrecisaDeHorario(Torneio torneio) =>
+            torneio.Formato == FormatoDoTorneio.Padrao && torneio.DataFim != null && !torneio.SemHorarioPrevisto;
+
+        // Jogos reais agendados sem hora + jogos previstos do mata-mata sem hora — a mesma conta que o
+        // Planejamento mostra como "Não cabe".
+        private async Task<int> JogosSemHorarioNaGradeAsync(int torneioId)
+        {
+            var partidas = await _context.Partidas.Where(p => p.TorneioId == torneioId).ToListAsync();
+            var projecao = await Robo.ProjetarProximasFasesAsync(torneioId, partidas);
+            return partidas.Count(p => p.Status == "Agendada" && p.HorarioPrevisto == null)
+                + projecao.Jogos.Count(j => j.Horario == null);
         }
 
         // ── CANCELAR QUEM FICOU SEM PARCEIRO, NA HORA DE SORTEAR ────────────────────────────

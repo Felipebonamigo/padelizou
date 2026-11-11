@@ -37,6 +37,68 @@
         <div class="alert alert-danger"><i class="bi bi-exclamation-triangle-fill"></i> @TempData["Erro"]</div>
     }
 
+    @* ── NÃO CABE: A PERGUNTA DO SORTEIO (11/11/2026) ─────────────────────────────────────
+       🗣️ Felipe: "caso não caiba, avise na hora de gerar as chaves, e pergunte o que fazer com o
+       que falta, se vai adicionar mais horários ou vai adicionar mais quadras". O GerarChaves
+       manda pra cá — antes de sortear (pela conta) ou depois (pela grade de verdade). As duas
+       respostas levam à tabela que resolve; a terceira, só antes, sorteia assim mesmo.
+       (GerarChavesPerguntaQuandoNaoCabeTests) *@
+    @{
+        var naoCabeAntes = TempData["NaoCabe"] as string;
+        var naoCabeDepois = TempData["NaoCabeDepoisDoSorteio"] as string;
+    }
+    @if (naoCabeAntes != null || naoCabeDepois != null)
+    {
+        var quantos = naoCabeAntes ?? naoCabeDepois;
+        <div class="card border-danger shadow-sm mb-3">
+            <div class="card-body">
+                <h5 class="fw-bold text-danger mb-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    @if (naoCabeAntes != null)
+                    {
+                        <text>Não cabe: faltam @quantos @(quantos == "1" ? "jogo" : "jogos") pra fechar o torneio até @Model.Torneio.DataFim?.ToString("dd/MM")</text>
+                    }
+                    else
+                    {
+                        <text>Chaves sorteadas, mas @quantos @(quantos == "1" ? "jogo ficou" : "jogos ficaram") sem horário</text>
+                    }
+                </h5>
+                <p class="mb-3">
+                    @if (naoCabeAntes != null)
+                    {
+                        <text>As chaves <strong>ainda não foram sorteadas</strong>. O que você quer fazer com o que falta?</text>
+                    }
+                    else
+                    {
+                        <text>As chaves ainda não estão públicas. O que você quer fazer com o que falta? Depois do ajuste,
+                        grave em <strong>Aplicar horários ao torneio</strong>, no fim da página — ele refaz a grade.</text>
+                    }
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="#dia-a-dia" class="btn btn-primary rounded-pill px-3">
+                        <i class="bi bi-clock-history"></i> Adicionar mais horários
+                    </a>
+                    <a href="#quadras-do-torneio" class="btn btn-primary rounded-pill px-3">
+                        <i class="bi bi-grid-3x3-gap"></i> Adicionar mais quadras
+                    </a>
+                    @if (naoCabeAntes != null && !Model.SoLeitura)
+                    {
+                        <form asp-action="GerarChaves" asp-route-id="@Model.Torneio.Id" method="post" class="d-inline"
+                              data-confirmar-titulo="Sortear mesmo sem caber?"
+                              data-confirmar="Os jogos que não couberem ficam sem horário — nunca depois do último dia. Dá pra ajustar horários e quadras depois e aplicar de novo."
+                              data-confirmar-ok="Sortear mesmo assim"
+                              data-confirmar-tom="perigo">
+                            <input type="hidden" name="sortearMesmoSemCaber" value="true" />
+                            <button type="submit" class="btn btn-outline-danger rounded-pill px-3">
+                                <i class="bi bi-diagram-3"></i> Sortear mesmo assim
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
     @* ⚠️ ESTE AVISO JÁ MENTIU (09/09/2026). Ele nasceu quando a tela inteira era leitura e
        dizia "mexer nos campos não muda nada no torneio" — mas a tabela de quadras grava na
        hora, e o "Aplicar" no rodapé grava os horários. 🗣️ Felipe: "é uma mentira, não? pq se
@@ -75,7 +137,7 @@
        Local: o clube do torneio é a opção padrão (grava nulo — a convenção de sempre); os
        outros vêm do catálogo. Falta um? Ele se cadastra em Pagamentos › Quadras e sedes
        ("Adicionar clube"), e aparece aqui na volta. *@
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3" id="quadras-do-torneio">
         <div class="card-header fw-bold d-flex flex-wrap justify-content-between align-items-center gap-2"
              style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
             <span><i class="bi bi-grid-3x3-gap"></i> Quadras deste torneio</span>
@@ -414,7 +476,7 @@
     }
 
     @* ── DIA A DIA ─────────────────────────────────────────────────────────────────────── *@
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm mb-3" id="dia-a-dia">
         <div class="card-header fw-bold" style="background-color: var(--pdz-surface-alt); color: var(--pdz-ink);">
             <i class="bi bi-calendar-week"></i> Dia a dia
         </div>
