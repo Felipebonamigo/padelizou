@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/11/2026** — ⏩ **JOGO SEM SAÍDA ENTRA NO PRIMEIRO HORÁRIO LIVRE, NÃO NO ÚLTIMO.** Sem migration. 🗣️ Felipe, com o Chakra já com o teto: um jogo de grupo da 5ª em domingo 16:40 (sábado à tarde e domingo de manhã vazios) e o mata-mata inteiro "por ordem" — *"não existe esse por ordem, tem que ter horário definido, seguindo a sequência"*.
+>
+> 📌 `GradeDeJogos.Encaixar`: quando nenhum jogo serve na vaga, o motor pulava até sobrarem só as vagas contadas e jogava o resto no FIM da lista. Pra restrição de RELÓGIO da dupla (impedimento, concentração, eliminatória fora da noite de sábado) esperar não muda nada; se ela barra o jogo em todos os horários que restam, ele agora entra já, no primeiro horário com as pessoas livres e quadra. Como o mata-mata abre depois do último jogo de grupo, um jogo atrasado assim empurrava a chave inteira pra fora do torneio. Reproduzido: 9 duplas "quinta à noite" com 6 horários na quinta — as 3 que sobravam iam pra sexta 20:30/21:20/22:10; agora 18:00/18:50/19:40.
+>
+> 🧪 `GradeNuncaPassaDoFimDoTorneioTests.Jogo_que_nao_cabe_no_turno_pedido_entra_no_primeiro_horario_livre`, visto vermelho. 8.101 verdes.
+>
 > Última atualização: **11/11/2026** — 🛑 **A GRADE NUNCA PASSA DO ÚLTIMO DIA DO TORNEIO.** Sem migration. 🗣️ Felipe, com o Chakra (qui 12 a dom 15/11) com jogo na segunda e na terça: *"preciso que isso não aconteça mais em nenhuma hipótese […] respeitar as datas e horários pré-estabelecidos"*.
 >
 > 📌 Três furos. (1) `HorarioDoDia.Calendario.Horarios` — o gerador único de horário da grade (sorteio, recálculo, levas, vagas) — não tinha teto: o encaixe pula horário quando nenhum jogo serve (pessoa ocupada, impedimento, concentração) e, no último recurso, põe o jogo no FIM da lista, que ia dias além do torneio. Agora para em `DataFim` + hora limite do dia; o que não couber fica sem horário. (2) A prévia do mata-mata (`ProximasFasesDaChave`, que vira a promessa ao aprovar) andava por `DepoisDe` sem teto — jogo depois do último início sai SEM hora. (3) O Planejamento, depois do sorteio, contava só os jogos de grupo (19 no Chakra) e dizia "Cabe" com 1 quadra; agora conta também o mata-mata projetado (`Math.Max(sorteados, MontarPrevisaoDaGrade().TotalDeJogos)`), a mesma régua do aviso do sorteio. ⚠️ Não reproduzi a combinação exata do Chakra (sem acesso ao banco); o teto vale pra qualquer caminho.

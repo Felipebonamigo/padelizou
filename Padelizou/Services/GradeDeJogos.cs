@@ -564,6 +564,37 @@ public static class GradeDeJogos
                     ?? fila.FirstOrDefault(p => Serve(p) && (!TemConcentrado(p) || DescansaramTodos(p)))
                     ?? fila.FirstOrDefault(Serve);
 
+            // ⚠️ O JOGO SEM SAÍDA ENTRA AGORA, e não no fim da lista (11/11/2026). 🗣️ Felipe, com o
+            // Chakra: um jogo de grupo caiu em domingo 16:40 com sábado à tarde e domingo de manhã
+            // vazios, e o mata-mata inteiro (que espera o fim dos grupos) ficou "por ordem", sem
+            // hora. A restrição de HORÁRIO da dupla (impedimento, "Pôr os 2 jogos em", eliminatória
+            // fora da noite de sábado) não muda esperando: se ela barra o jogo em TODOS os horários
+            // que restam, pular vaga só empurra o jogo pro último recurso lá do fim. Ele entra no
+            // primeiro horário em que as pessoas estão livres e há quadra — a mesma ordem de ceder
+            // do último recurso, só que cedo. (GradeNuncaPassaDoFimDoTorneioTests)
+            if (jogo == null)
+            {
+                bool JanelaEm(IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? mapa, int chave, DateTime h) =>
+                    mapa != null && mapa.TryGetValue(chave, out var js) && js.Any(j => h >= j.Inicio && h < j.Fim);
+
+                bool BarradoPeloRelogioEm(Partida p, DateTime h) =>
+                    JanelaEm(janelasProibidasPorDupla, p.Dupla1Id, h) || JanelaEm(janelasProibidasPorDupla, p.Dupla2Id, h)
+                    || (FasesTorneio.EhFaseDeGrupos(p.Fase)
+                        && (JanelaEm(janelasSoNosGruposPorDupla, p.Dupla1Id, h) || JanelaEm(janelasSoNosGruposPorDupla, p.Dupla2Id, h)))
+                    || (!FasesTorneio.EhFaseDeGrupos(p.Fase) && JanelaEm(janelasSoNaEliminatoriaPorCategoria, p.CategoriaId, h));
+
+                bool SemSaida(Partida p)
+                {
+                    for (int j = i; j < horarios.Count; j++)
+                        if (!BarradoPeloRelogioEm(p, horarios[j])) return false;
+                    return true;
+                }
+
+                jogo = fila.FirstOrDefault(p =>
+                    !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                    && TemOndeJogar(p) && SemSaida(p));
+            }
+
             if (jogo == null)
             {
                 // NADA serve nesta vaga. Deixa vazia e tenta no próximo horário — a menos que as
