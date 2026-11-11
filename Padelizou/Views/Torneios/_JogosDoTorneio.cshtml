@@ -977,6 +977,62 @@
                class="btn btn-sm btn-outline-secondary mb-2">
                 <i class="bi bi-clipboard-check"></i> Conferir a grade
             </a>
+
+            @* ADICIONAR UM HORÁRIO (11/11/2026). 🗣️ Felipe: "adicionar um horário em algum dia, sem alterar
+               o chaveamento — no meio, no final, e os demais se adaptarem". Ver
+               TorneiosController.InserirHorario e InserirHorarioNaGradeTests. *@
+            <button type="button" class="btn btn-sm btn-outline-secondary mb-2 ms-1"
+                    data-bs-toggle="collapse" data-bs-target="#pdzInserirHorario" aria-expanded="false">
+                <i class="bi bi-plus-circle"></i> Adicionar horário
+            </button>
+            <div class="collapse mb-3" id="pdzInserirHorario">
+                <form asp-controller="Torneios" asp-action="InserirHorario" method="post" data-manter-posicao
+                      class="border rounded p-3" style="background-color: var(--pdz-surface-alt);">
+                    <partial name="_CampoDosFiltros" />
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.TorneioId" />
+                    <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold mb-1">Dia</label>
+                            <input type="date" name="dia" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small fw-bold mb-1">A partir de</label>
+                            <input type="time" name="hora" class="form-control form-control-sm" />
+                            <div class="form-text small">Só pra "no meio".</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small fw-bold mb-1">Onde</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="modo" value="meio" id="pdzInsMeio" checked />
+                                <label class="form-check-label small" for="pdzInsMeio">No meio — os jogos desse horário em diante andam um horário</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="modo" value="fim" id="pdzInsFim" />
+                                <label class="form-check-label small" for="pdzInsFim">No fim do dia — o dia ganha um horário, ninguém anda</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold mb-1">Se o último jogo do dia passar do limite</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="seNaoCouber" value="esticar" id="pdzInsEsticar" checked />
+                                <label class="form-check-label small" for="pdzInsEsticar">Esticar o dia (um horário a mais)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="seNaoCouber" value="proximoDia" id="pdzInsProximo" />
+                                <label class="form-check-label small" for="pdzInsProximo">Empurrar pro dia seguinte</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="bi bi-check2"></i> Adicionar horário
+                            </button>
+                            <span class="form-text ms-2">Os confrontos não mudam. Jogo em quadra ou encerrado não anda.</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
         }
         @* Chave pública = grade travada (10/10/2026): sem "Ajustar horários" — o servidor recusa. *@
         @if (ehOrganizador && agendadasList.Count > 0 && ViewBag.ChavePublicadaDoTorneio != true)
