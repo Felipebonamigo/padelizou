@@ -2755,6 +2755,22 @@ namespace Padelizou.Migrations
                     b.ToTable("Pagamento");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.PagamentoManualDoJogador", b =>
+                {
+                    b.Property<int>("DuplaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("MarcadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("DuplaId", "JogadorId");
+
+                    b.ToTable("PagamentoManualDoJogador");
+                });
+
             modelBuilder.Entity("Padelizou.Models.PalpitePartida", b =>
                 {
                     b.Property<int>("Id")
@@ -5361,6 +5377,17 @@ namespace Padelizou.Migrations
                         .IsRequired();
 
                     b.Navigation("Jogador");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.PagamentoManualDoJogador", b =>
+                {
+                    b.HasOne("Padelizou.Models.Dupla", "Dupla")
+                        .WithMany()
+                        .HasForeignKey("DuplaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Dupla");
                 });
 
             modelBuilder.Entity("Padelizou.Models.PalpitePartida", b =>

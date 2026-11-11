@@ -5794,12 +5794,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 @* ── LINHA 1: quem é a dupla, e o dinheiro ──────────────── *@
                                 <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2">
                                     <span class="flex-grow-1 d-flex align-items-center gap-2 flex-wrap pdz-inscrito-esquerda">
+                                        @{
+                                            // Pago e parte de CADA jogador (Services/PagamentoPorJogador,
+                                            // 11/11/2026: "normalmente a cobrança é individual"). Nulo
+                                            // pra quem não vê o caixa — aí a linha fica como era.
+                                            var situacoes = ViewBag.PagamentoDosJogadores as Dictionary<int, Padelizou.Services.PagamentoPorJogador.Situacao>;
+                                            var situacao = situacoes != null && situacoes.TryGetValue(dupla.Id, out var sit) ? sit : null;
+                                        }
                                         <span class="pdz-inscrito-nome">
                                             <span class="fw-semibold">@dupla.Jogador1.ComoChamar</span>
+                                            @if (situacao != null && dupla.Jogador2 != null && !dupla.Pago)
+                                            {
+                                                <span class="badge rounded-pill fw-normal @(situacao.Jogador1Pago ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">@(situacao.Jogador1Pago ? "pagou" : "não pagou")</span>
+                                            }
                                             @if (dupla.Jogador2 != null)
                                             {
                                                 <span class="text-muted">/</span>
                                                 <span class="fw-semibold">@dupla.Jogador2.ComoChamar</span>
+                                                @if (situacao != null && !dupla.Pago)
+                                                {
+                                                    <span class="badge rounded-pill fw-normal @(situacao.Jogador2Pago ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">@(situacao.Jogador2Pago ? "pagou" : "não pagou")</span>
+                                                }
                                             }
                                         </span>
                                         @if (Model.PrecoInscricao > 0)
@@ -5816,7 +5831,50 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     </span>
 
                                     <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto">
-                                        @if (Model.PrecoInscricao > 0 && ViewBag.PodeVerDinheiro == true
+                                        @* POR JOGADOR (11/11/2026): cada um com o seu Cobrar — no celular
+                                           DELE, com a parte DELE — e o seu Marcar pago. O "Dupla pagou"
+                                           marca os dois de uma vez. Quem vê o caixa só; o resto segue
+                                           com o botão da dupla de sempre. *@
+                                        @if (Model.PrecoInscricao > 0 && situacao != null && !dupla.Pago)
+                                        {
+                                            var brl = new System.Globalization.CultureInfo("pt-BR");
+                                            var jogadoresDaLinha = new List<(Jogador J, bool Pago, decimal Parte, string Chave)>
+                                            {
+                                                (dupla.Jogador1, situacao.Jogador1Pago, situacao.Parte1, dupla.Id + "-1"),
+                                            };
+                                            if (dupla.Jogador2 != null)
+                                                jogadoresDaLinha.Add((dupla.Jogador2, situacao.Jogador2Pago, situacao.Parte2, dupla.Id + "-2"));
+
+                                            foreach (var (jog, jaPagou, parte, chave) in jogadoresDaLinha)
+                                            {
+                                                <div class="d-flex gap-1 align-items-center flex-nowrap">
+                                                    @if (!jaPagou && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(jog.Celular))
+                                                    {
+                                                        var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(jog.Nome)}! "
+                                                            + $"Sua inscrição em {Model.Nome} ({x.Categoria.Nome}) é {parte.ToString("C", brl)}."
+                                                            + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
+                                                        <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(jog.Celular, textoCobranca)"
+                                                           target="_blank" rel="noopener"
+                                                           data-pdz-dupla="@chave" data-manter-posicao
+                                                           class="btn btn-sm btn-outline-success text-nowrap pdz-cobrar-link"
+                                                           title="Cobrar @jog.ComoChamar no WhatsApp: @parte.ToString("C", brl)">
+                                                            <i class="bi bi-whatsapp"></i> @Padelizou.Services.NomeBonito.Curto(jog.Nome)
+                                                        </a>
+                                                    }
+                                                    <form asp-controller="Torneios" asp-action="AlternarPagamentoJogador" method="post" data-manter-posicao>
+                                                        <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                        <input type="hidden" name="jogadorId" value="@jog.Id" />
+                                                        <input type="hidden" name="voltarPara" value="Pagamentos" />
+                                                        <button type="submit" class="btn btn-sm text-nowrap @(jaPagou ? "btn-outline-secondary" : "btn-outline-success")"
+                                                                title="@(jaPagou ? "Marcar " + jog.ComoChamar + " como não pago" : "Marcar " + jog.ComoChamar + " como pago (" + parte.ToString("C", brl) + ")")">
+                                                            <i class="bi @(jaPagou ? "bi-x-circle" : "bi-check2")"></i>
+                                                            @(jaPagou ? "Desfazer " : "Pagou ")@Padelizou.Services.NomeBonito.Curto(jog.Nome)
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            }
+                                        }
+                                        else if (Model.PrecoInscricao > 0 && ViewBag.PodeVerDinheiro == true
                                              && !dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
                                         {
                                             var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(dupla.Jogador1!.Nome)}! "
@@ -5824,8 +5882,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 + (dupla.ValorInscricao ?? Model.PrecoInscricao).ToString("C", new System.Globalization.CultureInfo("pt-BR"))
                                                 + "."
                                                 + (string.IsNullOrWhiteSpace(Model.ChavePixOrganizador) ? "" : $" Pix: {Model.ChavePixOrganizador}");
-                                            @* `data-manter-posicao`: abre o WhatsApp, e no celular voltar ao app
-                                               recarrega a página — a altura fica guardada no clique. *@
                                             <a href="@Padelizou.Services.WhatsAppLinkHelper.GerarLink(dupla.Jogador1!.Celular, textoCobranca)"
                                                target="_blank" rel="noopener"
                                                data-pdz-dupla="@dupla.Id"
@@ -5841,7 +5897,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <input type="hidden" name="voltarPara" value="Pagamentos" />
                                                 <button type="submit" class="btn btn-sm text-nowrap @(dupla.Pago ? "btn-outline-secondary" : "btn-success")">
                                                     <i class="bi @(dupla.Pago ? "bi-x-circle" : "bi-cash-coin")"></i>
-                                                    @(dupla.Pago ? "Marcar não pago" : "Marcar como pago")
+                                                    @(dupla.Pago ? "Marcar não pago" : (dupla.Jogador2 != null ? "Dupla pagou" : "Marcar como pago"))
                                                 </button>
                                             </form>
                                         }

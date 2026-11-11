@@ -60,6 +60,7 @@ public partial class DbPadelContext : DbContext
     public DbSet<PrecoDeTurma> PrecosDeTurma { get; set; }
     public DbSet<PrecoDeAluno> PrecosDeAluno { get; set; }
     public DbSet<CadastroDoAluno> CadastrosDeAlunos { get; set; }
+    public DbSet<PagamentoManualDoJogador> PagamentosManuaisDeJogador { get; set; }
     public DbSet<FaturaDoAluno> FaturasDeAlunos { get; set; }
     public DbSet<HorarioDisponivel> HorariosDisponiveis { get; set; }
     public DbSet<Cidade> Cidades { get; set; }
@@ -1420,6 +1421,18 @@ public partial class DbPadelContext : DbContext
             // Um professor procura o preço pelos alunos dele o tempo todo (abrir o painel,
             // abrir a tela de marcar aula).
             entity.HasIndex(e => e.ProfessorId);
+        });
+
+        // Ver Models/PagamentoManualDoJogador: a PK composta segura o clique duplo, e a marca
+        // morre junto com a inscrição. Sem FK pro Jogador de propósito — a marca é da inscrição,
+        // e a conta apagada (LGPD) não pode travar a exclusão.
+        modelBuilder.Entity<PagamentoManualDoJogador>(entity =>
+        {
+            entity.HasKey(e => new { e.DuplaId, e.JogadorId });
+            entity.HasOne(e => e.Dupla)
+                .WithMany()
+                .HasForeignKey(e => e.DuplaId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CadastroDoAluno>(entity =>

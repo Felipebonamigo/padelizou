@@ -109,7 +109,8 @@ public interface IPagamentoInscricaoService
 
     // Apaga no Asaas as faturas de "pagar depois" ainda vivas desta inscrição — chamado quando
     // o organizador marca como pago o que recebeu por fora.
-    Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId);
+    Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId,
+        int? somenteDoJogadorId = null);
 
     // Devolvemos só PARTE do dinheiro: a inscrição fica, mas passa a valer menos. Sincroniza
     // o ValorInscricao dela com o valor que sobrou no Pagamento (ver Services/EstornoParcial).
@@ -899,7 +900,8 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
     // que cria a inscrição, e mexer nela é assunto do estorno (ver JuntarInscricoes).
     //
     // Devolve quantas foram apagadas — a tela conta pro organizador.
-    public async Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId)
+    public async Task<int> CancelarCobrancasAbertasDaInscricaoAsync(int torneioId, int? duplaId, int? inscricaoAmericanaId,
+        int? somenteDoJogadorId = null)
     {
         var candidatas = await _context.Pagamentos
             .Where(p => p.Tipo == "TorneioPagarDepois" && p.TorneioId == torneioId
@@ -911,6 +913,10 @@ public class PagamentoInscricaoService : IPagamentoInscricaoService
         foreach (var pagamento in candidatas)
         {
             if (!EhDaInscricao(pagamento, duplaId, inscricaoAmericanaId)) continue;
+
+            // Marcou UM jogador como pago (Services/PagamentoPorJogador): só a fatura dele
+            // morre — a do parceiro segue sendo o jeito dele pagar.
+            if (somenteDoJogadorId is int soDele && pagamento.JogadorId != soDele) continue;
 
             // `jaFoiPaga: false` = DELETE da fatura. Recusado (ex.: a pessoa pagou naquele
             // instante), o status fica como estava: "Cancelado" mentiria sobre uma cobrança que
