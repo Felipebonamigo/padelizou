@@ -393,6 +393,53 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
+        // O ORGANIZADOR CRAVA O CABEÇA DE CHAVE (11/11/2026 — Felipe: "permita antes do sorteio,
+        // escolher os cabeças de chave caso seja uma escolha do organizador"). Vazio/0 tira a
+        // escolha. Só antes do sorteio — a MESMA régua `jaSorteou` de trocar categoria: depois
+        // dele, a escolha não mudaria grupo nenhum e só mentiria na tela.
+        //
+        // A posição é única na categoria: escolher o 1 pra outra dupla tira o 1 de quem tinha
+        // (trocar de ideia é um clique, e não um "posição ocupada").
+        public async Task<IActionResult> SalvarCabecaDeChave(int duplaId, int? posicao)
+        {
+            var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+
+            int torneioId = dupla.Categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (await _context.Partidas.AnyAsync(p => p.TorneioId == torneioId))
+            {
+                TempData["Erro"] = "As chaves já foram sorteadas — os cabeças de chave só podem ser escolhidos antes.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            var daCategoria = await _context.Duplas
+                .Where(d => d.CategoriaId == dupla.CategoriaId)
+                .ToListAsync();
+            int maximo = CabecasDeChave.PosicaoMaxima(daCategoria.Count(d => !ForaDoSorteio.FicaDeFora(d)));
+
+            int? nova = posicao is > 0 ? posicao : null;
+            if (nova > maximo)
+            {
+                TempData["Erro"] = $"Esta categoria tem {maximo} dupla(s) no sorteio — escolha de 1 a {maximo}.";
+                return RedirectToAction("Details", new { id = torneioId });
+            }
+
+            if (nova != null)
+                foreach (var outra in daCategoria.Where(d => d.Id != dupla.Id && d.CabecaDeChave == nova))
+                    outra.CabecaDeChave = null;
+
+            dupla.CabecaDeChave = nova;
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = nova == null ? "Cabeça de chave retirado." : $"Cabeça de chave nº {nova} definido.";
+            return RedirectToAction("Details", new { id = torneioId });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AlternarPagamentoAmericano(int inscricaoId, string? voltarPara = null)
         {
             var inscricao = await _context.InscricoesAmericanas

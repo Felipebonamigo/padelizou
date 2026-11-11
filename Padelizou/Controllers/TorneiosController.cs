@@ -896,6 +896,10 @@ namespace Padelizou.Controllers
             ViewBag.PodeVerDinheiro = jogadorLogadoId.HasValue
                 && await PodeVerDinheiroAsync(id, jogadorLogadoId.Value);
 
+            // O seletor de cabeça de chave só existe antes do sorteio (mesma régua do servidor:
+            // TorneiosController.SalvarCabecaDeChave).
+            ViewBag.JaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == id);
+
             // Pago e parte de CADA jogador (Services/PagamentoPorJogador) — só pra quem vê o caixa.
             if (ViewBag.PodeVerDinheiro == true && torneio.PrecoInscricao > 0)
             {

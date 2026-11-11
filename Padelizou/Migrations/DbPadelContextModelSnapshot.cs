@@ -1325,6 +1325,9 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CabecaDeChave")
+                        .HasColumnType("integer");
+
                     b.Property<int>("CategoriaId")
                         .HasColumnType("integer");
 

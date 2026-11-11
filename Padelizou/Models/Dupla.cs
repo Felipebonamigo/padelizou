@@ -47,6 +47,10 @@ public partial class Dupla
     public bool Pago { get; set; }
     public DateTime? PagoEm { get; set; }
 
+    // CABEÇA DE CHAVE escolhido pelo organizador (1 = o primeiro), antes do sorteio. Nulo = não
+    // escolhido, e a dupla entra pela ordem de sempre (ranking). Ver Services/CabecasDeChave.
+    public int? CabecaDeChave { get; set; }
+
     // QUANTO ESTA INSCRIÇÃO CUSTOU, gravado quando ela nasce.
     //
     // Existe porque desde 08/08/2026 duas inscrições do mesmo torneio podem custar valores

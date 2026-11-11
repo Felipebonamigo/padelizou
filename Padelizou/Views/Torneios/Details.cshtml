@@ -5366,6 +5366,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                acerta o Pix depois das inscrições encerradas, e
                                                antes o botão sumia justo nessa hora. A lista
                                                completa pra cobrar está no Financeiro. *@
+                                            @* CABEÇA DE CHAVE escolhido pelo organizador (11/11/2026), só antes
+                                               do sorteio e só onde há sorteio de GRUPOS (chave direta e times
+                                               são sorteio puro). Muda ao escolher — um clique, sem botão. *@
+                                            @if (ViewBag.JaSorteou == false && !dupla.EhTime && !cat.ChaveDireta
+                                                 && !Padelizou.Services.ForaDoSorteio.FicaDeFora(dupla))
+                                            {
+                                                var maxCabeca = Padelizou.Services.CabecasDeChave.PosicaoMaxima(
+                                                    cat.Duplas.Count(d => !Padelizou.Services.ForaDoSorteio.FicaDeFora(d)));
+                                                <form asp-controller="Torneios" asp-action="SalvarCabecaDeChave" method="post" data-manter-posicao
+                                                      class="d-flex align-items-center gap-1" title="Cabeça de chave escolhido por você (o 1 abre o Grupo A). Vazio = segue o ranking.">
+                                                    <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                                    <select name="posicao" class="form-select form-select-sm text-nowrap @(dupla.CabecaDeChave != null ? "border-warning fw-semibold" : "")"
+                                                            style="width: auto;" onchange="this.form.submit()" aria-label="Cabeça de chave">
+                                                        <option value="">Cabeça: —</option>
+                                                        @for (int pos = 1; pos <= maxCabeca; pos++)
+                                                        {
+                                                            <option value="@pos" selected="@(dupla.CabecaDeChave == pos)">Cabeça nº @pos</option>
+                                                        }
+                                                    </select>
+                                                </form>
+                                            }
                                             @if (Model.PrecoInscricao > 0)
                                             {
                                                 <form asp-controller="Torneios" asp-action="AlternarPagamentoDupla" method="post" data-manter-posicao>
