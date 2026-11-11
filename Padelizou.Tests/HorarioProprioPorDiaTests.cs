@@ -279,22 +279,45 @@ public class HorarioProprioPorDiaTests
         Assert.Contains(jogos, j => j.HorarioPrevisto!.Value.Date == Quinta.AddDays(1));
     }
 
+    // 🗣️ Felipe, 11/11/2026, com a tela do torneio já publicado: *"não está salvando ali a
+    // alteração e refazendo os horários"*. Pro APLICAR DA FAIXA DO DIA, a regra de 10/10 cede:
+    // é a decisão explícita do organizador de mudar o expediente, não um "refazer" acidental.
+    // RefazerGrade e Ajustar continuam travados (GradePublicadaNaoSeRefazTests).
     [Fact]
-    public async Task Com_a_chave_publica_grava_a_faixa_mas_nao_remarca_ninguem()
+    public async Task Com_a_chave_publica_aplicar_a_faixa_tambem_recalcula()
     {
         var (ctx, torneio, org) = await SorteadoAsync(status: "Fase de Grupos");
-        var antes = await ctx.Partidas.AsNoTracking().Where(p => p.TorneioId == torneio.Id)
-            .ToDictionaryAsync(p => p.Id, p => p.HorarioPrevisto);
-        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+        Assert.True(AprovacaoDeChaves.ChavePublicada(torneio));
 
-        await controller.AplicarPlanejamento(torneio.Id,
-            aberturas: "2026-11-13=19:00", limites: "2026-11-13=22:20");
+        await TestInfra.NovoTorneiosController(ctx, org.Id).AplicarPlanejamento(torneio.Id,
+            aberturas: "2026-11-12=19:00;2026-11-13=19:00", limites: "2026-11-12=19:50;2026-11-13=22:20");
 
         ctx.ChangeTracker.Clear();
-        Assert.Equal("2026-11-13=19:00-22:20", (await ctx.Torneios.SingleAsync(t => t.Id == torneio.Id)).HorariosPorDia);
-        Assert.Equal(antes, await ctx.Partidas.AsNoTracking().Where(p => p.TorneioId == torneio.Id)
-            .ToDictionaryAsync(p => p.Id, p => p.HorarioPrevisto));
-        Assert.Contains("públicas", controller.TempData["Sucesso"]?.ToString());
+        var gravado = await ctx.Torneios.SingleAsync(t => t.Id == torneio.Id);
+        var cal = HorarioDoDia.Do(gravado);
+        var jogos = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto != null).ToListAsync();
+
+        Assert.NotEmpty(jogos);
+        Assert.DoesNotContain(jogos, j => j.HorarioPrevisto == Quinta.AddDays(1).AddHours(9));
+        Assert.All(jogos, j => Assert.InRange(j.HorarioPrevisto!.Value.TimeOfDay,
+            cal.Abre(j.HorarioPrevisto.Value.Date), cal.Limite(j.HorarioPrevisto.Value.Date)));
+    }
+
+    // O APLICAR GRAVA O QUE ESTÁ NA TABELA AGORA. Antes ele mandava o que a tela tinha ao ABRIR
+    // (campos escondidos), e mudar uma caixinha e clicar em Aplicar gravava o valor velho.
+    // A tabela manda `abertura[dia]`/`limite[dia]`; o Aplicar aceita os mesmos nomes.
+    [Fact]
+    public async Task Aplicar_aceita_as_caixinhas_da_tabela_como_elas_estao()
+    {
+        var (ctx, torneio, org) = await SorteadoAsync();
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).AplicarPlanejamento(torneio.Id,
+            abertura: new Dictionary<string, string> { ["2026-11-12"] = "", ["2026-11-13"] = "18:00" },
+            limite: new Dictionary<string, string> { ["2026-11-12"] = "22:10", ["2026-11-13"] = "" });
+
+        ctx.ChangeTracker.Clear();
+        Assert.Equal("2026-11-12=19:00-22:10;2026-11-13=18:00-23:00",
+            (await ctx.Torneios.SingleAsync(t => t.Id == torneio.Id)).HorariosPorDia);
     }
 
     [Fact]
@@ -308,6 +331,12 @@ public class HorarioProprioPorDiaTests
         Assert.Contains("name=\"aberturas\"", tela);
         Assert.Contains("name=\"limites\"", tela);
         Assert.DoesNotContain("vale <strong>só aqui</strong>", tela);
+
+        // O Aplicar leva os campos da simulação COMO ESTÃO (o script copia na hora de enviar),
+        // e não fica apagado esperando um "Recalcular" que o organizador não sabe que precisa.
+        Assert.Contains("id=\"simulacao-do-planejamento\"", tela);
+        Assert.Contains("getElementById('simulacao-do-planejamento')", tela);
+        Assert.DoesNotContain("disabled=\"@(!Model.MudouAlgo)\"", tela);
     }
 
     [Fact]

@@ -345,7 +345,8 @@ namespace Padelizou.Controllers
             // A faixa de cada dia ("yyyy-MM-dd=HH:mm;..."), como a tabela Dia a dia manda.
             // `porDia` = a tela mandou a tabela (mesmo sem nenhum dia próprio, o que LIMPA as
             // faixas); sem ele e sem os textos — aba aberta antes deste deploy — as faixas FICAM.
-            string? aberturas = null, string? limites = null, bool? porDia = null)
+            string? aberturas = null, string? limites = null, bool? porDia = null,
+            Dictionary<string, string>? abertura = null, Dictionary<string, string>? limite = null)
         {
             if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
@@ -374,6 +375,19 @@ namespace Padelizou.Controllers
             // ── A FAIXA DE CADA DIA ─────────────────────────────────────────────────────────
             // Só vira faixa própria o dia que DIFERE do padrão: um dia que veio igual não é
             // gravado, senão mudar o padrão depois não o alcançaria.
+            // As caixinhas da tabela COMO ESTÃO na tela (o script do Aplicar copia na hora de
+            // enviar) valem mais que os textos escondidos, que são da tela ao ABRIR — 🗣️ Felipe,
+            // 11/11: *"não está salvando ali a alteração"*. Caixinha vazia = o padrão do dia.
+            if (abertura is { Count: > 0 } || limite is { Count: > 0 })
+            {
+                static string Juntar(Dictionary<string, string>? caixas) => string.Join(';', (caixas ?? new())
+                    .Where(par => !string.IsNullOrWhiteSpace(par.Value))
+                    .Select(par => $"{par.Key}={par.Value}"));
+                aberturas = Juntar(abertura);
+                limites = Juntar(limite);
+                porDia = true;
+            }
+
             string? horariosPorDia = torneio.HorariosPorDia;
             if (aberturas != null || limites != null || porDia == true)
             {
@@ -421,19 +435,13 @@ namespace Padelizou.Controllers
             // É o MESMO recálculo do "Recalcular horários" (RefazerGrade): os mesmos confrontos,
             // finalizados e em quadra intocados, e a promessa re-gravada depois.
             //
-            // ⚠️ MAS NÃO DEPOIS DE PÚBLICA — a regra dele de 10/10/2026 (GradePublicadaNaoSeRefazTests):
-            // o horário publicado é compromisso com o jogador. A faixa nova fica gravada e a tela
-            // diz que nenhum jogo mudou; trocar UM jogo à mão continua possível.
+            // ⚠️ E TAMBÉM DEPOIS DE PÚBLICA (11/11/2026). 🗣️ Felipe, com o torneio publicado: *"não
+            // está salvando ali a alteração e refazendo os horários"*. A regra de 10/10
+            // (GradePublicadaNaoSeRefazTests) continua valendo pro RefazerGrade e pro Ajustar —
+            // aqui é o organizador mudando o EXPEDIENTE de propósito, e a grade tem que segui-lo.
             var todos = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
             if (todos.Any(p => p.Status == "Agendada"))
             {
-                if (AprovacaoDeChaves.ChavePublicada(torneio))
-                {
-                    TempData["Sucesso"] = "Horários do torneio atualizados. As chaves já estão públicas, então "
-                        + "nenhum jogo foi remarcado — pra mudar um jogo, troque o horário dele na lista de jogos.";
-                    return RedirectToAction(nameof(Planejamento), new { id });
-                }
-
                 var (remarcar, _) = await RecalcularAGradeAsync(torneio, todos);
                 await _context.SaveChangesAsync();
                 await GravarAGradePrevistaAsync(torneio);
