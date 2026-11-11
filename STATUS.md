@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **11/11/2026** — ➕ **ADICIONAR HORÁRIO NUM DIA, SEM MEXER NO CHAVEAMENTO.** Sem migration. 🗣️ Felipe: *"permita aqui, adicionar um horário em algum dia, sem alterar o chaveamento, no meio, no final e os demais se adaptarem"* — escolhe meio/fim, e se estoura o dia: esticar ou empurrar pro dia seguinte.
+>
+> 📌 Jogos → **Adicionar horário** (`TorneiosController.InserirHorario`, só organizador). **No fim do dia:** o limite daquele dia em `HorariosPorDia` ganha uma duração; ninguém anda. **No meio:** a partir da hora escolhida, os jogos `Agendada` e as promessas do mata-mata (`ReservaDeHorario`) andam uma duração; esticar alonga o limite do dia se passar, empurrar leva em cascata pro horário seguinte da grade (`Calendario.DepoisDe`) e recusa se passar do último dia. Jogo em quadra/encerrado no trecho que anda → recusa. Confrontos não mudam.
+>
+> 🧪 `InserirHorarioNaGradeTests` (7). E2E local: sexta a partir de 20:50 → 20:50→21:40, 21:30→22:20, 22:20→23:10; os anteriores ficaram.
+>
 > Última atualização: **11/11/2026** — 🖼️ **COMPARTILHAR OS JOGOS: CADA DIA COM A SUA ARTE, E A ARTE ACOMPANHA O HORÁRIO MUDADO.** ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** 🗣️ Felipe, com o print do THE LAST DANCE (véspera do torneio): *"aqui tá gerando a mesma imagem de dias diferentes"* · *"eu também alterei um horário e não alterou aqui na tela"*.
 >
 > 📌 **MESMA IMAGEM:** a tela pedia `JogosImagem?parte=arte.Parte` — a parte DENTRO do dia (1 em todo dia que cabe numa arte) — e o endpoint lia `parte` como a posição na lista de artes: todo dia pedia a arte nº 1. As duas pontas agora moram juntas (`CartaoDosJogos.NumeroNoLink` / `DoLink`). **HORÁRIO MUDADO:** a lista já usa `HorarioPrevisto` (o atualizado); o que segurava era o cache — a imagem sai com `public, max-age=3600` e a URL não mudava. `CartaoDosJogos.Versao` (hash do conteúdo da arte) entra como `&v=` nos três links (dia, imagem única e og:image): jogo mudado = URL nova.
