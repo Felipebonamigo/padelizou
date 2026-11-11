@@ -551,7 +551,16 @@ namespace Padelizou.Controllers
         private async Task<(int Jogos, bool JaSorteados)> JogosDoTorneioAsync(Torneio torneio)
         {
             int sorteados = await _context.Partidas.CountAsync(p => p.TorneioId == torneio.Id);
-            if (sorteados > 0) return (sorteados, true);
+
+            // ⚠️ DEPOIS DO SORTEIO SÓ EXISTEM OS GRUPOS (11/11/2026): quartas, semis e finais nascem
+            // pelo robô e também precisam de quadra. Contar só os sorteados fez a tela do Chakra
+            // dizer "Cabe — 19 jogos em 1 quadra" com o mata-mata inteiro fora da conta; o que não
+            // coube foi parar na segunda e na terça. É a mesma régua do aviso do sorteio
+            // (`MontarPrevisaoDaGrade(...).TotalDeJogos`). (GradeNuncaPassaDoFimDoTorneioTests)
+            if (sorteados > 0)
+                return (torneio.Formato == FormatoDoTorneio.Padrao
+                    ? Math.Max(sorteados, MontarPrevisaoDaGrade(torneio).TotalDeJogos)
+                    : sorteados, true);
 
             return (torneio.Formato == FormatoDoTorneio.Padrao
                 ? MontarPrevisaoDaGrade(torneio).TotalDeJogos
