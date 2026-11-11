@@ -7,6 +7,12 @@
 >
 > 🧪 `ArteDeCadaDiaTests` (6): 5 vistos vermelhos; o "nada mudou, mesma versão" é guarda. 8.115 verdes.
 >
+> Última atualização: **11/11/2026** — 📍 **TROCAR HORÁRIO PELA JANELA NÃO JOGA MAIS A TELA PRO TOPO.** Sem migration. 🗣️ Felipe: *"quando eu troco o horário ou coloco pra cima e baixo, ele volta lá em cima na tela"*.
+>
+> 📌 As setas ↑↓ (`_SetasDaOrdem`) já tinham `data-manter-posicao` e ficavam no lugar (medido: 793 → 793 px numa lista de 44 jogos). As janelas de `TrocarHorario`, `DefinirHorario` e `TrocarQuadra` em `_JogosDoTorneio` não tinham: medido 2221 → 889 px. Agora levam a marca; medido 5000 → 5000 px.
+>
+> 🧪 `JanelasDeHorarioFicamNoLugarTests` (3, vistos vermelhos). 8.126 verdes. ✅ Conferido no navegador local.
+>
 > Última atualização: **11/11/2026** — 🏷️ **QUEM JÁ VENCEU APARECE COM NOME NO JOGO PREVISTO SEGUINTE, EM QUALQUER FASE.** Sem migration. 🗣️ Felipe: *"a dupla que já definiu seu jogo já pode ir pro chaveamento prévio […] e assim com as demais fases do mata-mata"*.
 >
 > 📌 Do grupo pras quartas já era assim (`ClassificadosJaConhecidos`, 11/09). Faltava dentro do mata-mata: a Quartas 1 acabava, a 2 não, e a Semifinal prevista seguia "Vencedor Quartas de Final 1". `ProximasFasesDaChave.PartidaDaChave` ganhou `Vencedor` (nome, pelo `VencedorId`); `Montar`/`MontarDosGrupos`/`Encadear` trocam a vaga pelo nome via `LadoDoVencedor` — a procedência (fase, número) fica, e segue virando link. O robô passa os vencedores nos dois caminhos (categoria ainda em grupos com abertura parcial, e categoria toda no mata-mata). Só rótulo: o jogo de verdade continua nascendo quando os dois lados existem.
