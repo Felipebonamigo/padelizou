@@ -354,6 +354,29 @@
             </div>
         </div>
     }
+    else if (Model.JogosSemHorario > 0)
+    {
+        @* A GRADE DE VERDADE MANDA (11/11/2026): a soma de vagas dizia "Cabe" e a grade tinha
+           jogo "por ordem". Eliminatória espera a rodada anterior, e dupla presa a um turno
+           segura a categoria — a soma não enxerga nenhum dos dois. *@
+        <div class="card shadow-sm mb-3 border-danger">
+            <div class="card-body">
+                <h5 class="fw-bold text-danger mb-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Não cabe: @Model.JogosSemHorario @(Model.JogosSemHorario == 1 ? "jogo ficou" : "jogos ficaram") sem horário na grade
+                </h5>
+                <p class="mb-2">
+                    Somando as vagas parece caber (@plano.Vagas vagas pra @plano.TotalDeJogos jogos), mas as eliminatórias
+                    esperam a rodada anterior acabar, e duplas com impedimento ou "Pôr os 2 jogos em" seguram horário
+                    — e o sistema nunca marca jogo depois do último dia.
+                </p>
+                <p class="small text-muted mb-0">
+                    Adicione uma quadra, aumente o horário de algum dia na tabela <strong>Dia a dia</strong>, ou alivie um
+                    pedido de horário das duplas — e grave em <strong>Aplicar horários ao torneio</strong>.
+                </p>
+            </div>
+        </div>
+    }
     else
     {
         <div class="card shadow-sm mb-3 border-success">
@@ -379,7 +402,8 @@
     @* A FOLGA NÃO É ENFEITE: sem vaga sobrando o sorteio não tem pra onde desviar de um
        impedimento, e cai no último recurso (marca dentro da janela que a dupla pagou pra
        evitar). O número vem do motor — GradeDeJogos.MargemDeHorarios. *@
-    @if (!plano.DiaSemHoraPraAcabar && plano.TotalDeJogos > 0 && !plano.FolgaSuficiente && plano.Faltam == 0)
+    @if (!plano.DiaSemHoraPraAcabar && plano.TotalDeJogos > 0 && !plano.FolgaSuficiente && plano.Faltam == 0
+         && Model.JogosSemHorario == 0)
     {
         <div class="alert alert-warning py-2 px-3 small">
             <i class="bi bi-exclamation-triangle-fill"></i>

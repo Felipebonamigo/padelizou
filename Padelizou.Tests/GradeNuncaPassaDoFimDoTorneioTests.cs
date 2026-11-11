@@ -175,4 +175,96 @@ public class GradeNuncaPassaDoFimDoTorneioTests
         Assert.True(sobra.Max() <= Quinta.AddDays(1).AddHours(19).AddMinutes(40),
             $"os jogos sem saída foram pro fim: {string.Join(", ", sobra.OrderBy(h => h).Select(h => h.ToString("ddd HH:mm")))}");
     }
+
+    // A ORDEM ENTRE CATEGORIAS CEDE QUANDO SEGUI-LA DEIXARIA JOGO SEM HORA. 🗣️ Felipe pediu
+    // *"primeiro todas as chaves, depois todas as primeiras eliminatórias […] as finais por último"*
+    // — e isso continua valendo. Mas uma dupla da OUTRA categoria impedida no sábado leva um jogo
+    // de grupo pro domingo, e o mata-mata de quem já acabou os grupos esperava esse jogo: sábado à
+    // noite vazio e quartas "por ordem". Achado pela varredura de 500 torneios (11/11/2026).
+    [Fact]
+    public async Task Mata_mata_de_quem_acabou_os_grupos_nao_espera_jogo_de_outra_categoria_se_for_ficar_sem_hora()
+    {
+        var sabado = Quinta.AddDays(2);
+        var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, 6);
+        torneio.DataInicio = sabado;
+        torneio.DataFim = sabado.AddDays(1);
+        torneio.HoraInicioDoDia = new TimeSpan(10, 0, 0);
+        torneio.HoraInicioDiasSeguintes = new TimeSpan(10, 0, 0);
+        torneio.HoraFimDoDia = new TimeSpan(21, 0, 0);
+        torneio.HorariosPorDia = $"{sabado.AddDays(1):yyyy-MM-dd}=10:00-11:40";
+        torneio.QuantidadeQuadras = 1;
+        torneio.TempoPrevistoPartidaMinutos = 50;
+        ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = "Quadra A" });
+        var outra = new Categoria { Nome = "Outra", Codigo = "OUT", Torneio = torneio };
+        ctx.Categorias.Add(outra);
+        for (int i = 0; i < 3; i++)
+        {
+            var j1 = TestInfra.NovoJogador(700 + i * 2); var j2 = TestInfra.NovoJogador(701 + i * 2);
+            ctx.Jogadores.AddRange(j1, j2);
+            // A primeira dupla da outra categoria não pode no sábado inteiro.
+            ctx.Duplas.Add(new Dupla { Categoria = outra, Jogador1 = j1, Jogador2 = j2,
+                ImpedimentoSabadoManha = i == 0, ImpedimentoSabadoTarde = i == 0 });
+        }
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        var vm = (Padelizou.ViewModels.PlanejamentoDeQuadrasVM)Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, org.Id).Planejamento(torneio.Id)).Model!;
+        Assert.Equal(0, vm.Plano.Faltam);
+        await TestInfra.NovoTorneiosController(ctx, org.Id).AprovarChaves(torneio.Id, avisarJogadores: false);
+
+        int comHora = ctx.Partidas.Count(p => p.TorneioId == torneio.Id && p.HorarioPrevisto != null)
+            + ctx.ReservasDeHorario.Count(r => r.Categoria.TorneioId == torneio.Id);
+        Assert.Equal(vm.JogosDoTorneio, comHora);
+        NenhumDepoisDoFim(ctx, torneio);
+    }
+
+    // NENHUM JOGO MARCADO NUM HORÁRIO SEM QUADRA ABERTA. A única quadra fecha sábado 14h (janela
+    // "disponível até") e o expediente vai até 19h: no último recurso o motor marcava o jogo às
+    // 19h SEM quadra — um horário em que não existe onde jogar. Achado pela varredura (11/11/2026).
+    [Fact]
+    public async Task Ultimo_recurso_nunca_marca_jogo_sem_quadra_aberta()
+    {
+        // Quinta 18h–22:10 (6 horários) + sexta até 14h com a quadra fechando às 14h: pouco espaço,
+        // pra o último recurso entrar em ação.
+        var (ctx, torneio, org) = await TorneioAsync(9, Quinta.AddDays(1), "2026-11-13=10:00-19:00");
+        var quadra = ctx.Quadras.Single(q => q.TorneioId == torneio.Id);
+        quadra.DisponivelDe = Quinta.AddHours(18);
+        quadra.DisponivelAte = Quinta.AddDays(1).AddHours(10);
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        var semQuadra = ctx.Partidas.AsNoTracking()
+            .Where(p => p.TorneioId == torneio.Id && p.HorarioPrevisto != null && p.NomeQuadra == null).ToList();
+        Assert.True(semQuadra.Count == 0,
+            "jogo marcado sem quadra: " + string.Join(", ", semQuadra.Select(p => p.HorarioPrevisto!.Value.ToString("ddd HH:mm"))));
+    }
+
+    // O PLANEJAMENTO DIZ "CABE" PELA GRADE DE VERDADE, NÃO SÓ PELA SOMA DE VAGAS. Depois do sorteio
+    // existe a grade: se algum jogo (ou jogo previsto do mata-mata) ficou sem hora, não coube —
+    // mesmo que vagas ≥ jogos. A soma não enxerga que semifinal espera quartas e final espera
+    // semifinal: com 2 quadras, a final roda sozinha e a outra quadra fica parada. Achado pela
+    // varredura (11/11/2026): "Cabe" na tela e jogo "por ordem" na grade.
+    [Fact]
+    public async Task Depois_do_sorteio_jogo_sem_hora_na_grade_e_nao_cabe()
+    {
+        // 2 quadras; quinta 18:00–22:10 (6 rodadas) + sexta só 18:00 (1 rodada) = 14 vagas.
+        var (ctx, torneio, org) = await TorneioAsync(9, Quinta.AddDays(1), "2026-11-13=18:00-18:00");
+        torneio.HorariosPorDia = "2026-11-13=18:00-18:10";
+        torneio.QuantidadeQuadras = 2;
+        ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = "Quadra B" });
+        await ctx.SaveChangesAsync();
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+
+        var vm = (Padelizou.ViewModels.PlanejamentoDeQuadrasVM)Assert.IsType<Microsoft.AspNetCore.Mvc.ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, org.Id).Planejamento(torneio.Id)).Model!;
+
+        Assert.True(vm.JogosSemHorario > 0, "a grade tem jogo sem hora e a tela não disse");
+
+        var tela = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
+            "Padelizou", "Views", "Torneios", "Planejamento.cshtml"));
+        Assert.Contains("else if (Model.JogosSemHorario > 0)", tela);
+    }
 }

@@ -210,6 +210,10 @@ public class PrevisaoGradeVM
 //     o organizador girou — inclusive quando ele girou pra um valor que o torneio não tem.
 public class PlanejamentoDeQuadrasVM
 {
+        // Depois do sorteio: quantos jogos (reais ou previstos do mata-mata) a grade DE VERDADE
+        // deixou sem horário. Maior que zero = não coube, diga a soma de vagas o que disser.
+        public int JogosSemHorario { get; set; }
+
     public Torneio Torneio { get; set; } = null!;
     public PlanejamentoDeQuadras.Plano Plano { get; set; } = null!;
 
