@@ -158,8 +158,10 @@ public class PlanejamentoDeQuadrasNaTelaTests
         Assert.NotNull(controller.TempData["Erro"]);
     }
 
-    // Depois do sorteio o número de jogos é FATO, não projeção — e o planejamento tem que
-    // contar os jogos que existem, senão ele responderia sobre um torneio imaginário.
+    // Depois do sorteio os jogos que existem são FATO — e o planejamento conta todos eles. Mas
+    // desde 11/11/2026 conta TAMBÉM o mata-mata que ainda vai nascer (a projeção das duplas
+    // inscritas, quando é maior): só os grupos fizeram a tela do Chakra dizer "Cabe" com uma
+    // quadra, e o resto da chave caiu na segunda e na terça. (GradeNuncaPassaDoFimDoTorneioTests)
     [Fact]
     public async Task Depois_do_sorteio_o_plano_conta_os_jogos_que_existem()
     {
@@ -185,7 +187,7 @@ public class PlanejamentoDeQuadrasNaTelaTests
         var vm = Ver(Assert.IsType<ViewResult>(await controller.Planejamento(torneio.Id)));
 
         Assert.True(vm.JogosJaSorteados);
-        Assert.Equal(5, vm.Plano.TotalDeJogos);
+        Assert.True(vm.Plano.TotalDeJogos > 5, "12 duplas inscritas dão mais jogos que os 5 que já existem");
     }
 
     // ⚠️ DUAS TELAS, UM TORNEIO. A aba do `Details` mostra o resumo e a tela cheia mostra a

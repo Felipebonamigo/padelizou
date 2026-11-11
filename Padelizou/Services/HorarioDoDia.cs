@@ -59,7 +59,7 @@ public static class HorarioDoDia
     // Sem `DataInicio`, o 1º dia é HOJE — a mesma convenção do `Torneio.AberturaDaGrade` de sempre.
     public static Calendario Do(Torneio torneio) => new(
         (torneio.DataInicio ?? DateTime.Today).Date, torneio.HoraInicioDoDia, torneio.HoraInicioDiasSeguintes,
-        torneio.HoraFimDoDia, Ler(torneio.HorariosPorDia));
+        torneio.HoraFimDoDia, Ler(torneio.HorariosPorDia), torneio.DataFim?.Date);
 
     /// <summary>O calendário de um torneio: a faixa de qualquer dia, e a grade que nasce dele.</summary>
     public sealed class Calendario
@@ -68,9 +68,16 @@ public static class HorarioDoDia
         private readonly TimeSpan _abrePrimeiro, _abreDemais, _limite;
         private readonly IReadOnlyDictionary<DateTime, Faixa> _porDia;
 
+        // O ÚLTIMO INÍCIO DE JOGO DO TORNEIO: o último dia (`DataFim`) na hora limite dele. Nulo = sem
+        // prazo declarado, e aí a grade só empurra pra frente, como sempre.
+        private readonly DateTime? _ultimoInicio;
+
         public Calendario(DateTime? primeiroDia, TimeSpan abrePrimeiro, TimeSpan abreDemais, TimeSpan limite,
-            IReadOnlyDictionary<DateTime, Faixa> porDia)
+            IReadOnlyDictionary<DateTime, Faixa> porDia, DateTime? ultimoDia = null)
         {
+            _ultimoInicio = ultimoDia is DateTime fim
+                ? fim.Date.Add(porDia.TryGetValue(fim.Date, out var doFim) ? doFim.UltimoJogo : limite)
+                : null;
             _primeiroDia = primeiroDia;
             _abrePrimeiro = abrePrimeiro;
             _abreDemais = abreDemais;
@@ -79,6 +86,10 @@ public static class HorarioDoDia
         }
 
         public bool TemDiaProprio => _porDia.Count > 0;
+
+        // O último horário em que um jogo pode COMEÇAR no torneio (nulo = sem prazo). Quem calcula
+        // horário fora de `Horarios` — a prévia do mata-mata — pergunta aqui antes de marcar.
+        public DateTime? UltimoInicio => _ultimoInicio;
 
         public TimeSpan Abre(DateTime dia) =>
             _porDia.TryGetValue(dia.Date, out var faixa) ? faixa.Abre
@@ -101,10 +112,19 @@ public static class HorarioDoDia
         // — aqui, a abertura DAQUELE dia.
         public IEnumerable<DateTime> Horarios(DateTime inicio, int quadras, int duracaoMinutos, int quantidade)
         {
-            if (!TemDiaProprio)
-                return GradeDeJogos.Horarios(inicio, _limite, quadras, duracaoMinutos, quantidade, _abreDemais);
+            var horarios = TemDiaProprio
+                ? PorDia(inicio, quadras, duracaoMinutos, quantidade)
+                : GradeDeJogos.Horarios(inicio, _limite, quadras, duracaoMinutos, quantidade, _abreDemais);
 
-            return PorDia(inicio, quadras, duracaoMinutos, quantidade);
+            // ⚠️ O TETO DO TORNEIO (11/11/2026) — NENHUM horário depois do último jogo do último dia.
+            // 🗣️ Felipe, com o Chakra (qui 12 a dom 15/11) com jogo na SEGUNDA: *"preciso que isso não
+            // aconteça mais em nenhuma hipótese […] respeitar as datas e horários pré-estabelecidos"*.
+            // O encaixe pula horário quando nenhum jogo serve e, no último recurso, põe o jogo no FIM
+            // desta lista — que, sem teto, ia dias além do torneio. Aqui é o único gerador de horário
+            // da grade (sorteio, recálculo, levas, vagas), então o teto vale pra todos. O que não
+            // couber fica sem horário, e a conferência da grade avisa.
+            // (GradeNuncaPassaDoFimDoTorneioTests)
+            return _ultimoInicio is DateTime teto ? horarios.TakeWhile(h => h <= teto) : horarios;
         }
 
         private IEnumerable<DateTime> PorDia(DateTime inicio, int quadras, int duracaoMinutos, int quantidade)

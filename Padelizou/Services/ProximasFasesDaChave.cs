@@ -582,6 +582,20 @@ public static class ProximasFasesDaChave
                     for (int passo = 0; SemLugar(h, permitidas) && passo < teto; passo++)
                         h = Seguinte(h);
 
+                    // ⚠️ NUNCA DEPOIS DO ÚLTIMO DIA (11/11/2026). 🗣️ Felipe, com as quartas do Chakra
+                    // previstas pra segunda: *"respeitar as datas e horários pré-estabelecidos"*. O
+                    // jogo que não cabe fica SEM hora (a Mesa chama quando houver quadra), em vez de
+                    // virar promessa num dia em que o torneio não existe.
+                    // (GradeNuncaPassaDoFimDoTorneioTests)
+                    if (grade.Calendario?.UltimoInicio is DateTime fimDoTorneio && h > fimDoTorneio)
+                    {
+                        horario = h;
+                        jogos.Add(new JogoQueVem(cadeia.Categoria, rodada.Fase, rodada.Numeros[i], null,
+                            rodada.Confrontos[i].Lado1, rodada.Confrontos[i].Lado2, null, cadeia.CategoriaId,
+                            ClubeId: ClubeDoSlot(null, null)));
+                        continue;
+                    }
+
                     quadra = grade.Quadras.FirstOrDefault(q => Serve(q, h, permitidas));
 
                     lotacao[h] = lotacao.GetValueOrDefault(h) + 1;
