@@ -87,7 +87,7 @@ public class VarreduraDaGradeTests
             await ctx.SaveChangesAsync();
             var cfg = $"seed {seed}: {t.DataInicio:ddd dd}–{t.DataFim:ddd dd} quadras {nq} faixas [{t.HorariosPorDia}] fim {t.HoraFimDoDia} demais {t.HoraInicioDiasSeguintes} duplas {ctx.Duplas.Count()}";
 
-            try { await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(t.Id); }
+            try { await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(t.Id, sortearMesmoSemCaber: true); }
             catch (Exception e) { P("exceção no sorteio: " + e.GetType().Name, cfg + " " + e.Message); continue; }
             var vm = (Padelizou.ViewModels.PlanejamentoDeQuadrasVM)((Microsoft.AspNetCore.Mvc.ViewResult)
                 await TestInfra.NovoTorneiosController(ctx, org.Id).Planejamento(t.Id)).Model!;

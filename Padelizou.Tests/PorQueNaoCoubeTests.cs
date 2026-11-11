@@ -199,7 +199,9 @@ public class PorQueNaoCoubeTests
         await ctx.SaveChangesAsync();
 
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
-        await controller.GerarChaves(torneio.Id);
+        // Desde 11/11/2026 o sorteio que não cabe PARA e pergunta antes
+        // (GerarChavesPerguntaQuandoNaoCabeTests); o aviso daqui é o de quem sorteou mesmo assim.
+        await controller.GerarChaves(torneio.Id, sortearMesmoSemCaber: true);
 
         var aviso = controller.TempData["Aviso"] as string;
 

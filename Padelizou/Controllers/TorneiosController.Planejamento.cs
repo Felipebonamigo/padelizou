@@ -103,14 +103,9 @@ namespace Padelizou.Controllers
             // grade montada, conta o que ficou SEM HORA — jogos reais e os previstos do mata-mata.
             // Só sem simulação: girando os botões, a grade de verdade ainda não mudou.
             // (GradeNuncaPassaDoFimDoTorneioTests)
-            int semHorario = 0;
-            if (sorteados && !simulando && !veioDaTabela && !torneio.SemHorarioPrevisto)
-            {
-                var partidas = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
-                var projecao = await Robo.ProjetarProximasFasesAsync(id, partidas);
-                semHorario = partidas.Count(p => p.Status == "Agendada" && p.HorarioPrevisto == null)
-                    + projecao.Jogos.Count(j => j.Horario == null);
-            }
+            int semHorario = sorteados && !simulando && !veioDaTabela && !torneio.SemHorarioPrevisto
+                ? await JogosSemHorarioNaGradeAsync(id)
+                : 0;
 
             return View(new PlanejamentoDeQuadrasVM
             {
