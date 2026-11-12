@@ -92,7 +92,11 @@ public class NomesCompletosNaChaveETabelaTests
     {
         var sw = Ler("wwwroot", "sw.js");
 
-        Assert.Contains("padelizou-static-v39", sw);
+        // Pelo menos a v39 desta mudança — a versão sobe de novo a cada mudança de CSS depois
+        // dela (12/11/2026: v40, nomes no card ao vivo do Android), e travar o número exato
+        // reprovaria justamente quem fez a coisa certa.
+        var m = System.Text.RegularExpressions.Regex.Match(sw, @"padelizou-static-v(\d+)");
+        Assert.True(m.Success && int.Parse(m.Groups[1].Value) >= 39, "O cache do service worker voltou pra antes da v39.");
     }
 
     private static string Bloco(string css, string seletor)

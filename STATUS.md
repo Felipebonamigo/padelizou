@@ -1,13 +1,19 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **12/11/2026** — 📱 **CARD AO VIVO: NOME NÃO QUEBRA MAIS LETRA A LETRA NO ANDROID.** ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** 🗣️ Felipe, no dia do THE LAST DANCE, com dois prints: *"no Android tá quebrado os nomes, no iPhone não"* ("Paul / o / Pujo / l").
+>
+> 📌 O "teto" anotado em `.pdz-live-placar` (nome ~70px num celular estreito, com o −/+ do organizador) virou defeito no Android com a letra do sistema aumentada: tudo em rem cresce, o nome era o único que cedia. **Medido no Chromium a 360px:** raiz em 130% → nome com **7px** (antes) → **112–211px** (depois); em 100% → 76px → 86–236px. Correção: `.pdz-live-jogadores { min-width: 8rem }` (era 0; em rem pra crescer junto) + `.pdz-live-linha { flex-wrap: wrap }` + `.pdz-live-placar { margin-left: auto }` — sem espaço, a bolinha e o placar descem pra linha de baixo, encostados à direita. iPhone 393px: primeira dupla igual; dupla de nome comprido passa a descer o placar e o card fica mais baixo (176 → 142px). `sw.js` v39 → v40 (mudou o `site.css`); o teste que travava "v39" exato passou a exigir "≥ v39".
+>
+> 🧪 1 teste novo em `BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests`, visto vermelho antes. 8.134 verdes. ⚠️ Conferido em mock com o `site.css` real no Chromium, não num Android de verdade.
+>
 > Última atualização: **11/11/2026** — ➕ **ADICIONAR HORÁRIO NUM DIA, SEM MEXER NO CHAVEAMENTO.** Sem migration. 🗣️ Felipe: *"permita aqui, adicionar um horário em algum dia, sem alterar o chaveamento, no meio, no final e os demais se adaptarem"* — escolhe meio/fim, e se estoura o dia: esticar ou empurrar pro dia seguinte.
 >
 > 📌 Jogos → **Adicionar horário** (`TorneiosController.InserirHorario`, só organizador). **No fim do dia:** o limite daquele dia em `HorariosPorDia` ganha uma duração; ninguém anda. **No meio:** a partir da hora escolhida, os jogos `Agendada` e as promessas do mata-mata (`ReservaDeHorario`) andam uma duração; esticar alonga o limite do dia se passar, empurrar leva em cascata pro horário seguinte da grade (`Calendario.DepoisDe`) e recusa se passar do último dia. Jogo em quadra/encerrado no trecho que anda → recusa. Confrontos não mudam.
 >
 > 🧪 `InserirHorarioNaGradeTests` (7). E2E local: sexta a partir de 20:50 → 20:50→21:40, 21:30→22:20, 22:20→23:10; os anteriores ficaram.
 >
-> Última atualização: **11/11/2026** — 🖼️ **COMPARTILHAR OS JOGOS: CADA DIA COM A SUA ARTE, E A ARTE ACOMPANHA O HORÁRIO MUDADO.** ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** 🗣️ Felipe, com o print do THE LAST DANCE (véspera do torneio): *"aqui tá gerando a mesma imagem de dias diferentes"* · *"eu também alterei um horário e não alterou aqui na tela"*.
+> Última atualização: **11/11/2026** — 🖼️ **COMPARTILHAR OS JOGOS: CADA DIA COM A SUA ARTE, E A ARTE ACOMPANHA O HORÁRIO MUDADO.** ✅ **SEM MIGRATION.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1631-4aea91f`** (deploy runs **506** e **507**; `/healthz` 200 nos dois). PR #412. 🗣️ Felipe, com o print do THE LAST DANCE (véspera do torneio): *"aqui tá gerando a mesma imagem de dias diferentes"* · *"eu também alterei um horário e não alterou aqui na tela"*.
 >
 > 📌 **MESMA IMAGEM:** a tela pedia `JogosImagem?parte=arte.Parte` — a parte DENTRO do dia (1 em todo dia que cabe numa arte) — e o endpoint lia `parte` como a posição na lista de artes: todo dia pedia a arte nº 1. As duas pontas agora moram juntas (`CartaoDosJogos.NumeroNoLink` / `DoLink`). **HORÁRIO MUDADO:** a lista já usa `HorarioPrevisto` (o atualizado); o que segurava era o cache — a imagem sai com `public, max-age=3600` e a URL não mudava. `CartaoDosJogos.Versao` (hash do conteúdo da arte) entra como `&v=` nos três links (dia, imagem única e og:image): jogo mudado = URL nova.
 >
