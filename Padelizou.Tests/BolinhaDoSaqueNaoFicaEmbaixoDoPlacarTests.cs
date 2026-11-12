@@ -108,6 +108,34 @@ public class BolinhaDoSaqueNaoFicaEmbaixoDoPlacarTests
     // A mesma conta na faixa do tablet: com `col-md-6` o card ficava com 336px entre 768 e
     // 991px — 60px a menos que o celular do print, e foi lá que a bola sumiu INTEIRA debaixo
     // do botão. Card ao vivo divide a linha só quando a linha é grande de verdade.
+    // 12/11/2026 — "NO ANDROID TÁ QUEBRADO OS NOMES, NO IPHONE NÃO" (Felipe, com dois prints do
+    // card ao vivo do THE LAST DANCE: "Paul / o / Pujo / l", uma letra por linha).
+    //
+    // 🕳️ O "teto" anotado em `.pdz-live-placar` (nome com ~70px num celular de 320px) virou
+    // defeito no Android com a LETRA DO SISTEMA AUMENTADA: tudo em rem cresce junto — o −/+ e o
+    // campo — e a coluna do nome, que só cede, chegou a 7px (medido no Chromium a 360px com a raiz
+    // em 130%: 7px; em 100%: 76px). A saída que o próprio comentário previa: abaixo de um mínimo
+    // legível o nome PARA de ceder, e quem desce pra linha de baixo é o placar.
+    //
+    // ⚠️ O MÍNIMO É EM REM, e não em px: é a mesma escala que cresceu e espremeu o nome — em px,
+    // o mínimo ficaria pequeno exatamente no celular que precisa dele.
+    [Fact]
+    public void O_nome_tem_minimo_legivel_e_o_placar_desce_quando_nao_cabe()
+    {
+        var css = LerDaWeb("wwwroot", "css", "site.css");
+
+        var linha = Declaracoes(css, ".pdz-live-linha");
+        Assert.True(linha.GetValueOrDefault("flex-wrap") == "wrap",
+            "`.pdz-live-linha` precisa de `flex-wrap: wrap`: sem poder quebrar a linha, quem cede " +
+            "é sempre o nome — até uma letra por linha no Android com fonte grande.");
+
+        var jogadores = Declaracoes(css, ".pdz-live-jogadores");
+        var minimo = Regex.Match(jogadores.GetValueOrDefault("min-width") ?? "", @"^([\d.]+)rem$");
+        Assert.True(minimo.Success && double.Parse(minimo.Groups[1].Value, CultureInfo.InvariantCulture) >= 8,
+            "`.pdz-live-jogadores` precisa de um `min-width` em rem (≥ 8rem): é o piso que faz o " +
+            "placar descer em vez de o nome virar uma coluna de letras.");
+    }
+
     [Fact]
     public void O_card_ao_vivo_so_divide_a_linha_no_computador()
     {

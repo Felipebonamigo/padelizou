@@ -55,7 +55,7 @@
 // regra órfã `.pdz-jl-prometido` que saiu junto). Sem virar o número, o app instalado serve a
 // CÓPIA GUARDADA do CSS velho por mais uma abertura. Conferido no `origin/main` ANTES de escolher
 // o número (estava em v38).
-const CACHE_NAME = "padelizou-static-v39";
+const CACHE_NAME = "padelizou-static-v40";
 const PAGINA_OFFLINE = "/offline.html";
 const STATIC_ASSETS = [
   PAGINA_OFFLINE,

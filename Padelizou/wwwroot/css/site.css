@@ -889,6 +889,10 @@ a:hover { color: var(--pdz-lime-600); }
 .pdz-live-linha {
     padding: .45rem .6rem;
     gap: .6rem;
+    /* Quando o nome não tem o mínimo dele (`.pdz-live-jogadores`), a bolinha e o placar DESCEM
+       pra linha de baixo — em vez de o nome virar uma coluna de letras (12/11/2026, Android com
+       a letra do sistema aumentada: "Paul / o / Pujo / l"). */
+    flex-wrap: wrap;
     background: rgba(255, 255, 255, .05);
     border-radius: 14px;
 }
@@ -934,7 +938,11 @@ a:hover { color: var(--pdz-lime-600); }
     background: rgba(255, 255, 255, .12);
 }
 .pdz-live-jogadores {
-    min-width: 0;
+    /* O PISO DO NOME (12/11/2026). Era `min-width: 0`, e o nome cedia até o fim: medido no
+       Chromium a 360px com a raiz em 130% (Android com fonte grande), 7px de largura. Em REM de
+       propósito — é a escala que cresce no celular que precisa do piso. Abaixo dele, quem cede
+       é a linha: o placar desce (`flex-wrap` em `.pdz-live-linha`). */
+    min-width: 8rem;
     padding-right: .15rem;
 }
 .pdz-live-jogadores a,
@@ -983,6 +991,10 @@ a:hover { color: var(--pdz-lime-600); }
        com 153px no mesmo 320px, medido). A saída, se um dia doer: descer o placar pra linha
        de baixo num `@media (max-width: 359.98px)`. */
     flex-shrink: 0;
+    /* Quando desce pra linha de baixo (12/11/2026), desce encostado à DIREITA — o lado em que
+       o olho procura o número nas duas linhas do card. Na linha cheia não muda nada: o
+       `justify-content: space-between` já o deixava ali. */
+    margin-left: auto;
 }
 /* Games = placar principal (0 a 9). Sets = secundário, menor, ao lado. */
 .pdz-live-games {
