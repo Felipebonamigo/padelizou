@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **12/11/2026** — 📱 **CARD AO VIVO: NOME NÃO QUEBRA MAIS LETRA A LETRA NO ANDROID.** ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** 🗣️ Felipe, no dia do THE LAST DANCE, com dois prints: *"no Android tá quebrado os nomes, no iPhone não"* ("Paul / o / Pujo / l").
+> Última atualização: **12/11/2026** — 📱 **CARD AO VIVO: NOME NÃO QUEBRA MAIS LETRA A LETRA NO ANDROID.** ✅ **SEM MIGRATION.** 🚀 **PUBLICADO em `dev` E `prod` no `build-1639-9a36438`** (deploy runs **514** e **515**; `/healthz` 200; prod servindo `sw.js` v40 e o `site.css` novo). PR #416. 🗣️ Felipe, no dia do THE LAST DANCE, com dois prints: *"no Android tá quebrado os nomes, no iPhone não"* ("Paul / o / Pujo / l").
 >
 > 📌 O "teto" anotado em `.pdz-live-placar` (nome ~70px num celular estreito, com o −/+ do organizador) virou defeito no Android com a letra do sistema aumentada: tudo em rem cresce, o nome era o único que cedia. **Medido no Chromium a 360px:** raiz em 130% → nome com **7px** (antes) → **112–211px** (depois); em 100% → 76px → 86–236px. Correção: `.pdz-live-jogadores { min-width: 8rem }` (era 0; em rem pra crescer junto) + `.pdz-live-linha { flex-wrap: wrap }` + `.pdz-live-placar { margin-left: auto }` — sem espaço, a bolinha e o placar descem pra linha de baixo, encostados à direita. iPhone 393px: primeira dupla igual; dupla de nome comprido passa a descer o placar e o card fica mais baixo (176 → 142px). `sw.js` v39 → v40 (mudou o `site.css`); o teste que travava "v39" exato passou a exigir "≥ v39".
 >
