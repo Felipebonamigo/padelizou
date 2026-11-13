@@ -38,7 +38,7 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
       prevê 7, são 11. Pesa no "não cabe?" antes do sorteio e no preço do pacote de registro de
       resultados (R$ 12 × jogos previstos, `RegistroDeResultados.JogosPrevistos`), que sai a menos.
       `PrevisaoDoTorneioTests` trava o valor errado.
-- [ ] **3. Defeitos do ranking + varredura do Padelímetro.** Parte 1 (o 500, a âncora e a mista): #420, `build-1647-460a980`. Parte 2 (a `VarreduraDoPadelimetro` e as correções do `RANKING.md`): em PR.
+- [x] **3. Defeitos do ranking + varredura do Padelímetro.** ✅ Parte 1 (o 500, a âncora e a mista): #420, `build-1647-460a980` em dev e prod. Parte 2 (a `VarreduraDoPadelimetro` e as correções do `RANKING.md`): #421, `build-1649-aaaa70e` em dev e prod.
   - `/Jogadores/Ranking?clubeId=1` → **500 em produção** (conferido no site): pede a view
     `RankingPorClube`, que nunca existiu (`JogadorsController.cs` ~809).
   - Rótulo do Padelímetro: a categoria de referência (`FaixasDePadelimetro.CategoriaDeReferencia`,
@@ -52,7 +52,26 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
     restart no meio deixa o jogo fora do número pra sempre. → varredura no molde do
     `VarreduraDaChave`.
 - [ ] **4. Avisar o jogador quando o horário do jogo muda** (hoje nenhuma troca avisa ninguém —
-      `TrocarHorario`, `DefinirHorario`, setas, `InserirHorario`, Aplicar do Planejamento).
+      `TrocarHorario`, `DefinirHorario`, setas, `InserirHorario`, Aplicar do Planejamento). Em PR:
+      `Services/AvisoDeHorarioMudado`. As quatro ações anotam o que mudou (com a chave pública);
+      o aviso sai depois de 3 min sem mexer no torneio (teto de 10), um por pessoa, app + e-mail.
+      Ficou de fora, de propósito: jogo que perde o horário (vira "sem horário") e o "por ordem de
+      liberação" ligado na edição do torneio — os dois tiram a hora em vez de remarcar.
+  - 🔎 **A revisão adversarial do #422 (10 agentes) achou, e ficou pra depois:**
+    - **O robô também remarca** jogo que já existe, com a chave pública e calado
+      (`RoboDoChaveamento.AgendarNaGradeAsync`, ~linha 800: o jogo "fora de ordem" é zerado e
+      reencaixado quando outra categoria avança — inclusive o que o aviso acabou de anunciar).
+      Portas: `EncerramentoDaPartida`, `VarreduraDaChave`, desempate do Americano. Saída: ligar o
+      robô ao registro, ou capturar uma vez só no `DbPadelContext.SaveChangesAsync`. M.
+    - ❓ **Decisão do Felipe — cota de e-mail:** um "Aplicar" do Planejamento num torneio de 64
+      duplas manda **~128 e-mails** (o teto do Resend é 100/dia — o "Chaves saíram" já tem o mesmo
+      volume). Hoje o canal é app + e-mail. Opções: pesar no `VolumeDoEmail` e cair pra só app
+      acima de um limite; ou só app sempre.
+    - ❓ **Decisão do Felipe — chave recolhida:** recolher, remarcar e republicar não avisa (o
+      jogador já tinha visto a hora); hoje depende da caixinha "avisar" da re-aprovação.
+    - Troca entre **clubes** muda o lugar junto com a hora; o texto não diz o clube novo. P.
+    - Mexidas na fronteira do teto de 10 min podem soltar a posição intermediária (jogo que foi
+      e voltou avisa duas vezes); a corrida entre tirar e ler o banco idem. Raro. P.
 
 ---
 

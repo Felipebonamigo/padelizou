@@ -316,7 +316,8 @@ public static class TestInfra
     // `pagamentos` fica aberto porque a tela de criação agora PERGUNTA a ele se a conta de
     // recebimento está conectada — quem testa essa recusa precisa dizer a resposta.
     public static TorneiosController NovoTorneiosController(DbPadelContext ctx, int usuarioLogadoId,
-        IPagamentoInscricaoService? pagamentos = null, IPushNotificationService? push = null)
+        IPagamentoInscricaoService? pagamentos = null, IPushNotificationService? push = null,
+        AvisosDeHorarioPendentes? horarios = null)
     {
         push ??= Substitute.For<IPushNotificationService>();
 
@@ -336,7 +337,9 @@ public static class TestInfra
             new PadelimetroService(ctx),
             NovoEncerramento(ctx, push),
             new AvisoDeInscricaoNoTorneio(ctx, push),
-            new AvisoDePlacarAoVivo(ctx, push));
+            new AvisoDePlacarAoVivo(ctx, push),
+            // Aberto pra quem quer ver o que a ação anotou (AvisoDeHorarioMudadoTests).
+            horarios ?? new AvisosDeHorarioPendentes());
 
         controller.ControllerContext = new ControllerContext
         {

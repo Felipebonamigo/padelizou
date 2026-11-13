@@ -29,6 +29,9 @@ namespace Padelizou.Controllers
         private readonly EncerramentoDaPartida _encerramento;
         private readonly AvisoDeInscricaoNoTorneio _avisoDeInscricao;
         private readonly AvisoDePlacarAoVivo _avisoDePlacar;
+        // A hora de um jogo mudou com a chave pública: anota aqui, e o aviso sai pelo relógio
+        // (Services/AvisoDeHorarioMudado) depois de a grade ficar quieta.
+        private readonly AvisosDeHorarioPendentes _avisosDeHorario;
 
         // Injeta o banco de dados
         public TorneiosController(DbPadelContext context, IEstatisticasService estatisticas, IPalpiteService palpites,
@@ -38,9 +41,10 @@ namespace Padelizou.Controllers
             Microsoft.Extensions.Options.IOptions<RegistroResultadosSettings> registro,
             ILogger<TorneiosController> logger, IPadelimetroService padelimetro,
             EncerramentoDaPartida encerramento, AvisoDeInscricaoNoTorneio avisoDeInscricao,
-            AvisoDePlacarAoVivo avisoDePlacar)
+            AvisoDePlacarAoVivo avisoDePlacar, AvisosDeHorarioPendentes avisosDeHorario)
         {
             _avisoDeInscricao = avisoDeInscricao;
+            _avisosDeHorario = avisosDeHorario;
             _avisoDePlacar = avisoDePlacar;
             _context = context;
             _estatisticas = estatisticas;
