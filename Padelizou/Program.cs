@@ -353,6 +353,11 @@ builder.Services.AddHostedService<QuadraAtrasadaBackgroundService>();
 // a segunda chance. Ver Services/VarreduraDaChave.
 builder.Services.AddScoped<VarreduraDaChave>();
 builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
+// O JOGO QUE FICOU FORA DO PADELÍMETRO (13/11/2026). Mesma família: o número dos quatro é
+// aplicado depois do placar gravado, e um restart no meio deixava o jogo fora pra sempre. Ver
+// Services/VarreduraDoPadelimetro.
+builder.Services.AddScoped<VarreduraDoPadelimetro>();
+builder.Services.AddHostedService<VarreduraDoPadelimetroBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();

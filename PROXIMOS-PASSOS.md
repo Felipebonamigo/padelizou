@@ -32,13 +32,13 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
   - Nada no código confere o fuso (o app depende do VPS em America/Sao_Paulo). → `/healthz` 503
     fora de São Paulo, e o `deploy.sh` faz rollback sozinho.
   - ⚠️ Os dois scripts moram no VPS: o merge não os instala. O Felipe copia (passo a passo no PR).
-- [ ] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11). 🔀 #419 no `main`, publicando.
+- [x] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11). ✅ #419, `build-1645-38250db` em dev e prod.
       `PrevisaoDoTorneio.MataMata` ainda corta pro MAIOR quadro que cabe; a chave real
       (`ChaveamentoMataMata`) leva todo mundo com bye. 3 grupos: prevê 3 jogos, são 5; 6 grupos:
       prevê 7, são 11. Pesa no "não cabe?" antes do sorteio e no preço do pacote de registro de
       resultados (R$ 12 × jogos previstos, `RegistroDeResultados.JogosPrevistos`), que sai a menos.
       `PrevisaoDoTorneioTests` trava o valor errado.
-- [ ] **3. Defeitos do ranking + varredura do Padelímetro.** 🔧 Parte 1 (o 500, a âncora e a mista) em PR; falta a varredura e o `RANKING.md`.
+- [ ] **3. Defeitos do ranking + varredura do Padelímetro.** Parte 1 (o 500, a âncora e a mista): #420, `build-1647-460a980`. Parte 2 (a `VarreduraDoPadelimetro` e as correções do `RANKING.md`): em PR.
   - `/Jogadores/Ranking?clubeId=1` → **500 em produção** (conferido no site): pede a view
     `RankingPorClube`, que nunca existiu (`JogadorsController.cs` ~809).
   - Rótulo do Padelímetro: a categoria de referência (`FaixasDePadelimetro.CategoriaDeReferencia`,

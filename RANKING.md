@@ -37,7 +37,8 @@ largura. 100 pontos de diferença ≈ 64% de favoritismo; 200 ≈ 76%.
   (Era 40/20 até 09/11/2026 — ver "O número anda mais devagar" abaixo.)
 - **Fator de games**: `1 + 0,1 × min(|diferença de games|, 6)` — 6x0 vale 1,6×, 7x6
   vale 1,1×. Ganhar passeando move mais que ganhar no detalhe.
-- Na prática: vitória contra dupla igual ≈ ±4 a ±8. Um fim de semana dominante rende
+- Na prática: vitória contra dupla igual ≈ +7 a +10 (K 12; em calibração, K 24, +13 a +19 — a
+  derrota é o espelho). *(Corrigido em 13/11/2026: dizia ±4 a ±8, conta de antes do K 24/12.)* Um fim de semana dominante rende
   +35 a +60 — quem é claramente de cima troca de rótulo em 6 a 11 torneios (simulado).
 - **E a campanha da categoria também move** — bônus de campeão, pena de quem fica na
   chave, limitados pelas portas da faixa. Régua completa logo abaixo.
@@ -76,8 +77,10 @@ A campanha passa a falar direto no número:
   final, W.O. tardio sobre a final, ou reabrir — a campanha SE DESFAZ e reaplica com o
   carimbo novo (regra única em `PadelimetroService.DesfazerCampanhaAsync`, sempre por
   **subtração de delta**, pra não apagar o que o jogador ganhou depois dela). Já o Elo
-  dos JOGOS não se reaplica sozinho em correção de placar — extrato é memória; reabrir
-  ou o replay do admin acertam. ⚠️ A reaplicação recalcula as portas com o nível de
+  dos JOGOS também se reaplica na correção de placar (`DesfazerPartidaAsync`, por subtração
+  de delta — `CorrecaoDePlacarDesfazPadelimetroTests`); os jogos SEGUINTES não são refeitos,
+  e é aí que a régua final volta a ser o replay. *(Corrigido em 13/11/2026: o texto dizia que
+  não se reaplicava.)* ⚠️ A reaplicação recalcula as portas com o nível de
   AGORA, não com o da época — aproximação aceita (diferença de poucos pontos, limitada
   pelas portas); a régua final é sempre o replay.
 
@@ -120,19 +123,21 @@ mudar. Motor em `Services/CampanhaNoPadelimetro.cs`; as linhas de descida/subida
   rodada cria uma dupla nova**, então um rodízio de 12 pessoas despejava dezenas de
   linhas de "participou" de uma vez. O Americano passa a ter **ranking próprio**
   (Trilha C, abaixo). A regra mora em `Services/FormatoDoTorneio.EhAmericano`.
+- **Torneio de time exclusivo** (`TimeExclusivoId`, 16/09/2026): interno de time não mede padel
+  contra o mundo, pela mesma razão do restrito.
 - **Categoria de times** e qualquer dupla-TIME (`Dupla.NomeTime != null` — o
   `Jogador1Id` ali aponta pro organizador que cadastrou, não pra quem jogou).
 - **Partida sem placar** (games nulos) ou com dupla incompleta.
-- **W.O.** — jogo que não aconteceu não mede nada. (Hoje o sistema nem tem W.O. formal;
-  quando tiver a marca, ela entra aqui.)
+- **W.O.** — jogo que não aconteceu não mede nada. A marca formal existe desde 18/08/2026
+  (`EncerramentoPorWo.Foi`), e o `PadelimetroService.Conta` a lê.
 - Jogo avulso, Raquete Livre, jogo de grupo de amigos: fora do Padelímetro oficial
   (decisão do Felipe — um "nível amistoso" separado pode existir no futuro).
 
 ### Onde o número nasce (seed)
 
 O jogador ganha Padelímetro **na primeira partida contabilizada**, com o valor de
-entrada da categoria em que ela foi jogada. Antes disso o perfil mostra "sem
-Padelímetro — jogue um torneio". Quem vem do Quanto Tá entra se inscrevendo na
+entrada da categoria em que ela foi jogada. Antes disso o perfil não mostra a pílula (o "sem
+Padelímetro — jogue um torneio" desta espec ainda não foi desenhado — 13/11/2026). Quem vem do Quanto Tá entra se inscrevendo na
 categoria que já joga lá, e o seed faz o resto; o K de calibração conserta exageros
 em 1–2 torneios.
 
@@ -212,8 +217,8 @@ Longhi, +142 em 5 jogos), contra os "+60 a +100" que este arquivo prometia.
 🔑 **A régua do rótulo, decidida com o Felipe em 14/09/2026:**
 
 - **Em calibração (menos de 10 jogos), o rótulo é a faixa da CATEGORIA QUE A PESSOA JOGA.** O
-  número corre por baixo normalmente; só o rótulo espera. É o mesmo julgamento que o `K = 40`
-  já faz — se o número ainda anda rápido porque é um chute, ele não pode estar renomeando
+  número corre por baixo normalmente; só o rótulo espera. É o mesmo julgamento que o K de calibração
+  (24 desde 09/11/2026; era 40) já faz — se o número ainda anda rápido porque é um chute, ele não pode estar renomeando
   ninguém. E é o que faz valer o "1 ou 2 torneios dominados" em vez de sempre 1.
 - **Passada a calibração, o número manda, com folga de 50 PROS DOIS LADOS**: sobe com
   `teto + 50`, desce com `piso − 50`. ⚠️ **Desde 09/11/2026 a subida pede `teto + 100`** — ver
@@ -279,6 +284,19 @@ acima da 4ª (o perfil dele diz "Categoria prevista: 4ª — chegou à final").
   muda), não numa conta paralela.
 
 📊 Em 09/11 só 4 jogadores estavam fora da calibração; pela régua nova só o Deivid muda (3ª → 4ª).
+
+### A âncora só vem de inscrição que CONTA, e a mista usa a escada do cadastro (13/11/2026)
+
+- **A âncora ignora o que não move o número**: Americano (os dois), torneio restrito ou de time
+  exclusivo (a régua `DuplaContaNoRanking`), lista de espera, inscrição sem parceiro, dupla-TIME
+  e torneio cancelado. Antes, um Americano numa categoria acima renomeava a pessoa — o mesmo
+  defeito do Deivid, por outra porta. Uma regra só, rodando no banco:
+  `PadelimetroService.InscricoesQueAncoramORotulo` + `CategoriasDeReferenciaAsync`, usadas pelos
+  três lugares (que até aqui escreviam a consulta cada um do seu jeito).
+- **Quem não tem categoria na escada** (só jogou mista/casal/lendas) segue com a faixa crua
+  (decisão de 14/09) — mas na escada do **sexo do cadastro**: uma mulher que só jogou mista
+  aparecia "7ª" da escada masculina no perfil e no card, e "—" no ranking. Sem sexo informado,
+  masculina. Porta única: `FaixasDePadelimetro.FaixaDoJogador` / `FaltaPraMudarDoJogador`.
 
 ### Fases de lançamento (para não queimar o produto)
 
@@ -367,9 +385,12 @@ Quem for mexer nesse método: a ausência das duas checagens é para ficar como 
 - Estado no `Jogador`: `Padelimetro` (int?, nulo = nunca jogou) e
   `JogosDePadelimetro` (conta pro K de calibração).
 - Extrato em `HistoricoDePadelimetro` (JogadorId, PartidaId?, NivelAntes, Delta,
-  Motivo, CriadoEm) — é o que desenha o gráfico e explica cada movimento.
-- Gancho único: `FinalizarPartida` (Mesa de Controle) — é o único lugar do sistema
-  que carimba `Status = "Finalizada"`.
+  Motivo, CriadoEm) — é o que explica cada movimento. O perfil mostra as 8 últimas linhas; o
+  GRÁFICO ainda não existe (está na lista, `PROXIMOS-PASSOS.md`).
+- Gancho único: `EncerramentoDaPartida` — o funil dos TRÊS lugares que finalizam (Mesa,
+  Controle de Placar e W.O.). A aplicação vem depois do placar gravado; se ela se perder (um
+  restart no meio), a `VarreduraDoPadelimetro` aplica o jogo em até ~15 min, dentro de 48h, e
+  avisa o admin (13/11/2026). Mais velho que isso é trabalho do replay.
 - **Replay determinístico**: recalcular tudo do zero a partir das partidas
   finalizadas, em ordem cronológica. É o que dá o retroativo (nascemos com histórico,
   não com folha em branco) e o que permite mudar regra sem sujeira — mudou a fórmula,
@@ -634,8 +655,9 @@ caminho de inscrição do Padrão. Duas armadilhas nisso:
 O piso de 8 é por PESSOA nos dois formatos: senão bastaria jogar em duplas pra driblar a
 regra que existe justamente contra resultado combinado.
 
-Status: a exclusão do oficial está no ar. A trilha própria (tabela de pontos, tela e
-cobrança dos R$ 5) ainda não — é o próximo passo.
+Status: no ar inteira — a exclusão do oficial e a trilha própria (`RankingAmericanoService`:
+tabela de pontos, aba no ranking e o acerto dos R$ 5 por pessoa na tela do admin).
+*(Corrigido em 13/11/2026: dizia que a trilha própria ainda não existia.)*
 
 ## Decisões registradas
 
