@@ -248,16 +248,12 @@ public class CartoesController : Controller
         bool emCalibracao = false;
         if (jogador.Padelimetro is int nivel)
         {
-            var inscricoes = await _context.Duplas
-                .AsNoTracking()
-                .Where(d => d.Jogador1Id == id || d.Jogador2Id == id)
-                .Select(d => new { d.Categoria.Nome, d.Categoria.Torneio.DataInicio })
-                .ToListAsync();
-            // Mesmo rótulo do perfil e do ranking — a arte não pode dizer outra faixa.
-            var categoriaDaEscada = FaixasDePadelimetro.CategoriaDeReferencia(
-                inscricoes.Select(i => ((string?)i.Nome, i.DataInicio)), DateTime.Today);
+            // Mesmo rótulo do perfil e do ranking — a arte não pode dizer outra faixa. Por isso a
+            // âncora e o rótulo saem das MESMAS duas funções que eles usam (13/11/2026).
+            var categoriaDaEscada = (await PadelimetroService.CategoriasDeReferenciaAsync(_context, new[] { id }, DateTime.Today))
+                .GetValueOrDefault(id);
             var rotulo = FaixasDePadelimetro
-                .FaixaExibida(nivel, categoriaDaEscada, jogador.JogosDePadelimetro).Rotulo;
+                .FaixaDoJogador(nivel, categoriaDaEscada, jogador.JogosDePadelimetro, jogador.Sexo).Rotulo;
             faixa = rotulo == "Open" ? "Categoria Open" : $"{rotulo} categoria";
             emCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
         }

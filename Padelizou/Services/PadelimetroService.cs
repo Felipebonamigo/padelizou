@@ -50,6 +50,53 @@ public class PadelimetroService : IPadelimetroService
     //   18/08/2026 e fechou um buraco que o comentário do EncerramentoDaPartida já dizia
     //   estar fechado — antes não havia como distinguir um W.O. de um 6x0 jogado, e o nível
     //   dos quatro se mexia por um jogo que não aconteceu (ver Services/EncerramentoPorWo).
+    // AS INSCRIÇÕES QUE PODEM ANCORAR O RÓTULO (13/11/2026) — a categoria que a pessoa JOGA.
+    //
+    // Desde o #397 o rótulo de quem calibra é a categoria jogada; a régua da data (`Categoria
+    // DeReferencia`) só tirava mista e torneio futuro, e um Americano, um torneio restrito, uma
+    // lista de espera, uma inscrição sem parceiro ou um torneio cancelado numa categoria acima
+    // renomeavam a pessoa sem ela jogar nada que mexe no número. Fica a régua do ranking
+    // (`DuplaContaNoRanking`: sem restrito, time exclusivo nem Americano) mais o que separa
+    // "inscrito" de "jogou": parceiro, fora da espera, dupla de gente (não TIME), torneio de pé.
+    //
+    // Uma escrita só, pros TRÊS lugares que mostram o rótulo — ranking, perfil e card — que até
+    // aqui faziam a mesma consulta cada um do seu jeito. Roda no banco
+    // (RotuloDoPadelimetroSoComOQueContaTests confere a tradução pro Postgres).
+    public static IQueryable<Dupla> InscricoesQueAncoramORotulo(IQueryable<Dupla> duplas) =>
+        duplas
+            .Where(EstatisticasService.DuplaContaNoRanking)
+            .Where(d => d.NomeTime == null
+                        && d.Jogador2Id != null
+                        && !d.EmListaDeEspera
+                        && !d.Categoria.DeTimes
+                        && d.Categoria.Torneio.Status != CancelamentoDoTorneio.Status);
+
+    // A categoria de referência de cada jogador (sem entrada = nenhuma inscrição na escada que
+    // conte — só mista, por exemplo). A data e o desempate são os do `CategoriaDeReferencia`.
+    public static async Task<Dictionary<int, string>> CategoriasDeReferenciaAsync(
+        DbPadelContext context, IReadOnlyCollection<int> jogadorIds, DateTime hoje)
+    {
+        var inscricoes = await InscricoesQueAncoramORotulo(context.Duplas)
+            .Where(d => jogadorIds.Contains(d.Jogador1Id)
+                        || (d.Jogador2Id != null && jogadorIds.Contains(d.Jogador2Id.Value)))
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id, d.Categoria.Nome, d.Categoria.Torneio.DataInicio })
+            .ToListAsync();
+
+        var porJogador = inscricoes
+            .SelectMany(i => new[] { (Id: i.Jogador1Id, i.Nome, i.DataInicio), (Id: i.Jogador2Id ?? -1, i.Nome, i.DataInicio) })
+            .Where(x => jogadorIds.Contains(x.Id))
+            .ToLookup(x => x.Id);
+
+        var categorias = new Dictionary<int, string>();
+        foreach (var grupo in porJogador)
+        {
+            var categoria = FaixasDePadelimetro.CategoriaDeReferencia(
+                grupo.Select(x => ((string?)x.Nome, x.DataInicio)), hoje);
+            if (categoria != null) categorias[grupo.Key] = categoria;
+        }
+        return categorias;
+    }
+
     public static bool Conta(Partida partida, Categoria categoria, Dupla dupla1, Dupla dupla2) =>
         partida.Status == "Finalizada"
         && partida.GamesDupla1 != null && partida.GamesDupla2 != null
@@ -348,51 +395,25 @@ public class PadelimetroService : IPadelimetroService
             .ToListAsync();
         if (jogadores.Count == 0) return new();
 
-        // A escada de cada um (masc/fem) decide só o RÓTULO da faixa, nunca o número —
-        // e vem da inscrição não-mista mais recente, igual ao perfil.
-        var ids = jogadores.Select(j => j.Id).ToHashSet();
-        var inscricoes = await _context.Duplas
-            .Where(d => d.NomeTime == null
-                     && (ids.Contains(d.Jogador1Id) || (d.Jogador2Id != null && ids.Contains(d.Jogador2Id.Value))))
-            .Select(d => new
-            {
-                d.Jogador1Id,
-                d.Jogador2Id,
-                Categoria = d.Categoria.Nome,
-                Data = d.Categoria.Torneio.DataInicio,
-            })
-            .ToListAsync();
-
-        // Guarda o NOME da categoria, e não só "é feminina": desde 14/09/2026 ela é a ÂNCORA
-        // do rótulo, não só a escolha da escada. Ver FaixasDePadelimetro.FaixaExibida.
-        // A âncora de cada um sai da mesma régua do perfil e do card (só torneio já jogado;
-        // empate de data → a mais forte). Ver FaixasDePadelimetro.CategoriaDeReferencia.
-        var hoje = DateTime.Today;
-        var porJogador = inscricoes
-            .SelectMany(i => new[] { (Id: i.Jogador1Id, i.Categoria, i.Data), (Id: i.Jogador2Id ?? -1, i.Categoria, i.Data) })
-            .Where(x => ids.Contains(x.Id))
-            .ToLookup(x => x.Id);
-        var categoriaDeCadaUm = new Dictionary<int, string>();
-        foreach (var grupo in porJogador)
-        {
-            var categoria = FaixasDePadelimetro.CategoriaDeReferencia(
-                grupo.Select(x => ((string?)x.Categoria, x.Data)), hoje);
-            if (categoria != null) categoriaDeCadaUm[grupo.Key] = categoria;
-        }
+        // A escada de cada um (masc/fem) decide só o RÓTULO da faixa, nunca o número — e a ÂNCORA
+        // sai da régua única do perfil e do card (`CategoriasDeReferenciaAsync`: só inscrição que
+        // conta; torneio já jogado; empate de data → a mais forte).
+        var categoriaDeCadaUm = await CategoriasDeReferenciaAsync(_context, jogadores.Select(j => j.Id).ToList(), DateTime.Today);
 
         return jogadores.Select(j =>
         {
-            FaixasDePadelimetro.Faixa? faixa = categoriaDeCadaUm.TryGetValue(j.Id, out var categoria)
-                ? FaixasDePadelimetro.FaixaExibida(j.Padelimetro!.Value, categoria, j.JogosDePadelimetro)
-                : null;
+            // Sem categoria na escada (só jogou mista), o rótulo é a faixa crua na escada do sexo
+            // do cadastro — o MESMO do perfil e do card (FaixasDePadelimetro.FaixaDoJogador).
+            var faixa = FaixasDePadelimetro.FaixaDoJogador(
+                j.Padelimetro!.Value, categoriaDeCadaUm.GetValueOrDefault(j.Id), j.JogosDePadelimetro, j.Sexo);
             return new PadelimetroLinhaVM
             {
                 Jogador = j,
                 Pdz = j.Padelimetro!.Value,
                 Jogos = j.JogosDePadelimetro,
                 EmCalibracao = Padelimetro.EmCalibracao(j.JogosDePadelimetro),
-                FaixaRotulo = faixa?.Rotulo,
-                FaixaEscada = faixa?.Escada,
+                FaixaRotulo = faixa.Rotulo,
+                FaixaEscada = faixa.Escada,
             };
         }).ToList();
     }

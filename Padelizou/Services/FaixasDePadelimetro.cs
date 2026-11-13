@@ -226,6 +226,24 @@ public static class FaixasDePadelimetro
             : jogada;
     }
 
+    // O RÓTULO DE UMA PESSOA — a porta única do ranking, do perfil e do card (13/11/2026).
+    //
+    // Com categoria na escada, é o `FaixaExibida` de sempre. SEM ela (só jogou mista, casal ou
+    // lendas), vale a faixa CRUA — decisão de 14/09/2026, pra não apagar o rótulo de quem só joga
+    // mista —, e a escada que o nome da categoria não diz sai do SEXO DO CADASTRO: até aqui uma
+    // mulher que só jogou mista virava "7ª" da escada masculina no perfil e no card, e "—" no
+    // ranking. Sem sexo informado fica a masculina, como sempre foi.
+    public static Faixa FaixaDoJogador(int nivel, string? categoriaDeReferencia, int jogos, string? sexo) =>
+        DaCategoria(categoriaDeReferencia) != null
+            ? FaixaExibida(nivel, categoriaDeReferencia, jogos)
+            : DoNivel(nivel, EhFeminina(categoriaDeReferencia) || sexo == SexoDoJogador.Feminino);
+
+    // O "faltam X" que acompanha o rótulo acima — pela mesma escada.
+    public static int? FaltaPraMudarDoJogador(int nivel, string? categoriaDeReferencia, int jogos, string? sexo) =>
+        DaCategoria(categoriaDeReferencia) != null
+            ? FaltaPraMudarDeFaixa(nivel, categoriaDeReferencia, jogos)
+            : FaltaPraSubir(nivel, EhFeminina(categoriaDeReferencia) || sexo == SexoDoJogador.Feminino);
+
     // Quanto falta pro RÓTULO mudar — e não pra faixa crua. Um "faltam 8 pra subir" ao lado de
     // um rótulo que não muda em 8 é a mesma mentira pequena que o selo de movimento contava.
     // Nulo em calibração (a tela nem mostra a linha ali) e no topo da escada.
