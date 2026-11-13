@@ -143,7 +143,7 @@ public class PrecoPorJogoDoRegistroTests
         await admin.RegistroResultados();
 
         var aoVivo = Assert.IsType<Dictionary<int, int>>(admin.ViewData["JogosAoVivo"]);
-        Assert.Equal(21, aoVivo[torneio.Id]);          // 16 duplas = 21 jogos
+        Assert.Equal(25, aoVivo[torneio.Id]);          // 16 duplas = 14 de grupo + 11 de mata-mata (todo classificado entra, 13/11/2026)
     }
 
     [Fact]
@@ -161,6 +161,6 @@ public class PrecoPorJogoDoRegistroTests
         await controller.SolicitarRegistroResultados(torneio.Id, null);
 
         var pedido = await ctx.SolicitacoesRegistroResultados.SingleAsync();
-        Assert.Equal(10, pedido.JogosPrevistos);       // 8 duplas de verdade, não 12
+        Assert.Equal(12, pedido.JogosPrevistos);       // as 8 duplas de verdade = 12 jogos; as 12 inscritas dariam 19
     }
 }

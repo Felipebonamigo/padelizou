@@ -8,13 +8,15 @@ namespace Padelizou.Tests;
 public class CustoPorJogoTests
 {
     // duplas -> jogos (grupos + mata-mata), pela mesma regra do GerarChaves.
+    // 13/11/2026: o mata-mata leva TODO classificado (quadro com bye) — 8, 16 e 32 duplas eram
+    // 10, 21 e 46 pela régua antiga, que cortava pro maior quadro que coubesse (PrevisaoDoTorneioTests).
     [Theory]
-    [InlineData(4, 5)]
-    [InlineData(8, 10)]
-    [InlineData(12, 19)]
-    [InlineData(16, 21)]
-    [InlineData(24, 39)]
-    [InlineData(32, 46)]
+    [InlineData(4, 5)]     // 2 grupos de 2: 2 + mata-mata de 4 (3)
+    [InlineData(8, 12)]    // 3 grupos: 7 + mata-mata de 6 classificados (5)
+    [InlineData(12, 19)]   // 4 grupos: 12 + 7
+    [InlineData(16, 25)]   // 6 grupos: 14 + mata-mata de 12 classificados (11)
+    [InlineData(24, 39)]   // 8 grupos: 24 + 15
+    [InlineData(32, 52)]   // 11 grupos: 31 + mata-mata de 22 classificados (21)
     public void Jogos_por_categoria(int duplas, int jogosEsperados)
     {
         Assert.Equal(jogosEsperados, PrevisaoDoTorneio.TotalDeJogos(duplas));

@@ -17,11 +17,11 @@ migration ou contrato de API → **architectural** pelo `CLAUDE.md` (desenho apr
 
 Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
 
-- [ ] **1. "Adicionar horário" perto da meia-noite** (defeito do #415). Somar a duração ao limite
+- [x] **1. "Adicionar horário" perto da meia-noite** (defeito do #415). ✅ #417, `build-1641-b0848eb` em dev e prod. Somar a duração ao limite
       passava de 24h: `HorarioDoDia.Escrever` gravava 24h10 como `00:10`, o `Ler` descartava a faixa e
       o dia perdia o horário próprio, com "sucesso" na tela; esticando no meio, o jogo ia pra 00:20
       do dia seguinte. → recusar com explicação; `Escrever` estoura em vez de gravar torto.
-- [ ] **2. Backup honesto + cópia do banco no deploy + fuso no `/healthz`.**
+- [ ] **2. Backup honesto + cópia do banco no deploy + fuso no `/healthz`.** 🔀 #418 no `main`; falta publicar e o Felipe instalar os scripts no VPS (`infra/vps/README.md`).
   - `infra/vps/backup-offsite.sh` grava o carimbo do vigia mesmo sem dump novo (o `rclone copy`
     passa sem nada pra copiar) e o `rclone delete --min-age 30d` vai esvaziando o B2 se o
     `pg_dump` parar. → só carimbar (e só apagar histórico) com dump de < 26h, tamanho mínimo e
@@ -32,7 +32,7 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
   - Nada no código confere o fuso (o app depende do VPS em America/Sao_Paulo). → `/healthz` 503
     fora de São Paulo, e o `deploy.sh` faz rollback sozinho.
   - ⚠️ Os dois scripts moram no VPS: o merge não os instala. O Felipe copia (passo a passo no PR).
-- [ ] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11).
+- [ ] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11). 🔧 em PR.
       `PrevisaoDoTorneio.MataMata` ainda corta pro MAIOR quadro que cabe; a chave real
       (`ChaveamentoMataMata`) leva todo mundo com bye. 3 grupos: prevê 3 jogos, são 5; 6 grupos:
       prevê 7, são 11. Pesa no "não cabe?" antes do sorteio e no preço do pacote de registro de
