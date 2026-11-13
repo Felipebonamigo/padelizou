@@ -37,10 +37,20 @@ namespace Padelizou.Controllers
 
             if (modo != "meio")
             {
-                EsticarODia(torneio, cal, dia, cal.Limite(dia).Add(TimeSpan.FromMinutes(duracao)));
+                var novoLimite = cal.Limite(dia).Add(TimeSpan.FromMinutes(duracao));
+                // A faixa do dia vive DENTRO do dia (HorarioDoDia.Escrever): passar da meia-noite seria
+                // jogo de madrugada no dia seguinte, fora de qualquer faixa. Recusa sem mudar nada.
+                if (novoLimite >= TimeSpan.FromDays(1))
+                {
+                    TempData["Erro"] = $"O último jogo de {dia:dd/MM} já começa às {cal.Limite(dia):hh\\:mm}: mais um horário "
+                        + "no fim passaria da meia-noite. Abra o espaço no meio, com \"empurrar pro dia seguinte\".";
+                    return VoltarPara(voltarPara, id, filtros);
+                }
+
+                EsticarODia(torneio, cal, dia, novoLimite);
                 await _context.SaveChangesAsync();
                 TempData["Sucesso"] = $"{dia:dd/MM} ganhou mais um horário no fim: o último jogo pode começar até "
-                    + $"{cal.Limite(dia).Add(TimeSpan.FromMinutes(duracao)):hh\\:mm}. Nenhum jogo mudou.";
+                    + $"{novoLimite:hh\\:mm}. Nenhum jogo mudou.";
                 return VoltarPara(voltarPara, id, filtros);
             }
 
@@ -76,6 +86,17 @@ namespace Padelizou.Controllers
             if (novos.Count == 0)
             {
                 TempData["Erro"] = $"Não há jogo agendado a partir de {corte:dd/MM HH:mm} pra empurrar.";
+                return VoltarPara(voltarPara, id, filtros);
+            }
+
+            // Esticando, o dia só cresce até a meia-noite: o jogo empurrado pra 00:20 cairia no dia
+            // seguinte, fora de qualquer faixa (e, no último dia, fora do torneio).
+            var depoisDaMeiaNoite = novos.Where(h => h.Date > dia).ToList();
+            if (!proximoDia && depoisDaMeiaNoite.Count > 0)
+            {
+                TempData["Erro"] = $"Esticando, um jogo de {dia:dd/MM} passaria da meia-noite "
+                    + $"(iria pra {depoisDaMeiaNoite.Min():dd/MM HH:mm}). "
+                    + "Escolha \"empurrar pro dia seguinte\" ou abra o espaço mais cedo.";
                 return VoltarPara(voltarPara, id, filtros);
             }
 

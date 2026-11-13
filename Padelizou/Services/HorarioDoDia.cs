@@ -46,11 +46,27 @@ public static class HorarioDoDia
     }
 
     // Em ordem de data. Nulo quando não sobra dia nenhum — é o "sem horário próprio".
-    public static string? Escrever(IReadOnlyDictionary<DateTime, Faixa> faixas) =>
-        faixas.Count == 0
+    //
+    // ⚠️ A FAIXA VIVE DENTRO DO DIA (13/11/2026). `hh` é a hora DO DIA, não o total: um limite de
+    // 24h10 sairia "00:10", o `Ler` descartaria a faixa (fecha antes de abrir) e o dia perderia o
+    // horário próprio inteiro, calado — foi o que o "Adicionar horário" fazia perto da meia-noite.
+    // Quem calcula limite somando minutos tem que recusar antes; isto aqui é a trava de baixo, e
+    // estoura alto (vira erro no vigia) em vez de gravar torto.
+    public static string? Escrever(IReadOnlyDictionary<DateTime, Faixa> faixas)
+    {
+        foreach (var (dia, faixa) in faixas)
+        {
+            if (faixa.Abre < TimeSpan.Zero || faixa.Abre >= TimeSpan.FromDays(1)
+                || faixa.UltimoJogo < TimeSpan.Zero || faixa.UltimoJogo >= TimeSpan.FromDays(1))
+                throw new ArgumentOutOfRangeException(nameof(faixas),
+                    $"A faixa de {dia:dd/MM} sai do dia ({faixa.Abre} – {faixa.UltimoJogo}): ela tem que caber entre 00:00 e 23:59.");
+        }
+
+        return faixas.Count == 0
             ? null
             : string.Join(';', faixas.OrderBy(f => f.Key)
                 .Select(f => $"{f.Key:yyyy-MM-dd}={f.Value.Abre:hh\\:mm}-{f.Value.UltimoJogo:hh\\:mm}"));
+    }
 
     public static TimeSpan? LerHora(string? texto) =>
         TimeSpan.TryParseExact((texto ?? "").Trim(), [@"hh\:mm", @"h\:mm", @"hh\:mm\:ss"],
