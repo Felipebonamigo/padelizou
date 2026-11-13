@@ -1839,8 +1839,9 @@ namespace Padelizou.Controllers
         // Quem joga fica sabendo que a hora mudou (Services/AvisoDeHorarioMudado). O que mudou é lido
         // ANTES do SaveChanges (`Capturar`: a hora de antes é a do banco, e gravar a apaga do
         // ChangeTracker) e anotado DEPOIS — gravação que estourou não remarcou ninguém. Só com a
-        // chave PÚBLICA: antes disso o jogador nunca viu hora nenhuma, e "passou de 18:00" seria de
-        // uma hora que ele não conhecia (AvisoDeHorarioMudadoTests).
+        // chave PÚBLICA: em aprovação o jogador não vê hora nenhuma, e "passou de 18:00" seria de
+        // uma hora que ele não conhece (AvisoDeHorarioMudadoTests). ⚠️ A chave RECOLHIDA também
+        // cai aqui, e ali ele já tinha visto — buraco conhecido, ver Services/AvisoDeHorarioMudado.
         private void AnotarHorariosMudados(Torneio torneio, List<AvisoDeHorarioMudado.Mudanca> mudancas)
         {
             if (mudancas.Count == 0 || !AprovacaoDeChaves.ChavePublicada(torneio)) return;

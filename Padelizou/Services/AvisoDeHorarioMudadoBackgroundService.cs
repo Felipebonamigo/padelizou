@@ -26,13 +26,24 @@ public class AvisoDeHorarioMudadoBackgroundService : BackgroundService
         using var timer = new PeriodicTimer(IntervaloTick);
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            await PassarAsync();
+            await PassarAsync(DateTime.Now);
         }
     }
 
-    private async Task PassarAsync()
+    // DESLIGANDO (deploy, restart — foram 5 deploys em 13/11): o que esperava a grade sossegar sai
+    // agora, em vez de morrer com o registro em memória. Melhor um aviso com 1 minuto de espera a
+    // menos que nenhum. A fila de push/e-mail (FilaDeAvisos) foi registrada antes e para DEPOIS
+    // deste serviço (o host para na ordem inversa), então ela ainda entrega o que entra aqui.
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        var vencidos = _pendentes.Tirar(DateTime.Now);
+        await base.StopAsync(cancellationToken);
+        await PassarAsync(DateTime.MaxValue);
+    }
+
+    // Pública pra testar com o relógio na mão (AvisoDeHorarioMudadoTests).
+    public async Task PassarAsync(DateTime agora)
+    {
+        var vencidos = _pendentes.Tirar(agora);
         if (vencidos.Count == 0) return;
 
         try

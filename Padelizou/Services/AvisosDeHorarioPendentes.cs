@@ -17,9 +17,9 @@ namespace Padelizou.Services;
 // 18:50 e depois pra 19:40 recebe "de 18:00 pra 19:40"; quem voltou pras 18:00 não recebe nada
 // (isso o envio decide, lendo a hora de agora no banco).
 //
-// 💨 EM MEMÓRIA, como a FilaDeAvisos: aviso é perecível. Um restart dentro da espera perde o
-// aviso daquela mexida — o mesmo preço que a fila já paga, e a tela continua com a hora certa.
-// Persistir pediria tabela nova pra um aviso que vale minutos.
+// 💨 EM MEMÓRIA, como a FilaDeAvisos: persistir pediria tabela nova pra um aviso que vale minutos.
+// O DESLIGAMENTO normal (deploy, restart) manda o que esperava (AvisoDeHorarioMudadoBackgroundService
+// .StopAsync); só uma queda seca do processo perde a mexida — e a tela continua com a hora certa.
 public class AvisosDeHorarioPendentes
 {
     public static readonly TimeSpan Quietude = TimeSpan.FromMinutes(3);

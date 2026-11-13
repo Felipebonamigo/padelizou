@@ -15,7 +15,8 @@ namespace Padelizou.Tests;
 //
 // 🔑 O DESENHO:
 //   - As ações anotam o que mudou (lido do ChangeTracker ANTES de gravar: o horário de antes é o
-//     do banco), e o aviso sai depois de 3 MINUTOS SEM MUDANÇA naquele jogo. Arrumar a grade com
+//     do banco), e o aviso sai depois de 3 MINUTOS SEM MUDANÇA NO TORNEIO (teto de 10 min desde a
+//     primeira mudança que espera). Arrumar a grade com
 //     as setas é uma rajada de cliques: aviso por clique encheria o celular de todo mundo e
 //     queimaria a cota de e-mail (100/dia). Jogo que volta pro horário de antes não avisa nada.
 //   - Um aviso por PESSOA, com todos os jogos dela que mudaram.
@@ -124,6 +125,9 @@ public class AvisoDeHorarioMudadoTests
     private static DateTime Hora(Partida jogo) =>
         jogo.HorarioPrevisto ?? throw new InvalidOperationException($"O jogo {jogo.Id} nasceu sem horário.");
 
+    private static Task<string> CategoriaAsync(DbPadelContext ctx, int partidaId) =>
+        ctx.Partidas.AsNoTracking().Where(p => p.Id == partidaId).Select(p => p.Categoria.Nome).SingleAsync();
+
     private static async Task<List<int>> JogadoresDoJogoAsync(DbPadelContext ctx, int partidaId)
     {
         var p = await ctx.Partidas.AsNoTracking().Include(x => x.Dupla1).Include(x => x.Dupla2).SingleAsync(x => x.Id == partidaId);
@@ -154,10 +158,14 @@ public class AvisoDeHorarioMudadoTests
 
         var jogadores = await JogadoresDoJogoAsync(ctx, jogo.Id);
         Assert.Equal(jogadores.Count, enviados);
+        // O texto inteiro e o link: "de" e "para" trocados, ou sem a data (o jogo pode mudar de DIA),
+        // passavam num Contains de horas (revisão do #422).
+        var novo = antes.AddMinutes(50);
+        var esperado = $"Last Dance · {await CategoriaAsync(ctx, jogo.Id)}: seu jogo passou de "
+            + $"{antes:dd/MM} às {antes:HH:mm} para {novo:dd/MM} às {novo:HH:mm}.";
         foreach (var jogadorId in jogadores)
             await push.Received(1).EnviarParaJogadorAsync(jogadorId, "Seu jogo mudou de horário",
-                Arg.Is<string>(c => c != null && c.Contains("Last Dance") && c.Contains($"{antes:HH:mm}") && c.Contains($"{antes.AddMinutes(50):HH:mm}")),
-                Arg.Any<string?>(), AlcanceDoAviso.SoApp);
+                esperado, $"/Torneios/Jogos/{torneio.Id}", AlcanceDoAviso.SoApp);
     }
 
     // A mesma régua do "Chaves saíram" (AvisarChavesPublicadasAsync): na linha de TIME o
@@ -204,8 +212,18 @@ public class AvisoDeHorarioMudadoTests
         await new AvisoDeHorarioMudado(ctx, push).EnviarAsync(vencidos);
 
         var jogadorDaDupla = primeiro.Dupla1.Jogador1Id;
+        // Os DOIS jogos no texto, na ordem da hora nova.
+        string Trecho(Partida j, string categoria)
+        {
+            var a = Hora(j);
+            var d = a.AddMinutes(5);
+            return $"{categoria}, passou de {a:dd/MM} às {a:HH:mm} para {d:dd/MM} às {d:HH:mm}";
+        }
+        var trechos = new List<string>();
+        foreach (var j in new[] { primeiro, segundo }.OrderBy(Hora))
+            trechos.Add(Trecho(j, await CategoriaAsync(ctx, j.Id)));
         await push.Received(1).EnviarParaJogadorAsync(jogadorDaDupla, "Seus jogos mudaram de horário",
-            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
+            "Last Dance: " + string.Join("; ", trechos) + ".", $"/Torneios/Jogos/{torneio.Id}", AlcanceDoAviso.SoApp);
         await push.DidNotReceive().EnviarParaJogadorAsync(jogadorDaDupla, "Seu jogo mudou de horário",
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
     }
@@ -281,9 +299,12 @@ public class AvisoDeHorarioMudadoTests
         Assert.All(anotados, v => Assert.Equal(torneio.Id, v.TorneioId));
     }
 
-    // Antes de publicar, o jogador nunca viu horário nenhum: "passou de 18:00 pra 18:50" seria de
-    // uma hora que ele não conhecia. Anotar e conferir só na hora de mandar não bastaria — a chave
+    // Com a chave em aprovação o jogador não vê horário nenhum: "passou de 18:00 pra 18:50" seria de
+    // uma hora que ele não conhece. Anotar e conferir só na hora de mandar não bastaria — a chave
     // publicada DENTRO da espera de 3 minutos mandaria a mudança feita ainda em aprovação.
+    // ⚠️ A chave RECOLHIDA depois de pública cai aqui também (o status volta pra "em aprovação"),
+    // e ali o jogador JÁ viu a hora: remarcar recolhida e republicar não avisa — fica com a
+    // caixinha "avisar" da re-aprovação. Decisão pendente com o Felipe (PROXIMOS-PASSOS.md, item 4).
     [Fact]
     public async Task Mexer_na_grade_antes_de_publicar_nao_anota_nada()
     {
@@ -359,10 +380,89 @@ public class AvisoDeHorarioMudadoTests
         Assert.Equal(mudaram, TudoQueFoiAnotado(pendentes).Select(v => v.PartidaId).OrderBy(x => x));
     }
 
+    // Jogo de chave pública que estava SEM hora (sorteio que não coube) e ganha uma na mão: não há
+    // "de" — o texto diz a hora nova.
+    [Fact]
+    public async Task Jogo_sem_hora_que_ganha_uma_avisa_a_hora_nova()
+    {
+        var (ctx, torneio, org) = await PublicadoAsync();
+        var ultimo = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id && p.Status == "Agendada")
+            .OrderByDescending(p => p.HorarioPrevisto).FirstAsync();
+        ultimo.HorarioPrevisto = null;
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+        var pendentes = new AvisosDeHorarioPendentes();
+        var hora = Sexta.AddHours(22).AddMinutes(10);
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id, horarios: pendentes)
+            .DefinirHorario(torneio.Id, ultimo.Id.ToString(), hora);
+
+        var anotado = Assert.Single(TudoQueFoiAnotado(pendentes));
+        Assert.Equal((ultimo.Id, (DateTime?)null), (anotado.PartidaId, anotado.Antes));
+        var push = Substitute.For<IPushNotificationService>();
+        await new AvisoDeHorarioMudado(ctx, push).EnviarAsync(new[] { anotado });
+        var jogadores = await JogadoresDoJogoAsync(ctx, ultimo.Id);
+        foreach (var jogadorId in jogadores)
+            await push.Received(1).EnviarParaJogadorAsync(jogadorId, "Seu jogo mudou de horário",
+                $"Last Dance · {await CategoriaAsync(ctx, ultimo.Id)}: seu jogo agora é {hora:dd/MM} às {hora:HH:mm}.",
+                $"/Torneios/Jogos/{torneio.Id}", AlcanceDoAviso.SoApp);
+    }
+
+    // ── 4. O relógio ──────────────────────────────────────────────────────────────────────────
+
+    private static async Task<(AvisoDeHorarioMudadoBackgroundService relogio, AvisosDeHorarioPendentes pendentes,
+        IPushNotificationService push, List<int> jogadores)> RelogioComUmaMudancaAsync(DateTime anotadoEm)
+    {
+        var (ctx, torneio, _) = await PublicadoAsync();
+        var jogo = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.TorneioId == torneio.Id && p.Status == "Agendada");
+        var antes = Hora(jogo);
+        await MoverAsync(ctx, jogo, antes.AddMinutes(50));
+        var pendentes = new AvisosDeHorarioPendentes();
+        pendentes.Anotar(torneio.Id, new[] { new AvisoDeHorarioMudado.Mudanca(jogo.Id, antes, antes.AddMinutes(50)) }, anotadoEm);
+        var push = Substitute.For<IPushNotificationService>();
+        var servicos = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddScoped(servicos, _ => new AvisoDeHorarioMudado(ctx, push));
+        var provedor = Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(servicos);
+        var fabrica = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+            .GetRequiredService<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(provedor);
+        var relogio = new AvisoDeHorarioMudadoBackgroundService(fabrica, pendentes,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AvisoDeHorarioMudadoBackgroundService>.Instance);
+        return (relogio, pendentes, push, await JogadoresDoJogoAsync(ctx, jogo.Id));
+    }
+
+    [Fact]
+    public async Task O_tique_manda_o_que_venceu_e_segura_o_que_nao()
+    {
+        var (relogio, pendentes, push, jogadores) = await RelogioComUmaMudancaAsync(Agora);
+
+        await relogio.PassarAsync(Agora.AddMinutes(1));
+        await push.DidNotReceive().EnviarParaJogadorAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
+
+        await relogio.PassarAsync(Agora.AddMinutes(3));
+        await push.Received(jogadores.Count).EnviarParaJogadorAsync(Arg.Any<int>(), "Seu jogo mudou de horário",
+            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
+    }
+
+    // O deploy reinicia o app (5 vezes em 13/11): o que estava esperando a grade sossegar sai na
+    // hora de desligar, em vez de morrer com o processo.
+    [Fact]
+    public async Task Desligar_o_app_manda_o_que_estava_esperando()
+    {
+        var (relogio, _, push, jogadores) = await RelogioComUmaMudancaAsync(DateTime.Now);
+
+        await relogio.StartAsync(CancellationToken.None);
+        await relogio.StopAsync(CancellationToken.None);
+
+        await push.Received(jogadores.Count).EnviarParaJogadorAsync(Arg.Any<int>(), "Seu jogo mudou de horário",
+            Arg.Any<string>(), Arg.Any<string?>(), AlcanceDoAviso.SoApp);
+    }
+
     [Fact]
     public void O_aviso_tem_relogio_e_esta_registrado()
     {
-        var program = File.ReadAllText(Path.Combine(Raiz(), "Padelizou", "Program.cs"));
+        // Sem os comentários: um `// AddSingleton<...>` comentado passava e derrubaria o controller.
+        var program = TestInfra.SemComentarios(File.ReadAllText(Path.Combine(Raiz(), "Padelizou", "Program.cs")));
 
         Assert.Contains("AddSingleton<AvisosDeHorarioPendentes>()", program);
         Assert.Contains("AddScoped<AvisoDeHorarioMudado>()", program);

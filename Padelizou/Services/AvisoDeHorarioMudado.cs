@@ -16,12 +16,22 @@ namespace Padelizou.Services;
 //   2. Espera a grade sossegar (AvisosDeHorarioPendentes: 3 minutos sem mexer no torneio).
 //   3. Aqui: confere de novo NO BANCO e manda um aviso por PESSOA, com todos os jogos dela.
 //
-// ✋ NÃO AVISA: chave não pública (ninguém viu hora nenhuma — e a recolhida no meio da espera
-// volta a esconder); jogo que já começou, acabou ou saiu da grade; jogo que voltou pro horário
-// de antes; dupla de TIME (a mesma régua do "Chaves saíram": o Jogador1Id dela é o organizador).
+// ✋ NÃO AVISA: chave em aprovação (o jogador não vê hora nenhuma); jogo que já começou, acabou ou
+// saiu da grade; jogo que voltou pro horário de antes; dupla de TIME (a mesma régua do "Chaves
+// saíram": o Jogador1Id dela é o organizador).
+//
+// ⚠️ BURACOS CONHECIDOS (revisão do #422, em PROXIMOS-PASSOS.md, item 4):
+//   - O ROBÔ também remarca jogo que já existe (RoboDoChaveamento.AgendarNaGradeAsync reencaixa o
+//     jogo "fora de ordem" quando outra categoria avança) e não passa por aqui.
+//   - Chave RECOLHIDA depois de pública volta pra "em aprovação": remarcar ali e republicar não
+//     avisa (o jogador já tinha visto a hora). Fica com a caixinha "avisar" da re-aprovação.
+//   - Troca entre CLUBES muda o lugar junto; o texto só fala da hora.
 //
 // 📵 App + e-mail, sem WhatsApp — o mesmo canal do "Chaves saíram", pelo mesmo motivo: rajada de
 // texto quase igual pra muita gente é a assinatura de spam que a Meta lê.
+// atalho: um e-mail por pessoa, sem orçamento. Teto: TetoDoEmail.PorDia (100) — um Aplicar
+// planejamento num torneio de 64 duplas manda ~128 e fecha o dia sozinho, como o "Chaves saíram".
+// Saída: pesar no VolumeDoEmail e cair pra AppSemEmail acima de um limite (decisão do Felipe).
 //
 // 📍 O lugar não vai no texto: num torneio em dois clubes a quadra só se lê com a sede
 // (LugarDoJogo), e o link leva pra tela que já sabe fazer isso.

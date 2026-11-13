@@ -57,6 +57,21 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
       o aviso sai depois de 3 min sem mexer no torneio (teto de 10), um por pessoa, app + e-mail.
       Ficou de fora, de propósito: jogo que perde o horário (vira "sem horário") e o "por ordem de
       liberação" ligado na edição do torneio — os dois tiram a hora em vez de remarcar.
+  - 🔎 **A revisão adversarial do #422 (10 agentes) achou, e ficou pra depois:**
+    - **O robô também remarca** jogo que já existe, com a chave pública e calado
+      (`RoboDoChaveamento.AgendarNaGradeAsync`, ~linha 800: o jogo "fora de ordem" é zerado e
+      reencaixado quando outra categoria avança — inclusive o que o aviso acabou de anunciar).
+      Portas: `EncerramentoDaPartida`, `VarreduraDaChave`, desempate do Americano. Saída: ligar o
+      robô ao registro, ou capturar uma vez só no `DbPadelContext.SaveChangesAsync`. M.
+    - ❓ **Decisão do Felipe — cota de e-mail:** um "Aplicar" do Planejamento num torneio de 64
+      duplas manda **~128 e-mails** (o teto do Resend é 100/dia — o "Chaves saíram" já tem o mesmo
+      volume). Hoje o canal é app + e-mail. Opções: pesar no `VolumeDoEmail` e cair pra só app
+      acima de um limite; ou só app sempre.
+    - ❓ **Decisão do Felipe — chave recolhida:** recolher, remarcar e republicar não avisa (o
+      jogador já tinha visto a hora); hoje depende da caixinha "avisar" da re-aprovação.
+    - Troca entre **clubes** muda o lugar junto com a hora; o texto não diz o clube novo. P.
+    - Mexidas na fronteira do teto de 10 min podem soltar a posição intermediária (jogo que foi
+      e voltou avisa duas vezes); a corrida entre tirar e ler o banco idem. Raro. P.
 
 ---
 
