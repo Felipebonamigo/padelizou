@@ -7,7 +7,12 @@ namespace Padelizou.Services;
 //
 // Até 08/08/2026 isso era honra pura — o sistema não guardava o dado, então não conferia nem
 // avisava. O campo nasceu por causa dessa regra, e não o contrário: ele existe pra decidir
-// inscrição nessas duas categorias, e nada mais lê isso.
+// inscrição nessas duas categorias.
+//
+// ⚠️ UMA SEGUNDA LEITURA desde 13/11/2026, só de TELA: o rótulo do Padelímetro de quem não tem
+// categoria na escada (só jogou mista) escolhe a escada masculina ou feminina por aqui
+// (FaixasDePadelimetro.FaixaDoJogador). Antes uma mulher nessa situação virava "7ª" da escada
+// masculina. Não mexe no número, só no nome da faixa; sem sexo informado, fica a masculina.
 public static class SexoDoJogador
 {
     public const string Masculino = "Masculino";

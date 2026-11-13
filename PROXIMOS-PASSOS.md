@@ -21,7 +21,7 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
       passava de 24h: `HorarioDoDia.Escrever` gravava 24h10 como `00:10`, o `Ler` descartava a faixa e
       o dia perdia o horário próprio, com "sucesso" na tela; esticando no meio, o jogo ia pra 00:20
       do dia seguinte. → recusar com explicação; `Escrever` estoura em vez de gravar torto.
-- [ ] **2. Backup honesto + cópia do banco no deploy + fuso no `/healthz`.** 🔀 #418 no `main`; falta publicar e o Felipe instalar os scripts no VPS (`infra/vps/README.md`).
+- [ ] **2. Backup honesto + cópia do banco no deploy + fuso no `/healthz`.** ✅ #418, `build-1643-bc44326` em dev e prod — o `/healthz` com a conferência de fuso respondeu `ok` nos dois (o dev, que nunca tinha sido conferido, está em São Paulo). ⏳ **Falta o Felipe instalar os dois scripts no VPS** (`infra/vps/README.md`, "Instalar a versão de 13/11/2026").
   - `infra/vps/backup-offsite.sh` grava o carimbo do vigia mesmo sem dump novo (o `rclone copy`
     passa sem nada pra copiar) e o `rclone delete --min-age 30d` vai esvaziando o B2 se o
     `pg_dump` parar. → só carimbar (e só apagar histórico) com dump de < 26h, tamanho mínimo e
@@ -32,13 +32,13 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
   - Nada no código confere o fuso (o app depende do VPS em America/Sao_Paulo). → `/healthz` 503
     fora de São Paulo, e o `deploy.sh` faz rollback sozinho.
   - ⚠️ Os dois scripts moram no VPS: o merge não os instala. O Felipe copia (passo a passo no PR).
-- [ ] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11). 🔧 em PR.
+- [ ] **6. Previsão do mata-mata igual à chave real** ⚖️ (Felipe aprovou corrigir em 13/11). 🔀 #419 no `main`, publicando.
       `PrevisaoDoTorneio.MataMata` ainda corta pro MAIOR quadro que cabe; a chave real
       (`ChaveamentoMataMata`) leva todo mundo com bye. 3 grupos: prevê 3 jogos, são 5; 6 grupos:
       prevê 7, são 11. Pesa no "não cabe?" antes do sorteio e no preço do pacote de registro de
       resultados (R$ 12 × jogos previstos, `RegistroDeResultados.JogosPrevistos`), que sai a menos.
       `PrevisaoDoTorneioTests` trava o valor errado.
-- [ ] **3. Defeitos do ranking + varredura do Padelímetro.**
+- [ ] **3. Defeitos do ranking + varredura do Padelímetro.** 🔧 Parte 1 (o 500, a âncora e a mista) em PR; falta a varredura e o `RANKING.md`.
   - `/Jogadores/Ranking?clubeId=1` → **500 em produção** (conferido no site): pede a view
     `RankingPorClube`, que nunca existiu (`JogadorsController.cs` ~809).
   - Rótulo do Padelímetro: a categoria de referência (`FaixasDePadelimetro.CategoriaDeReferencia`,

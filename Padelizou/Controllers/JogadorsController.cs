@@ -114,15 +114,16 @@ public class JogadoresController : Controller
         // (mista fica fora da escada de propósito); sem nenhuma, masculina por padrão.
         if (jogador.Padelimetro is int nivelPadelimetro)
         {
-            var categoriaRecente = FaixasDePadelimetro.CategoriaDeReferencia(
-                historicoDuplas.Select(d => ((string?)d.Categoria.Nome, d.Categoria.Torneio?.DataInicio)),
-                DateTime.Today);
+            // A âncora sai da régua ÚNICA do ranking e do card (13/11/2026): só inscrição que conta —
+            // até aqui um Americano ou uma lista de espera numa categoria acima renomeava a pessoa.
+            var categoriaRecente = (await PadelimetroService.CategoriasDeReferenciaAsync(_context, new[] { id }, DateTime.Today))
+                .GetValueOrDefault(id);
             // O RÓTULO não é a faixa crua do número: em calibração ele é o da categoria
             // jogada, e depois dela o número manda com folga dos dois lados (RANKING.md, "O
             // RÓTULO da tela não é a trava"). E o "faltam X" mede o que muda ESTE rótulo.
             int jogosPdz = jogador.JogosDePadelimetro;
-            ViewBag.PadelimetroFaixa = FaixasDePadelimetro.FaixaExibida(nivelPadelimetro, categoriaRecente, jogosPdz);
-            ViewBag.PadelimetroFalta = FaixasDePadelimetro.FaltaPraMudarDeFaixa(nivelPadelimetro, categoriaRecente, jogosPdz);
+            ViewBag.PadelimetroFaixa = FaixasDePadelimetro.FaixaDoJogador(nivelPadelimetro, categoriaRecente, jogosPdz, jogador.Sexo);
+            ViewBag.PadelimetroFalta = FaixasDePadelimetro.FaltaPraMudarDoJogador(nivelPadelimetro, categoriaRecente, jogosPdz, jogador.Sexo);
             ViewBag.PadelimetroEmCalibracao = Padelimetro.EmCalibracao(jogador.JogosDePadelimetro);
             ViewBag.PadelimetroExtrato = await _context.HistoricosDePadelimetro
                 .Where(h => h.JogadorId == id)
@@ -806,19 +807,11 @@ public class JogadoresController : Controller
     public async Task<IActionResult> Ranking(int? clubeId, int? torneioId, string[]? cidade, string? estado, string? periodo,
         [FromServices] HubDoRanking hubDoRanking)
     {
-        // 1. RANKING POR CLUBE
-        if (clubeId.HasValue)
-        {
-            var duplasDoClube = await _context.Duplas
-                .Include(d => d.Categoria).ThenInclude(c => c.Torneio)
-                .Include(d => d.Jogador1)
-                .Include(d => d.Jogador2)
-                .Where(d => d.Categoria.Torneio.ClubeId == clubeId)
-                .ToListAsync();
-
-            // Se quiser ver por clube, a View deve ser "RankingPorClube"
-            return View("RankingPorClube", duplasDoClube);
-        }
+        // ⚠️ `clubeId` é ACEITO E IGNORADO (13/11/2026). O ramo antigo pedia a view
+        // "RankingPorClube", que nunca existiu: /Jogadores/Ranking?clubeId=1 dava 500 em produção.
+        // Link velho com o parâmetro abre o ranking de todo mundo. O "ranking da casa" (por clube)
+        // está na lista do que vem depois (PROXIMOS-PASSOS.md) — quando nascer, é aqui que ele lê.
+        _ = clubeId;
 
         // 2. RANKING CONSOLIDADO (padrão): tudo calculado a partir de resultados de
         //    torneio. Substitui o antigo "ranking global" baseado em PontuacaoGlobal
