@@ -51,8 +51,8 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
   - O Padelímetro roda DEPOIS de o placar ser gravado (`EncerramentoDaPartida`, em try/catch): um
     restart no meio deixa o jogo fora do número pra sempre. → varredura no molde do
     `VarreduraDaChave`.
-- [ ] **4. Avisar o jogador quando o horário do jogo muda** (hoje nenhuma troca avisa ninguém —
-      `TrocarHorario`, `DefinirHorario`, setas, `InserirHorario`, Aplicar do Planejamento). Em PR:
+- [x] **4. Avisar o jogador quando o horário do jogo muda** ✅ #422, `build-1652-7f07462` em dev e prod. (hoje nenhuma troca avisa ninguém —
+      `TrocarHorario`, `DefinirHorario`, setas, `InserirHorario`, Aplicar do Planejamento).
       `Services/AvisoDeHorarioMudado`. As quatro ações anotam o que mudou (com a chave pública);
       o aviso sai depois de 3 min sem mexer no torneio (teto de 10), um por pessoa, app + e-mail.
       Ficou de fora, de propósito: jogo que perde o horário (vira "sem horário") e o "por ordem de
