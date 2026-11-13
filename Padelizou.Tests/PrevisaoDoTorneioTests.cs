@@ -24,16 +24,49 @@ public class PrevisaoDoTorneioTests
         Assert.Equal(jogos, previsto.Jogos);
     }
 
+    // 13/11/2026 — A PREVISÃO AINDA CORTAVA PRO MAIOR QUADRO QUE CABE. A chave de verdade mudou em
+    // 05/08/2026 (ChaveamentoMataMata): TODO classificado entra, num quadro com bye, e cada jogo
+    // elimina uma dupla — são classificados − 1 jogos. A previsão seguiu na régua antiga: 3 grupos
+    // previam 3 jogos e eram 5. Desde 23/09 este número é PREÇO (R$ 12 por jogo do pacote de
+    // registro de resultados) e é ele que responde "não cabe?" antes do sorteio. Felipe, 13/11:
+    // *"corrija o 6 também"*. Os valores antigos deste teste travavam o erro.
     [Theory]
-    [InlineData(1, 1)]    // 1 grupo: final direta
-    [InlineData(2, 3)]    // quadro de 4: 2 semis + final
-    [InlineData(3, 3)]    // 6 classificados, quadro de 4
-    [InlineData(5, 7)]    // 10 classificados, quadro de 8: 4 quartas + 2 semis + final
-    [InlineData(6, 7)]
-    [InlineData(8, 15)]   // 16 classificados, quadro de 16
-    public void Mata_mata_tem_um_jogo_a_menos_que_o_quadro(int grupos, int jogos)
+    [InlineData(1, 1)]    // 1 grupo: final direta 1º × 2º
+    [InlineData(2, 3)]    // 4 classificados, quadro de 4: 2 semis + final
+    [InlineData(3, 5)]    // 6 classificados, quadro de 8 com 2 byes: 2 quartas + 2 semis + final
+    [InlineData(5, 9)]    // 10 classificados, quadro de 16 com 6 byes
+    [InlineData(6, 11)]   // 12 classificados, quadro de 16 com 4 byes
+    [InlineData(7, 13)]
+    [InlineData(8, 15)]   // 16 classificados, quadro de 16 cheio
+    public void Mata_mata_tem_um_jogo_a_menos_que_os_classificados(int grupos, int jogos)
     {
         Assert.Equal(jogos, PrevisaoDoTorneio.MataMata(grupos));
+    }
+
+    // A previsão contra o MOTOR de verdade, e não contra uma tabela escrita à mão: foi a tabela à
+    // mão que deixou as duas contas divergirem por três meses. De 1 a 16 grupos (até 32
+    // classificados, o maior quadro que a chave nomeia), o total da chave que o motor monta —
+    // a primeira fase com os byes, mais um quadro cheio da metade dali em diante — é a previsão.
+    [Fact]
+    public void A_previsao_do_mata_mata_bate_com_a_chave_que_o_motor_monta()
+    {
+        for (int grupos = 1; grupos <= 16; grupos++)
+        {
+            var classificados = Enumerable.Range(0, grupos)
+                .SelectMany(g => new[]
+                {
+                    new ChaveamentoMataMata.Classificado(1000 + g * 2, ((char)('A' + g)).ToString(), 2, 4, 1, 2),
+                    new ChaveamentoMataMata.Classificado(1001 + g * 2, ((char)('A' + g)).ToString(), 1, 0, 2, 2),
+                })
+                .ToList();
+
+            var (_, confrontos, byes) = ChaveamentoMataMata.MontarPrimeiraFase(classificados);
+            int segundaFaseEmDiante = confrontos.Count + byes.Count - 1;   // quadro cheio da metade
+            int naChave = confrontos.Count + segundaFaseEmDiante;
+
+            Assert.True(naChave == PrevisaoDoTorneio.MataMata(grupos),
+                $"{grupos} grupos: a chave monta {naChave} jogos e a previsão diz {PrevisaoDoTorneio.MataMata(grupos)}");
+        }
     }
 
     [Fact]

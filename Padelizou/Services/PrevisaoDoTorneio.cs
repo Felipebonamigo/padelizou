@@ -29,23 +29,18 @@ public static class PrevisaoDoTorneio
 
     // Quantos jogos o mata-mata inteiro tem, do primeiro cruzamento à final.
     //
-    // Mesma conta do ChaveamentoMataMata: classificam 2 por grupo, e o quadro é a maior
-    // potência de 2 que cabe nesses classificados. Um quadro de N duplas tem N-1 jogos —
-    // cada jogo elimina exatamente uma, e sobra o campeão.
-    public static int MataMata(int grupos)
-    {
-        if (grupos <= 0) return 0;
-        if (grupos == 1) return 1;   // um grupo só fecha com a final direta 1º x 2º
-
-        return MaiorPotenciaDe2Ate(grupos * 2) - 1;
-    }
-
-    private static int MaiorPotenciaDe2Ate(int teto)
-    {
-        int p = 1;
-        while (p * 2 <= teto) p *= 2;
-        return p;
-    }
+    // Mesma conta do ChaveamentoMataMata: classificam 2 por grupo e TODOS entram — o quadro é a
+    // MENOR potência de 2 que cabe todo mundo, e as vagas que sobram viram bye. Bye não é jogo, e
+    // cada jogo elimina exatamente uma dupla até sobrar o campeão: são classificados − 1 jogos.
+    // Um grupo só dá 1 (a final direta 1º x 2º), que é a mesma conta.
+    //
+    // ⚠️ ATÉ 13/11/2026 ESTA CONTA CORTAVA PRO MAIOR QUADRO QUE CABE — a régua que a chave
+    // abandonou em 05/08/2026. Com 3 grupos previa 3 jogos e a chave fazia 5; com 6, 7 contra 11.
+    // Como este número é o preço do pacote de registro de resultados (R$ 12 por jogo) e o que
+    // responde "não cabe?" antes do sorteio, o erro cobrava a menos e dizia "cabe" quando não
+    // cabia. `A_previsao_do_mata_mata_bate_com_a_chave_que_o_motor_monta` prende esta conta ao
+    // motor de verdade, e não a uma tabela escrita à mão.
+    public static int MataMata(int grupos) => grupos <= 0 ? 0 : 2 * grupos - 1;
 
     // O torneio inteiro, de uma categoria: grupos + mata-mata.
     public static int TotalDeJogos(int duplas)
