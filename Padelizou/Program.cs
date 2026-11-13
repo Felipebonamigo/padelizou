@@ -642,6 +642,13 @@ app.MapMethods("/healthz", new[] { "GET", "HEAD" }, async (DbPadelContext db) =>
         if (pendentes.Any())
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 
+        // 13/11/2026: hora errada é o defeito que não aparece — o app sobe, responde, e grava
+        // tudo 3h deslocado (Services/FusoDoServidor). Fora de São Paulo, 503: o rollback do
+        // deploy.sh segura a versão. O corpo diz o porquê pra quem abrir o endereço na mão.
+        if (!FusoDoServidor.EhSaoPaulo(TimeZoneInfo.Local))
+            return Results.Text($"fuso errado: {TimeZoneInfo.Local.Id} (esperado {FusoDoServidor.Esperado})",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+
         return Results.Text("ok");
     }
     catch

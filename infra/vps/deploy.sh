@@ -127,6 +127,37 @@ done
 # Empurra o que ainda estiver em cache de escrita pro disco antes de alguém ler.
 sync
 
+# ── 4b. COPIA O BANCO ANTES DE TROCAR (13/11/2026) ──────────────────────────
+# O app aplica as migrations SOZINHO no startup (Program.cs, `Migrate()`), e o rollback lá
+# embaixo volta o BINÁRIO, nunca o banco: uma migration que apaga coluna ou faz UPDATE fica
+# feita mesmo com a versão velha de volta — 26 das 168 migrations até hoje são assim. Sem esta
+# cópia, desfazer custaria até 12h de dados (o intervalo entre os backups). São segundos.
+#
+# SEM CÓPIA COMPLETA, SEM DEPLOY: o site continua na versão de agora. "Completa" é a linha que o
+# pg_dump só escreve no fim — dump que morreu no meio ainda é um .gz válido.
+#
+# Fica FORA de /var/backups/padelizou de propósito: lá um "db_padel_*" do deploy viraria o
+# "dump do dia" pro backup de fora e esconderia um pg_dump das 4h quebrado. É pra desfazer um
+# deploy, não histórico — o histórico é o backup. Guarda as 10 últimas de cada ambiente.
+case "$AMBIENTE" in
+  prod) BANCO="db_padel" ;;
+  dev)  BANCO="db_padel_dev" ;;
+esac
+COPIAS="/var/backups/padelizou-deploy"
+mkdir -p "$COPIAS"
+# O AMBIENTE no nome, e não o banco: "*_db_padel_*" casaria também com "db_padel_dev", e a
+# limpeza do prod apagaria as cópias do dev. A tag não tem "_", então "_prod_" e "_dev_" não se cruzam.
+COPIA="$COPIAS/antes-de-${TAG}_${AMBIENTE}_$(date +%Y%m%d_%H%M%S).sql.gz"
+# `cd /tmp`: o usuário postgres não lê /root, de onde o ssh do workflow roda.
+if ! (cd /tmp && sudo -u postgres pg_dump "$BANCO") | gzip > "$COPIA" \
+   || ! gzip -dc "$COPIA" | tail -n 20 | grep -q 'PostgreSQL database dump complete'; then
+  rm -f "$COPIA"
+  echo "ERRO: não consegui copiar o banco $BANCO antes do deploy. Nada foi trocado."
+  exit 1
+fi
+echo "==> Banco copiado antes do deploy: $COPIA ($(du -h "$COPIA" | cut -f1))"
+ls -1t "$COPIAS"/antes-de-*_"${AMBIENTE}"_*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+
 # ── 5. Troca a versão e reinicia ────────────────────────────────────────────
 ANTERIOR=""
 [ -L "$LIVE" ] && ANTERIOR=$(readlink "$LIVE")
