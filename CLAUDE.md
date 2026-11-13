@@ -141,11 +141,13 @@ sem ter rodado o comando **naquele mesmo turno** e lido a saída. "Deveria funci
    cronológica reversa: o que foi feito por último, o que ficou pendente, o que foi
    publicado e em que build. Se o pedido tocar numa área específica, procure por ela no
    arquivo (busca de texto, não leitura linear — ele é grande).
-2. Área específica: `RANKING.md` (Padelímetro/pontuação), `ESTORNO.md`, `RECEBIMENTO.md`
+2. **O que vem depois**: `PROXIMOS-PASSOS.md` — a lista da análise de 13/11/2026 (defeitos,
+   hospedagem, torneios, ranking), com evidência e esforço. Fechou um item, marque lá.
+3. Área específica: `RANKING.md` (Padelímetro/pontuação), `ESTORNO.md`, `RECEBIMENTO.md`
    (pagamentos/Asaas), `WHATSAPP.md`, `EMAIL.md`, `ANDROID.md`, `PARCEIROS.md`,
    `API-TORNEIOS.md`, `AMBIENTE-LOCAL.md`, `TRABALHAR-FORA.md`, `infra/vps/README.md`
    (deploy/backup/VPS).
-3. **Antes de paralelizar qualquer coisa**: `ONDAS-PARALELAS.md`. Duas tarefas só rodam
+4. **Antes de paralelizar qualquer coisa**: `ONDAS-PARALELAS.md`. Duas tarefas só rodam
    juntas se nenhuma depende da outra **e** os arquivos são disjuntos; implementador nunca
    commita. As quatro réguas de autorização são exceção — sempre uma tarefa só.
 

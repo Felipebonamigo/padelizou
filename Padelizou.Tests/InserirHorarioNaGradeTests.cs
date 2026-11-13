@@ -156,6 +156,80 @@ public class InserirHorarioNaGradeTests
         Assert.IsType<ForbidResult>(r);
     }
 
+    // ── PERTO DA MEIA-NOITE (13/11/2026) ──────────────────────────────────────────────────────
+    // Achado na varredura de torneios: a faixa do dia é "HH:mm-HH:mm" DENTRO do dia, e o limite
+    // esticado passava de 24h. 23:20 + 50 min = 24:10 era gravado "00:10" — e a leitura descarta
+    // faixa que fecha antes de abrir, então o dia PERDIA o horário próprio inteiro e voltava ao
+    // padrão do torneio, com "sucesso" na tela. E esticando no meio, o jogo empurrado ia pra 00:20
+    // do dia seguinte, fora de qualquer faixa. Passar da meia-noite agora é recusado, sem mudar nada.
+
+    private static async Task<(DbPadelContext ctx, Torneio torneio, Jogador org)> SextaAteTardeAsync(TimeSpan limiteDaSexta)
+    {
+        var (ctx, torneio, org) = await AprovadoAsync();
+        var t = await ctx.Torneios.SingleAsync(x => x.Id == torneio.Id);
+        t.HorariosPorDia = $"2026-11-12=18:00-20:30;2026-11-13=18:00-{limiteDaSexta:hh\\:mm}";
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+        return (ctx, await ctx.Torneios.AsNoTracking().SingleAsync(x => x.Id == torneio.Id), org);
+    }
+
+    [Fact]
+    public async Task No_fim_de_um_dia_que_ja_vai_ate_perto_da_meia_noite_recusa_e_nada_muda()
+    {
+        var (ctx, torneio, org) = await SextaAteTardeAsync(new TimeSpan(23, 20, 0));
+        var antes = Horarios(ctx, torneio.Id);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.InserirHorario(torneio.Id, Sexta, null, "fim", null);
+
+        ctx.ChangeTracker.Clear();
+        Assert.Contains("meia-noite", controller.TempData["Erro"] as string);
+        Assert.Null(controller.TempData["Sucesso"]);
+        var gravado = await ctx.Torneios.AsNoTracking().SingleAsync(t => t.Id == torneio.Id);
+        Assert.Equal(torneio.HorariosPorDia, gravado.HorariosPorDia);
+        Assert.Equal(new TimeSpan(23, 20, 0), HorarioDoDia.Do(gravado).Limite(Sexta));
+        Assert.Equal(antes, Horarios(ctx, torneio.Id));
+    }
+
+    [Fact]
+    public async Task No_meio_esticando_quando_o_jogo_passaria_da_meia_noite_recusa_e_nada_muda()
+    {
+        var (ctx, torneio, org) = await SextaAteTardeAsync(new TimeSpan(23, 30, 0));
+        // Um jogo da sexta no último horário do dia: 23:30. Abrir espaço às 23:00 o mandaria pra 00:20.
+        var tardio = await ctx.Partidas
+            .Where(p => p.TorneioId == torneio.Id && p.Status == "Agendada" && p.HorarioPrevisto!.Value.Date == Sexta)
+            .OrderBy(p => p.HorarioPrevisto).FirstAsync();
+        tardio.HorarioPrevisto = Sexta.Add(new TimeSpan(23, 30, 0));
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+        var antes = Horarios(ctx, torneio.Id);
+        var promessasAntes = ctx.ReservasDeHorario.AsNoTracking().ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero), r => r.Horario);
+        var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
+
+        await controller.InserirHorario(torneio.Id, Sexta, new TimeSpan(23, 0, 0), "meio", "esticar");
+
+        ctx.ChangeTracker.Clear();
+        Assert.Contains("meia-noite", controller.TempData["Erro"] as string);
+        Assert.Null(controller.TempData["Sucesso"]);
+        Assert.Equal(antes, Horarios(ctx, torneio.Id));
+        Assert.Equal(promessasAntes, ctx.ReservasDeHorario.AsNoTracking().ToDictionary(r => (r.CategoriaId, r.Fase, r.Numero), r => r.Horario));
+        var gravado = await ctx.Torneios.AsNoTracking().SingleAsync(t => t.Id == torneio.Id);
+        Assert.Equal(torneio.HorariosPorDia, gravado.HorariosPorDia);
+    }
+
+    [Fact]
+    public void A_faixa_do_dia_nunca_e_gravada_passando_da_meia_noite()
+    {
+        // A trava de baixo: se algum caminho novo calcular um limite de 24h ou mais, ele estoura
+        // aqui (e cai no vigia de erros) em vez de virar "00:10" e apagar o horário do dia calado.
+        var faixas = new Dictionary<DateTime, HorarioDoDia.Faixa>
+        {
+            [Sexta] = new(new TimeSpan(18, 0, 0), new TimeSpan(24, 10, 0)),
+        };
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => HorarioDoDia.Escrever(faixas));
+    }
+
     [Fact]
     public void A_lista_de_jogos_tem_o_formulario_pro_organizador()
     {
