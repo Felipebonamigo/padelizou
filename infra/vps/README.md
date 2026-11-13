@@ -207,6 +207,52 @@ O `Padelizou/padelizou.service` deste repositório já leva `Environment=TZ=Amer
 — serve de referência pra quando o servidor for reprovisionado do zero, mas **não
 reaplica sozinho** no unit que já está rodando no VPS.
 
+## Instalar a versão de 13/11/2026 do backup e do deploy
+
+Duas proteções que só valem depois de copiadas pro VPS (o merge não instala nada):
+
+- **`backup-offsite.sh` só carimba com dump bom do dia.** Antes, o carimbo que o vigia lê era
+  gravado mesmo sem dump novo — se o `pg_dump` das 4h parasse, o vigia ficava calado e o B2 ia
+  perdendo o histórico. Agora, sem um dump de menos de 6h, inteiro e completo, ele não sobe, não
+  poda e não carimba: o vigia avisa em 2 dias.
+- **`deploy.sh` copia o banco antes de reiniciar.** A migration roda no startup e o rollback só
+  volta o binário. A cópia fica em `/var/backups/padelizou-deploy/antes-de-<build>_<ambiente>_<data>.sql.gz`
+  (as 10 últimas de cada ambiente). Sem cópia completa, o deploy para antes de trocar a versão.
+
+E uma conferência que o app faz sozinho a partir do mesmo build: **o `/healthz` responde 503 se o
+processo não estiver no fuso de São Paulo** (corpo: `fuso errado: ...`). O `prod` já roda assim
+desde agosto; o `dev` **nunca foi conferido** (o STATUS de agosto diz "falta aplicar o mesmo no
+dev") — sem o fuso, o deploy do dev volta sozinho pra versão anterior. Por isso o passo 1.
+
+Pelo Terminal do hPanel (ou `ssh root@179.197.233.184`), nesta ordem:
+
+```bash
+# 1. O FUSO DOS DOIS SERVIÇOS. Cada linha tem que mostrar TZ=America/Sao_Paulo.
+systemctl show padelizou     -p Environment | tr ' ' '\n' | grep '^TZ='
+systemctl show padelizou-dev -p Environment | tr ' ' '\n' | grep '^TZ='
+
+#    Se a do dev não mostrou nada:
+mkdir -p /etc/systemd/system/padelizou-dev.service.d
+printf '[Service]\nEnvironment=TZ=America/Sao_Paulo\n' > /etc/systemd/system/padelizou-dev.service.d/fuso.conf
+systemctl daemon-reload && systemctl restart padelizou-dev
+
+# 2. OS DOIS SCRIPTS, guardando os de agora pra poder voltar.
+cp -p /usr/local/bin/backup-drive.sh /usr/local/bin/backup-drive.sh.bak-$(date +%Y%m%d)
+cp -p /opt/padelizou-deploy/deploy.sh /opt/padelizou-deploy/deploy.sh.bak-$(date +%Y%m%d)
+curl -fsSL https://raw.githubusercontent.com/Felipebonamigo/padelizou/main/infra/vps/backup-offsite.sh -o /usr/local/bin/backup-drive.sh
+curl -fsSL https://raw.githubusercontent.com/Felipebonamigo/padelizou/main/infra/vps/deploy.sh -o /opt/padelizou-deploy/deploy.sh
+chmod +x /usr/local/bin/backup-drive.sh /opt/padelizou-deploy/deploy.sh
+bash -n /usr/local/bin/backup-drive.sh && bash -n /opt/padelizou-deploy/deploy.sh && echo "sintaxe ok"
+
+# 3. TESTE DO BACKUP DE FORA, agora: um dump novo e a rodada de fora logo depois. Tem que
+#    aparecer "Dump do dia conferido" e terminar sem ERRO. (Sem o dump novo ele recusaria fora
+#    das janelas das 4h e do meio-dia — o dump mais novo teria mais de 6h, e é de propósito.)
+/usr/local/bin/backup-padelizou.sh && /usr/local/bin/backup-drive.sh
+```
+
+O `deploy.sh` novo se testa sozinho no próximo deploy: o log do workflow passa a mostrar
+`==> Banco copiado antes do deploy: ...`. Pra voltar qualquer um dos dois: copie o `.bak-` por cima.
+
 ## Copiar um torneio do prod pro dev
 
 🗣️ **Felipe, 09/09/2026:** *"copie os dados de PRD para DEV do torneio do ER"*. O motivo é o
