@@ -454,7 +454,9 @@ namespace Padelizou.Controllers
             if (todos.Any(p => p.Status == "Agendada"))
             {
                 var (remarcar, _) = await RecalcularAGradeAsync(torneio, todos);
+                var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);
                 await _context.SaveChangesAsync();
+                AnotarHorariosMudados(torneio, horariosMudados);
                 await GravarAGradePrevistaAsync(torneio);
                 await _context.SaveChangesAsync();
 

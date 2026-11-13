@@ -118,7 +118,9 @@ namespace Padelizou.Controllers
                 if (ultimoDoDia > cal.Limite(dia)) EsticarODia(torneio, cal, dia, ultimoDoDia);
             }
 
+            var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);
             await _context.SaveChangesAsync();
+            AnotarHorariosMudados(torneio, horariosMudados);
             TempData["Sucesso"] = $"Horário aberto em {corte:dd/MM HH:mm}: {agendados.Count + promessas.Count} "
                 + "jogo(s) andaram um horário. Os confrontos não mudaram.";
             return VoltarPara(voltarPara, id, filtros);

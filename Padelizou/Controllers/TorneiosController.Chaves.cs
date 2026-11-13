@@ -1836,6 +1836,17 @@ namespace Padelizou.Controllers
                 await ChegadasDoTorneioAsync(torneioId));
         }
 
+        // Quem joga fica sabendo que a hora mudou (Services/AvisoDeHorarioMudado). O que mudou é lido
+        // ANTES do SaveChanges (`Capturar`: a hora de antes é a do banco, e gravar a apaga do
+        // ChangeTracker) e anotado DEPOIS — gravação que estourou não remarcou ninguém. Só com a
+        // chave PÚBLICA: antes disso o jogador nunca viu hora nenhuma, e "passou de 18:00" seria de
+        // uma hora que ele não conhecia (AvisoDeHorarioMudadoTests).
+        private void AnotarHorariosMudados(Torneio torneio, List<AvisoDeHorarioMudado.Mudanca> mudancas)
+        {
+            if (mudancas.Count == 0 || !AprovacaoDeChaves.ChavePublicada(torneio)) return;
+            _avisosDeHorario.Anotar(torneio.Id, mudancas, DateTime.Now);
+        }
+
         // O MIOLO DA TROCA, compartilhado pelo ⇄ e pelas setas ↑↓. Cada lado recebe o slot do outro:
         // hora, quadra, clube — e a POSIÇÃO dentro do horário, que é o que faz a troca entre dois
         // jogos do mesmo horário significar alguma coisa.
@@ -2017,7 +2028,9 @@ namespace Padelizou.Controllers
             var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
             _context.ReservasDeHorario.RemoveRange(mortas);
 
+            var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);
             await _context.SaveChangesAsync();
+            AnotarHorariosMudados(torneio, horariosMudados);
 
             TempData["Sucesso"] = $"Horários trocados: agora {ladoA.Rotulo} é {slotDeB.Horario:dd/MM HH:mm} e " +
                 $"{ladoB.Rotulo} é {slotDeA.Horario:dd/MM HH:mm}." +
@@ -2171,7 +2184,9 @@ namespace Padelizou.Controllers
             var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
             _context.ReservasDeHorario.RemoveRange(mortas);
 
+            var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);
             await _context.SaveChangesAsync();
+            AnotarHorariosMudados(torneio, horariosMudados);
 
             var onde = real == null ? null : LugarDoJogo.Etiqueta(sedes, real.NomeQuadra, real.CategoriaId, real.ClubeId);
             TempData["Sucesso"] = $"Agora {rotulo} é {hora:dd/MM HH:mm}" + (onde != null ? $" · {onde}" : "") + "." +

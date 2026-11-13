@@ -358,6 +358,12 @@ builder.Services.AddHostedService<VarreduraDaChaveBackgroundService>();
 // Services/VarreduraDoPadelimetro.
 builder.Services.AddScoped<VarreduraDoPadelimetro>();
 builder.Services.AddHostedService<VarreduraDoPadelimetroBackgroundService>();
+// O JOGO MUDOU DE HORÁRIO COM A CHAVE PÚBLICA (13/11/2026): as ações que remarcam anotam no
+// registro (singleton, em memória), e o relógio avisa quem joga depois de a grade sossegar.
+// Ver Services/AvisoDeHorarioMudado.
+builder.Services.AddSingleton<AvisosDeHorarioPendentes>();
+builder.Services.AddScoped<AvisoDeHorarioMudado>();
+builder.Services.AddHostedService<AvisoDeHorarioMudadoBackgroundService>();
 // Aula fixa "sem prazo definido" não existe como linha infinita: nasce com um horizonte de
 // semanas e este job repõe o que o tempo consome. Ver Services/RenovacaoDaAulaFixa.
 builder.Services.AddHostedService<RenovadorDeAulaFixaBackgroundService>();
