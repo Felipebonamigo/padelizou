@@ -211,10 +211,10 @@ public static class ReservasDeHorario
     // "mudar de quadra" precisa enxergar (revisão adversarial, 10/09/2026): olhando só os jogos
     // reais, a quadra reservada parecia livre, o jogo real ia pra lá e a final nascia em cima dele.
     public static ReservaDeHorario? QuemReservou(IEnumerable<ReservaDeHorario> reservas,
-        ISet<(int CategoriaId, string Fase)> fasesQueExistem, DateTime? horario, string? quadra) =>
+        ISet<(int CategoriaId, string Fase, int Numero)> jogosQueExistem, DateTime? horario, string? quadra) =>
         horario == null || quadra == null
             ? null
-            : reservas.FirstOrDefault(r => !fasesQueExistem.Contains((r.CategoriaId, r.Fase))
+            : reservas.FirstOrDefault(r => !JaNasceu(jogosQueExistem, r)
                                         && r.Horario == horario && r.NomeQuadra == quadra);
 
     // As reservas que a prévia NÃO CONSEGUIU HONRAR: o jogo previsto delas não saiu no horário
@@ -222,10 +222,10 @@ public static class ReservasDeHorario
     // as reservas que a troca matou (revisão adversarial, 10/09/2026): sem isto elas ficavam no
     // banco, prévia e robô as ignoravam, e o organizador só descobria olhando.
     public static List<ReservaDeHorario> QueNaoValemMais(IEnumerable<ReservaDeHorario> reservas,
-        ISet<(int CategoriaId, string Fase)> fasesQueExistem,
+        ISet<(int CategoriaId, string Fase, int Numero)> jogosQueExistem,
         IReadOnlyList<ProximasFasesDaChave.JogoQueVem> projetados) =>
         reservas
-            .Where(r => !fasesQueExistem.Contains((r.CategoriaId, r.Fase))
+            .Where(r => !JaNasceu(jogosQueExistem, r)
                      && !projetados.Any(j => j.CategoriaId == r.CategoriaId && j.Fase == r.Fase
                                           && j.Numero == r.Numero && j.Horario == r.Horario))
             .ToList();
@@ -235,6 +235,25 @@ public static class ReservasDeHorario
         $"{categoria ?? $"categoria {reserva.CategoriaId}"} · " +
         (reserva.Fase == "Final" ? reserva.Fase : $"{reserva.Fase} {reserva.Numero}");
 
+    // OS JOGOS DE MATA-MATA QUE JÁ EXISTEM, por (categoria, fase, NÚMERO) — 14/11/2026.
+    //
+    // 🕳️ Era por (categoria, fase), na premissa "uma fase nasce inteira". Não nasce desde que o
+    // jogo pode nascer fora de ordem: no THE LAST DANCE a Semifinal 1 da 5ª nasceu com a Quartas 2
+    // ainda em quadra, e a reserva da Semifinal 2 passou a ser lida como consumida — a prévia a
+    // ignorava e a troca ⇄ entre as duas semis era recusada culpando a "fase anterior"
+    // (ReservaNaFaseQueNasceuPelaMetadeTests).
+    public static HashSet<(int CategoriaId, string Fase, int Numero)> JogosQueExistem(IEnumerable<Partida> jogos)
+    {
+        var lista = jogos as IReadOnlyCollection<Partida> ?? jogos.ToList();
+        var numero = NumeroNaFase(lista);
+        return lista.Where(p => numero.ContainsKey(p.Id))
+            .Select(p => (p.CategoriaId, p.Fase, numero[p.Id]))
+            .ToHashSet();
+    }
+
+    public static bool JaNasceu(ISet<(int CategoriaId, string Fase, int Numero)> jogosQueExistem, ReservaDeHorario r) =>
+        jogosQueExistem.Contains((r.CategoriaId, r.Fase, r.Numero));
+
     // As reservas de jogos que AINDA VÃO NASCER, na forma de jogos marcados — pra que o encaixe
     // dos outros não ocupe o slot delas enquanto o jogo não existe.
     //
@@ -243,19 +262,18 @@ public static class ReservasDeHorario
     // a Final da A nasce, são dois jogos na mesma quadra no mesmo minuto. A prévia já reserva o
     // slot antes de qualquer cadeia passar por ele; o encaixe de verdade precisa da mesma coisa.
     //
-    // `fasesQueExistem` é por (categoria, fase), e não por jogo: uma fase nasce inteira, então a
-    // reserva de uma fase que já existe ou foi consumida ou é órfã (número que a rodada não tem) —
-    // nos dois casos não há jogo por nascer, e ela não pode tomar quadra de ninguém.
+    // `jogosQueExistem` é por JOGO (ver JogosQueExistem): a reserva de um jogo que já existe foi
+    // consumida e não toma quadra de ninguém; a do jogo-irmão que ainda não nasceu continua valendo.
     //
     // ⚠️ SÃO OBJETOS DE MEMÓRIA, NUNCA DO CONTEXTO: entram só como `jaMarcados` do encaixe e não
     // podem ser adicionados nem salvos. As duplas ficam em zero de propósito — `Ocupantes(0)` vira
     // a "pessoa 0", que não existe (pessoa de verdade tem Id positivo; dupla sem gente vira o
     // negativo do Id dela), então o fantasma bloqueia a QUADRA e a VAGA do horário, e ninguém.
     public static List<Partida> AindaPorNascer(IEnumerable<ReservaDeHorario> reservas,
-        ISet<(int CategoriaId, string Fase)> fasesQueExistem,
+        ISet<(int CategoriaId, string Fase, int Numero)> jogosQueExistem,
         Func<int, string, DateTime?> abreARodadaDe) =>
         reservas
-            .Where(r => !fasesQueExistem.Contains((r.CategoriaId, r.Fase))
+            .Where(r => !JaNasceu(jogosQueExistem, r)
                      && Vale(r.Horario, abreARodadaDe(r.CategoriaId, r.Fase)))
             .Select(r => new Partida
             {

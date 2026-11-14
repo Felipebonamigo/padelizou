@@ -814,10 +814,12 @@ public class RoboDoChaveamento
         // Entram também os reservados da rodada nova (ainda não estão no banco) e os slots das
         // reservas de jogos que AINDA VÃO NASCER — senão o encaixe de hoje ocuparia a quadra que
         // a reserva de amanhã prometeu (ver ReservasDeHorario.AindaPorNascer).
-        var fasesQueExistem = todos.Concat(jogos).Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+        var jogosQueExistem = todos.Concat(jogos)
+            .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+            .Select(p => (p.CategoriaId, p.Fase, NumeroDe(p))).ToHashSet();
         var intocados = jaMarcados.Where(p => p.HorarioPrevisto != null)
             .Union(reservados)
-            .Concat(ReservasDeHorario.AindaPorNascer(reservas, fasesQueExistem,
+            .Concat(ReservasDeHorario.AindaPorNascer(reservas, jogosQueExistem,
                 (categoriaId, fase) => AbreARodadaDe(OrdemDasFases.Posto(fase), categoriaId)))
             .ToList();
 
@@ -1088,9 +1090,9 @@ public class RoboDoChaveamento
             // As reservas do organizador — só as de fases que AINDA NÃO NASCERAM: a fase que já
             // virou jogo real entra por `ocupadas`, e a reserva dela já foi consumida pelo robô.
             reservas ??= await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
-            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var jogosReais = ReservasDeHorario.JogosQueExistem(partidas);
             var reservadas = reservas
-                .Where(r => !fasesReais.Contains((r.CategoriaId, r.Fase)))
+                .Where(r => !ReservasDeHorario.JaNasceu(jogosReais, r))
                 .Select(r => new ProximasFasesDaChave.HorarioReservado(r.CategoriaId, r.Fase, r.Numero, r.Horario, r.NomeQuadra))
                 .ToList();
 

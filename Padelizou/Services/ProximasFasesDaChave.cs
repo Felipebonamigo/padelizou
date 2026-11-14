@@ -92,8 +92,11 @@ public static class ProximasFasesDaChave
     // (categoria, fase, número) — cairia no jogo errado.
     //
     // Nulo = 1..N contíguo, que é o caso de toda fase inteiramente futura.
+    // `UltimoIrmaoReal`: o horário do jogo mais tarde DESTA fase que já nasceu (a Semifinal 1 real
+    // ao lado da Semifinal 2 prevista). Não é piso desta rodada — irmão não é fase anterior —, mas
+    // é piso da SEGUINTE: a Final espera as duas semis. Ver `Montar` (14/11/2026).
     public record RodadaQueVem(string Fase, IReadOnlyList<(Lado Lado1, Lado Lado2)> Confrontos,
-                               IReadOnlyList<int>? NumerosExplicitos = null)
+                               IReadOnlyList<int>? NumerosExplicitos = null, DateTime? UltimoIrmaoReal = null)
     {
         public IReadOnlyList<int> Numeros =>
             NumerosExplicitos ?? Enumerable.Range(1, Confrontos.Count).ToList();
@@ -165,8 +168,20 @@ public static class ProximasFasesDaChave
                       .Where(n => n > 0)
                       .ToHashSet());
 
-        return new CadeiaDeFases(categoria, UltimoHorario(partidasDeMataMata),
-            Encadear(lados, jaSaoReais, vencedores), categoriaId);
+        // ⚠️ O PISO É A FASE ANTERIOR, NÃO O JOGO REAL MAIS TARDE (14/11/2026). 🗣️ Felipe, no THE
+        // LAST DANCE: *"é as duas semi da mesma categoria"* — com a Semifinal 1 já real, a Semifinal
+        // 2 prevista abria depois DELA, e a troca ⇄ entre as duas era recusada culpando a fase
+        // anterior. O irmão real sai do piso desta rodada e entra no da seguinte
+        // (ReservaNaFaseQueNasceuPelaMetadeTests).
+        var rodadas = Encadear(lados, jaSaoReais, vencedores);
+        var faseQueSegue = rodadas.FirstOrDefault()?.Fase;
+        var irmaos = partidasDeMataMata.Where(p => p.Fase == faseQueSegue).ToList();
+        if (irmaos.Count > 0)
+            rodadas[0] = rodadas[0] with { UltimoIrmaoReal = UltimoHorario(irmaos) };
+
+        return new CadeiaDeFases(categoria,
+            UltimoHorario(partidasDeMataMata.Where(p => p.Fase != faseQueSegue).ToList()),
+            rodadas, categoriaId);
     }
 
     // ---- Entrada 2: a chave AINDA NEM COMEÇOU (categoria na fase de grupos) ----
@@ -591,7 +606,7 @@ public static class ProximasFasesDaChave
             // O jogo mais tarde da rodada, reservado ou não: é dele que a rodada seguinte abre.
             // `horario` continua sendo o cursor dos jogos SEM reserva — reservar a Semifinal 1
             // pras 21h não arrasta a Semifinal 2 junto.
-            DateTime? ultimoDaRodada = null;
+            DateTime? ultimoDaRodada = rodada.UltimoIrmaoReal;
 
             for (int i = 0; i < rodada.Confrontos.Count; i++)
             {

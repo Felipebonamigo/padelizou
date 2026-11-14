@@ -467,7 +467,7 @@ namespace Padelizou.Controllers
             {
                 var reservas = await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
                 var reservada = ReservasDeHorario.QuemReservou(reservas,
-                    doTorneio.Select(p => (p.CategoriaId, p.Fase)).ToHashSet(),
+                    ReservasDeHorario.JogosQueExistem(doTorneio),
                     partida.HorarioPrevisto, quadra);
 
                 if (reservada != null) reservada.NomeQuadra = partida.NomeQuadra;
