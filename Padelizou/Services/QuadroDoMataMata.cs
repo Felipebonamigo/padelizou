@@ -99,6 +99,14 @@ public static class QuadroDoMataMata
         {
             var faseAtual = ordemDasFases[i];
             var reais = ReservasDeHorario.NaOrdemDaFase(jogos, faseAtual);
+            // ⚠️ O JOGO REAL VAI NA VAGA DO NÚMERO DELE, e não na primeira livre (14/11/2026).
+            // Com a fase nascendo fora de ordem, a Semifinal 2 real ia pra vaga da 1 e a vaga 2
+            // virava prévia com as MESMAS duplas (THE LAST DANCE, 4ª Masculina). Quem não tem
+            // número (acervo antigo) continua na ordem de sempre: `NumeroNaFase` numera as sobras.
+            var numeroDoReal = ReservasDeHorario.NumeroNaFase(jogos);
+            var realNaVaga = reais
+                .GroupBy(j => numeroDoReal.TryGetValue(j.Id, out var n) ? n : 0)
+                .ToDictionary(g => g.Key, g => g.First());
             var vagas = new List<Vaga>();
 
             if (reais.Count == 0 && entrantes.Count < 2) break;
@@ -116,7 +124,8 @@ public static class QuadroDoMataMata
             // chave pararia de mostrar o caminho justamente pra quem acabou de classificar.
             // `Max` com os reais é rede: dado torto que traga mais jogo do que a rodada
             // anterior comporta aparece no quadro em vez de sumir dele.
-            int esperados = Math.Max(reais.Count, entrantes.Count / 2);
+            int esperados = Math.Max(Math.Max(reais.Count, realNaVaga.Keys.DefaultIfEmpty(0).Max()),
+                                     entrantes.Count / 2);
 
             var proximos = new List<Lado>();
 
@@ -129,9 +138,8 @@ public static class QuadroDoMataMata
                 var de2 = k < entrantes.Count ? entrantes[entrantes.Count - 1 - k] : null;
 
                 Vaga vaga;
-                if (k < reais.Count)
+                if (realNaVaga.TryGetValue(k + 1, out var jogo))
                 {
-                    var jogo = reais[k];
                     vaga = new Vaga(numero, jogo, null, null, MeuJogo(jogo),
                                     de1?.VemDoJogo, de2?.VemDoJogo);
                     reaisTraduzidos.Add(new MeusJogos.JogoReal(
