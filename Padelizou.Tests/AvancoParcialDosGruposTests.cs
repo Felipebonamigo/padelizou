@@ -234,7 +234,7 @@ public class AvancoParcialDosGruposTests
             categoria.Id,
             grupos.Select(g => g.Duplas.Count).ToList(),
             categoria.CruzamentoDoMataMata,
-            jogosJaCriadosNaAbertura: 1);
+            numerosJaCriadosNaAbertura: new[] { 1 });
 
         var abertura = cadeia.Rodadas[0];
         Assert.Single(abertura.Confrontos);          // só o jogo 2

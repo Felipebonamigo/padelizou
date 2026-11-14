@@ -190,10 +190,12 @@ public class RoboDoChaveamento
     // depende só dos SEUS dois grupos: fechados os dois, a vaga tem dono e o jogo pode ir pra
     // quadra enquanto o resto da categoria ainda joga.
     //
-    // ⚠️ EM ORDEM DE QUADRO, como no avanço de fase: o jogo 2 só nasce depois do 1. A numeração
-    // da fase é a ordem de criação (ReservasDeHorario.NumeroNaFase, por Id) e dela dependem o
-    // desenho da chave, a procedência da prévia e a reserva de horário do organizador. Por isso
-    // o laço PARA no primeiro confronto que ainda não dá pra montar em vez de pular pro seguinte.
+    // ⚠️ FORA DE ORDEM DESDE 14/11/2026, como o avanço de fase (AvancarFaseAsync). 🗣️ Felipe, com
+    // a Quartas 2 da 4ª mostrando as duas duplas e ainda prévia: *"O jogo ja esta os dois
+    // classificados, tem q permitir votar, por em jogo"*. O laço PARAVA no primeiro confronto sem
+    // dono porque o número na fase era a ordem de criação; hoje o número é GRAVADO
+    // (Partida.NumeroNaFase), e é ele que o desenho, a prévia e a reserva leem
+    // (AberturaNasceForaDeOrdemTests).
     //
     // ⚠️ E NADA AVANÇA ENQUANTO ESTA FASE ESTIVER PELA METADE — a trava mora em AvancoDaChave
     // (sem a fase de grupos fechada não há bye nem vaga). Sem ela, um jogo de abertura terminado
@@ -265,9 +267,11 @@ public class RoboDoChaveamento
 
         if (fasesDaCategoria.Any(f => f != nomeFase && ChaveamentoMataMata.EhFaseDeMataMata(f))) return;
 
-        int jaCriados = await _context.Partidas
-            .CountAsync(p => p.CategoriaId == categoria.Id && p.Fase == nomeFase);
-        if (jaCriados >= desenho.Confrontos.Count) return;
+        var jaNaFase = await _context.Partidas
+            .Where(p => p.CategoriaId == categoria.Id && p.Fase == nomeFase)
+            .ToListAsync();
+        var ocupados = ReservasDeHorario.NumeroNaFase(jaNaFase).Values.ToHashSet();
+        if (ocupados.Count >= desenho.Confrontos.Count) return;
 
         // A classificação SÓ DOS GRUPOS QUE FECHARAM. Um grupo em andamento devolve pódio
         // provisório (ClassificacaoDeGrupos responde com o que tem), e um jogo criado a partir
@@ -285,11 +289,12 @@ public class RoboDoChaveamento
             pontosDoDesempate, classificamPorGrupo);
 
         var novos = new List<Partida>();
-        for (int i = jaCriados; i < desenho.Confrontos.Count; i++)
+        for (int i = 0; i < desenho.Confrontos.Count; i++)
         {
+            if (ocupados.Contains(i + 1)) continue;
             var confronto = desenho.Confrontos[i];
             if (CruzamentoDoMataMata.IdDaVaga(confronto.Lado1, prontos) is not int lado1
-                || CruzamentoDoMataMata.IdDaVaga(confronto.Lado2, prontos) is not int lado2) break;
+                || CruzamentoDoMataMata.IdDaVaga(confronto.Lado2, prontos) is not int lado2) continue;
 
             novos.Add(new Partida
             {
@@ -814,10 +819,12 @@ public class RoboDoChaveamento
         // Entram também os reservados da rodada nova (ainda não estão no banco) e os slots das
         // reservas de jogos que AINDA VÃO NASCER — senão o encaixe de hoje ocuparia a quadra que
         // a reserva de amanhã prometeu (ver ReservasDeHorario.AindaPorNascer).
-        var fasesQueExistem = todos.Concat(jogos).Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+        var jogosQueExistem = todos.Concat(jogos)
+            .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase))
+            .Select(p => (p.CategoriaId, p.Fase, NumeroDe(p))).ToHashSet();
         var intocados = jaMarcados.Where(p => p.HorarioPrevisto != null)
             .Union(reservados)
-            .Concat(ReservasDeHorario.AindaPorNascer(reservas, fasesQueExistem,
+            .Concat(ReservasDeHorario.AindaPorNascer(reservas, jogosQueExistem,
                 (categoriaId, fase) => AbreARodadaDe(OrdemDasFases.Posto(fase), categoriaId)))
             .ToList();
 
@@ -938,11 +945,13 @@ public class RoboDoChaveamento
 
             // Quantos jogos da abertura já nasceram em cada categoria que ainda está em grupos:
             // a prévia promete só o que FALTA, sem repetir o que já está na lista de jogos.
+            var numeroDaAbertura = ReservasDeHorario.NumeroNaFase(partidas);
             var aberturaJaCriada = partidas
                 .Where(p => ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
                          && gruposEmAberto.Contains(p.CategoriaId))
                 .GroupBy(p => p.CategoriaId)
-                .ToDictionary(g => g.Key, g => g.Count());
+                .ToDictionary(g => g.Key,
+                    g => (IReadOnlyCollection<int>)g.Select(p => numeroDaAbertura[p.Id]).ToHashSet());
 
             // Categoria AINDA NA FASE DE GRUPOS: não há jogo de mata-mata nenhum de onde
             // partir, então a projeção começa nas COLOCAÇÕES ("1º do Grupo A × 2º do Grupo
@@ -1088,9 +1097,9 @@ public class RoboDoChaveamento
             // As reservas do organizador — só as de fases que AINDA NÃO NASCERAM: a fase que já
             // virou jogo real entra por `ocupadas`, e a reserva dela já foi consumida pelo robô.
             reservas ??= await ReservasDeHorario.DoTorneio(_context, torneioId).ToListAsync();
-            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
+            var jogosReais = ReservasDeHorario.JogosQueExistem(partidas);
             var reservadas = reservas
-                .Where(r => !fasesReais.Contains((r.CategoriaId, r.Fase)))
+                .Where(r => !ReservasDeHorario.JaNasceu(jogosReais, r))
                 .Select(r => new ProximasFasesDaChave.HorarioReservado(r.CategoriaId, r.Fase, r.Numero, r.Horario, r.NomeQuadra))
                 .ToList();
 

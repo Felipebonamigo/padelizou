@@ -1696,7 +1696,7 @@ namespace Padelizou.Controllers
             {
                 var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
                 var reservaOcupante = ReservasDeHorario.QuemReservou(reservas,
-                    doTorneio.Select(p => (p.CategoriaId, p.Fase)).ToHashSet(), jogo.HorarioPrevisto, quadra);
+                    ReservasDeHorario.JogosQueExistem(doTorneio), jogo.HorarioPrevisto, quadra);
                 if (reservaOcupante != null)
                 {
                     reservaOcupante.NomeQuadra = deOnde;
@@ -2025,8 +2025,8 @@ namespace Padelizou.Controllers
             // uma semifinal pra mais tarde faz a reserva da final dessa categoria deixar de valer.
             // Ela não fica no banco calada — prévia e robô a ignorariam e o organizador só
             // descobriria olhando. A troca acontece, a reserva morta some, e a mensagem diz.
-            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
-            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
+            var jogosReais = ReservasDeHorario.JogosQueExistem(partidas);
+            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, jogosReais, conferencia);
             _context.ReservasDeHorario.RemoveRange(mortas);
 
             var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);
@@ -2181,8 +2181,8 @@ namespace Padelizou.Controllers
                 }
             }
 
-            var fasesReais = partidas.Select(p => (p.CategoriaId, p.Fase)).ToHashSet();
-            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, fasesReais, conferencia);
+            var jogosReais = ReservasDeHorario.JogosQueExistem(partidas);
+            var mortas = ReservasDeHorario.QueNaoValemMais(reservas, jogosReais, conferencia);
             _context.ReservasDeHorario.RemoveRange(mortas);
 
             var horariosMudados = AvisoDeHorarioMudado.Capturar(_context, id);

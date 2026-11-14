@@ -74,11 +74,13 @@ public class ChaveRespeitaOPrevistoTests
             return $"{c.Posicao}º do {grupo}";
         }
 
-        var mataMata = await ctx.Partidas
+        // NA ORDEM DO QUADRO (número gravado), e não por Id: desde 14/11/2026 a abertura nasce
+        // fora de ordem — o jogo cujos grupos fecham primeiro nasce primeiro
+        // (AberturaNasceForaDeOrdemTests).
+        var mataMata = ReservasDeHorario.PorNumeroNaFase(await ctx.Partidas
             .Where(p => p.CategoriaId == categoria.Id
                      && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
-            .OrderBy(p => p.Id)
-            .ToListAsync();
+            .ToListAsync());
 
         return mataMata.Select(p => $"{Rotulo(p.Dupla1Id)} × {Rotulo(p.Dupla2Id)}").ToList();
     }
