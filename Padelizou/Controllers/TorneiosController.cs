@@ -1673,12 +1673,12 @@ namespace Padelizou.Controllers
             // Passa pelo MESMO portão da chave não aprovada: sem ele, o select de quadras
             // mostraria a grade não publicada a visitante deslogado (Regra 0).
             var gradeDoTorneio = chaveAindaNaoPublicada
-                ? new List<(int Id, int CategoriaId, string Fase, string? NomeQuadra, string Status)>()
+                ? new List<(int Id, int CategoriaId, string Fase, string? NomeQuadra, string Status, int? NumeroNaFase)>()
                 : (await _context.Partidas.AsNoTracking()
                         .Where(p => p.TorneioId == torneioId)
-                        .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status })
+                        .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status, p.NumeroNaFase })
                         .ToListAsync())
-                    .Select(p => (p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status))
+                    .Select(p => (p.Id, p.CategoriaId, p.Fase, p.NomeQuadra, p.Status, p.NumeroNaFase))
                     .ToList();
 
             ViewBag.FiltroDeJogos = filtro;
@@ -1902,8 +1902,10 @@ namespace Padelizou.Controllers
             // continua sendo a 2 quando a Semifinal 1 sumiu por QUALQUER filtro. `todasAsPartidas`
             // não serve porque o filtro de TIME já a recortou em SQL, e ele tira jogos de dentro
             // da mesma categoria e fase — que é exatamente o que renumera.
+            // ⚠️ COM O NÚMERO GRAVADO (14/11/2026): pela sobrecarga sem ele a lista numerava por
+            // Id, e a abertura que nasce fora de ordem trocava "Quartas 1" e "Quartas 2" na tela.
             ViewBag.NumeroNaFase = ReservasDeHorario.NumeroNaFase(
-                gradeDoTorneio.Select(p => (p.Id, p.CategoriaId, p.Fase)));
+                gradeDoTorneio.Select(p => (p.Id, p.CategoriaId, p.Fase, p.NumeroNaFase)));
         }
     }
 }

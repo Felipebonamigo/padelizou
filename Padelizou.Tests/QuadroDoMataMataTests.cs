@@ -86,6 +86,35 @@ public class QuadroDoMataMataTests
         Assert.Equal(2, semis[1].Lado1!.VemDoJogo);
     }
 
+    [Fact]
+    public void Semifinal_2_real_com_a_1_ainda_por_nascer_fica_na_vaga_2()
+    {
+        // 🗣️ Felipe, THE LAST DANCE (14/11/2026), com o print da 4ª: *"Aqui ta errado tb"* — a
+        // Semifinal 2 real (Vencedor Quartas 2 × bye) era desenhada na vaga da 1, e a vaga 2
+        // aparecia de novo como prévia com as MESMAS duplas. O quadro supunha que os jogos
+        // reais de uma fase são os primeiros dela; com a fase nascendo fora de ordem não são,
+        // e quem manda é o número gravado (Partida.NumeroNaFase).
+        var q1 = Jogo("Quartas de Final", DuplaQualquer(), DuplaQualquer());
+        var q2 = Jogo("Quartas de Final", DuplaQualquer(), DuplaQualquer());
+        q1.NumeroNaFase = 1;
+        q2.NumeroNaFase = 2;
+        q2.Status = "Finalizada";
+        q2.VencedorId = q2.Dupla1Id;
+        var byeMelhor = DuplaQualquer();
+        var byePior = DuplaQualquer();
+        var semi2 = Jogo("Semifinal", q2.Dupla1!, byeMelhor);
+        semi2.NumeroNaFase = 2;
+
+        var fases = QuadroDoMataMata.Montar([q1, q2, semi2], [byeMelhor, byePior], meuJogadorId: null);
+
+        var semis = fases[1].Vagas;
+        Assert.Equal(2, semis.Count);
+        Assert.Null(semis[0].Jogo);
+        Assert.Same(semi2, semis[1].Jogo);
+        Assert.Equal(1, semis[0].Lado1!.VemDoJogo);
+        Assert.Equal(byePior.Id, semis[0].Lado2!.DuplaDeBye!.Id);
+    }
+
     // ── O caminho pintado ───────────────────────────────────────────────────────────
 
     [Fact]

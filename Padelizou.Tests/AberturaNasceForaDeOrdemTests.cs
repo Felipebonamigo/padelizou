@@ -88,6 +88,11 @@ public class AberturaNasceForaDeOrdemTests
         var previa = ((List<JogoQueVem>)controller.ViewBag.JogosQueVem).Where(j => j.Fase == fase).ToList();
         var previsto = Assert.Single(previa);
         Assert.Equal(1, previsto.Numero);
+
+        // E a LISTA chama o jogo real pelo número dele: "Quartas de Final 2", não "1" —
+        // numerar por Id trocava os rótulos no THE LAST DANCE (14/11/2026).
+        var numeroNaTela = (Dictionary<int, int>)controller.ViewBag.NumeroNaFase;
+        Assert.Equal(2, numeroNaTela[jogo2.Id]);
     }
 
     [Fact]
