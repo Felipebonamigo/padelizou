@@ -728,7 +728,15 @@ public class RoboDoChaveamento
         // igual nunca está fora de ordem por causa de uma rodada que acabou de entrar.
         // ⚠️ POR ID: é a ordem da fila em que o sorteio gravou (ver RecalcularAGradeAsync, 10/09/2026).
         var todos = await _context.Partidas.Where(p => p.TorneioId == torneioId).OrderBy(p => p.Id).ToListAsync();
-        var forasDeOrdem = LevasDaGrade.ForaDeOrdem(todos, OrdemDasFases.Posto(jogos[0].Fase));
+        // ⚠️ NA ORDEM EM QUE JÁ ESTAVAM NA GRADE, e não por Id (14/11/2026). 🗣️ Felipe, no THE LAST
+        // DANCE: *"Voltou para 10:40 do igor ao terminar um jogo"* — ele tinha posto a Semifinal 2
+        // da 5ª antes da 1, e o reencaixe (que segue esta ordem dentro de cada fase e categoria)
+        // desfazia a troca toda vez que outra categoria avançava. O fora de ordem só anda pra
+        // frente; a ordem entre eles é a que o organizador deixou (ReencaixeMantemAOrdemDaTrocaTests).
+        var forasDeOrdem = LevasDaGrade.ForaDeOrdem(todos, OrdemDasFases.Posto(jogos[0].Fase))
+            .OrderBy(p => p.HorarioPrevisto)
+            .ThenBy(p => p.Id)
+            .ToList();
 
         // ⚠️ NO "POR ORDEM", QUADRA ESCRITA É O BALCÃO CHAMANDO (10/09/2026, revisão adversarial do
         // ensaio do Er): nesse modo o jogo nasce sem quadra, e o "Agendada" que JÁ TEM quadra foi
