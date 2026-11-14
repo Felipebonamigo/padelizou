@@ -1,6 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **14/11/2026** — 🗳️ **O JOGO DE ABERTURA COM AS DUAS DUPLAS DEFINIDAS NASCE, MESMO COM O DE NÚMERO MENOR ESPERANDO** (THE LAST DANCE, Chakra, ao vivo). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO** (branch `claude/nifty-cori-xp4rzf`).
+>
+> 🕳️ 🗣️ *"O jogo ja esta os dois classificados, tem q permitir votar, por em jogo"* — a Quartas 2 da 4ª tinha as duas duplas (Grupo C fechado) e seguia prévia, sem palpite nem Mesa, porque a Quartas 1 esperava o Grupo A. `RoboDoChaveamento.MontarAberturaDesenhadaAsync` PARAVA no primeiro confronto sem dono (resquício da numeração por Id); agora pula, como o `AvancarFaseAsync` já fazia, e grava o `NumeroNaFase`. A prévia (`MontarDosGrupos`) recebe QUAIS números já nasceram, e não quantos. `ChaveRespeitaOPrevistoTests` lia a chave por Id → passa a ler pela ordem do quadro (mesmos confrontos, mesmas posições).
+>
+> ⚠️ A `VarreduraDaChave` só chama o robô com os grupos TODOS fechados — o jogo pronto nasce no próximo placar de grupo da categoria, não sozinho.
+>
+> 🧪 `AberturaNasceForaDeOrdemTests` (2): o jogo 2 nasce com o 1 esperando (**visto vermelho**: nada nascia) e a prévia mostra só o 1 com o número dele; e a guarda — o 1 nasce depois com número 1 e o "Refazer como previsto" diz que não há nada a refazer.
+>
 > Última atualização: **14/11/2026** — 🔁 **A TROCA ENTRE A SEMIFINAL REAL E A PREVISTA DA MESMA CATEGORIA** (THE LAST DANCE, Chakra, ao vivo). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO** (branch `claude/nifty-cori-xp4rzf`).
 >
 > 🕳️ 🗣️ *"Esta dizendo isso sendo que é as duas semi da mesma categoria"* — a Semifinal 1 da 5ª já tinha nascido (Quartas 1 acabou) e a 2 era prévia; a troca ⇄ entre as duas era recusada com "a fase anterior dessa categoria ainda não terminou". **Duas causas**: (1) as reservas eram filtradas por (categoria, FASE) — "uma fase nasce inteira", o que deixou de ser verdade quando o jogo passou a nascer fora de ordem — e a reserva da Semifinal 2 era lida como consumida; agora é por JOGO (`ReservasDeHorario.JogosQueExistem`/`JaNasceu`, nos 5 leitores). (2) a prévia abria a Semifinal 2 depois do jogo real MAIS TARDE da categoria, que era a própria irmã; agora o piso é a fase anterior, e o irmão real vira piso da rodada SEGUINTE (`RodadaQueVem.UltimoIrmaoReal` — a Final continua esperando as duas semis).

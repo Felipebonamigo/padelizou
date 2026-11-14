@@ -206,10 +206,12 @@ public static class ProximasFasesDaChave
         // decide, como sempre. Passar a prometer o cruzamento DESENHADO é o que impede a prévia
         // de anunciar um confronto que o robô não vai criar na categoria que tem desenho.
         string? cruzamentoDesenhado = null,
-        // Quantos jogos da ABERTURA já nasceram de verdade. Desde o avanço parcial dos grupos
-        // (11/09/2026) ela nasce jogo a jogo: os que já existem estão na lista de jogos, com nome
-        // e sobrenome, e a prévia continua prometendo só o que falta — sem repetir nenhum.
-        int jogosJaCriadosNaAbertura = 0,
+        // QUAIS jogos da ABERTURA (pelo número na fase) já nasceram de verdade. Desde o avanço
+        // parcial dos grupos (11/09/2026) ela nasce jogo a jogo: os que já existem estão na lista
+        // de jogos, com nome e sobrenome, e a prévia continua prometendo só o que falta — sem
+        // repetir nenhum. Eram QUANTOS até 14/11/2026, quando a abertura passou a nascer fora de
+        // ordem (AberturaNasceForaDeOrdemTests): o jogo 2 real com o 1 esperando.
+        IReadOnlyCollection<int>? numerosJaCriadosNaAbertura = null,
         // Os nomes que já não são promessa: o grupo fechou e a colocação virou dupla
         // (Services/ClassificadosJaConhecidos).
         IReadOnlyDictionary<(string Grupo, int Posicao), string>? jaConhecidos = null,
@@ -220,16 +222,14 @@ public static class ProximasFasesDaChave
             grupos, classificadosPorGrupo, duplasPorGrupo, cruzamentoDesenhado, jaConhecidos);
         if (confrontos.Count == 0) return CadeiaDeFases.Vazia;
 
-        int jaReais = Math.Clamp(jogosJaCriadosNaAbertura, 0, confrontos.Count);
-        var primeira = new RodadaQueVem(fase, confrontos
-            .Skip(jaReais)
-            .Select(c => (VagaDeGrupo(c.Lado1), VagaDeGrupo(c.Lado2)))
-            .ToList(),
-            // A ABERTURA CONTINUA SENDO PREFIXO: ela nasce grupo a grupo, sempre em ordem de
-            // quadro (RoboDoChaveamento.MontarAberturaDesenhadaAsync), então "os `jaReais`
-            // primeiros" descreve exatamente o que já existe. Os números vão explícitos assim
-            // mesmo pra que a fase inteira fale a mesma língua.
-            Enumerable.Range(jaReais + 1, confrontos.Count - jaReais).ToList());
+        var jaReais = numerosJaCriadosNaAbertura ?? Array.Empty<int>();
+        var faltam = confrontos
+            .Select((c, i) => (Confronto: c, Numero: i + 1))
+            .Where(x => !jaReais.Contains(x.Numero))
+            .ToList();
+        var primeira = new RodadaQueVem(fase,
+            faltam.Select(x => (VagaDeGrupo(x.Confronto.Lado1), VagaDeGrupo(x.Confronto.Lado2))).ToList(),
+            faltam.Select(x => x.Numero).ToList());
 
         var proximos = confrontos
             .Select((_, i) => LadoDoVencedor(fase, i + 1, vencedores))
