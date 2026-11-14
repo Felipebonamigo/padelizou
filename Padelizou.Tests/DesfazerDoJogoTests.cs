@@ -270,6 +270,35 @@ public class DesfazerDoJogoTests
         Assert.Empty(DesfazerDoJogo.GeradosDepois(grupo, new[] { americano }));
     }
 
+    // 🗣️ THE LAST DANCE (14/11/2026): a Semifinal 2 da 4ª — que vem da Quartas 2 — sumiu quando
+    // mexeram na Quartas 1. Desde que a fase nasce pela metade, a semi que já existe pode não ter
+    // NADA a ver com o jogo reaberto. No mata-mata, o que saiu de um resultado é onde uma das
+    // duplas dele aparece depois; o resto da categoria fica de pé.
+    [Fact]
+    public void No_mata_mata_reabrir_a_quartas_1_nao_apaga_a_semi_que_veio_da_quartas_2()
+    {
+        Partida J(int id, string fase, int d1, int d2, string status = "Agendada") =>
+            new() { Id = id, Codigo = $"J{id}", CategoriaId = 4, Fase = fase, Dupla1Id = d1, Dupla2Id = d2, Status = status };
+
+        var q1 = J(1, "Quartas de Final", 11, 12, "Finalizada");
+        var q2 = J(2, "Quartas de Final", 21, 22, "Finalizada");
+        var s2 = J(3, "Semifinal", 21, 99);            // vencedor da Q2 × quem folgou
+        var daCategoria = new[] { q1, q2, s2 };
+
+        Assert.Empty(DesfazerDoJogo.GeradosDepois(q1, daCategoria));
+        Assert.Equal(new[] { s2 }, DesfazerDoJogo.GeradosDepois(q2, daCategoria));
+
+        // E a semi da Q1, quando existe, sai — com a final que nasceu dela.
+        var s1 = J(4, "Semifinal", 11, 98);
+        var final = J(5, "Final", 11, 21);
+        var todos = new[] { q1, q2, s2, s1, final };
+        Assert.Equal(new[] { s1, final }, DesfazerDoJogo.GeradosDepois(q1, todos));
+
+        // Com a semi da OUTRA chave já em quadra, a Q1 ainda reabre: aquele jogo não é dela.
+        s2.Status = "AoVivo";
+        Assert.Null(DesfazerDoJogo.MotivoParaNaoReabrir(q1, daCategoria));
+    }
+
     [Fact]
     public void A_corrente_das_fases_vai_do_grupo_ate_a_final()
     {
