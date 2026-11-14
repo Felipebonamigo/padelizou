@@ -105,9 +105,20 @@ public static class DesfazerDoJogo
         int minha = OrdemDaFase(jogo.Fase);
         if (minha < 0) return new List<Partida>();
 
-        return daCategoria
-            .Where(p => p.Id != jogo.Id && OrdemDaFase(p.Fase) > minha)
-            .ToList();
+        var posteriores = daCategoria.Where(p => p.Id != jogo.Id && OrdemDaFase(p.Fase) > minha);
+
+        // ⚠️ NO MATA-MATA, SÓ O QUE SAIU DESTE JOGO (14/11/2026). 🗣️ THE LAST DANCE: a Semifinal 2
+        // da 4ª, que vem da Quartas 2, sumiu quando mexeram na Quartas 1 — desde que a fase nasce
+        // pela metade, a fase seguinte pode já ter jogo que não depende deste. O que nasceu deste
+        // resultado é onde uma das duas duplas dele aparece depois (o vencedor, e na correção o
+        // vencedor antigo). No GRUPO continua a categoria inteira: o resultado mexe na
+        // classificação, e a vaga muda até pra quem não jogou este jogo.
+        if (ChaveamentoMataMata.EhFaseDeMataMata(jogo.Fase))
+            posteriores = posteriores.Where(p =>
+                p.Dupla1Id == jogo.Dupla1Id || p.Dupla2Id == jogo.Dupla1Id
+                || p.Dupla1Id == jogo.Dupla2Id || p.Dupla2Id == jogo.Dupla2Id);
+
+        return posteriores.ToList();
     }
 
     // Null = pode reabrir.
