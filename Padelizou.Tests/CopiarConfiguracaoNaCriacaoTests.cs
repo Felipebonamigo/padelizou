@@ -134,6 +134,44 @@ public class CopiarConfiguracaoNaCriacaoTests
         Assert.Equal(true, view.ViewData["PagamentoVirouExterno"]);
     }
 
+    // 🗣️ Felipe, 15/11/2026, depois do THE LAST DANCE ficar sem a contagem no 8x8: *"deixa como
+    // padrao ligado o tie-break de 7"*. Torneio novo já nascia com 7 (12/09/2026); o furo era a
+    // CÓPIA — origem de antes daquela data (zero = sem tie-break) passava o zero adiante, torneio
+    // após torneio. Copiando, o "sem" vira 7; quem escolheu 7 ou 10 continua com o que escolheu.
+    [Fact]
+    public async Task Copiar_torneio_sem_tie_break_liga_o_de_7_nas_tres_fases()
+    {
+        var (ctx, modelo, dono) = Cenario();
+        using var _ = ctx;
+        var origem = ctx.Torneios.First(t => t.Id == modelo.Id);
+        origem.PontosTieBreakGrupos = TieBreakDoJogo.Desligado;
+        origem.PontosTieBreakMataMata = TieBreakDoJogo.Desligado;
+        origem.PontosTieBreakFinal = TieBreakDoJogo.Desligado;
+        await ctx.SaveChangesAsync();
+
+        var view = Assert.IsType<ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, dono.Id).Create(copiarDe: modelo.Id));
+        var copia = Assert.IsType<Torneio>(view.Model);
+
+        Assert.Equal(TieBreakDoJogo.PontosPadrao, copia.PontosTieBreakGrupos);
+        Assert.Equal(TieBreakDoJogo.PontosPadrao, copia.PontosTieBreakMataMata);
+        Assert.Equal(TieBreakDoJogo.PontosPadrao, copia.PontosTieBreakFinal);
+    }
+
+    [Fact]
+    public async Task Copiar_torneio_com_super_tie_break_mantem_o_de_10()
+    {
+        var (ctx, modelo, dono) = Cenario();
+        using var _ = ctx;
+        ctx.Torneios.First(t => t.Id == modelo.Id).PontosTieBreakFinal = TieBreakDoJogo.SuperTieBreak;
+        await ctx.SaveChangesAsync();
+
+        var view = Assert.IsType<ViewResult>(
+            await TestInfra.NovoTorneiosController(ctx, dono.Id).Create(copiarDe: modelo.Id));
+
+        Assert.Equal(TieBreakDoJogo.SuperTieBreak, Assert.IsType<Torneio>(view.Model).PontosTieBreakFinal);
+    }
+
     [Fact]
     public async Task Torneio_de_OUTRA_pessoa_nao_e_copiado()
     {
