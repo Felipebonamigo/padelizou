@@ -38,6 +38,11 @@ public static class StatusDoTorneioNaTela
     //
     // ⚠️ É uma função À PARTE, e não a `Nome` mexida: a tela de gestão do torneio também usa a
     // `Nome`, e lá quem aprova a chave PRECISA ler "Chaves em Aprovação".
+    // "Fase de Grupos" é o status de TORNEIO EM ANDAMENTO, e não a fase em que ele está: nada o
+    // troca até "Finalizado" (o Americano reaproveita o mesmo). Na vitrine ele dizia "Fase de
+    // Grupos" no domingo das finais (15/11/2026, VitrineNaoChamaDeAoVivoOQueNaoComecouTests).
     public static string NomePublico(string? status) =>
-        AindaNaoComecou(status) ? "Inscrições Encerradas" : status ?? "";
+        AindaNaoComecou(status) ? "Inscrições Encerradas"
+        : status == "Fase de Grupos" ? "Em andamento"
+        : status ?? "";
 }
