@@ -1,7 +1,21 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **14/11/2026** — 🔢 **A LISTA E A CHAVE CHAMAM O JOGO PELO NÚMERO GRAVADO** (THE LAST DANCE, ao vivo, logo depois do #424). ✅ **SEM MIGRATION.**
+> Última atualização: **15/11/2026** — 🏷️ **A VITRINE DIZ "EM ANDAMENTO", E NÃO "FASE DE GRUPOS"** (THE LAST DANCE, domingo das finais). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#427, `build-1663-d93f39b`).
+>
+> 🕳️ 🗣️ *"Ja nao é mais fase de grupos a um tempo, por que nao mudou?"* — `Torneio.Status = "Fase de Grupos"` é o status de TORNEIO EM ANDAMENTO (o Americano reaproveita o mesmo; nada o troca até "Finalizado"), e a Home (`StatusDoTorneioNaTela.NomePublico`) o mostrava cru. Só a exibição mudou: "Em andamento". `VitrineNaoChamaDeAoVivoOQueNaoComecouTests` mandava "Fase de Grupos" sair como está — o caso virou teste próprio, **visto vermelho**. 💡 Mostrar a fase de verdade da categoria no card ("Semifinal") fica como ideia, não feita.
+>
+> Última atualização: **14/11/2026** — 🔁 **O REENCAIXE NÃO DESFAZ A TROCA FEITA NA MÃO + REABRIR NO MATA-MATA SÓ DESFAZ O QUE SAIU DAQUELE JOGO** (THE LAST DANCE, ao vivo). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#426, `build-1661-947ca11`).
+>
+> 🕳️ 🗣️ *"Voltou para 10:40 do igor ao terminar um jogo"* — as semis da 5ª trocadas na mão (S2 antes da S1) voltavam pra ordem de criação toda vez que uma rodada de fase anterior nascia (as Quartas da 6ª Fem): `RoboDoChaveamento.AgendarNaGradeAsync` reencaixa os `LevasDaGrade.ForaDeOrdem`, e reencaixava POR ID. Agora na ordem que já tinham na grade (`HorarioPrevisto`, depois Id); a régua do fora de ordem fica (é ela que impede final antes das quartas de outra categoria). ⚠️ Eu (Claude) disse ao Felipe que a troca estava salva conferindo ANTES do reencaixe — ele estava certo.
+>
+> 🕳️ 🗣️ *"aqui de novo, jogo pronto, confirmado e nao esta aparecendo como 'pronto'"* — a Semifinal 2 real da 4ª (vinda da Quartas 2) sumiu quando mexeram na Quartas 1 (reabrir ou corrigir placar com troca de vencedor): `DesfazerDoJogo.GeradosDepois` apagava TODA fase posterior da categoria, premissa de "fase nasce inteira" que o #424 derrubou. No MATA-MATA agora só os jogos onde uma das duplas dele aparece depois; no GRUPO continua a categoria inteira (o resultado mexe na classificação). A S2 voltou sozinha quando a Quartas 1 acabou; os 2 palpites dela se perderam.
+>
+> 🧪 `ReencaixeMantemAOrdemDaTrocaTests` (**visto vermelho**: "Semifinal 2 às 11:30, Semifinal 1 às 10:40") + `DesfazerDoJogoTests.No_mata_mata_reabrir_a_quartas_1_nao_apaga_a_semi_que_veio_da_quartas_2` (**visto vermelho**). 8.213 verdes.
+>
+> 🎾 **Tie-break no 8×8 já existia** (12/09): só aparece com "Tie-break no empate" ligado em Gerenciar Torneio → Formato das partidas — o THE LAST DANCE estava sem. Nada mudou no código.
+>
+> Última atualização: **14/11/2026** — 🔢 **A LISTA E A CHAVE CHAMAM O JOGO PELO NÚMERO GRAVADO** (THE LAST DANCE, ao vivo, logo depois do #424). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#425, `build-1658-6ac8d75`).
 >
 > 🕳️ 🗣️ *"Aqui ta errado tb"* — com a abertura nascendo fora de ordem (#424), a 4ª ficou com as quartas de rótulo trocado na lista e a Semifinal 2 real desenhada na vaga da 1, com a vaga 2 repetindo as MESMAS duplas como prévia. **Os dados estavam certos** (robô e prévia leem o número gravado); erravam dois leitores que supunham "fase nasce em ordem": a lista (`TorneiosController`, `ViewBag.NumeroNaFase` pela sobrecarga sem o número → por Id) e o quadro (`QuadroDoMataMata`, `reais[k]` = primeira vaga livre). Agora os dois pelo número gravado.
 >
