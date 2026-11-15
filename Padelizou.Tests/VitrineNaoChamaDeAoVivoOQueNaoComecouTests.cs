@@ -28,8 +28,18 @@ public class VitrineNaoChamaDeAoVivoOQueNaoComecouTests
         Assert.Equal("Inscrições Encerradas", StatusDoTorneioNaTela.NomePublico(status));
     }
 
+    // 🗣️ Felipe, 15/11/2026, com a Home mostrando o THE LAST DANCE no domingo das finais: *"Ja nao
+    // é mais fase de grupos a um tempo, por que nao mudou?"*. "Fase de Grupos" é o status de TORNEIO
+    // EM ANDAMENTO (o Americano reaproveita o mesmo, e nada o troca até "Finalizado"): na tela ele
+    // dizia a fase errada do primeiro jogo de mata-mata até a final. Até aqui este teste mandava
+    // sair "como está" — era a premissa de que o status acompanhava a fase, e não acompanha.
+    [Fact]
+    public void Torneio_em_andamento_aparece_como_em_andamento_e_nao_como_fase_de_grupos()
+    {
+        Assert.Equal("Em andamento", StatusDoTorneioNaTela.NomePublico("Fase de Grupos"));
+    }
+
     [Theory]
-    [InlineData("Fase de Grupos")]
     [InlineData("Mata-Mata")]
     [InlineData("Inscrições Abertas")]
     public void Os_outros_status_saem_como_estao(string status)
