@@ -1,6 +1,10 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **15/11/2026** — 🎾 **A CÓPIA DE TORNEIO TAMBÉM NASCE COM TIE-BREAK DE 7**. ✅ **SEM MIGRATION.**
+>
+> 🕳️ 🗣️ *"deixa como padrao ligado o tie-break de 7"* — torneio novo já nascia com 7 desde 12/09; a CÓPIA (`TorneiosController.PrepararCopiaAsync`) herdava o zero da origem antiga, e foi assim que o THE LAST DANCE chegou ao 8x8 sem contagem. Agora o "sem" da origem vira 7 em grupos, mata-mata e final; 7 e 10 escolhidos ficam. Torneios que já existem continuam como estão (decisão do Felipe: só a cópia). 🧪 2 em `CopiarConfiguracaoNaCriacaoTests`, o do zero **visto vermelho** (0 em vez de 7). 8.215 verdes.
+>
 > Última atualização: **15/11/2026** — 🏷️ **A VITRINE DIZ "EM ANDAMENTO", E NÃO "FASE DE GRUPOS"** (THE LAST DANCE, domingo das finais). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#427, `build-1663-d93f39b`).
 >
 > 🕳️ 🗣️ *"Ja nao é mais fase de grupos a um tempo, por que nao mudou?"* — `Torneio.Status = "Fase de Grupos"` é o status de TORNEIO EM ANDAMENTO (o Americano reaproveita o mesmo; nada o troca até "Finalizado"), e a Home (`StatusDoTorneioNaTela.NomePublico`) o mostrava cru. Só a exibição mudou: "Em andamento". `VitrineNaoChamaDeAoVivoOQueNaoComecouTests` mandava "Fase de Grupos" sair como está — o caso virou teste próprio, **visto vermelho**. 💡 Mostrar a fase de verdade da categoria no card ("Semifinal") fica como ideia, não feita.

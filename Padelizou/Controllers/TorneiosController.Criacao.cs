@@ -201,6 +201,16 @@ namespace Padelizou.Controllers
 
             var copia = DuplicacaoDeTorneio.ParaOFormularioDeCriacao(modelo);
 
+            // A CÓPIA TAMBÉM NASCE COM TIE-BREAK DE 7 (15/11/2026). 🗣️ Felipe: *"deixa como padrao
+            // ligado o tie-break de 7"* — o torneio novo já nascia assim, mas a cópia de um torneio
+            // de antes de 12/09 passava o "sem" (zero) adiante, e o THE LAST DANCE chegou ao 8x8
+            // sem contagem. Quem escolheu 7 ou 10 na origem fica com o que escolheu; o "sem" vira 7,
+            // e quem quiser mesmo sem desliga no formulário (CopiarConfiguracaoNaCriacaoTests).
+            int ComTieBreak(int pontos) => pontos > 0 ? pontos : TieBreakDoJogo.PontosPadrao;
+            copia.PontosTieBreakGrupos = ComTieBreak(copia.PontosTieBreakGrupos);
+            copia.PontosTieBreakMataMata = ComTieBreak(copia.PontosTieBreakMataMata);
+            copia.PontosTieBreakFinal = ComTieBreak(copia.PontosTieBreakFinal);
+
             // ⚠️ RECUSA ETERNA, e ela só apareceu tentando publicar de verdade: se o torneio
             // copiado cobrava PELO SITE e quem está copiando não tem conta de recebimento, a
             // tela desabilita os rádios "pelo site" — e rádio desabilitado NÃO É ENVIADO pelo
