@@ -1225,9 +1225,20 @@ namespace Padelizou.Controllers
             // não "Fulano & Sicrano" numa coluna só. O Felipe mandou a planilha que a Camila já
             // usa na mão: Jogador 1/Fone 1/Jogador 2/Fone 2, pra poder ligar pra qualquer um
             // dos dois direto da linha, sem abrir outra tela.
+            // ⚠️ O PAGO DE CADA JOGADOR, da MESMA fonte que a tela (Services/PagamentoPorJogador),
+            // 17/11/2026. 🗣️ Felipe: *"o co organizador vini nao consegue ver corretamente quem pagou
+            // pela planilha"* — a planilha só tinha o pago da DUPLA, e o ✓ de um jogador sozinho
+            // saía como "Não" pros dois (RelatorioDuplasCsvTests).
+            var idsDasDuplas = duplas.Select(d => d.Id).ToList();
+            var situacoes = PagamentoPorJogador.Retrato(torneio, duplas,
+                await _context.PagamentosManuaisDeJogador.Where(m => idsDasDuplas.Contains(m.DuplaId)).ToListAsync(),
+                await CobrancaDaDupla.ConfirmadosDe(_context, idsDasDuplas).ToListAsync());
+            bool cobra = torneio.PrecoInscricao > 0;
+            static string SimNao(bool pago) => pago ? "Sim" : "Não";
+
             static string Campo(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Categoria;Jogador 1;Fone 1;Jogador 2;Fone 2;Pago;Impedimento;Impedimento alterado em");
+            sb.AppendLine("Categoria;Jogador 1;Fone 1;Pago 1;Jogador 2;Fone 2;Pago 2;Dupla paga;Impedimento;Impedimento alterado em");
             foreach (var dupla in duplas)
             {
                 var turno = AlteracaoDeImpedimento.TurnoAtual(dupla);
@@ -1241,13 +1252,19 @@ namespace Padelizou.Controllers
                 // NULO = ainda procurando parceiro (Dupla.Jogador2Id) — mesmo estado que a
                 // planilha da Camila já marca à mão; uma célula vazia sem dizer o motivo
                 // pareceria um dado perdido, não uma inscrição incompleta de verdade.
+                var situacao = situacoes.GetValueOrDefault(dupla.Id);
+                // Dupla paga inteira vale pros dois, mesmo sem ✓ individual gravado.
+                bool pago1 = dupla.Pago || (situacao?.Jogador1Pago ?? false);
+                bool pago2 = dupla.Pago || (situacao?.Jogador2Pago ?? false);
                 sb.AppendLine(string.Join(";",
                     Campo(dupla.Categoria.Nome),
                     Campo(dupla.Jogador1.NomeNaTela),
                     Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador1.Celular)),
+                    cobra ? SimNao(pago1) : "-",
                     Campo(dupla.Jogador2?.NomeNaTela ?? "Procurando parceiro"),
                     Campo(WhatsAppLinkHelper.Formatar(dupla.Jogador2?.Celular)),
-                    torneio.PrecoInscricao > 0 ? (dupla.Pago ? "Sim" : "Não") : "-",
+                    cobra && dupla.Jogador2 != null ? SimNao(pago2) : "-",
+                    cobra ? SimNao(dupla.Pago) : "-",
                     Campo(AlteracaoDeImpedimento.Rotulo(turno)),
                     quando));
             }

@@ -93,7 +93,7 @@ public class RelatorioDuplasCsvTests
         Assert.Equal("text/csv", arquivo.ContentType);
         var texto = Encoding.UTF8.GetString(arquivo.FileContents);
 
-        Assert.Contains("Categoria;Jogador 1;Fone 1;Jogador 2;Fone 2;Pago;Impedimento;Impedimento alterado em", texto);
+        Assert.Contains("Categoria;Jogador 1;Fone 1;Pago 1;Jogador 2;Fone 2;Pago 2;Dupla paga;Impedimento;Impedimento alterado em", texto);
         Assert.Contains(dupla.Jogador1.NomeNaTela, texto);
         Assert.Contains(dupla.Jogador2.NomeNaTela, texto);
         Assert.Contains("(51) 99239-5650", texto);
@@ -101,6 +101,31 @@ public class RelatorioDuplasCsvTests
         Assert.Contains("Sim", texto);
         Assert.Contains("Sexta à noite", texto);
         Assert.Contains("01/09/2026 14:30", texto);
+    }
+
+    // 🗣️ Felipe, 17/11/2026: *"Parece que o co organizador vini nao consegue ver corretamente quem
+    // pagou pela planilha"*. A planilha tinha UMA coluna "Pago" — a da dupla —, e o ✓ de UM jogador
+    // (PagamentoManualDoJogador) não aparecia: a dupla em que só um pagou saía "Não", sem dizer quem.
+    // A tela lia Services/PagamentoPorJogador; a planilha passa a ler o mesmo.
+    [Fact]
+    public async Task Mostra_o_pago_de_cada_jogador_quando_so_um_da_dupla_pagou()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, criador) = Cenario(ctx);
+        torneio.PrecoInscricao = 100m;
+        var dupla = await ctx.Duplas.FirstAsync(d => d.CategoriaId == categoria.Id);
+        ctx.PagamentosManuaisDeJogador.Add(new PagamentoManualDoJogador { DuplaId = dupla.Id, JogadorId = dupla.Jogador1Id });
+        await ctx.SaveChangesAsync();
+
+        var resultado = await TestInfra.NovoTorneiosController(ctx, criador.Id).RelatorioDuplasCsv(torneio.Id);
+        var linhas = Encoding.UTF8.GetString(Assert.IsType<FileContentResult>(resultado).FileContents)
+            .TrimStart('\uFEFF').Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var cabecalho = linhas[0].TrimEnd('\r').Split(';');
+        var linha = linhas[1].TrimEnd('\r').Split(';');
+
+        Assert.Equal("Sim", linha[Array.IndexOf(cabecalho, "Pago 1")]);
+        Assert.Equal("Não", linha[Array.IndexOf(cabecalho, "Pago 2")]);
+        Assert.Equal("Não", linha[Array.IndexOf(cabecalho, "Dupla paga")]);
     }
 
     // O mesmo estado que a planilha da Camila já marca em vermelho — inscrição sem parceiro
