@@ -30,9 +30,9 @@ public static class AcessoAoDinheiroDoTorneio
     // O que o criador lê ANTES de adicionar alguém — no lugar onde ele decide, não escondido
     // numa ajuda. É o aviso que o Felipe pediu.
     public const string AvisoAoAdicionar =
-        "Quem você adicionar pode lançar placares, mexer nas configurações do torneio e marcar "
-        + "inscrição como paga. O dinheiro — quanto entrou, quanto falta e o líquido — continua "
-        + "só com você.";
+        "Quem você adicionar pode lançar placares, mexer nas configurações do torneio, marcar "
+        + "inscrição como paga e cobrar cada jogador. O caixa — quanto entrou, quanto falta e o "
+        + "líquido — continua só com você.";
 
     // O que o ajudante lê quando abre a tela: sem isso ele acha que a página quebrou.
     public const string ExplicacaoParaQuemAjuda =

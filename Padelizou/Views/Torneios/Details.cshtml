@@ -5697,10 +5697,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
             <div class="tab-content">
             <div class="tab-pane fade show active" id="pagamentosLista" role="tabpanel">
 
-            @if (ViewBag.PodeVerDinheiro != true)
+            @if (ViewBag.PodeMarcarPorJogador != true)
             {
                 @* Mesmo aviso que Financeiro.cshtml já dá pro ajudante — sem ele, quem não vê
-                   dinheiro acharia que os valores e o "Cobrar" sumiram por engano. *@
+                   dinheiro acharia que os valores e o "Cobrar" sumiram por engano. Desde
+                   17/11/2026 o co-organizador vê a lista inteira (PodeMarcarPorJogador); o aviso
+                   sobra pra quem só olha. *@
                 <div class="alert alert-info small">
                     <i class="bi bi-info-circle"></i> @Padelizou.Services.AcessoAoDinheiroDoTorneio.ExplicacaoParaQuemAjuda
                 </div>
@@ -5710,9 +5712,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                ORGANIZADOR mandando, do PRÓPRIO número: o botão só abre, em sequência, os
                mesmos links "Cobrar" que já existem em cada linha (.pdz-cobrar-link) — nada
                de mensagem automática, nada de servidor envolvido. Ver wwwroot/js/cobrar-todos.js.
-               Atrás de `PodeVerDinheiro`: a mensagem de cada "Cobrar" leva o VALOR e a chave
-               Pix, mesma régua do link individual e do botão de Financeiro.cshtml. *@
-            @if (ViewBag.PodeVerDinheiro == true && naoPagaramComCelular.Count > 0)
+               Atrás de `PodeMarcarPorJogador`, a mesma régua do link individual: desde
+               17/11/2026 o co-organizador cobra também (CoOrganizadorMarcaPorJogadorTests). *@
+            @if (ViewBag.PodeMarcarPorJogador == true && naoPagaramComCelular.Count > 0)
             {
                 @* ⚠️ O NOME DO BOTÃO É O CONSERTO (08/09/2026). Ele se chamava "Cobrar todos
                    (N)" e o Felipe perguntou se mandava sozinho: *"dá a impressão que sim, mas
@@ -5750,9 +5752,10 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
             @* RELATÓRIO EM CSV — pedido do Felipe (07/09/2026): "crie um botão com um
                relatório em excel, com nome completo, telefone, se pagou ou não, se tem
-               impedimento e quando". Atrás de PodeVerDinheiro, mesma régua do link "Cobrar"
-               acima: é o telefone em texto puro na planilha que pede essa régua, não o
-               relatório em si (ver RelatorioDuplasCsvTests). *@
+               impedimento e quando". Atrás de PodeVerDinheiro: é o telefone de TODO mundo em texto
+               puro na planilha que pede essa régua, não o relatório em si (ver
+               RelatorioDuplasCsvTests). O "Cobrar" de cada linha foi pro co-organizador em
+               17/11/2026; a planilha não — a decisão do Felipe foi a LISTA, não o caixa. *@
             @if (ViewBag.PodeVerDinheiro == true)
             {
                 <div class="mb-4">
@@ -5851,7 +5854,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                     {
                                                         <span class="badge rounded-pill fw-normal @(jaPagou ? "bg-success-subtle text-success-emphasis" : "bg-danger-subtle text-danger-emphasis")">@(jaPagou ? "pagou" : "não pagou")</span>
                                                     }
-                                                    @if (acoesPorJogador && ViewBag.PodeVerDinheiro == true)
+                                                    @if (acoesPorJogador && ViewBag.PodeMarcarPorJogador == true)
                                                     {
                                                         if (!jaPagou && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(jog.Celular))
                                                         {
@@ -5898,7 +5901,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <div class="d-flex gap-2 flex-wrap flex-lg-nowrap ms-lg-auto">
                                         @* As ações POR JOGADOR moram ao lado de cada nome (acima). Aqui só o que é
                                            da dupla — e o Cobrar único de quem não tem o pago por jogador. *@
-                                        @if (!acoesPorJogador && Model.PrecoInscricao > 0 && ViewBag.PodeVerDinheiro == true
+                                        @if (!acoesPorJogador && Model.PrecoInscricao > 0 && ViewBag.PodeMarcarPorJogador == true
                                              && !dupla.Pago && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(dupla.Jogador1?.Celular))
                                         {
                                             var textoCobranca = $"Oi {Padelizou.Services.NomeBonito.Curto(dupla.Jogador1!.Nome)}! "
