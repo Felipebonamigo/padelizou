@@ -5,10 +5,13 @@ using Padelizou.ViewModels;
 
 namespace Padelizou.Tests;
 
-// A regra chegando nas telas: quem foi adicionado pra ajudar abre o Financeiro e marca quem
-// já acertou, mas nenhum valor sai de lá — e a área da taxa, que é dinheiro do começo ao fim,
-// recusa no SERVIDOR, não só escondendo o botão.
-public class AjudanteNaoVeDinheiroTests
+// A regra chegando nas telas: QUEM ORGANIZA JUNTO VÊ IGUAL A QUEM CRIOU (17/11/2026).
+//
+// 🗣️ Felipe: *"Os co organizadores tem q ver igual os organizadores/criadores"*. Até aqui este
+// arquivo se chamava AjudanteNaoVeDinheiroTests e cobrava o contrário ("abre o Financeiro, marca
+// quem pagou, mas nenhum valor sai de lá"). Os testes foram reescritos DE PROPÓSITO, pela regra
+// nova; as guardas que protegem quem NÃO organiza e o nível desconhecido continuam.
+public class CoOrganizadorVeODinheiroTests
 {
     // Quem cria o torneio ganha a linha "Criador"; quem entra pela caixinha vira "Organizador".
     private static (Torneio torneio, Jogador criador, Jogador ajudante) Cenario(
@@ -55,15 +58,14 @@ public class AjudanteNaoVeDinheiroTests
     }
 
     [Fact]
-    public async Task Quem_so_ajuda_abre_a_tela_mas_sem_os_valores()
+    public async Task Co_organizador_ve_os_valores_no_financeiro()
     {
-        // Abrir é necessário: é onde ele marca quem acertou. O que não pode é ver quanto.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, ajudante) = Cenario(ctx);
 
         var vm = await AbrirFinanceiroAsync(ctx, torneio.Id, ajudante.Id);
 
-        Assert.False(vm.PodeVerDinheiro);
+        Assert.True(vm.PodeVerDinheiro);
     }
 
     [Fact]
@@ -96,17 +98,28 @@ public class AjudanteNaoVeDinheiroTests
     }
 
     [Fact]
-    public async Task A_area_da_taxa_recusa_o_ajudante_no_servidor()
+    public async Task A_area_da_taxa_abre_pro_co_organizador()
     {
-        // Aqui não basta esconder o botão: a tela mostra o valor devido e gera cobrança em
-        // nome de quem recebeu as inscrições.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, ajudante) = Cenario(ctx);
 
-        Assert.IsType<ForbidResult>(
+        Assert.IsNotType<ForbidResult>(
             await TestInfra.NovoTorneiosController(ctx, ajudante.Id).TaxaPlataforma(torneio.Id));
+    }
+
+    [Fact]
+    public async Task A_area_da_taxa_continua_fechada_pra_quem_nao_organiza()
+    {
+        using var ctx = TestInfra.NovoContexto();
+        var (torneio, _, _) = Cenario(ctx);
+        var estranho = new Jogador { Nome = "Estranho", Cpf = "52998224725" };
+        ctx.Jogadores.Add(estranho);
+        ctx.SaveChanges();
+
         Assert.IsType<ForbidResult>(
-            await TestInfra.NovoTorneiosController(ctx, ajudante.Id).PagarTaxaPlataforma(torneio.Id));
+            await TestInfra.NovoTorneiosController(ctx, estranho.Id).TaxaPlataforma(torneio.Id));
+        Assert.IsType<ForbidResult>(
+            await TestInfra.NovoTorneiosController(ctx, estranho.Id).PagarTaxaPlataforma(torneio.Id));
     }
 
     [Fact]
@@ -120,9 +133,8 @@ public class AjudanteNaoVeDinheiroTests
     }
 
     [Fact]
-    public async Task O_relatorio_do_ajudante_vem_sem_o_bloco_de_dinheiro()
+    public async Task O_relatorio_do_co_organizador_vem_com_o_bloco_de_dinheiro()
     {
-        // O pódio e os números do torneio ele levou junto — foi ele que fez acontecer.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, criador, ajudante) = Cenario(ctx);
 
@@ -131,19 +143,19 @@ public class AjudanteNaoVeDinheiroTests
         var doCriador = (RelatorioTorneioVM)Assert.IsType<ViewResult>(
             await TestInfra.NovoTorneiosController(ctx, criador.Id).Relatorio(torneio.Id)).Model!;
 
-        Assert.False(doAjudante.PodeVerDinheiro);
+        Assert.True(doAjudante.PodeVerDinheiro);
         Assert.True(doCriador.PodeVerDinheiro);
         Assert.Equal(doCriador.TotalDuplas, doAjudante.TotalDuplas);
     }
 
     [Fact]
-    public async Task Torneio_antigo_sem_ninguem_marcado_como_criador_nao_vaza_pra_ajudante()
+    public async Task Nivel_desconhecido_continua_sem_ver()
     {
-        // Se um dia sobrar um torneio sem "Criador", o erro seguro é ninguém ver — nunca
-        // "não achei o dono, então libera pra todo mundo".
+        // A lista de níveis continua FECHADA: um nível que o código não escreve (ajuste na mão,
+        // nível novo amanhã) não vê — o erro seguro é alguém reclamar, não vazar calado.
         using var ctx = TestInfra.NovoContexto();
         var (torneio, criador, _) = Cenario(ctx);
-        ctx.TorneioOrganizadores.Single(o => o.JogadorId == criador.Id).NivelAcesso = "Ajudante";
+        ctx.TorneioOrganizadores.Single(o => o.JogadorId == criador.Id).NivelAcesso = "Mesario";
         ctx.SaveChanges();
 
         var vm = await AbrirFinanceiroAsync(ctx, torneio.Id, criador.Id);
