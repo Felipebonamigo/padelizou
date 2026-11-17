@@ -161,10 +161,12 @@ public class AbaPagamentosNaPaginaDoTorneioTests
             "O botão de marcar como pago não pode estar atrás do gate de PodeVerDinheiro (só do preço da inscrição).");
     }
 
-    // O link "Cobrar" de cada linha carrega o VALOR e a chave Pix na mensagem — fica com quem
-    // vê dinheiro, mesma régua do link individual em Financeiro.cshtml.
+    // O link "Cobrar" de cada linha carrega o VALOR e a chave Pix na mensagem. Até 17/11/2026 ficava
+    // só com quem vê o caixa; o Felipe liberou pro co-organizador TUDO da lista de inscritos
+    // (CoOrganizadorMarcaPorJogadorTests) — a régua é `PodeMarcarPorJogador` (organizador de
+    // verdade ou quem vê o caixa). O assistente que só olha continua de fora.
     [Fact]
-    public void O_link_de_cobrar_individual_e_gateado_por_PodeVerDinheiro()
+    public void O_link_de_cobrar_individual_e_gateado_por_PodeMarcarPorJogador()
     {
         var bloco = BlocoDoPainel();
 
@@ -174,21 +176,21 @@ public class AbaPagamentosNaPaginaDoTorneioTests
         var inicioLink = bloco.IndexOf("pdz-cobrar-link\"", StringComparison.Ordinal);
         Assert.True(inicioLink >= 0, "Não achei o link individual de cobrar (classe pdz-cobrar-link).");
 
-        var gate = bloco.LastIndexOf("PodeVerDinheiro == true", inicioLink, StringComparison.Ordinal);
-        Assert.True(gate >= 0, "O link de cobrar individual precisa estar atrás de `ViewBag.PodeVerDinheiro == true`.");
+        var gate = bloco.LastIndexOf("PodeMarcarPorJogador == true", inicioLink, StringComparison.Ordinal);
+        Assert.True(gate >= 0, "O link de cobrar individual precisa estar atrás de `ViewBag.PodeMarcarPorJogador == true`.");
     }
 
     // "Cobrar todos" dispara a MESMA mensagem com valor e Pix — mesmo gate do link individual.
     [Fact]
-    public void O_botao_cobrar_todos_e_gateado_por_PodeVerDinheiro()
+    public void O_botao_cobrar_todos_e_gateado_por_PodeMarcarPorJogador()
     {
         var bloco = BlocoDoPainel();
 
         var inicioBotao = bloco.IndexOf("id=\"pdzCobrarTodos\"", StringComparison.Ordinal);
         Assert.True(inicioBotao >= 0, "Não achei o botão \"Cobrar todos\".");
 
-        var gate = bloco.LastIndexOf("PodeVerDinheiro == true", inicioBotao, StringComparison.Ordinal);
-        Assert.True(gate >= 0, "O botão \"Cobrar todos\" precisa estar atrás de `ViewBag.PodeVerDinheiro == true`.");
+        var gate = bloco.LastIndexOf("PodeMarcarPorJogador == true", inicioBotao, StringComparison.Ordinal);
+        Assert.True(gate >= 0, "O botão \"Cobrar todos\" precisa estar atrás de `ViewBag.PodeMarcarPorJogador == true`.");
     }
 
     // Quem só pode OLHAR a gestão (assistente do sistema, sem ser organizador de verdade DESTE

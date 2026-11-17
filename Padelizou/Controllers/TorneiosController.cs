@@ -904,8 +904,17 @@ namespace Padelizou.Controllers
             // TorneiosController.SalvarCabecaDeChave).
             ViewBag.JaSorteou = await _context.Partidas.AnyAsync(p => p.TorneioId == id);
 
-            // Pago e parte de CADA jogador (Services/PagamentoPorJogador) — só pra quem vê o caixa.
-            if (ViewBag.PodeVerDinheiro == true && torneio.PrecoInscricao > 0)
+            // ⚠️ O PAGO DE CADA JOGADOR NA LISTA DE INSCRITOS É DE QUEM ORGANIZA, não só de quem vê o
+            // caixa (17/11/2026). 🗣️ Rafael Paim (Wallau): *"Na tela do vini não aparece a flag pra
+            // marcar só um da dupla como pago"* — o co-organizador marcava a dupla inteira mas não um
+            // jogador, e o servidor (AlternarPagamentoJogador) já aceitava qualquer organizador.
+            // Decisão do Felipe: TUDO da lista — selo, ✓, parte e o Cobrar no WhatsApp. O caixa
+            // (Financeiro, relatório CSV, taxa) continua em `PodeVerDinheiro`
+            // (CoOrganizadorMarcaPorJogadorTests).
+            ViewBag.PodeMarcarPorJogador = ehOrganizadorDeVerdade || ViewBag.PodeVerDinheiro == true;
+
+            // Pago e parte de CADA jogador (Services/PagamentoPorJogador).
+            if (ViewBag.PodeMarcarPorJogador == true && torneio.PrecoInscricao > 0)
             {
                 var duplasDoTorneio = torneio.Categorias.SelectMany(c => c.Duplas).Where(d => !d.EhTime).ToList();
                 var idsDasDuplas = duplasDoTorneio.Select(d => d.Id).ToList();
