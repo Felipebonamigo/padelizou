@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **17/11/2026** — 👥 **CO-ORGANIZADOR VÊ IGUAL A QUEM CRIOU — O CAIXA INCLUSIVE**. ✅ **SEM MIGRATION.** ⚖️ **Muda a régua do dinheiro — decisão do Felipe.**
+> Última atualização: **17/11/2026** — 👥 **CO-ORGANIZADOR VÊ IGUAL A QUEM CRIOU — O CAIXA INCLUSIVE**. ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#433, `build-1676-b4d8ed7`). ⚖️ **Muda a régua do dinheiro — decisão do Felipe.**
 >
 > 🕳️ 🗣️ *"Os co organizadores tem q ver igual os organizadores/criadores"* — cai a regra de 18/08 ("organiza junto, mas o caixa é de quem criou"). `AcessoAoDinheiroDoTorneio.NiveisComDinheiro` passa a ter os quatro níveis que o código grava (Criador, Total, Organizador, Ajudante): Financeiro, relatório CSV com telefones, taxa da plataforma, Dia do Jogo e o push de "inscrição paga" valem pro co-organizador. Continua de fora: quem não tem linha de `TorneioOrganizador` (o assistente do sistema que só olha) e nível desconhecido (lista fechada). **A conta que recebe o Pix segue sendo a de quem criou** (`PixDoOrganizador`, nível "Criador"). `AvisoAoAdicionar` reescrito.
 >
