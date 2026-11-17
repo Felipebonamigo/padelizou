@@ -32,7 +32,8 @@ public class RelatorioDuplasCsvTests
     }
 
     [Fact]
-    public async Task So_quem_ve_dinheiro_baixa_o_relatorio()
+    // Desde 17/11/2026 o co-organizador vê igual a quem criou (CoOrganizadorVeODinheiroTests).
+    public async Task Quem_organiza_baixa_o_relatorio_criador_e_co_organizador()
     {
         using var ctx = TestInfra.NovoContexto();
         var (torneio, _, criador) = Cenario(ctx);
@@ -48,7 +49,7 @@ public class RelatorioDuplasCsvTests
         var doAjudante = await TestInfra.NovoTorneiosController(ctx, ajudante.Id).RelatorioDuplasCsv(torneio.Id);
 
         Assert.IsType<FileContentResult>(doCriador);
-        Assert.IsType<ForbidResult>(doAjudante);
+        Assert.IsType<FileContentResult>(doAjudante);
     }
 
     [Fact]

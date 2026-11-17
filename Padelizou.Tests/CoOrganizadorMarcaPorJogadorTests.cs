@@ -44,8 +44,9 @@ public class CoOrganizadorMarcaPorJogadorTests
 
         Assert.True((controller.ViewBag.PodeMarcarPorJogador as bool?) == true);
         Assert.NotNull((object?)controller.ViewBag.PagamentoDosJogadores);
-        // O CAIXA continua de quem criou.
-        Assert.False((controller.ViewBag.PodeVerDinheiro as bool?) == true);
+        // E o caixa também, desde que o co-organizador passou a ver igual a quem criou
+        // (CoOrganizadorVeODinheiroTests).
+        Assert.True((controller.ViewBag.PodeVerDinheiro as bool?) == true);
     }
 
     [Fact]

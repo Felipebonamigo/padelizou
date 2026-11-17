@@ -1,20 +1,20 @@
 namespace Padelizou.Services;
 
-// Quem organiza junto faz TUDO do torneio — placar, chaves, configuração, marcar quem já
-// acertou — menos ver o dinheiro. Arrecadado, a receber, líquido e taxa ficam com quem criou.
+// QUEM ORGANIZA JUNTO VÊ IGUAL A QUEM CRIOU — o caixa inclusive (17/11/2026).
 //
-// A razão é do dono do torneio, não técnica: ele chama um amigo pra ajudar na mesa no dia do
-// jogo, e ajudar na mesa não é o mesmo que abrir o caixa dele. Antes era tudo ou nada — quem
-// entrava pra lançar placar via quanto o torneio faturou.
+// 🗣️ Felipe: *"Os co organizadores tem q ver igual os organizadores/criadores"*. De 18/08/2026
+// até aqui valia o contrário — "organiza junto, mas o caixa é de quem criou" —, e foi o que travou
+// o Vini (Wallau) de marcar um jogador como pago. O que continua só de quem criou NÃO passa por
+// aqui: a conta que RECEBE o Pix (PixDoOrganizador, nível "Criador").
+//
+// O assistente do sistema que abre a gestão sem ser organizador DESTE torneio não tem linha de
+// TorneioOrganizador (nível nulo) e segue sem ver — quem decide por ele é PoderesNoSistema.
 public static class AcessoAoDinheiroDoTorneio
 {
-    // Os níveis que enxergam dinheiro.
-    //
-    // "Criador" é o que o código escreve hoje ao criar o torneio. "Total" existe porque uma
-    // linha de produção foi ajustada na mão antes desta regra existir (torneio 19) — aceitar
-    // o sinônimo custa uma palavra e evita trancar um organizador de verdade fora do próprio
-    // caixa. Quem é adicionado pela caixinha entra como "Organizador"/"Ajudante" e NÃO vê.
-    private static readonly string[] NiveisComDinheiro = { "Criador", "Total" };
+    // Os níveis que enxergam dinheiro: os quatro que existem. "Criador" é quem criou; "Total" é
+    // o sinônimo de uma linha ajustada na mão (torneio 19); "Organizador" é o que a caixinha
+    // "Adicionar organizador" grava; "Ajudante" é o padrão do modelo.
+    private static readonly string[] NiveisComDinheiro = { "Criador", "Total", "Organizador", "Ajudante" };
 
     // Lista fechada e não o contrário ("todo mundo vê, menos o ajudante") de propósito: se um
     // nível novo aparecer amanhã, o erro seguro é ele NÃO ver dinheiro e alguém reclamar —
@@ -30,9 +30,9 @@ public static class AcessoAoDinheiroDoTorneio
     // O que o criador lê ANTES de adicionar alguém — no lugar onde ele decide, não escondido
     // numa ajuda. É o aviso que o Felipe pediu.
     public const string AvisoAoAdicionar =
-        "Quem você adicionar pode lançar placares, mexer nas configurações do torneio, marcar "
-        + "inscrição como paga e cobrar cada jogador. O caixa — quanto entrou, quanto falta e o "
-        + "líquido — continua só com você.";
+        "Quem você adicionar organiza junto com você e vê o mesmo que você: lança placares, mexe "
+        + "nas configurações, marca e cobra as inscrições e enxerga o caixa — quanto entrou, quanto "
+        + "falta e o líquido. O Pix das inscrições continua caindo na sua conta.";
 
     // O que o ajudante lê quando abre a tela: sem isso ele acha que a página quebrou.
     public const string ExplicacaoParaQuemAjuda =

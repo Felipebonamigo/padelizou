@@ -67,10 +67,10 @@ public class AvisoDeInscricaoPagaTests
     }
 
     [Fact]
-    public async Task So_quem_ve_o_DINHEIRO_do_torneio_recebe()
+    public async Task Quem_organiza_recebe_criador_e_co_organizador()
     {
-        // O ajudante faz tudo menos abrir o caixa (Services/AcessoAoDinheiroDoTorneio) —
-        // mandar pra ele quanto entrou seria furar essa régua por notificação.
+        // Desde 17/11/2026 o co-organizador vê o caixa igual a quem criou
+        // (Services/AcessoAoDinheiroDoTorneio) — o aviso de inscrição paga vai pros dois.
         var (ctx, torneio, categoria) = Cenario();
         var criador = new Jogador { Nome = "Lucas Almeida", Cpf = "11144477735" };
         var ajudante = new Jogador { Nome = "Ajudante", Cpf = "22255588846" };
@@ -88,8 +88,8 @@ public class AvisoDeInscricaoPagaTests
 
         await push.Received(1).EnviarParaJogadorAsync(criador.Id, Arg.Any<string>(), Arg.Any<string>(),
             Arg.Any<string?>(), AlcanceDoAviso.AppSemEmail);
-        await push.DidNotReceive().EnviarParaJogadorAsync(ajudante.Id, Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<AlcanceDoAviso>());
+        await push.Received(1).EnviarParaJogadorAsync(ajudante.Id, Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string?>(), AlcanceDoAviso.AppSemEmail);
     }
 
     [Fact]

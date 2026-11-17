@@ -2,12 +2,12 @@ using Padelizou.Services;
 
 namespace Padelizou.Tests;
 
-// Quem organiza junto faz tudo do torneio — placar, chaves, configuração, marcar quem já
-// acertou — menos ver o dinheiro.
+// QUEM ORGANIZA JUNTO VÊ IGUAL A QUEM CRIOU — o caixa inclusive (17/11/2026).
 //
-// A razão é do dono do torneio, não técnica: ele chama um amigo pra ajudar na mesa no dia do
-// jogo, e ajudar na mesa não é abrir o caixa dele. Antes era tudo ou nada: quem entrava pra
-// lançar placar via quanto o torneio faturou.
+// 🗣️ Felipe: *"Os co organizadores tem q ver igual os organizadores/criadores"*. De 18/08 até
+// aqui valia o contrário ("organiza junto, mas o caixa é de quem criou"); o Rafael Paim (Wallau)
+// esbarrou nisso com o Vini, que não conseguia marcar um jogador como pago. A lista continua
+// FECHADA — nível desconhecido não vê —, só que agora com os quatro níveis que o código grava.
 public class AcessoAoDinheiroDoTorneioTests
 {
     [Fact]
@@ -19,9 +19,9 @@ public class AcessoAoDinheiroDoTorneioTests
     [Theory]
     [InlineData("Organizador")]   // o que a caixinha "Adicionar novo organizador" grava
     [InlineData("Ajudante")]      // o padrão do modelo
-    public void Quem_foi_adicionado_pra_ajudar_nao_ve(string nivel)
+    public void Co_organizador_ve_o_dinheiro_igual_a_quem_criou(string nivel)
     {
-        Assert.False(AcessoAoDinheiroDoTorneio.PodeVer(nivel, ehAdminDaPlataforma: false));
+        Assert.True(AcessoAoDinheiroDoTorneio.PodeVer(nivel, ehAdminDaPlataforma: false));
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class AcessoAoDinheiroDoTorneioTests
     {
         // O aviso do Felipe: quem adiciona alguém tem que saber o que está dando e o que não.
         Assert.Contains("placares", AcessoAoDinheiroDoTorneio.AvisoAoAdicionar);
-        Assert.Contains("paga", AcessoAoDinheiroDoTorneio.AvisoAoAdicionar);
-        Assert.Contains("só com você", AcessoAoDinheiroDoTorneio.AvisoAoAdicionar);
+        Assert.Contains("caixa", AcessoAoDinheiroDoTorneio.AvisoAoAdicionar);
+        Assert.DoesNotContain("só com você", AcessoAoDinheiroDoTorneio.AvisoAoAdicionar);
 
         // E quem ajuda precisa entender por que a tela não tem valor nenhum, senão lê como
         // página quebrada.

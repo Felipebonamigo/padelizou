@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **17/11/2026** — 👥 **CO-ORGANIZADOR VÊ IGUAL A QUEM CRIOU — O CAIXA INCLUSIVE**. ✅ **SEM MIGRATION.** ⚖️ **Muda a régua do dinheiro — decisão do Felipe.**
+>
+> 🕳️ 🗣️ *"Os co organizadores tem q ver igual os organizadores/criadores"* — cai a regra de 18/08 ("organiza junto, mas o caixa é de quem criou"). `AcessoAoDinheiroDoTorneio.NiveisComDinheiro` passa a ter os quatro níveis que o código grava (Criador, Total, Organizador, Ajudante): Financeiro, relatório CSV com telefones, taxa da plataforma, Dia do Jogo e o push de "inscrição paga" valem pro co-organizador. Continua de fora: quem não tem linha de `TorneioOrganizador` (o assistente do sistema que só olha) e nível desconhecido (lista fechada). **A conta que recebe o Pix segue sendo a de quem criou** (`PixDoOrganizador`, nível "Criador"). `AvisoAoAdicionar` reescrito.
+>
+> 🧪 `AcessoAoDinheiroDoTorneioTests` reescritos e **vistos vermelhos** com a régua velha; `AjudanteNaoVeDinheiroTests` virou `CoOrganizadorVeODinheiroTests` (premissa invertida de propósito; guardas do estranho e do nível desconhecido mantidas, + a taxa fechada pra quem não organiza); `RelatorioDuplasCsvTests`, `AvisoDeInscricaoPagaTests` e `CoOrganizadorMarcaPorJogadorTests` ajustados à regra nova. 8.219 verdes.
+>
 > Última atualização: **17/11/2026** — 💵 **O CO-ORGANIZADOR MARCA E COBRA CADA JOGADOR NA LISTA DE INSCRITOS** (Wallau). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#431, `build-1671-ac5e990`). ⚖️ **Mexe na régua do dinheiro — decisão do Felipe.**
 >
 > 🕳️ 🗣️ Rafael Paim (Wallau), via Felipe: *"Na tela do vini não aparece a flag pra marcar só um da dupla como pago"*. O selo/✓/parte/Cobrar de cada jogador estava atrás de `PodeVerDinheiro` (só Criador/Total), enquanto o servidor (`AlternarPagamentoJogador`) já aceitava qualquer organizador. Perguntado entre "sem valores", "tudo" e "como está", o Felipe escolheu **tudo da lista**: régua nova `ViewBag.PodeMarcarPorJogador` = organizador de verdade OU quem vê o caixa — selo, ✓, valor da parte, Cobrar e "Cobrar todos". **O caixa fica com quem criou**: Financeiro (entrou/falta/líquido), relatório CSV (telefone de todos) e taxa seguem em `PodeVerDinheiro`. O assistente que só olha continua sem nada. `AvisoAoAdicionar` passou a dizer que quem entra "cobra cada jogador".
