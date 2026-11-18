@@ -1610,9 +1610,8 @@ namespace Padelizou.Controllers
             // interruptor que só existe na tela de CRIAÇÃO vira beco (forma de recebimento,
             // reabrir inscrições e "só confirmo depois de pago").
             //
-            // ⚠️ Não mexe em inscrição que já existe: cada uma guarda o que custou
-            // (Dupla.ValorInscricao). Mudar o preço agora vale pra quem entrar daqui pra
-            // frente — cobrar retroativamente de quem já pagou seria mudar o combinado.
+            // ⚠️ Desde 18/11/2026 quem AINDA NÃO PAGOU acompanha o preço novo ao salvar; quem
+            // pagou (inteiro ou parte) fica com o que combinou. Ver Services/ReajusteDoPrecoDasInscricoes.
             if (limparSegundoPreco)
             {
                 torneio.PrecoSegundaInscricao = null;
@@ -1727,8 +1726,8 @@ namespace Padelizou.Controllers
             // ⚠️ Nulo = campo não veio (aba antiga em cache), e aí mantém o que está gravado.
             // Zero é escolha explícita: "parei de cobrar por impedimento".
             //
-            // ⚠️ Como o preço da inscrição, isto NÃO reescreve inscrição que já existe — cada
-            // uma guarda o que custou. Quem avisa disso na tela é Services/AvisoDeMudancaDePreco.
+            // ⚠️ Como o preço da inscrição, a taxa nova vale pra quem ainda não pagou (ver
+            // Services/ReajusteDoPrecoDasInscricoes). Quem avisa na tela é Services/AvisoDeMudancaDePreco.
             if (taxaPorImpedimento is decimal novaTaxa)
             {
                 if (novaTaxa < 0)
@@ -1929,6 +1928,10 @@ namespace Padelizou.Controllers
             // está — que já é o número de linhas, mantido pelo planejador.
             if (quadrasInformadas) torneio.QuantidadeQuadras = quadrasPorPosicao.Count;
 
+            // Quem ainda não pagou acompanha o preço salvo agora (inscrição, segunda inscrição e
+            // taxa de impedimento). Ver Services/ReajusteDoPrecoDasInscricoes.
+            int inscricoesReajustadas = await ReajusteDoPrecoDasInscricoes.AplicarAsync(_context, torneio);
+
             await _context.SaveChangesAsync();
 
             // Agora as quadras novas têm Id, e a preferência pode ser gravada.
@@ -1963,7 +1966,7 @@ namespace Padelizou.Controllers
             //
             // ⚠️ A categoria é conferida contra ESTE torneio pelo mesmo motivo da preferência:
             // o valor vem do navegador.
-            TempData["Sucesso"] = "Dados do torneio atualizados!";
+            TempData["Sucesso"] = "Dados do torneio atualizados!" + ReajusteDoPrecoDasInscricoes.Frase(inscricoesReajustadas);
             return RedirectToAction("Details", new { id });
         }
 

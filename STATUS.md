@@ -1,6 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **18/11/2026** — 💲 **MUDAR O PREÇO NA GESTÃO ATUALIZA QUEM AINDA NÃO PAGOU, E O PREÇO DA 2ª CATEGORIA APARECE PRO JOGADOR** (Wallau). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** ⚖️ **Mexe em dinheiro — decisão do Felipe.**
+>
+> 🕳️ 🗣️ Rafael (3ª ETAPA WALLAU): a cobrança por WhatsApp saiu com **R$ 110,00** por pessoa num torneio de R$ 140 — *"alterei lá e não mudou nada"*. `Dupla.ValorInscricao` ficava congelado no dia da inscrição (220, quando era 110/pessoa), e `PagamentoPorJogador.Partes` reparte a diferença: 140 + (220 − 280)/2 = 110. Decisão: **"Atualizar sozinho ao salvar"** — `Services/ReajusteDoPrecoDasInscricoes`, chamado no `Editar`, refaz com a conta da inscrição (`PrecoDaInscricao.Total`: preço, 2ª inscrição pela ordem de criação, taxa de impedimento) toda inscrição **sem nenhum sinal de pagamento** (`Pago`, jogador marcado à mão, cobrança do site confirmada/pendente/em estorno). Roda a cada salvamento, não só quando o número muda — na Wallau o preço já está em 140, então **basta o organizador abrir a gestão e Salvar de novo**. Time fica de fora; Americano individual também atualiza. A mensagem diz quantas mudaram, e o aviso da gestão (`AvisoDeMudancaDePreco`) agora diz a regra nova (a de 18/08 era o contrário).
+>
+> 🗣️ *"não mostra o preço da segunda em nenhum lugar, porque todos me perguntaram"* — `PrecoDaInscricao.FraseDaSegunda` ("Segunda categoria: R$ X por pessoa" / "grátis") no topo da página do torneio (com a taxa do site quando cobra pelo site) e no card do Pix do organizador.
+>
+> 🧪 `ReajusteDoPrecoDasInscricoesTests` (+ `FraseDoSegundoPreco*`, tradução SQL): 9 **vistos vermelhos** antes da correção, e o da taxa do site visto vermelho com a correção desligada. 8.244 verdes.
+>
 > Última atualização: **18/11/2026** — 🎨 **O TELÃO COM O VISUAL DO MODELO DO FELIPE**. ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#436, `build-1682-063b06c`).
 >
 > 🗣️ Com um modelo pronto: *"algo assim fica mais bonito visualmente"*. Só as views (`Telao.cshtml`, `_TelaoConteudo.cshtml`): logo das raquetes, título em itálico grosso, "PLACAR OFICIAL", quadras ao vivo LADO A LADO (até 4, pílula "AO VIVO", nome da dupla em duas linhas), e embaixo os painéis "Próximos jogos" (hora em pílula, 3) e "Finalizados" (2) — o que o modelo mostra, e o que cabe sem rolar. Regras, testes e atualização sozinha iguais. **Visto rodando** em 1920×1080 com três quadras ao vivo.

@@ -740,6 +740,12 @@ namespace Padelizou.Controllers
                     torneio.ModoComissao, CobrancaDoTorneio.PercentualExibicao(torneio, _taxas))
                 : null;
             ViewBag.PrecoTotal = exibicao?.Total;
+            // A 2ª categoria com a MESMA conta do topo — senão o cabeçalho mostraria um preço com a
+            // taxa do site e o da segunda sem (Services/PrecoDaInscricao.FraseDaSegunda).
+            ViewBag.PrecoSegundaTotal = torneio.CobraPeloSite && torneio.PrecoSegundaInscricao is decimal segundoPreco && segundoPreco > 0
+                ? _pagamentos.CalcularExibicao(segundoPreco, "Torneio", recebedorTorneio,
+                    torneio.ModoComissao, CobrancaDoTorneio.PercentualExibicao(torneio, _taxas))?.Total
+                : null;
             ViewBag.TaxaServico = exibicao?.Taxa;
 
             // PRA QUEM MANDAR O COMPROVANTE. A tela do "por fora" pedia o comprovante e não

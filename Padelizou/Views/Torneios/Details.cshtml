@@ -267,6 +267,11 @@
         {
             <span class="small text-muted">— pagamento combinado com o organizador</span>
         }
+        @* O preço da 2ª categoria, quando é outro (Rafael, Wallau: "todos me perguntaram"). *@
+        @if (Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model, ViewBag.PrecoSegundaTotal as decimal?) is string segundaNoTopo)
+        {
+            <span class="small text-muted d-block d-sm-inline">· @segundaNoTopo</span>
+        }
     </p>
 
     @* Quantos já entraram, no torneio INTEIRO. A tela contava por categoria, mas só depois
@@ -976,8 +981,12 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                vai marcar. Prometer um total exato aqui seria mandar pagar errado num Pix que
                o Padelizou não vê e não conserta. *@
             <p class="small text-muted mb-2">
-                Esse é o valor base: impedimento de horário soma, e a segunda categoria pode
-                ter outro preço. Na dúvida, confirme com o organizador antes de mandar.
+                @if (Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) is string segundaNoPix)
+                {
+                    <strong>@segundaNoPix.</strong>
+                }
+                Esse é o valor base: impedimento de horário soma@(Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) == null ? ", e a segunda categoria pode ter outro preço" : "").
+                Na dúvida, confirme com o organizador antes de mandar.
             </p>
         }
 
@@ -3983,11 +3992,9 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     }
                                 </div>
 
-                                @* ⚠️ O AVISO QUE O FELIPE PEDIU. Cada inscrição guarda o que ELA
-                                   custou (Dupla.ValorInscricao): mudar o valor aqui não reescreve
-                                   nenhuma. Sem dizer isso, o organizador faz uma de duas contas
-                                   erradas — cobra a diferença de quem já pagou, ou conta com um
-                                   dinheiro que não vem. Texto único em AvisoDeMudancaDePreco. *@
+                                @* ⚠️ O AVISO QUE O FELIPE PEDIU. Salvar leva quem ainda não pagou pro
+                                   valor novo; quem pagou fica com o combinado (desde 18/11/2026,
+                                   ReajusteDoPrecoDasInscricoes). Texto único em AvisoDeMudancaDePreco. *@
                                 @if (Padelizou.Services.AvisoDeMudancaDePreco.Texto(
                                         ViewBag.InscricoesJaFeitas as int? ?? 0) is string avisoDePreco)
                                 {

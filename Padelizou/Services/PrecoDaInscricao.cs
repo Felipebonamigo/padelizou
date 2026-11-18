@@ -89,6 +89,23 @@ public static class PrecoDaInscricao
     public static bool CabeSegundoPreco(Torneio torneio) =>
         torneio.PermiteMultiplasCategorias && torneio.PrecoInscricao > 0;
 
+    // O PREÇO DA SEGUNDA NA TELA DO JOGADOR (18/11/2026). 🗣️ Rafael, da Wallau: *"acho que não
+    // mostra o preço da segunda em nenhum lugar, porque todos me perguntaram"*. Nulo quando não
+    // há o que dizer: sem segundo preço, igual ao primeiro, ou torneio onde ninguém chega a uma
+    // segunda inscrição.
+    //
+    // `valorNaTela` é o mesmo número já com a taxa do site, quando o torneio cobra pelo site —
+    // o topo da página mostra o preço do bolso, e a segunda tem que vir na mesma régua.
+    public static string? FraseDaSegunda(Torneio torneio, decimal? valorNaTela = null)
+    {
+        if (!CabeSegundoPreco(torneio)) return null;
+        if (torneio.PrecoSegundaInscricao is not decimal segunda || segunda == torneio.PrecoInscricao) return null;
+
+        return segunda == 0
+            ? "Segunda categoria: grátis"
+            : $"Segunda categoria: R$ {(valorNaTela ?? segunda).ToString("N2", new System.Globalization.CultureInfo("pt-BR"))} por pessoa";
+    }
+
     // Devolve o motivo da recusa, ou null se o valor serve. Segundo preço MAIOR que o
     // primeiro quase certamente é dedo trocado — o desconto é o ponto do recurso —, mas
     // recusar seria decidir pelo organizador; quem avisa é a tela. Aqui só o que não pode:
