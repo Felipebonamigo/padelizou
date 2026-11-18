@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **18/11/2026** — 💲 **MUDAR O PREÇO NA GESTÃO ATUALIZA QUEM AINDA NÃO PAGOU, E O PREÇO DA 2ª CATEGORIA APARECE PRO JOGADOR** (Wallau). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.** ⚖️ **Mexe em dinheiro — decisão do Felipe.**
+> Última atualização: **18/11/2026** — 💲 **MUDAR O PREÇO NA GESTÃO ATUALIZA QUEM AINDA NÃO PAGOU, E O PREÇO DA 2ª CATEGORIA APARECE PRO JOGADOR** (Wallau). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#438, `build-1686-498dc59`). ⚠️ Na Wallau, Salvar a gestão uma vez pra alinhar quem não pagou. ⚖️ **Mexe em dinheiro — decisão do Felipe.**
 >
 > 🕳️ 🗣️ Rafael (3ª ETAPA WALLAU): a cobrança por WhatsApp saiu com **R$ 110,00** por pessoa num torneio de R$ 140 — *"alterei lá e não mudou nada"*. `Dupla.ValorInscricao` ficava congelado no dia da inscrição (220, quando era 110/pessoa), e `PagamentoPorJogador.Partes` reparte a diferença: 140 + (220 − 280)/2 = 110. Decisão: **"Atualizar sozinho ao salvar"** — `Services/ReajusteDoPrecoDasInscricoes`, chamado no `Editar`, refaz com a conta da inscrição (`PrecoDaInscricao.Total`: preço, 2ª inscrição pela ordem de criação, taxa de impedimento) toda inscrição **sem nenhum sinal de pagamento** (`Pago`, jogador marcado à mão, cobrança do site confirmada/pendente/em estorno). Roda a cada salvamento, não só quando o número muda — na Wallau o preço já está em 140, então **basta o organizador abrir a gestão e Salvar de novo**. Time fica de fora; Americano individual também atualiza. A mensagem diz quantas mudaram, e o aviso da gestão (`AvisoDeMudancaDePreco`) agora diz a regra nova (a de 18/08 era o contrário).
 >
