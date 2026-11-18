@@ -5,14 +5,11 @@ namespace Padelizou.Services;
 // Felipe, 18/08/2026: "permita alterar os valores de impedimento e da inscrição depois de
 // aberto, mas avise que esse valor já foi feito antes".
 //
-// ⚠️ O QUE MUDA E O QUE NÃO MUDA — é isso que o aviso precisa dizer, e é o oposto do que a
-// pessoa supõe. Cada inscrição guarda o que ELA custou (`Dupla.ValorInscricao`), gravado na
-// hora em que foi feita. Trocar o preço agora **não** reescreve nenhuma delas: vale pra quem
-// entrar daqui pra frente.
-//
-// Sem esse aviso o organizador faz uma de duas contas erradas, e as duas doem: ou acha que
-// subiu o preço de todo mundo e vai cobrar a diferença de quem já pagou, ou acha que quem já
-// se inscreveu vai pagar o valor novo e conta com um dinheiro que não vem.
+// ⚠️ O QUE MUDA E O QUE NÃO MUDA — é isso que o aviso precisa dizer. Até 18/11/2026 nada
+// mudava: cada inscrição guardava o valor do dia em que foi feita, e a 3ª ETAPA WALLAU cobrou
+// R$ 110 num torneio de R$ 140 (*"alterei lá e não mudou nada"*). Desde então, salvar leva
+// junto quem ainda não pagou; quem pagou fica com o combinado
+// (Services/ReajusteDoPrecoDasInscricoes).
 public static class AvisoDeMudancaDePreco
 {
     // Nulo quando não há o que avisar — torneio sem ninguém inscrito é preço que ainda não
@@ -25,7 +22,7 @@ public static class AvisoDeMudancaDePreco
             ? "1 inscrição já foi feita"
             : $"{inscricoesJaFeitas} inscrições já foram feitas";
 
-        return $"{quantas} com os valores atuais. Mudar aqui vale só pra quem se inscrever "
-            + "daqui pra frente — quem já entrou continua com o valor que combinou.";
+        return $"{quantas}. Ao salvar, quem ainda não pagou passa pro valor novo — "
+            + "quem já pagou (ou já pagou a parte dele) continua com o valor que combinou.";
     }
 }

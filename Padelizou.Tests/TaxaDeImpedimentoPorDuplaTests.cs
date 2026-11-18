@@ -122,15 +122,6 @@ public class AvisoDeMudancaDePrecoTests
         Assert.Contains("9 inscrições já foram feitas", texto);
     }
 
-    // ⚠️ O QUE O AVISO PRECISA DIZER, e é o contrário do que a pessoa supõe: mudar o preço
-    // NÃO reescreve quem já entrou. Sem essa frase o organizador ou cobra a diferença de quem
-    // já pagou, ou conta com dinheiro que não vem.
-    [Fact]
-    public void O_aviso_diz_que_vale_so_pra_quem_entrar_depois()
-    {
-        var texto = AvisoDeMudancaDePreco.Texto(3)!;
-
-        Assert.Contains("daqui pra frente", texto);
-        Assert.Contains("quem já entrou continua com o valor que combinou", texto);
-    }
+    // ⚠️ O QUE O AVISO PRECISA DIZER mudou em 18/11/2026 (Wallau): quem ainda não pagou
+    // acompanha o preço novo. O texto novo é travado em ReajusteDoPrecoDasInscricoesTests.
 }
