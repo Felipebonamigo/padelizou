@@ -1,0 +1,106 @@
+@model Padelizou.Services.TelaoDoTorneio.Quadro
+@inject Microsoft.Extensions.Options.IOptions<Padelizou.Services.PatrocinadoresSettings> PatrocinadoresOpcoes
+@*
+    O TELÃO DO TORNEIO — a tela pra TV do clube (18/11/2026). Ver Services/TelaoDoTorneio.
+
+    ⚠️ SEM O LAYOUT DO SITE: menu, rodapé e "entrar" numa TV são ruído — a página inteira é a tela.
+    ⚠️ CSS E JS À MÃO E SIMPLES, porque navegador de Smart TV é velho: nada de módulo, nada de
+       sintaxe nova (ver wwwroot/js/telao.js). O `meta refresh` de 10 min é a rede: se o JS nem
+       rodar, a TV ainda se atualiza sozinha.
+    ⚠️ OS PATROCINADORES SÃO OS DA PLATAFORMA (PatrocinadoresSettings, os mesmos do rodapé do
+       site): não existe patrocinador por torneio. Decisão do Felipe ao pedir a faixa.
+*@
+@{
+    Layout = null;
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    var nomeDoClube = ViewBag.NomeDoClube as string;
+    var patrocinadores = PatrocinadoresOpcoes.Value.ParaExibir();
+    var clube = ViewBag.Clube as int?;
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="600" />
+    <meta name="robots" content="noindex" />
+    <title>Telão · @torneio.Nome</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body { background: #0b1220; color: #f1f5f9; font-family: Arial, Helvetica, sans-serif;
+               font-size: 1.6vw; overflow: hidden; display: flex; flex-direction: column; }
+        .tl-topo { display: flex; align-items: center; gap: 2vw; padding: 1.2vw 2vw;
+                   border-bottom: 0.2vw solid #1e293b; }
+        .tl-titulo { flex: 1; }
+        .tl-titulo h1 { font-size: 2.4vw; letter-spacing: 0.05vw; }
+        .tl-titulo div { color: #94a3b8; font-size: 1.2vw; margin-top: 0.3vw; }
+        .tl-relogio { font-size: 3vw; font-weight: bold; color: #a3e635; }
+        .tl-qr { text-align: center; color: #94a3b8; font-size: 0.8vw; }
+        .tl-qr img { width: 6.5vw; height: 6.5vw; background: #fff; padding: 0.3vw; border-radius: 0.4vw; display: block; }
+        #telao-conteudo { flex: 1; display: flex; gap: 1.2vw; padding: 1.2vw 2vw; min-height: 0; }
+        .tl-col { flex: 1; min-width: 0; overflow: hidden; }
+        .tl-aovivo { flex: 1.25; }
+        .tl-col h2 { font-size: 1.5vw; color: #94a3b8; margin-bottom: 0.8vw; letter-spacing: 0.1vw; }
+        .tl-aovivo h2 { color: #f87171; }
+        .tl-ponto { display: inline-block; width: 1vw; height: 1vw; border-radius: 50%; background: #ef4444;
+                    vertical-align: middle; animation: tlpisca 1.4s infinite; }
+        @@keyframes tlpisca { 50% { opacity: 0.25; } }
+        .tl-card { background: #111c33; border: 0.12vw solid #1e293b; border-radius: 0.8vw;
+                   padding: 0.8vw 1vw; margin-bottom: 0.8vw; }
+        .tl-card-vivo { border-color: #a3e635; padding: 1vw 1.2vw; }
+        .tl-meta { display: flex; justify-content: space-between; gap: 1vw; color: #94a3b8; font-size: 1.05vw; margin-bottom: 0.4vw; }
+        .tl-sub { color: #94a3b8; font-size: 1vw; margin-bottom: 0.3vw; }
+        .tl-quadra { color: #f1f5f9; font-weight: bold; font-size: 1.2vw; }
+        .tl-hora { color: #a3e635; font-weight: bold; font-size: 1.4vw; }
+        .tl-linha { display: flex; justify-content: space-between; align-items: center; gap: 1vw; }
+        .tl-dupla { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.35vw; }
+        .tl-card-vivo .tl-dupla { font-size: 1.6vw; font-weight: bold; }
+        .tl-placar { font-size: 3vw; font-weight: bold; color: #a3e635; min-width: 3vw; text-align: right; }
+        .tl-placar-p { font-size: 1.6vw; color: #f1f5f9; }
+        .tl-venceu .tl-dupla, .tl-venceu .tl-placar-p { color: #a3e635; font-weight: bold; }
+        .tl-tiebreak { margin-top: 0.4vw; color: #fbbf24; font-weight: bold; font-size: 1.3vw; }
+        .tl-palpite { margin-top: 0.6vw; }
+        .tl-palpite-barra { height: 0.6vw; background: #334155; border-radius: 0.3vw; overflow: hidden; }
+        .tl-palpite-barra span { display: block; height: 100%; background: #22c55e; }
+        .tl-palpite-numeros { display: flex; justify-content: space-between; color: #94a3b8; font-size: 0.95vw; margin-top: 0.2vw; }
+        .tl-vazio { color: #64748b; font-size: 1.2vw; }
+        .tl-rodape { display: flex; align-items: center; gap: 3vw; padding: 0.8vw 2vw; border-top: 0.2vw solid #1e293b; }
+        .tl-rodape .tl-rotulo { color: #64748b; font-size: 0.9vw; letter-spacing: 0.1vw; }
+        .tl-rodape img { height: 3vw; max-width: 14vw; object-fit: contain; }
+        .tl-rodape .tl-claro { background: #fff; padding: 0.3vw 0.6vw; border-radius: 0.4vw; }
+        .tl-atualizado { margin-left: auto; color: #64748b; font-size: 0.9vw; }
+        .tl-atualizado.tl-velho { color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <header class="tl-topo">
+        <div class="tl-titulo">
+            <h1>@torneio.Nome</h1>
+            <div>@(nomeDoClube != null ? nomeDoClube + " · " : "")Acompanhe pelo Padelizou</div>
+        </div>
+        <div class="tl-relogio" id="telao-relogio">@DateTime.Now.ToString("HH:mm")</div>
+        <div class="tl-qr">
+            <img src="@ViewBag.QrDoTorneio" alt="QR code do torneio" />
+            Aponte a câmera
+        </div>
+    </header>
+
+    <main id="telao-conteudo">
+        <partial name="_TelaoConteudo" model="Model" />
+    </main>
+
+    <footer class="tl-rodape">
+        <span class="tl-rotulo">PATROCÍNIO</span>
+        @foreach (var p in patrocinadores)
+        {
+            var imagem = !string.IsNullOrWhiteSpace(p.ImagemEscura) ? p.ImagemEscura : p.Imagem;
+            <img src="@imagem" alt="@p.Nome" class="@(p.LogoEscuro && string.IsNullOrWhiteSpace(p.ImagemEscura) ? "tl-claro" : "")" />
+        }
+        <span class="tl-atualizado" id="telao-atualizado">atualizado agora</span>
+    </footer>
+
+    <script src="~/js/telao.js" asp-append-version="true"
+            data-parcial="@Url.Action("Telao", "Torneios", new { id = torneio.Id, clube, parcial = true })"></script>
+</body>
+</html>

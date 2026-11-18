@@ -69,6 +69,25 @@
                title="A arte de um jogo pro story: você tira a foto e o @@ das duplas já entra.">
                 <i class="bi bi-instagram"></i> Artes pro story
             </a>
+
+            @* O TELÃO (18/11/2026): a tela pra TV do clube — ao vivo, próximos e resultados, se
+               atualiza sozinha. Abre em outra aba pra levar pro navegador da TV (Services/TelaoDoTorneio).
+               Com mais de um clube, um link por clube: cada TV mostra só os jogos do seu. *@
+            <a asp-action="Telao" asp-route-id="@Model.Id" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-primary rounded-pill px-3"
+               title="Tela pra TV do clube: jogos ao vivo, próximos e resultados, atualizando sozinha.">
+                <i class="bi bi-tv"></i> Abrir telão
+            </a>
+            @if (ViewBag.ClubesDoTorneio is IReadOnlyList<(int Id, string Nome)> clubesDoTelao && clubesDoTelao.Count > 1)
+            {
+                foreach (var (clubeId, nomeDoClube) in clubesDoTelao)
+                {
+                    <a asp-action="Telao" asp-route-id="@Model.Id" asp-route-clube="@clubeId" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                        <i class="bi bi-tv"></i> Telão · @nomeDoClube
+                    </a>
+                }
+            }
         </div>
 
         <!-- COMUNICADO EM MASSA -->

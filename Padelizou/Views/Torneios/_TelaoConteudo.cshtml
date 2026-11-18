@@ -1,0 +1,108 @@
+@model Padelizou.Services.TelaoDoTorneio.Quadro
+@using Padelizou.Services
+@*
+    O MIOLO DO TELÃO (18/11/2026) — é o pedaço que wwwroot/js/telao.js busca a cada 20 s e troca,
+    sem recarregar a página. Só leitura: nenhum botão, nenhum formulário (a TV não tem dedo).
+    Regras dos três blocos: Services/TelaoDoTorneio.
+*@
+@{
+    var sedes = ViewBag.Sedes as SedesDoTorneio;
+    var numeroNaFase = ViewBag.NumeroNaFase as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var palpites = ViewBag.Palpites as Dictionary<int, Padelizou.ViewModels.PalpiteResumoVM>
+                   ?? new Dictionary<int, Padelizou.ViewModels.PalpiteResumoVM>();
+
+    string Fase(Padelizou.Models.Partida p) =>
+        FaseNaTela.Rotulo(p.Fase, numeroNaFase.TryGetValue(p.Id, out var n) ? n : null);
+    string? Lugar(Padelizou.Models.Partida p) =>
+        LugarDoJogo.Etiqueta(sedes, p.NomeQuadra, p.CategoriaId, p.ClubeId);
+    string Nome(Padelizou.Models.Dupla? d) => d?.NomeDeExibicao ?? "A definir";
+}
+
+<section class="tl-col tl-aovivo">
+    <h2><span class="tl-ponto"></span> AO VIVO</h2>
+    @if (Model.AoVivo.Count == 0)
+    {
+        <p class="tl-vazio">Nenhum jogo em quadra agora.</p>
+    }
+    @foreach (var p in Model.AoVivo)
+    {
+        bool emTieBreak = TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2);
+        <article class="tl-card tl-card-vivo">
+            <div class="tl-meta"><span class="tl-quadra">@(Lugar(p) ?? "")</span></div>
+            <div class="tl-sub">@(p.Categoria?.Nome) · @Fase(p)</div>
+            <div class="tl-linha">
+                <span class="tl-dupla">@Nome(p.Dupla1)</span>
+                <span class="tl-placar">@(p.GamesDupla1 ?? 0)</span>
+            </div>
+            <div class="tl-linha">
+                <span class="tl-dupla">@Nome(p.Dupla2)</span>
+                <span class="tl-placar">@(p.GamesDupla2 ?? 0)</span>
+            </div>
+            @if (emTieBreak)
+            {
+                <div class="tl-tiebreak">Tie-break @(p.PontosTieBreak1 ?? 0) – @(p.PontosTieBreak2 ?? 0)</div>
+            }
+            @if (palpites.TryGetValue(p.Id, out var palpite) && palpite.TotalVotos > 0)
+            {
+                <div class="tl-palpite" title="Palpitômetro">
+                    <div class="tl-palpite-barra">
+                        <span style="width:@(palpite.PercentualDupla1.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                    </div>
+                    <div class="tl-palpite-numeros">
+                        <span>@palpite.PercentualDupla1.ToString("0")%</span>
+                        <span>Palpitômetro · @palpite.TotalVotos voto(s)</span>
+                        <span>@palpite.PercentualDupla2.ToString("0")%</span>
+                    </div>
+                </div>
+            }
+        </article>
+    }
+</section>
+
+<section class="tl-col">
+    <h2>⏭ PRÓXIMOS</h2>
+    @if (Model.Proximos.Count == 0)
+    {
+        <p class="tl-vazio">Nenhum jogo agendado.</p>
+    }
+    @foreach (var p in Model.Proximos)
+    {
+        <article class="tl-card">
+            <div class="tl-meta">
+                <span class="tl-hora">@p.HorarioPrevisto!.Value.ToString("HH:mm")@(p.HorarioPrevisto.Value.Date != DateTime.Today ? " · " + p.HorarioPrevisto.Value.ToString("dd/MM") : "")</span>
+                <span>@(Lugar(p) ?? "")</span>
+            </div>
+            <div class="tl-sub">@(p.Categoria?.Nome) · @Fase(p)</div>
+            <div class="tl-dupla">@Nome(p.Dupla1)</div>
+            <div class="tl-dupla">@Nome(p.Dupla2)</div>
+        </article>
+    }
+</section>
+
+<section class="tl-col">
+    <h2>✅ RESULTADOS</h2>
+    @if (Model.Resultados.Count == 0)
+    {
+        <p class="tl-vazio">Nenhum jogo terminou ainda.</p>
+    }
+    @foreach (var p in Model.Resultados)
+    {
+        bool venceu1 = p.VencedorId != null && p.VencedorId == p.Dupla1Id;
+        bool venceu2 = p.VencedorId != null && p.VencedorId == p.Dupla2Id;
+        <article class="tl-card">
+            <div class="tl-sub">@(p.Categoria?.Nome) · @Fase(p)</div>
+            <div class="tl-linha @(venceu1 ? "tl-venceu" : "")">
+                <span class="tl-dupla">@Nome(p.Dupla1)</span>
+                <span class="tl-placar tl-placar-p">@(p.GamesDupla1 ?? 0)</span>
+            </div>
+            <div class="tl-linha @(venceu2 ? "tl-venceu" : "")">
+                <span class="tl-dupla">@Nome(p.Dupla2)</span>
+                <span class="tl-placar tl-placar-p">@(p.GamesDupla2 ?? 0)</span>
+            </div>
+            @if (TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2))
+            {
+                <div class="tl-sub">@TieBreakDoJogo.Etiqueta(p.PontosTieBreak1, p.PontosTieBreak2)</div>
+            }
+        </article>
+    }
+</section>
