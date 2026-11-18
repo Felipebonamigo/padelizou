@@ -7,6 +7,9 @@
     ⚠️ CSS E JS À MÃO E SIMPLES, porque navegador de Smart TV é velho: nada de módulo, nada de
        sintaxe nova (ver wwwroot/js/telao.js). O `meta refresh` de 10 min é a rede: se o JS nem
        rodar, a TV ainda se atualiza sozinha.
+    ⚠️ O VISUAL É O DO MODELO DO FELIPE (18/11/2026): faixa de quadras ao vivo lado a lado, painéis
+       de próximos e finalizados embaixo, título em itálico grosso. Fonte do Google com fallback
+       pra Arial — sem internet na TV, a tela continua legível.
     ⚠️ OS PATROCINADORES SÃO OS DA PLATAFORMA (PatrocinadoresSettings, os mesmos do rodapé do
        site): não existe patrocinador por torneio. Decisão do Felipe ao pedir a faixa.
 *@
@@ -25,64 +28,113 @@
     <meta http-equiv="refresh" content="600" />
     <meta name="robots" content="noindex" />
     <title>Telão · @torneio.Nome</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:ital,wght@0,600;0,700;1,700;1,800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { height: 100%; }
-        body { background: #0b1220; color: #f1f5f9; font-family: Arial, Helvetica, sans-serif;
-               font-size: 1.6vw; overflow: hidden; display: flex; flex-direction: column; }
-        .tl-topo { display: flex; align-items: center; gap: 2vw; padding: 1.2vw 2vw;
-                   border-bottom: 0.2vw solid #1e293b; }
-        .tl-titulo { flex: 1; }
-        .tl-titulo h1 { font-size: 2.4vw; letter-spacing: 0.05vw; }
-        .tl-titulo div { color: #94a3b8; font-size: 1.2vw; margin-top: 0.3vw; }
-        .tl-relogio { font-size: 3vw; font-weight: bold; color: #a3e635; }
-        .tl-qr { text-align: center; color: #94a3b8; font-size: 0.8vw; }
-        .tl-qr img { width: 6.5vw; height: 6.5vw; background: #fff; padding: 0.3vw; border-radius: 0.4vw; display: block; }
-        #telao-conteudo { flex: 1; display: flex; gap: 1.2vw; padding: 1.2vw 2vw; min-height: 0; }
-        .tl-col { flex: 1; min-width: 0; overflow: hidden; }
-        .tl-aovivo { flex: 1.25; }
-        .tl-col h2 { font-size: 1.5vw; color: #94a3b8; margin-bottom: 0.8vw; letter-spacing: 0.1vw; }
-        .tl-aovivo h2 { color: #f87171; }
-        .tl-ponto { display: inline-block; width: 1vw; height: 1vw; border-radius: 50%; background: #ef4444;
-                    vertical-align: middle; animation: tlpisca 1.4s infinite; }
-        @@keyframes tlpisca { 50% { opacity: 0.25; } }
-        .tl-card { background: #111c33; border: 0.12vw solid #1e293b; border-radius: 0.8vw;
-                   padding: 0.8vw 1vw; margin-bottom: 0.8vw; }
-        .tl-card-vivo { border-color: #a3e635; padding: 1vw 1.2vw; }
-        .tl-meta { display: flex; justify-content: space-between; gap: 1vw; color: #94a3b8; font-size: 1.05vw; margin-bottom: 0.4vw; }
-        .tl-sub { color: #94a3b8; font-size: 1vw; margin-bottom: 0.3vw; }
-        .tl-quadra { color: #f1f5f9; font-weight: bold; font-size: 1.2vw; }
-        .tl-hora { color: #a3e635; font-weight: bold; font-size: 1.4vw; }
-        .tl-linha { display: flex; justify-content: space-between; align-items: center; gap: 1vw; }
-        .tl-dupla { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1.35vw; }
-        .tl-card-vivo .tl-dupla { font-size: 1.6vw; font-weight: bold; }
-        .tl-placar { font-size: 3vw; font-weight: bold; color: #a3e635; min-width: 3vw; text-align: right; }
-        .tl-placar-p { font-size: 1.6vw; color: #f1f5f9; }
-        .tl-venceu .tl-dupla, .tl-venceu .tl-placar-p { color: #a3e635; font-weight: bold; }
-        .tl-tiebreak { margin-top: 0.4vw; color: #fbbf24; font-weight: bold; font-size: 1.3vw; }
-        .tl-palpite { margin-top: 0.6vw; }
-        .tl-palpite-barra { height: 0.6vw; background: #334155; border-radius: 0.3vw; overflow: hidden; }
-        .tl-palpite-barra span { display: block; height: 100%; background: #22c55e; }
-        .tl-palpite-numeros { display: flex; justify-content: space-between; color: #94a3b8; font-size: 0.95vw; margin-top: 0.2vw; }
-        .tl-vazio { color: #64748b; font-size: 1.2vw; }
-        .tl-rodape { display: flex; align-items: center; gap: 3vw; padding: 0.8vw 2vw; border-top: 0.2vw solid #1e293b; }
-        .tl-rodape .tl-rotulo { color: #64748b; font-size: 0.9vw; letter-spacing: 0.1vw; }
-        .tl-rodape img { height: 3vw; max-width: 14vw; object-fit: contain; }
-        .tl-rodape .tl-claro { background: #fff; padding: 0.3vw 0.6vw; border-radius: 0.4vw; }
-        .tl-atualizado { margin-left: auto; color: #64748b; font-size: 0.9vw; }
-        .tl-atualizado.tl-velho { color: #fbbf24; }
+        body { background: radial-gradient(ellipse at 70% -10%, #16304f 0%, #0c1a33 45%, #08132a 100%);
+               color: #f1f5f9; font-family: Inter, Arial, Helvetica, sans-serif;
+               font-size: 1.4vw; overflow: hidden; display: flex; flex-direction: column; }
+        .tl-titulo-fonte, h1, h2, h3, .tl-quadra, .tl-placar, .tl-relogio, .tl-hora { font-family: Poppins, Arial, sans-serif; }
+        /* topo */
+        .tl-topo { display: flex; align-items: center; gap: 2vw; padding: .9vw 2.4vw .8vw;
+                   border-bottom: 0.1vw solid rgba(148,163,184,.25); position: relative; overflow: hidden; }
+        .tl-bola { position: absolute; right: 18vw; top: -6vw; width: 16vw; height: 16vw; border-radius: 50%;
+                   background: radial-gradient(circle at 35% 35%, #d9f99d 0%, #a3e635 35%, #65a30d 75%, transparent 76%);
+                   opacity: .35; filter: blur(.3vw); }
+        .tl-logo { height: 4.2vw; width: auto; position: relative; }
+        .tl-sep { width: .15vw; height: 4.5vw; background: #a3e635; border-radius: .1vw; position: relative; }
+        .tl-sep-fina { width: .08vw; height: 4vw; background: rgba(148,163,184,.35); position: relative; }
+        .tl-topo h1 { font-size: 2.6vw; line-height: 1; font-style: italic; font-weight: 800; text-transform: uppercase;
+                      max-width: 26vw; position: relative; }
+        .tl-placar-oficial { color: #cbd5e1; font-size: .95vw; letter-spacing: .35vw; line-height: 1.9; position: relative; }
+        .tl-relogio { margin-left: auto; font-size: 3.6vw; font-weight: 700; color: #a3e635; position: relative; }
+        .tl-qr { display: flex; align-items: center; gap: .8vw; position: relative; }
+        .tl-qr img { width: 6.2vw; height: 6.2vw; background: #fff; padding: .3vw; border-radius: .5vw; display: block; }
+        .tl-qr span { color: #cbd5e1; font-size: .78vw; letter-spacing: .12vw; line-height: 1.5; text-transform: uppercase; max-width: 7vw; }
+        /* miolo */
+        #telao-conteudo { flex: 1; display: flex; flex-direction: column; padding: .6vw 2.4vw 0; min-height: 0; gap: .8vw; }
+        .tl-faixa { display: flex; justify-content: space-between; align-items: center; }
+        .tl-faixa h2 { font-size: 1.9vw; font-style: italic; font-weight: 800; letter-spacing: .15vw; }
+        .tl-contagem { color: #cbd5e1; font-size: 1vw; letter-spacing: .25vw; font-weight: 600; }
+        .tl-ponto { display: inline-block; width: 1.1vw; height: 1.1vw; border-radius: 50%; background: #84cc16;
+                    vertical-align: middle; margin-right: .6vw; animation: tlpisca 1.4s infinite; }
+        @@keyframes tlpisca { 50% { opacity: .3; } }
+        .tl-quadras { display: grid; gap: 1.4vw; }
+        .tl-card-vivo { background: linear-gradient(180deg, #13284a 0%, #0e1f3d 100%); border: .2vw solid #a3e635;
+                        border-radius: 1.1vw; padding: .9vw 1.5vw 1vw; box-shadow: 0 0 1.2vw rgba(163,230,53,.15); min-width: 0; }
+        .tl-vazio-vivo { color: #94a3b8; font-size: 1.4vw; text-align: center; padding: 3vw; }
+        .tl-card-topo { display: flex; justify-content: space-between; align-items: center; gap: 1vw; }
+        .tl-quadra { font-size: 1.7vw; font-style: italic; font-weight: 800; letter-spacing: .1vw;
+                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tl-icone-quadra { display: inline-block; width: 2.3vw; height: 1.3vw; border: .15vw solid #e2e8f0; border-radius: .15vw;
+                           margin-right: .7vw; vertical-align: -.1vw; background:
+                           linear-gradient(90deg, transparent 48%, #e2e8f0 48%, #e2e8f0 52%, transparent 52%); }
+        .tl-pilula { background: #a3e635; color: #0b1220; border-radius: 2vw; padding: .25vw .9vw; font-size: .95vw;
+                     font-weight: 800; white-space: nowrap; }
+        .tl-pilula-ponto { display: inline-block; width: .55vw; height: .55vw; border-radius: 50%; background: #0b1220;
+                           margin-right: .4vw; vertical-align: .1vw; }
+        .tl-sub { color: #b6c2d4; font-size: 1vw; }
+        .tl-card-vivo .tl-sub { margin: .2vw 0 .4vw; }
+        .tl-linha { display: flex; justify-content: space-between; align-items: center; gap: 1vw; padding: .35vw 0; }
+        .tl-linha-2 { border-top: .1vw solid rgba(148,163,184,.3); }
+        .tl-dupla { font-size: 1.45vw; font-weight: 700; line-height: 1.15; overflow: hidden; }
+        .tl-placar { font-size: 3.6vw; font-weight: 800; color: #a3e635; line-height: 1; }
+        .tl-tiebreak { color: #facc15; font-weight: 700; font-size: 1.2vw; margin-top: .3vw; }
+        .tl-palpite { margin-top: .5vw; }
+        .tl-palpite-barra { height: .45vw; background: #334155; border-radius: .3vw; overflow: hidden; }
+        .tl-palpite-barra span { display: block; height: 100%; background: #84cc16; }
+        .tl-palpite-numeros { display: flex; justify-content: space-between; color: #cbd5e1; font-size: .85vw; margin-top: .25vw; }
+        .tl-paineis { flex: 1; display: grid; grid-template-columns: 1.3fr 1fr; gap: 1.4vw; min-height: 0; padding-bottom: 1vw; }
+        .tl-painel { border: .12vw solid rgba(148,163,184,.35); border-radius: 1.1vw; padding: 1vw 1.6vw;
+                     background: rgba(15,30,58,.55); overflow: hidden; }
+        .tl-painel h3 { font-size: 1.6vw; font-weight: 700; letter-spacing: .12vw; padding-bottom: .6vw;
+                        border-bottom: .1vw solid rgba(148,163,184,.25); }
+        .tl-icone { color: #cbd5e1; margin-right: .5vw; }
+        .tl-icone-ok { color: #84cc16; }
+        .tl-proximo { display: flex; align-items: center; gap: 1.4vw; padding: .55vw 0;
+                      border-bottom: .1vw solid rgba(148,163,184,.2); }
+        .tl-hora { flex: none; border: .14vw solid #84cc16; color: #a3e635; border-radius: .7vw;
+                   padding: .25vw .9vw; font-size: 1.4vw; font-weight: 700; min-width: 7vw; text-align: center; }
+        .tl-proximo-texto { border-left: .1vw solid rgba(148,163,184,.4); padding-left: 1.4vw; min-width: 0;
+                            display: flex; flex-direction: column; gap: .15vw; }
+        .tl-confronto { font-size: 1.2vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tl-confronto i { color: #94a3b8; font-style: normal; margin: 0 .3vw; }
+        .tl-finalizado { padding: .5vw 0; border-bottom: .1vw solid rgba(148,163,184,.2); }
+        .tl-res { display: flex; justify-content: space-between; gap: 1vw; font-size: 1.3vw; line-height: 1.35; }
+        .tl-res span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tl-res b { font-family: Poppins, Arial, sans-serif; }
+        .tl-venceu { color: #a3e635; font-weight: 700; }
+        .tl-vazio { color: #94a3b8; font-size: 1.2vw; padding-top: .8vw; }
+        /* rodapé */
+        .tl-rodape { display: flex; align-items: center; justify-content: center; gap: 3vw; padding: .8vw 2.4vw;
+                     border-top: .1vw solid rgba(148,163,184,.25); position: relative; overflow: hidden; }
+        .tl-rodape::before, .tl-rodape::after { content: ""; position: absolute; bottom: -2vw; width: 6vw; height: 8vw;
+                     background: linear-gradient(135deg, transparent 40%, #84cc16 40%, #84cc16 55%, transparent 55%); opacity: .6; }
+        .tl-rodape::before { left: -1vw; transform: scaleX(-1); }
+        .tl-rodape::after { right: -1vw; }
+        .tl-rodape .tl-rotulo { color: #cbd5e1; font-size: .9vw; letter-spacing: .2vw; }
+        .tl-rodape img { height: 3.2vw; max-width: 14vw; object-fit: contain; }
+        .tl-rodape .tl-claro { background: #fff; padding: .35vw .8vw; border-radius: .5vw; }
+        .tl-rodape .tl-div { width: .1vw; height: 3vw; background: rgba(148,163,184,.4); }
+        .tl-atualizado { position: absolute; right: 8vw; color: #64748b; font-size: .8vw; }
+        .tl-atualizado.tl-velho { color: #facc15; }
     </style>
 </head>
 <body>
     <header class="tl-topo">
-        <div class="tl-titulo">
-            <h1>@torneio.Nome</h1>
-            <div>@(nomeDoClube != null ? nomeDoClube + " · " : "")Acompanhe pelo Padelizou</div>
-        </div>
+        <div class="tl-bola"></div>
+        <img class="tl-logo" src="~/image/logo-raquetes.webp" asp-append-version="true" alt="Padelizou" />
+        <div class="tl-sep"></div>
+        <h1>@torneio.Nome</h1>
+        <div class="tl-sep-fina"></div>
+        <div class="tl-placar-oficial">PLACAR OFICIAL@(nomeDoClube != null ? " · " + nomeDoClube.ToUpperInvariant() : "")<br>ACOMPANHE PELO PADELIZOU</div>
         <div class="tl-relogio" id="telao-relogio">@DateTime.Now.ToString("HH:mm")</div>
         <div class="tl-qr">
             <img src="@ViewBag.QrDoTorneio" alt="QR code do torneio" />
-            Aponte a câmera
+            <span>Aponte a câmera e acompanhe online</span>
         </div>
     </header>
 
@@ -92,9 +144,11 @@
 
     <footer class="tl-rodape">
         <span class="tl-rotulo">PATROCÍNIO</span>
-        @foreach (var p in patrocinadores)
+        @for (int i = 0; i < patrocinadores.Count; i++)
         {
+            var p = patrocinadores[i];
             var imagem = !string.IsNullOrWhiteSpace(p.ImagemEscura) ? p.ImagemEscura : p.Imagem;
+            if (i > 0) { <span class="tl-div"></span> }
             <img src="@imagem" alt="@p.Nome" class="@(p.LogoEscuro && string.IsNullOrWhiteSpace(p.ImagemEscura) ? "tl-claro" : "")" />
         }
         <span class="tl-atualizado" id="telao-atualizado">atualizado agora</span>

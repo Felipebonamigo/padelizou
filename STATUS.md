@@ -1,6 +1,10 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **18/11/2026** — 🎨 **O TELÃO COM O VISUAL DO MODELO DO FELIPE**. ✅ **SEM MIGRATION.**
+>
+> 🗣️ Com um modelo pronto: *"algo assim fica mais bonito visualmente"*. Só as views (`Telao.cshtml`, `_TelaoConteudo.cshtml`): logo das raquetes, título em itálico grosso, "PLACAR OFICIAL", quadras ao vivo LADO A LADO (até 4, pílula "AO VIVO", nome da dupla em duas linhas), e embaixo os painéis "Próximos jogos" (hora em pílula, 3) e "Finalizados" (2) — o que o modelo mostra, e o que cabe sem rolar. Regras, testes e atualização sozinha iguais. **Visto rodando** em 1920×1080 com três quadras ao vivo.
+>
 > Última atualização: **18/11/2026** — 📺 **O TELÃO DO TORNEIO: A TELA PRA TV DO CLUBE** (pedido do organizador da Wallau). ✅ **SEM MIGRATION.**
 >
 > 🗣️ *"quer por em uma tv, os jogos aovivo, agendado e finalizado para exibir"*. Página nova `/Torneios/Telao/{id}` (`TorneiosController.Telao` + `Services/TelaoDoTorneio`): três colunas — AO VIVO (por quadra, placar grande, tie-break e palpitômetro), PRÓXIMOS (8, por horário) e RESULTADOS (8, o que acabou por último primeiro) —, QR do torneio, relógio e faixa de patrocinadores (os da PLATAFORMA, `PatrocinadoresSettings`: não existe patrocinador por torneio). `?clube=` filtra pela mesma régua da página Jogos (`FiltroDeJogos`). Sem layout do site, sem botão; `wwwroot/js/telao.js` (ES5 — navegador de TV é velho) busca o miolo (`?parcial=true`) a cada 20 s e troca sem piscar; se a rede cair mantém o quadro e avisa "atualizado há X min"; `meta refresh` de 10 min como rede; Wake Lock onde houver. Mesmas portas da Jogos: oculto e chave pendente → 404. Botão "Abrir telão" (e um por clube) nas ferramentas do organizador.
