@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **18/11/2026** — 📺 **O TELÃO DO TORNEIO: A TELA PRA TV DO CLUBE** (pedido do organizador da Wallau). ✅ **SEM MIGRATION.**
+>
+> 🗣️ *"quer por em uma tv, os jogos aovivo, agendado e finalizado para exibir"*. Página nova `/Torneios/Telao/{id}` (`TorneiosController.Telao` + `Services/TelaoDoTorneio`): três colunas — AO VIVO (por quadra, placar grande, tie-break e palpitômetro), PRÓXIMOS (8, por horário) e RESULTADOS (8, o que acabou por último primeiro) —, QR do torneio, relógio e faixa de patrocinadores (os da PLATAFORMA, `PatrocinadoresSettings`: não existe patrocinador por torneio). `?clube=` filtra pela mesma régua da página Jogos (`FiltroDeJogos`). Sem layout do site, sem botão; `wwwroot/js/telao.js` (ES5 — navegador de TV é velho) busca o miolo (`?parcial=true`) a cada 20 s e troca sem piscar; se a rede cair mantém o quadro e avisa "atualizado há X min"; `meta refresh` de 10 min como rede; Wake Lock onde houver. Mesmas portas da Jogos: oculto e chave pendente → 404. Botão "Abrir telão" (e um por clube) nas ferramentas do organizador.
+>
+> 🧪 `TelaoDoTorneioTests` (9; 8 **vistos vermelhos** com o esqueleto). E **visto rodando**: app local com Postgres 16 e os dados de demonstração, Playwright em 1920×1080 — os três blocos, tie-break, palpitômetro e patrocinadores na tela, e o placar trocado no banco aparecendo sozinho em 22 s sem erro no console. 8.229 verdes.
+>
 > Última atualização: **17/11/2026** — 👥 **CO-ORGANIZADOR VÊ IGUAL A QUEM CRIOU — O CAIXA INCLUSIVE**. ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#433, `build-1676-b4d8ed7`). ⚖️ **Muda a régua do dinheiro — decisão do Felipe.**
 >
 > 🕳️ 🗣️ *"Os co organizadores tem q ver igual os organizadores/criadores"* — cai a regra de 18/08 ("organiza junto, mas o caixa é de quem criou"). `AcessoAoDinheiroDoTorneio.NiveisComDinheiro` passa a ter os quatro níveis que o código grava (Criador, Total, Organizador, Ajudante): Financeiro, relatório CSV com telefones, taxa da plataforma, Dia do Jogo e o push de "inscrição paga" valem pro co-organizador. Continua de fora: quem não tem linha de `TorneioOrganizador` (o assistente do sistema que só olha) e nível desconhecido (lista fechada). **A conta que recebe o Pix segue sendo a de quem criou** (`PixDoOrganizador`, nível "Criador"). `AvisoAoAdicionar` reescrito.
