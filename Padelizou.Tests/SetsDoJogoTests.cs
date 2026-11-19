@@ -182,3 +182,87 @@ public class SetsDoJogoTests
         Assert.Equal((4, 2), (depois.PontosTieBreak1, depois.PontosTieBreak2));
     }
 }
+
+// A MESMA COISA NA TELA DO LÁPIS (Partidas/ControlePlacar). 🗣️ Felipe, no Controle de Partida da
+// final do Chakra: *"Aqui também não deixa"*.
+public class SetsNoControleDePartidaTests
+{
+    private static async Task<(DbPadelContext ctx, Partida jogo, Jogador org)> FinalNoArAsync()
+    {
+        var ctx = TestInfra.NovoContexto();
+        var (torneio, _, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 4);
+        torneio.SetsFaseGrupos = 2;
+        torneio.GamesFaseGrupos = 6;
+        torneio.PontosTieBreakGrupos = TieBreakDoJogo.PontosPadrao;
+        await ctx.SaveChangesAsync();
+        await TestInfra.NovoTorneiosController(ctx, org.Id).GerarChaves(torneio.Id);
+        var jogo = await ctx.Partidas.Where(p => p.TorneioId == torneio.Id).OrderBy(p => p.Id).FirstAsync();
+        await TestInfra.NovoPartidasController(ctx, org.Id).ColocarNoAr(jogo.Id);
+        return (ctx, jogo, org);
+    }
+
+    private static Task<Partida> Ler(DbPadelContext ctx, Partida jogo) =>
+        ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == jogo.Id);
+
+    [Fact]
+    public async Task Salvar_e_fechar_o_set_grava_os_games_digitados_e_fecha()
+    {
+        var (ctx, jogo, org) = await FinalNoArAsync();
+        using var _ = ctx;
+
+        var c = TestInfra.NovoPartidasController(ctx, org.Id);
+        var resultado = await c.ControlePlacar(jogo.Id, "AoVivo", 6, 3, jogo.NomeQuadra, null, fecharSet: true);
+
+        var depois = await Ler(ctx, jogo);
+        Assert.Equal((1, 0, 0, 0, "6-3"), (depois.SetsDupla1, depois.SetsDupla2, depois.GamesDupla1, depois.GamesDupla2, depois.PlacarDosSets));
+        // Volta pra própria tela: o próximo set se marca dali mesmo.
+        var volta = Assert.IsType<RedirectToActionResult>(resultado);
+        Assert.Equal("ControlePlacar", volta.ActionName);
+    }
+
+    // ⚠️ A tela apagava os sets quando "sets" e "games" apontavam pra lados diferentes — que é
+    // exatamente o 2º set de quem perdeu o 1º.
+    [Fact]
+    public async Task Salvar_no_meio_do_segundo_set_nao_apaga_os_sets()
+    {
+        var (ctx, jogo, org) = await FinalNoArAsync();
+        using var _ = ctx;
+        jogo.SetsDupla1 = 1; jogo.SetsDupla2 = 0; jogo.PlacarDosSets = "6-3";
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoPartidasController(ctx, org.Id).ControlePlacar(jogo.Id, "AoVivo", 2, 4, jogo.NomeQuadra, null);
+
+        var depois = await Ler(ctx, jogo);
+        Assert.Equal((1, 0, 2, 4), (depois.SetsDupla1, depois.SetsDupla2, depois.GamesDupla1, depois.GamesDupla2));
+    }
+
+    [Fact]
+    public async Task Finalizar_pelo_status_com_os_sets_em_aberto_e_recusado()
+    {
+        var (ctx, jogo, org) = await FinalNoArAsync();
+        using var _ = ctx;
+        jogo.SetsDupla1 = 1; jogo.SetsDupla2 = 0;
+        await ctx.SaveChangesAsync();
+
+        var c = TestInfra.NovoPartidasController(ctx, org.Id);
+        await c.ControlePlacar(jogo.Id, "Finalizada", 4, 6, jogo.NomeQuadra, null);
+
+        Assert.NotNull(c.TempData["Erro"]);
+        Assert.Equal("AoVivo", (await Ler(ctx, jogo)).Status);
+    }
+
+    [Fact]
+    public async Task No_um_a_um_grava_os_pontos_do_super_tie_break()
+    {
+        var (ctx, jogo, org) = await FinalNoArAsync();
+        using var _ = ctx;
+        jogo.SetsDupla1 = 1; jogo.SetsDupla2 = 1; jogo.GamesDupla1 = 0; jogo.GamesDupla2 = 0;
+        await ctx.SaveChangesAsync();
+
+        await TestInfra.NovoPartidasController(ctx, org.Id).ControlePlacar(jogo.Id, "AoVivo", 0, 0, jogo.NomeQuadra, null,
+            pontosTieBreak1: 7, pontosTieBreak2: 5);
+
+        var depois = await Ler(ctx, jogo);
+        Assert.Equal((7, 5), (depois.PontosTieBreak1, depois.PontosTieBreak2));
+    }
+}
