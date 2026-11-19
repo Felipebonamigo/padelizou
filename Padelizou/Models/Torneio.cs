@@ -200,6 +200,18 @@ public partial class Torneio
     public Clube Clube { get; set; } = null!;
     public int TempoPrevistoPartidaMinutos { get; set; } = 50; // Padrão de 50 minutos
 
+    // A DURAÇÃO POR FASE (19/11/2026). 🗣️ Rafael (Wallau): *"coloquei finais de 2 sets de 6 [...]
+    // não consigo mudar o horário só das finais"*; Felipe: *"por fases [...] e ter a opção de
+    // deixar todos iguais"*. O campo acima vira a duração dos GRUPOS (e o tamanho da vaga da
+    // grade); estes três são o desvio de cada fase eliminatória.
+    //
+    // ⚠️ ZERO = "IGUAL AOS GRUPOS", e é o que todo torneio anterior tem (sem backfill). Mesma
+    // leitura do `GamesSoDaFinal`: não existe bool "todas iguais" — a caixa da tela é derivada
+    // daqui. Quem lê é sempre Services/DuracaoDaPartida, nunca a coluna crua.
+    public int TempoMataMataMinutos { get; set; }   // Primeira rodada, oitavas e quartas
+    public int TempoSemifinalMinutos { get; set; }
+    public int TempoFinalMinutos { get; set; }
+
     // QUANTO TEMPO PRA ATRAVESSAR A CIDADE (21/08/2026), no torneio de mais de um clube.
     //
     // Um jogador pode disputar duas categorias, e num torneio de duas sedes essas categorias

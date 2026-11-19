@@ -3862,7 +3862,16 @@ namespace Padelizou.Migrations
                     b.Property<decimal>("TaxaPorImpedimento")
                         .HasColumnType("numeric");
 
+                    b.Property<int>("TempoFinalMinutos")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TempoMataMataMinutos")
+                        .HasColumnType("integer");
+
                     b.Property<int>("TempoPrevistoPartidaMinutos")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TempoSemifinalMinutos")
                         .HasColumnType("integer");
 
                     b.Property<int?>("TimeExclusivoId")

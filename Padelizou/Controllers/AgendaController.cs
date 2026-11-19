@@ -363,7 +363,13 @@ namespace padelizou.Controllers
                         CategoriaNome = p.Categoria.Nome,
                         TorneioId = p.Categoria.TorneioId,
                         TorneioLocal = p.Categoria.Torneio.LocalTorneio,
-                        DuracaoMinutos = p.Categoria.Torneio.TempoPrevistoPartidaMinutos,
+                        // As quatro durações vão cruas e a da FASE sai na memória, por
+                        // Services/DuracaoDaPartida — escrever a regra de novo em SQL seria a
+                        // segunda cópia que um dia discorda da primeira.
+                        TempoGrupos = p.Categoria.Torneio.TempoPrevistoPartidaMinutos,
+                        TempoMataMata = p.Categoria.Torneio.TempoMataMataMinutos,
+                        TempoSemifinal = p.Categoria.Torneio.TempoSemifinalMinutos,
+                        TempoFinal = p.Categoria.Torneio.TempoFinalMinutos,
                         // Nomes separados, montados na memória logo abaixo: quem se inscreveu
                         // sozinho ainda não tem parceiro, e concatenar aqui viraria "Ana/" no
                         // evento do calendário (ou o nome sumiria inteiro, dependendo de como o
@@ -416,7 +422,11 @@ namespace padelizou.Controllers
                 eventos.AddRange(partidas.Select(p => new IcsEvent(
                     Uid: $"padelizou-partida-{p.Id}@padelizou.com.br",
                     Inicio: p.HorarioPrevisto!.Value,
-                    Fim: p.HorarioPrevisto.Value.AddMinutes(p.DuracaoMinutos),
+                    Fim: p.HorarioPrevisto.Value.AddMinutes(DuracaoDaPartida.Minutos(new Torneio
+                    {
+                        TempoPrevistoPartidaMinutos = p.TempoGrupos, TempoMataMataMinutos = p.TempoMataMata,
+                        TempoSemifinalMinutos = p.TempoSemifinal, TempoFinalMinutos = p.TempoFinal,
+                    }, p.Fase)),
                     DiaInteiro: false,
                     Resumo: $"Partida: {Dupla(p.D1J1, p.D1J2)} x {Dupla(p.D2J1, p.D2J2)}",
                     Local: LocalDaPartida(p.TorneioId, p.NomeQuadra, p.TorneioLocal, p.ClubeId, p.CategoriaId),

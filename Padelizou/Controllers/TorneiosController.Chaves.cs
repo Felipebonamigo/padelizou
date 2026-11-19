@@ -78,7 +78,7 @@ namespace Padelizou.Controllers
             // (GerarChavesPerguntaQuandoNaoCabeTests)
             if (!sortearMesmoSemCaber && PrecisaDeHorario(torneio))
             {
-                var plano = MontarPlano(Botoes(torneio), MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                var plano = MontarPlano(Botoes(torneio), MontarPrevisaoDaGrade(torneio).VagasNecessarias,
                     await QuadrasDoPlanejamentoAsync(id));
                 if (plano.Faltam > 0)
                 {
@@ -1435,13 +1435,15 @@ namespace Padelizou.Controllers
             if (intocados.Count == 0) return torneio.AberturaDaGrade;
 
             var agora = DateTime.Now;
-            var emQuadra = intocados
+            // Cada jogo em quadra libera pelo tempo da FASE dele (Services/DuracaoDaPartida): a
+            // final de 80 min segura a quadra mais que o jogo de grupo de 50.
+            var calendario = HorarioDoDia.Do(torneio);
+            var liberaQuadra = intocados
                 .Where(p => p.Status == "AoVivo")
-                .Select(p => p.HorarioInicioReal ?? p.HorarioPrevisto ?? agora)
-                .DefaultIfEmpty(agora)
+                .Select(p => calendario.DepoisDe(p.HorarioInicioReal ?? p.HorarioPrevisto ?? agora,
+                    DuracaoDaPartida.Minutos(torneio, p.Fase)))
+                .DefaultIfEmpty(calendario.DepoisDe(agora, torneio.TempoPrevistoPartidaMinutos))
                 .Max();
-
-            var liberaQuadra = HorarioDoDia.Do(torneio).DepoisDe(emQuadra, torneio.TempoPrevistoPartidaMinutos);
 
             return agora > liberaQuadra ? agora : liberaQuadra;
         }
@@ -2315,7 +2317,7 @@ namespace Padelizou.Controllers
             // pelo robô, e ele também precisa de quadra. `MontarPrevisaoDaGrade` já faz essa conta,
             // e é a mesma que a tela de previsão mostra.
             var motivos = PorQueNaoCoube.Analisar(torneio, quadras, sedes,
-                MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                MontarPrevisaoDaGrade(torneio).VagasNecessarias,
                 ultimo == default ? null : ultimo);
 
             if (motivos.Count == 0) return;
@@ -2335,7 +2337,7 @@ namespace Padelizou.Controllers
         // somam antes de virar horário.
         private static PrevisaoGradeVM MontarPrevisaoDaGrade(Torneio torneio)
         {
-            int duplas = 0, grupos = 0, jogosDeGrupo = 0, jogosDeMataMata = 0;
+            int duplas = 0, grupos = 0, jogosDeGrupo = 0, jogosDeMataMata = 0, vagasDeMataMata = 0;
 
             foreach (var categoria in torneio.Categorias)
             {
@@ -2365,6 +2367,7 @@ namespace Padelizou.Controllers
 
                     duplas += naChave;
                     jogosDeMataMata += naChave - 1;
+                    vagasDeMataMata += PrevisaoDoTorneio.VagasDoMataMata(torneio, naChave - 1);
                     continue;
                 }
 
@@ -2386,18 +2389,21 @@ namespace Padelizou.Controllers
                 grupos += g;
                 jogosDeGrupo += jogos;
                 jogosDeMataMata += PrevisaoDoTorneio.MataMata(g);
+                vagasDeMataMata += PrevisaoDoTorneio.VagasDoMataMata(torneio, PrevisaoDoTorneio.MataMata(g));
             }
 
             int total = jogosDeGrupo + jogosDeMataMata;
+            int vagasNecessarias = jogosDeGrupo + vagasDeMataMata;
             var inicio = torneio.AberturaDaGrade;
 
             // Pelo calendário do torneio, que conhece a faixa própria de cada dia.
             DateTime? ultimo = total > 0
                 ? HorarioDoDia.Do(torneio).Horarios(inicio, torneio.QuantidadeQuadras,
-                    torneio.TempoPrevistoPartidaMinutos, total).Last()
+                    torneio.TempoPrevistoPartidaMinutos, vagasNecessarias).Last()
                 : null;
 
-            var duracao = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            // A última vaga é da final quando há mata-mata, e a final pode durar mais que a vaga.
+            var duracao = jogosDeMataMata > 0 ? DuracaoDaPartida.Minutos(torneio, "Final") : VagasDaGrade.Duracao(torneio);
             var fim = ultimo?.AddMinutes(duracao) ?? inicio;
 
             return new PrevisaoGradeVM
@@ -2407,6 +2413,7 @@ namespace Padelizou.Controllers
                 JogosDeGrupo = jogosDeGrupo,
                 JogosDeMataMata = jogosDeMataMata,
                 TotalDeJogos = total,
+                VagasNecessarias = vagasNecessarias,
                 Inicio = inicio,
                 FimPrevisto = fim,
                 Dias = ultimo == null ? 1 : PrevisaoDoTorneio.DiasOcupados(inicio, ultimo.Value),

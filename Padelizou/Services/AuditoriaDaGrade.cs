@@ -332,15 +332,20 @@ public static class AuditoriaDaGrade
             var depois = jogoDepois.HorarioPrevisto!.Value;
             var nomes = string.Join(" e ", quem.Select(Pessoa));
 
+            // O jogo de antes dura o que a FASE dele dura (19/11/2026, Services/DuracaoDaPartida):
+            // a final de 80 min ainda está em quadra na vaga de 50 seguinte. O descanso continua
+            // contado em vagas da grade (`duracao`).
+            var durAntes = DuracaoDaPartida.Tempo(torneio, jogoAntes.Fase);
+
             // Seguidos, sem a folga da régua: não se sobrepõem (isso é o achado abaixo), mas
             // entre um e outro passam menos horários do que a grade promete.
             var folga = duracao * GradeDeJogos.HorariosDeDescanso;
-            if (depois - antes >= duracao && depois - antes < duracao + folga)
+            if (depois - antes >= durAntes && depois - antes < durAntes + folga)
             {
                 // Um número só pro texto e pra gravidade: a grade desalinhada (refeita às 20h13)
                 // dá descanso fracionário, e dois arredondamentos diferentes fariam a tela dizer
                 // "1" enquanto o reparo pesa "0".
-                int descansou = (int)Math.Round((depois - antes - duracao).TotalMinutes / duracao.TotalMinutes,
+                int descansou = (int)Math.Round((depois - antes - durAntes).TotalMinutes / duracao.TotalMinutes,
                     MidpointRounding.AwayFromZero);
                 achados.Add(new Achado(JogosSeguidos,
                     $"{nomes}: {Rotulo(jogoAntes)} {antes:dd/MM 'às' HH:mm} e de novo "
@@ -351,12 +356,12 @@ public static class AuditoriaDaGrade
                 continue;
             }
 
-            if (depois - antes >= duracao) continue;
+            if (depois - antes >= durAntes) continue;
 
             achados.Add(new Achado(PessoaEmDoisJogos,
                 $"{nomes}: escalado em {Rotulo(jogoAntes)} {antes:dd/MM 'às' HH:mm} e de novo em "
                 + $"{Rotulo(jogoDepois)} às {depois:HH:mm} — "
-                + $"os dois jogos se sobrepõem ({duracao.TotalMinutes:0} min de partida) e "
+                + $"os dois jogos se sobrepõem ({durAntes.TotalMinutes:0} min de partida) e "
                 + "ninguém joga em duas quadras ao mesmo tempo.", antes));
         }
 

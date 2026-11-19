@@ -4888,6 +4888,44 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                         <div class="small text-muted mt-1">
                                             É com esse tempo que a grade calcula os horários e a previsão de término.
                                         </div>
+                                        @* A DURAÇÃO POR FASE (19/11/2026, Services/DuracaoDaPartida). A caixa é
+                                           derivada das três colunas (todas em zero = marcada), e o hidden vem
+                                           DEPOIS dela pelo mesmo motivo do "a final tem regra própria": caixa
+                                           desmarcada não manda nada, e o silêncio é "aba antiga, mantenha". *@
+                                        @{ bool mesmaDuracao = Padelizou.Services.DuracaoDaPartida.TodasIguais(Model); }
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" value="true"
+                                                   name="mesmaDuracaoEmTodasAsFases" id="pdzMesmaDuracao"
+                                                   checked="@mesmaDuracao"
+                                                   onchange="document.getElementById('pdzDuracaoPorFase').hidden = this.checked;" />
+                                            <input type="hidden" name="mesmaDuracaoEmTodasAsFases" value="false" />
+                                            <label class="form-check-label small fw-bold" for="pdzMesmaDuracao">
+                                                Mesma duração em todas as fases
+                                            </label>
+                                        </div>
+                                        <div id="pdzDuracaoPorFase" hidden="@mesmaDuracao" class="mt-2">
+                                            <div class="small text-muted mb-1">O campo acima vale pros <strong>grupos</strong>.</div>
+                                            @foreach (var (nome, rotulo, valor) in new[]
+                                            {
+                                                ("tempoMataMataMinutos", "Mata-mata (oitavas e quartas)", Model.TempoMataMataMinutos),
+                                                ("tempoSemifinalMinutos", "Semifinal", Model.TempoSemifinalMinutos),
+                                                ("tempoFinalMinutos", "Final", Model.TempoFinalMinutos),
+                                            })
+                                            {
+                                                <div class="input-group input-group-sm mb-1">
+                                                    <span class="input-group-text" style="min-width: 13rem;">@rotulo</span>
+                                                    <input type="number" min="1" max="@Padelizou.Services.DuracaoDaPartida.MaximoDeMinutos"
+                                                           name="@nome" class="form-control"
+                                                           value="@(valor > 0 ? valor : Model.TempoPrevistoPartidaMinutos)" />
+                                                    <span class="input-group-text">min</span>
+                                                </div>
+                                            }
+                                            <div class="small text-muted">
+                                                Jogo mais longo que o dos grupos ocupa mais de um horário da quadra, e a fase
+                                                seguinte espera ele acabar. Vale pros jogos que ainda vão ser marcados — use
+                                                "Refazer grade" se as chaves já saíram.
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="col-md-7">
                                         <div class="form-check form-switch p-3 rounded" style="background-color: var(--pdz-surface-alt);">

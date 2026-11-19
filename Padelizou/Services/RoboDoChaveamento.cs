@@ -780,7 +780,9 @@ public class RoboDoChaveamento
         // (`Cruza`: menos de uma partida de distância). Os fora de ordem ficam de fora da conta
         // porque vão ser remarcados de qualquer jeito.
         var ocupantesPorDupla = await OcupantesPorDuplaAsync(torneioId.Value);
-        var duracaoDaPartida = TimeSpan.FromMinutes(VagasDaGrade.Duracao(torneio));
+        // Cada jogo pelo tempo da FASE dele (Services/DuracaoDaPartida): a final de 80 min ainda
+        // ocupa quem está nela na vaga de 50 seguinte.
+        TimeSpan DuracaoDe(Partida p) => DuracaoDaPartida.Tempo(torneio, p.Fase);
         var queFicamOndeEstao = jaMarcados.Except(forasDeOrdem).ToList();
 
         int[] Pessoas(Partida p) => Gente(p.Dupla1Id).Concat(Gente(p.Dupla2Id)).ToArray();
@@ -791,7 +793,7 @@ public class RoboDoChaveamento
             var minhas = Pessoas(jogo);
             return queFicamOndeEstao.Any(p => !ReferenceEquals(p, jogo)
                 && p.HorarioPrevisto is DateTime h
-                && (h - quando).Duration() < duracaoDaPartida
+                && h < quando + DuracaoDe(jogo) && quando < h + DuracaoDe(p)
                 && Pessoas(p).Intersect(minhas).Any());
         }
 
@@ -1122,7 +1124,8 @@ public class RoboDoChaveamento
                     torneio.HoraFimDoDia,
                     torneio.HoraInicioDiasSeguintes,
                     await SedesAsync(torneioId),
-                    HorarioDoDia.Do(torneio)),
+                    HorarioDoDia.Do(torneio),
+                    MinutosDaFase: fase => DuracaoDaPartida.Minutos(torneio, fase)),
                 ocupadas,
                 reservadas);
 
