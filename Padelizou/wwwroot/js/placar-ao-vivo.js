@@ -146,6 +146,11 @@
             // "até" e o desempate do "vencer por dois" (Services/QuemVenceu.LadoJaDecidido).
             // Comparar games1 com games2 aqui seria a segunda cópia da régua — o mesmo erro do
             // `limiteGames: 9` que já viveu cravado neste arquivo.
+            // O "FECHAR SET" (19/11/2026): acende no toque que termina o set. Quem decide é o
+            // servidor (Services/SetsDoJogo) — aqui só se obedece.
+            var fecharSet = card.querySelector("[data-fechar-set]");
+            if (fecharSet && typeof linha.fecharSet === "boolean") fecharSet.hidden = !linha.fecharSet;
+
             var lados = card.querySelectorAll(".pdz-live-placar");
             if (lados.length === 2 && typeof linha.vencedor === "number") {
                 lados[0].classList.toggle("pdz-live-placar-venceu", linha.vencedor === 1);

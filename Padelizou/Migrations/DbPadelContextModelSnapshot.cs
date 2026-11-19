@@ -2920,6 +2920,10 @@ namespace Padelizou.Migrations
                     b.Property<int?>("OrdemNoHorario")
                         .HasColumnType("integer");
 
+                    b.Property<string>("PlacarDosSets")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
                     b.Property<DateTime?>("PlacarMarcadoEm")
                         .HasColumnType("timestamp without time zone");
 

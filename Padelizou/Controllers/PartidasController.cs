@@ -838,7 +838,7 @@ namespace Padelizou.Controllers
             // antes deste deploy, ou torneio sem tie-break configurado. Nesse caso o que está
             // gravado FICA: zerar aqui apagaria a contagem da quadra num salvar que só queria
             // trocar a quadra ou o link da câmera.
-            int? pontosTieBreak1 = null, int? pontosTieBreak2 = null)
+            int? pontosTieBreak1 = null, int? pontosTieBreak2 = null, bool fecharSet = false)
         {
             // UM FINALIZAR DE CADA VEZ POR TORNEIO (ensaio do Er, 10/09/2026, anomalia C1 — ver
             // EncerramentoDaPartida.UmDeCadaVezPorTorneioAsync): a trava vem ANTES do FindAsync,
@@ -877,6 +877,19 @@ namespace Padelizou.Controllers
             // estaria marcada como avisada.
             bool acabouDeTerminar = status == "Finalizada" && partida.Status != "Finalizada";
 
+            // O FORMATO deste jogo, lido uma vez: decide tie-break, sets e o que se pode finalizar.
+            var formatoDoJogo = FormatoDaPartida.De(
+                partida.TorneioId is int idDoTorneioDoFormato ? await _context.Torneios.FindAsync(idDoTorneioDoFormato) : null,
+                partida);
+
+            // JOGO DE VÁRIOS SETS (19/11/2026, Services/SetsDoJogo): finalizar só com alguém tendo
+            // vencido os sets — sem isto, 1x0 em sets no meio do 2º set daria o jogo a quem levou o 1º.
+            if (acabouDeTerminar && SetsDoJogo.MotivoParaNaoFinalizar(formatoDoJogo, partida) is { } motivoDosSets)
+            {
+                TempData["Erro"] = $"Jogo {partida.Codigo}: {motivoDosSets}";
+                return RedirectToAction(nameof(ControlePlacar), new { id, voltarPara });
+            }
+
             partida.GamesDupla1 = gamesDupla1;
             partida.GamesDupla2 = gamesDupla2;
 
@@ -885,11 +898,9 @@ namespace Padelizou.Controllers
             // ímpar. Num torneio sem contagem, um POST montado à mão não grava nada.
             if (pontosTieBreak1 != null || pontosTieBreak2 != null)
             {
-                var formatoDoTieBreak = FormatoDaPartida.De(
-                    partida.TorneioId is int idDoFormato ? await _context.Torneios.FindAsync(idDoFormato) : null,
-                    partida);
-
-                if (TieBreakDoJogo.PodeAcontecer(formatoDoTieBreak))
+                // O super tie-break do 1x1 (Services/SetsDoJogo) conta nos mesmos campos.
+                if (TieBreakDoJogo.PodeAcontecer(formatoDoJogo)
+                    || SetsDoJogo.EmSuperTieBreak(formatoDoJogo, partida.SetsDupla1, partida.SetsDupla2))
                 {
                     partida.PontosTieBreak1 = TieBreakDoJogo.PontoValido(pontosTieBreak1 ?? partida.PontosTieBreak1 ?? 0);
                     partida.PontosTieBreak2 = TieBreakDoJogo.PontoValido(pontosTieBreak2 ?? partida.PontosTieBreak2 ?? 0);
@@ -939,7 +950,10 @@ namespace Padelizou.Controllers
             // Quando o set contradiz o placar que acabou de ser salvo, ele está velho: sai de
             // cena e os games decidem. Set coerente fica onde está — jogo de 2 sets lançado
             // pela Mesa não é desfeito por uma passada aqui.
-            if (QuemVenceu.PorSets(partida) is { } porSets && QuemVenceu.PorGames(partida) is { } porGames
+            // ⚠️ SÓ EM JOGO DE UM SET (19/11/2026): no de vários sets, "sets pra um lado, games pro
+            // outro" é o 2º set de quem perdeu o 1º — apagar ali jogava fora o set fechado.
+            if (!SetsDoJogo.TemMaisDeUmSet(formatoDoJogo)
+                && QuemVenceu.PorSets(partida) is { } porSets && QuemVenceu.PorGames(partida) is { } porGames
                 && porSets != porGames)
             {
                 partida.SetsDupla1 = null;
@@ -1083,6 +1097,30 @@ namespace Padelizou.Controllers
             }
 
             partida.Status = status;
+
+            // "SALVAR E FECHAR O SET" (19/11/2026, Services/SetsDoJogo): com os games que acabaram de
+            // ser digitados. Volta pra esta mesma tela — o próximo set se marca daqui.
+            if (fecharSet)
+            {
+                if (partida.Status == "AoVivo" && SetsDoJogo.PodeFecharSet(formatoDoJogo, partida))
+                {
+                    SetsDoJogo.Fechar(formatoDoJogo, partida);
+                    TempData["Sucesso"] = $"Set fechado — sets {partida.SetsDupla1} x {partida.SetsDupla2} ({partida.PlacarDosSets}). "
+                        + (SetsDoJogo.JogoDecidido(formatoDoJogo, partida.SetsDupla1, partida.SetsDupla2)
+                            ? "Jogo decidido: é só finalizar."
+                            : SetsDoJogo.EmSuperTieBreak(formatoDoJogo, partida.SetsDupla1, partida.SetsDupla2)
+                                ? "1 x 1: agora é o super tie-break de 10."
+                                : "Próximo set em jogo.");
+                }
+                else
+                {
+                    TempData["Erro"] = "Placar salvo, mas o set ainda não terminou — confira o placar.";
+                }
+                partida.PlacarMarcadoEm = DateTime.Now;
+                _context.Update(partida);
+                await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(ControlePlacar), new { id, voltarPara });
+            }
 
             _context.Update(partida);
             await _context.SaveChangesAsync();

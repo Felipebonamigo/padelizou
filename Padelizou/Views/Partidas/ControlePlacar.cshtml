@@ -123,7 +123,7 @@
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador1Id" class="text-decoration-none">@Model.Dupla1.Jogador1.ComoChamar</a></h6>
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla1.Jogador2Id" class="text-decoration-none">@(Model.Dupla1.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 }
-                                <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@formato.Games" />
+                                <input type="number" name="gamesDupla1" value="@Model.GamesDupla1" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@(Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formato) ? formato.Games + 1 : formato.Games)" />
                             </div>
 
                             <div class="col-2">
@@ -140,9 +140,23 @@
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador1Id" class="text-decoration-none">@Model.Dupla2.Jogador1.ComoChamar</a></h6>
                                     <h6 class="text-truncate"><a asp-controller="Jogadores" asp-action="Perfil" asp-route-id="@Model.Dupla2.Jogador2Id" class="text-decoration-none">@(Model.Dupla2.Jogador2?.ComoChamar ?? "A definir")</a></h6>
                                 }
-                                <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@formato.Games" />
+                                <input type="number" name="gamesDupla2" value="@Model.GamesDupla2" class="form-control form-control-lg text-center fs-2 mt-2 js-games" placeholder="0" min="0" max="@(Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formato) ? formato.Games + 1 : formato.Games)" />
                             </div>
                         </div>
+
+                        @* OS SETS (19/11/2026, Services/SetsDoJogo). 🗣️ Felipe: *"aqui também não deixa"*. Em jogo
+                           de vários sets a tela mostra quantos cada dupla venceu e os placares já
+                           fechados; o set se fecha pelo "Salvar e fechar o set" lá embaixo. *@
+                        @if (Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formato))
+                        {
+                            <div class="text-center mb-3 small">
+                                <span class="fw-bold">Sets: @(Model.SetsDupla1 ?? 0) x @(Model.SetsDupla2 ?? 0)</span>
+                                @if (Padelizou.Services.SetsDoJogo.Texto(Model) is string fechados)
+                                {
+                                    <span class="text-body-secondary"> · fechados: @fechados</span>
+                                }
+                            </div>
+                        }
 
                         @* Quem está SACANDO. No padel é metade da leitura do jogo: quem chega
                            no meio de um game precisa disso pra entender o que está rolando.
@@ -182,7 +196,35 @@
                            até o placar empatar deixaria a correção sem porta. O card ao vivo é o
                            contrário: lá ele nasce no 8x8 e some quando fecha, porque lá se marca
                            com a quadra rolando. *@
-                        @if (Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formato))
+                        @* O SUPER TIE-BREAK DO 1x1 (19/11/2026, Services/SetsDoJogo): até 10, vence por 2. Usa os
+                           mesmos campos de pontos — e o bloco do tie-break de 8x8 não aparece junto. *@
+                        @if (Padelizou.Services.SetsDoJogo.EmSuperTieBreak(formato, Model.SetsDupla1, Model.SetsDupla2))
+                        {
+                            <div class="p-3 rounded-3 border border-success mb-3">
+                                <label class="form-label fw-bold mb-1">
+                                    <i class="bi bi-arrow-left-right"></i>
+                                    Super tie-break — até @Padelizou.Services.SetsDoJogo.PontosDoSuperTieBreak pontos
+                                </label>
+                                <p class="small text-body-secondary mb-2">
+                                    1 x 1 em sets. Fecha com @Padelizou.Services.SetsDoJogo.PontosDoSuperTieBreak pontos e
+                                    <strong>2 de frente</strong> — depois, "Salvar e fechar o set" e finalize.
+                                </p>
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-5">
+                                        <input type="number" name="pontosTieBreak1" value="@(Model.PontosTieBreak1 ?? 0)"
+                                               class="form-control form-control-lg text-center fw-bold" min="0"
+                                               max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos" aria-label="Pontos da dupla 1" />
+                                    </div>
+                                    <div class="col-2 text-center text-muted">x</div>
+                                    <div class="col-5">
+                                        <input type="number" name="pontosTieBreak2" value="@(Model.PontosTieBreak2 ?? 0)"
+                                               class="form-control form-control-lg text-center fw-bold" min="0"
+                                               max="@Padelizou.Services.TieBreakDoJogo.TetoDosPontos" aria-label="Pontos da dupla 2" />
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else if (Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formato))
                         {
                             var noTieBreak = Padelizou.Services.TieBreakDoJogo.EmAndamento(
                                 formato, Model.GamesDupla1 ?? 0, Model.GamesDupla2 ?? 0);
@@ -247,7 +289,12 @@
                         @* Chegou no limite? O caminho de terminar o jogo tem que estar À MÃO.
                            Antes, "finalizar" morava escondido num <select> lá em cima, e quem
                            acabou de digitar 4 x 0 estava olhando pro placar, não pro topo. *@
-                        <div id="pdzFinalizarAqui" class="alert alert-success d-none align-items-center justify-content-between gap-2 flex-wrap">
+@* Em jogo de vários sets, chegar aos games do limite fecha o SET, não o jogo — o aviso de
+                           "pode encerrar" só existe quando o jogo já está decidido (Services/SetsDoJogo). *@
+                        @if (!Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formato)
+                             || Padelizou.Services.SetsDoJogo.JogoDecidido(formato, Model.SetsDupla1, Model.SetsDupla2))
+                        {
+                                                <div id="pdzFinalizarAqui" class="alert alert-success d-none align-items-center justify-content-between gap-2 flex-wrap">
                             <span>
                                 <i class="bi bi-flag-fill"></i>
                                 Chegou aos <strong>@formato.Games games</strong>. Pode encerrar o jogo.
@@ -256,6 +303,7 @@
                                 <i class="bi bi-check-circle-fill"></i> Finalizar jogo
                             </button>
                         </div>
+                        }
 
                         @if (ehDaMesa)
                         {
@@ -290,6 +338,14 @@
                         <!-- Botões -->
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a asp-controller="Torneios" asp-action="Jogos" asp-route-id="@Model.TorneioId" class="btn btn-outline-secondary">Cancelar</a>
+                            @if (Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formato)
+                                 && !Padelizou.Services.SetsDoJogo.JogoDecidido(formato, Model.SetsDupla1, Model.SetsDupla2)
+                                 && Model.Status == "AoVivo")
+                            {
+                                <button type="submit" name="fecharSet" value="true" class="btn btn-primary fw-bold px-4">
+                                    <i class="bi bi-check2-all"></i> Salvar e fechar o set
+                                </button>
+                            }
                             <button type="submit" class="btn btn-success fw-bold px-5">💾 Salvar Alterações</button>
                         </div>
                     </form>

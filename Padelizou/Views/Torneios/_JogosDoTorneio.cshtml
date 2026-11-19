@@ -563,9 +563,16 @@
                                     ?.GetValueOrDefault(jogo.Id);
                                 int pontosTb1 = jogo.PontosTieBreak1 ?? 0;
                                 int pontosTb2 = jogo.PontosTieBreak2 ?? 0;
-                                bool emTieBreak = formatoAoVivo != null
+                                // O SUPER TIE-BREAK DO 1x1 (19/11/2026, Services/SetsDoJogo): conta nos
+                                // mesmos campos e no mesmo bloco do tie-break de 8x8.
+                                bool emSuperTieBreak = formatoAoVivo != null
+                                    && Padelizou.Services.SetsDoJogo.EmSuperTieBreak(formatoAoVivo, jogo.SetsDupla1, jogo.SetsDupla2);
+                                bool emTieBreak = emSuperTieBreak || (formatoAoVivo != null
                                     && Padelizou.Services.TieBreakDoJogo.EmAndamento(
-                                           formatoAoVivo, jogo.GamesDupla1 ?? 0, jogo.GamesDupla2 ?? 0);
+                                           formatoAoVivo, jogo.GamesDupla1 ?? 0, jogo.GamesDupla2 ?? 0));
+                                bool podeFecharSet = formatoAoVivo != null && Padelizou.Services.SetsDoJogo.PodeFecharSet(formatoAoVivo, jogo);
+                                var placarDosSets = Padelizou.Services.SetsDoJogo.Texto(jogo);
+                                if (formatoAoVivo != null && Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formatoAoVivo)) mostrarSets = true;
 
                                 // ESTE CARD DESENHA O BLOCO DO TIE-BREAK? A resposta vale por
                                 // duas: ela decide o bloco (que nasce ESCONDIDO fora do 8x8) e
@@ -579,7 +586,8 @@
                                 // 8x8 mandava DOIS `pontos1`: com duas quadras no ar, o índice
                                 // escorregava e o segundo jogo recebia a contagem do primeiro.
                                 bool temBlocoDeTieBreak = formatoAoVivo != null
-                                    && Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo);
+                                    && (Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formatoAoVivo)
+                                        || Padelizou.Services.SetsDoJogo.DecideNoSuperTieBreak(formatoAoVivo));
 
                                 // O placar que o fechamento escreve (9x8). Nulo = ainda não dá
                                 // pra fechar — 7-6 não fecha, porque o tie-break também se vence
@@ -587,7 +595,7 @@
                                 // ⚠️ `formatoAoVivo != null` AQUI, e não herdado do `emTieBreak`:
                                 // um bool que capturou a checagem não ensina nada ao compilador
                                 // (CLAUDE.md), e o `!` calaria o aviso sem provar nada.
-                                var fechamentoDoTb = formatoAoVivo != null && emTieBreak
+                                var fechamentoDoTb = formatoAoVivo != null && emTieBreak && !emSuperTieBreak
                                     ? Padelizou.Services.TieBreakDoJogo.GamesAoFechar(formatoAoVivo, pontosTb1, pontosTb2)
                                     : null;
                             }
@@ -726,7 +734,9 @@
                                 <div class="pdz-live-tiebreak" data-tiebreak="@jogo.Id" hidden="@(!emTieBreak)">
                                     <div class="pdz-live-tiebreak-titulo">
                                         <i class="bi bi-arrow-left-right"></i>
-                                        TIE-BREAK · até @formatoAoVivo.PontosTieBreak pontos
+                                        <span data-tiebreak-titulo="@jogo.Id">@(emSuperTieBreak
+                                            ? $"SUPER TIE-BREAK · até {Padelizou.Services.SetsDoJogo.PontosDoSuperTieBreak} pontos"
+                                            : $"TIE-BREAK · até {formatoAoVivo.PontosTieBreak} pontos")</span>
                                     </div>
 
                                     @* Os dois lados na MESMA ORDEM das duplas acima — é o que
@@ -800,9 +810,10 @@
                                                 ? $"Fechar o tie-break em {fecha.Games1} x {fecha.Games2}"
                                                 : "Fechar o tie-break")</span>
                                         </button>
+                                        int alvoDoBloco = emSuperTieBreak ? Padelizou.Services.SetsDoJogo.PontosDoSuperTieBreak : formatoAoVivo.PontosTieBreak;
                                         <div class="pdz-live-tiebreak-dica">
-                                            Fecha com @formatoAoVivo.PontosTieBreak pontos e <strong>2 de frente</strong> —
-                                            @(formatoAoVivo.PontosTieBreak)x@(formatoAoVivo.PontosTieBreak - 1) não fecha.
+                                            Fecha com @alvoDoBloco pontos e <strong>2 de frente</strong> —
+                                            @(alvoDoBloco)x@(alvoDoBloco - 1) não fecha.
                                         </div>
                                     }
                                 </div>
@@ -819,10 +830,35 @@
                                 </div>
                             }
 
+                            @* OS SETS JÁ FECHADOS (19/11/2026, Services/SetsDoJogo): "6-3 4-6 [10-8]". *@
+                            @if (placarDosSets != null)
+                            {
+                                <div class="small text-muted mt-2" data-sets-do-jogo="@jogo.Id">
+                                    <i class="bi bi-list-ol"></i> Sets: <strong>@placarDosSets</strong>
+                                </div>
+                            }
+
                             @* Só organizador: o torcedor via um "Editar jogo" que não era
                                dele (a rota recusa, mas o convite já passava desleixo). *@
                             @if (ehOrganizador)
                             {
+                                @* FECHAR SET (19/11/2026). 🗣️ Felipe: *"como que eu coloco o segundo set
+                                   em jogo?"*. Aparece quando o set terminou (6-4, 7-5, 7-6) ou o super
+                                   tie-break fechou — quem decide é Services/SetsDoJogo, e a resposta de
+                                   cada toque no placar acende ou apaga (js/placar-ao-vivo.js). *@
+                                @if (formatoAoVivo != null && Padelizou.Services.SetsDoJogo.TemMaisDeUmSet(formatoAoVivo))
+                                {
+                                    <form asp-controller="Torneios" asp-action="FecharSet" method="post" class="mt-3 pdz-live-acao"
+                                          data-fechar-set="@jogo.Id" hidden="@(!podeFecharSet)">
+                                        <partial name="_CampoDosFiltros" />
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="partidaId" value="@jogo.Id" />
+                                        <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
+                                        <button type="submit" class="btn btn-success w-100 fw-bold">
+                                            <i class="bi bi-check2-all"></i> Fechar @(emSuperTieBreak ? "o super tie-break" : "o set")
+                                        </button>
+                                    </form>
+                                }
                                 @* Botão de verdade, largura cheia: no jogo AO VIVO marcar o
                                    placar é A ação da tela, e ela vivia como um link cinza de
                                    11px no canto — pequeno pra achar com a quadra rolando e
