@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **19/11/2026** — 🔎 **FILTRO NO "CONFERIR A GRADE": MOSTRAR/OCULTAR CADA TIPO DE PONTO** (Wallau, 21 pontos). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO** (no #440).
+>
+> 🗣️ *"Crie um filtro aqui para exibir ou ocultar os tipos de pontos — 0 jogos de descanso, 1 jogo de descanso, jogo retardatário, e os demais"*. `Services/FiltroDaConferencia`: o tipo é a regra do achado, com "Jogos seguidos" partido em "· 0 de descanso" e "· 1 de descanso" (pela `Gravidade`). As etiquetas viram links que ligam/desligam o tipo; o recorte fica no endereço (`?ocultar=`), e a tela diz quantos estão ocultos com "Mostrar tudo". A auditoria continua calculada inteira — o filtro só decide o que se desenha.
+>
+> 🧪 `FiltroDaConferenciaTests` (5, **vistos vermelhos**). **Visto rodando** local: ocultar "Impedimento" some o card e mostra "1 ponto(s) oculto(s)".
+>
 > Última atualização: **19/11/2026** — 🕐 **HORÁRIOS DA DUPLA PELO ORGANIZADOR: "PODE JOGAR ENTRE" E "NÃO PODE JOGAR", QUANTOS QUISER** (Wallau). ⚠️ **COM MIGRATION** (`HorariosDaDupla`: tabela `HorarioDaDupla` — DuplaId, PodeJogar, Inicio, Fim; cascade com a Dupla). ⏳ **NÃO PUBLICADO** (no #440). Design aprovado pelo Felipe.
 >
 > 🗣️ *"colocar o intervalo de horário que a dupla pode jogar"* · *"quem tem impedimento no sábado à noite e no domingo [...] vários horários de impedimento ou vários 'horários que pode jogar'"* · *"só os organizadores do evento"* · *"se não couber, coloca aonde der dentro do limite de dias e horário [...] não pode ficar sem horário nenhum jogo"*. **"Pode jogar"** vale só nos jogos de chave e entra pela porta da concentração (`ConcentracaoDeJogos.Da`: união com o "Pôr os 2 jogos em", complemento proibido, prioridade e alcance da grade). **"Não pode"** vale em toda fase e entra pela porta do impedimento (`JanelasDeImpedimento.Da`). Os dois cedem no aperto (a grade já não deixa jogo sem horário nem passa do fim do torneio). A coleção `Dupla.HorariosDoOrganizador` é **AutoInclude** no `DbPadelContext` — as duas portas leem a Dupla pronta de uma dúzia de consultas, e Include esquecido seria restrição sumindo calada. Ações `AdicionarHorarioDaDupla`/`RemoverHorarioDaDupla` ([HttpPost]+[Authorize]+antiforgery+`EhOrganizadorAsync` sobre o torneio da dupla). Tela: bloco "Horários da dupla (só o organizador vê)" no painel Horário da aba de inscritos/pagamentos, etiquetas ✅/⛔ na linha. Não cobra nada.

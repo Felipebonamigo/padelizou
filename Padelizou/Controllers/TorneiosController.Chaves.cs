@@ -586,7 +586,7 @@ namespace Padelizou.Controllers
         // A régua mora em Services/AuditoriaDaGrade, e é a MESMA que o teste de regressão usa.
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> ConferirGrade(int id)
+        public async Task<IActionResult> ConferirGrade(int id, string[]? ocultar = null)
         {
             // Com os JOGADORES: sem eles a dupla vira "Dupla 589" e a pessoa vira "alguém" — e o
             // organizador não tem como mexer na mão no que não sabe quem é (10/09/2026).
@@ -605,6 +605,9 @@ namespace Padelizou.Controllers
 
             ViewBag.Torneio = torneio;
             ViewBag.TotalDeJogos = jogos.Count;
+            // O filtro por tipo de ponto (Services/FiltroDaConferencia). Só leitura: decide o que a
+            // tela desenha, nunca o que a auditoria calcula.
+            ViewBag.Ocultos = (ocultar ?? Array.Empty<string>()).Where(o => !string.IsNullOrWhiteSpace(o)).Distinct().ToArray();
 
             // ⚠️ O "POR QUÊ", e não só o "quais" (09/09/2026). 🗣️ Felipe, num print do dev: *"como
             // que tem jogo dia 15, no torneio do er? se termina dia 13? […] por que esse erro?"*.

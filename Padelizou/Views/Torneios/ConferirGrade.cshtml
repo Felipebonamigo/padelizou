@@ -2,8 +2,12 @@
 @{
     var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
     ViewData["Title"] = $"Conferir a grade — {torneio.Nome}";
-    var achados = Model.ToList();
-    var porRegra = achados.GroupBy(a => a.Regra).OrderByDescending(g => g.Count()).ToList();
+    var todos = Model.ToList();
+    var ocultos = ViewBag.Ocultos as string[] ?? Array.Empty<string>();
+    var tipos = Padelizou.Services.FiltroDaConferencia.Tipos(todos);
+    var achados = Padelizou.Services.FiltroDaConferencia.Visiveis(todos, ocultos);
+    var porRegra = achados.GroupBy(Padelizou.Services.FiltroDaConferencia.Tipo).OrderByDescending(g => g.Count()).ToList();
+    int escondidos = todos.Count - achados.Count;
     int total = ViewBag.TotalDeJogos ?? 0;
     var porQueNaoCoube = (ViewBag.PorQueNaoCoube as IEnumerable<string>)?.ToList() ?? new List<string>();
 }
@@ -38,7 +42,7 @@
         </div>
     }
 
-    @if (achados.Count == 0)
+    @if (todos.Count == 0)
     {
         <div class="alert alert-success">
             <strong><i class="bi bi-check-circle-fill"></i> Nada fora do lugar.</strong>
@@ -56,7 +60,7 @@
            esta frase, o organizador lê a lista como defeito do sistema e perde a decisão que é
            dele — mudar a grade, falar com a dupla, ou aceitar. *@
         <div class="alert alert-warning">
-            <strong><i class="bi bi-exclamation-triangle-fill"></i> @achados.Count ponto(s) pra você olhar.</strong>
+            <strong><i class="bi bi-exclamation-triangle-fill"></i> @todos.Count ponto(s) pra você olhar.</strong>
             <div class="small mt-1">
                 Nem tudo aqui é erro: quando as vagas apertam, a grade prefere marcar o jogo fora
                 da restrição a deixá-lo sem horário nenhum. A decisão do que fazer é sua —
@@ -64,14 +68,31 @@
             </div>
         </div>
 
+        @* O FILTRO (19/11/2026, Services/FiltroDaConferencia): cada etiqueta liga e desliga o seu tipo.
+           É link, e não JavaScript: o recorte fica no endereço — recarregar ou mandar pro
+           co-organizador mostra o mesmo. *@
+        <div class="small text-muted mb-1">Toque pra mostrar ou ocultar cada tipo:</div>
         <div class="d-flex flex-wrap gap-2 mb-3">
-            @foreach (var grupo in porRegra)
+            @foreach (var (tipo, quantos) in tipos)
             {
-                <span class="badge rounded-pill bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle fw-normal">
-                    @grupo.Key: <strong>@grupo.Count()</strong>
-                </span>
+                bool oculto = ocultos.Contains(tipo);
+                var proximos = Padelizou.Services.FiltroDaConferencia.Alternar(ocultos, tipo);
+                var link = Url.Action("ConferirGrade", new { id = torneio.Id })
+                           + (proximos.Length == 0 ? "" : "?" + string.Join("&", proximos.Select(o => "ocultar=" + Uri.EscapeDataString(o))));
+                <a href="@link" class="badge rounded-pill fw-normal text-decoration-none border @(oculto ? "bg-transparent text-muted border-secondary-subtle" : "bg-secondary-subtle text-secondary-emphasis border-secondary-subtle")"
+                   aria-pressed="@(oculto ? "false" : "true")" title="@(oculto ? "Mostrar" : "Ocultar")">
+                    <i class="bi @(oculto ? "bi-eye-slash" : "bi-eye")"></i>
+                    <span style="@(oculto ? "text-decoration: line-through;" : "")">@tipo</span>: <strong>@quantos</strong>
+                </a>
             }
         </div>
+        @if (escondidos > 0)
+        {
+            <p class="small text-muted">
+                @escondidos ponto(s) oculto(s) pelo filtro.
+                <a href="@Url.Action("ConferirGrade", new { id = torneio.Id })">Mostrar tudo</a>
+            </p>
+        }
 
         @foreach (var grupo in porRegra)
         {
