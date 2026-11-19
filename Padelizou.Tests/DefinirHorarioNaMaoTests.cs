@@ -202,6 +202,33 @@ public class DefinirHorarioNaMaoTests
         Assert.Equal(As("21:00"), (await Recarregar(c, terceiro)).HorarioPrevisto);
     }
 
+    // 🕳️ 🗣️ Rafael (Wallau), 19/11/2026: *"aparece ali, meio dia, uma quadra livre, daí eu boto pra
+    // trocar e apresenta um erro: a quadra dois, que é a do jogo que eu estou trocando, já está
+    // ocupada nesse horário. [...] Minha sugestão é força e já bota na livre"*. O menu de horários
+    // conta "1 quadra livre" e a hora levava junto a quadra de ANTES — se essa estava tomada, recusava
+    // em vez de usar a que o próprio menu prometeu.
+    [Fact]
+    public async Task Quadra_do_jogo_ocupada_no_horario_novo_vai_pra_quadra_livre_desse_horario()
+    {
+        var c = Montar(porOrdem: false);
+        c.Ctx.Quadras.Add(new Quadra { TorneioId = c.Torneio.Id, Nome = "Arena 2", ClubeId = c.Er.Id });
+        var terceiro = new Partida
+        {
+            TorneioId = c.Torneio.Id, CategoriaId = c.Categoria.Id, Dupla1Id = c.NoEr.Dupla1Id, Dupla2Id = c.NoRadar.Dupla1Id,
+            Codigo = "TERC", Status = "Agendada", Fase = "Grupo A", HorarioPrevisto = As("21:00"), NomeQuadra = "Arena 1", ClubeId = c.Er.Id,
+        };
+        c.Ctx.Partidas.Add(terceiro);
+        await c.Ctx.SaveChangesAsync();
+
+        var controller = Controller(c);
+        await controller.DefinirHorario(c.Torneio.Id, terceiro.Id.ToString(), As("20:00"));   // Arena 1 tomada pelo NOER
+
+        Assert.Null(controller.TempData["Erro"]);
+        var depois = await Recarregar(c, terceiro);
+        Assert.Equal((As("20:00"), "Arena 2"), (depois.HorarioPrevisto, depois.NomeQuadra));
+        Assert.Contains("Arena 2", (string?)controller.TempData["Sucesso"]);
+    }
+
     // ── A tela ──
     [Fact]
     public void A_lista_oferece_o_botao_de_definir_horario_na_mao_pro_jogo_real_e_pra_previa()

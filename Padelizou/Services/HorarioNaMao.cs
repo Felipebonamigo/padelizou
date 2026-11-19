@@ -59,6 +59,38 @@ public static class HorarioNaMao
         quadra.DisponivelDe == null || quadra.DisponivelAte == null
         || (quadra.DisponivelDe <= horario && horario <= quadra.DisponivelAte);
 
+    // A QUADRA LIVRE no horário novo, quando a do jogo está tomada (19/11/2026). 🗣️ Rafael (Wallau):
+    // *"minha sugestão é força e já bota na livre"* — o menu de horários diz "1 quadra livre", e a
+    // hora que o organizador escolheu por causa disso não pode ser recusada pela quadra de ANTES.
+    //
+    // A livre é a que está aberta nesse horário (janela da quadra), sem jogo por jogar nem prévia
+    // reservada nele, e onde a categoria pode jogar (Services/SedesDoTorneio). O clube do jogo vem
+    // primeiro: trocar de prédio só quando o dele não tem vaga. Null = nenhuma livre, e aí a recusa
+    // de sempre continua valendo.
+    public static Quadra? QuadraLivre(Partida jogo, DateTime horario, IEnumerable<Partida> doTorneio,
+        IReadOnlyCollection<Quadra> quadras, Torneio torneio, SedesDoTorneio sedes, Func<string, bool>? reservada = null)
+    {
+        var tomadas = doTorneio
+            .Where(p => p.Id != jogo.Id && p.Status != "Finalizada" && p.HorarioPrevisto == horario
+                     && !string.IsNullOrWhiteSpace(p.NomeQuadra))
+            .Select(p => p.NomeQuadra!.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var daCategoria = sedes.QuadrasDe(jogo.CategoriaId);
+        bool podeNoExtra = sedes.PodeIrPraSedeExtra(jogo.CategoriaId);
+        int clubeDoJogo = jogo.ClubeId ?? torneio.ClubeId;
+
+        return quadras
+            .Where(q => !tomadas.Contains(q.Nome.Trim()))
+            .Where(q => Aberta(q, horario))
+            .Where(q => reservada == null || !reservada(q.Nome))
+            .Where(q => daCategoria == null || daCategoria.Contains(q.Nome))
+            .Where(q => podeNoExtra || !sedes.EhSedeExtra(q.Nome))
+            .OrderBy(q => (q.ClubeId ?? torneio.ClubeId) == clubeDoJogo ? 0 : 1)
+            .ThenBy(q => q.Nome, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
     public static void Definir(Partida jogo, DateTime horario, int? clubeNovo)
     {
         jogo.HorarioPrevisto = horario;

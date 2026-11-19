@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **19/11/2026** — 🕳️ **HORA NA MÃO COM A QUADRA DO JOGO OCUPADA: VAI PRA QUADRA LIVRE EM VEZ DE DAR ERRO** (Wallau). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO** (no #440).
+>
+> 🗣️ Rafael: *"aparece meio dia, uma quadra livre, daí eu boto pra trocar e apresenta um erro: a quadra dois [a do jogo] já está ocupada nesse horário [...] minha sugestão é força e já bota na livre"*. O menu conta "1 quadra livre", mas `DefinirHorario` levava a quadra de ANTES e `HorarioNaMao.MotivoParaNaoDefinir` recusava. Agora, com a quadra tomada, `HorarioNaMao.QuadraLivre` escolhe a livre daquele horário (aberta, sem jogo por jogar nem prévia reservada, permitida pra categoria; o clube do jogo primeiro) e a mensagem diz "mudou Quadra X → Quadra Y". Sem nenhuma livre, a recusa de sempre.
+>
+> 🧪 `DefinirHorarioNaMaoTests.Quadra_do_jogo_ocupada_no_horario_novo_vai_pra_quadra_livre_desse_horario` (**visto vermelho**); o teste da recusa sem quadra livre continua verde. 8.309 verdes.
+>
 > Última atualização: **19/11/2026** — 🔎 **FILTRO NO "CONFERIR A GRADE": MOSTRAR/OCULTAR CADA TIPO DE PONTO** (Wallau, 21 pontos). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO** (no #440).
 >
 > 🗣️ *"Crie um filtro aqui para exibir ou ocultar os tipos de pontos — 0 jogos de descanso, 1 jogo de descanso, jogo retardatário, e os demais"*. `Services/FiltroDaConferencia`: o tipo é a regra do achado, com "Jogos seguidos" partido em "· 0 de descanso" e "· 1 de descanso" (pela `Gravidade`). As etiquetas viram links que ligam/desligam o tipo; o recorte fica no endereço (`?ocultar=`), e a tela diz quantos estão ocultos com "Mostrar tudo". A auditoria continua calculada inteira — o filtro só decide o que se desenha.
