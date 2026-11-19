@@ -1436,6 +1436,8 @@
                     <input type="hidden" name="id" value="@Model.TorneioId" />
                     <input type="hidden" name="voltarPara" value="@Model.TargetAction" />
                     <input type="hidden" name="jogoId" id="quadraJogoId" value="" />
+                    @* A prévia não tem Id: vai a referência "previa:categoria:fase:n" (19/11/2026). *@
+                    <input type="hidden" name="previa" id="quadraJogoPrevia" value="" />
                     <div class="modal-header">
                         <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Mudar de quadra</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1486,6 +1488,7 @@
                     var botao = evento.relatedTarget;
                     if (!botao) return;
                     document.getElementById('quadraJogoId').value = botao.getAttribute('data-jogo-id');
+                    document.getElementById('quadraJogoPrevia').value = botao.getAttribute('data-jogo-previa') || '';
                     document.getElementById('quadraJogoRotulo').textContent = botao.getAttribute('data-jogo-rotulo');
                     var select = document.getElementById('quadraDestino');
                     if (!select) return;

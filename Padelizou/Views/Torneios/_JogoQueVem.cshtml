@@ -89,6 +89,21 @@
                         title="Trocar horário" aria-label="Trocar horário">
                     <i class="bi bi-arrow-left-right"></i>
                 </button>
+                @* MUDAR SÓ A QUADRA da prévia (19/11/2026) — o mesmo modal do jogo real, no MESMO horário.
+                   🗣️ Felipe: *"tem q trocar por outra quadra e no mesmo horario"*. Sem quadra (por
+                   ordem de liberação) não aparece: lá quem dá a quadra é o balcão. *@
+                @if (!string.IsNullOrEmpty(Model.Quadra))
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="modal" data-bs-target="#modalTrocarQuadra"
+                            data-jogo-id="0"
+                            data-jogo-previa="@referenciaDaTroca"
+                            data-jogo-quadra="@Model.Quadra"
+                            data-jogo-rotulo="@Model.FaseNumerada · @Model.Horario?.ToString("dd/MM HH:mm") · @Model.Lado1.Rotulo x @Model.Lado2.Rotulo (@Model.Categoria, prévia)"
+                            title="Mudar de quadra" aria-label="Mudar de quadra">
+                        <i class="bi bi-geo-alt"></i>
+                    </button>
+                }
                 @* ⋯ — o relógio (definir horário na mão) e as setas ↑↓ (🗣️ *"relogio e as setas"*,
                    10/09/2026). A prévia entra na MESMA fila dos jogos reais e sobe/desce por ela:
                    as semifinais e finais de domingo do Er ainda não nasceram, e uma ordem que só
