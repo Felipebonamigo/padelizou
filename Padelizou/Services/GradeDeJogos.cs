@@ -170,7 +170,8 @@ public static class GradeDeJogos
         IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasProibidasPorDupla = null,
         SedesDoTorneio? sedes = null,
         IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasSoNosGruposPorDupla = null,
-        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasSoNaEliminatoriaPorCategoria = null)
+        IReadOnlyDictionary<int, (DateTime Inicio, DateTime Fim)[]>? janelasSoNaEliminatoriaPorCategoria = null,
+        Func<Partida, TimeSpan>? duracaoDoJogo = null)
     {
         var sede = sedes ?? SedesDoTorneio.Nenhuma;
 
@@ -186,6 +187,33 @@ public static class GradeDeJogos
         // detector voltava a ser "instante exato", em silêncio, exatamente o bug que este
         // método passou a resolver.
         var duracao = TimeSpan.FromMinutes(duracaoMinutos > 0 ? duracaoMinutos : 50);
+
+        // ⚠️ A DURAÇÃO DE CADA JOGO (19/11/2026, Services/DuracaoDaPartida). `duracao` acima continua
+        // sendo o tamanho da VAGA; `duracaoDoJogo` diz quanto tempo cada jogo segura a quadra e as
+        // pessoas dele. Omitida, todo jogo dura uma vaga — a grade de antes, conta por conta (o
+        // "se cruzam" por intervalo abaixo é o mesmo |a − b| < d quando as duas durações são iguais).
+        TimeSpan D(Partida p) => duracaoDoJogo?.Invoke(p) is TimeSpan t && t > TimeSpan.Zero ? t : duracao;
+        static bool Sobrepoe(DateTime a, TimeSpan da, DateTime b, TimeSpan db) => a < b + db && b < a + da;
+
+        // Jogo mais longo que a vaga CONSOME as vagas seguintes da grade (uma por vaga a mais que
+        // precisa) — é o que faz o torneio sem quadra cadastrada, que só conta vagas por horário,
+        // não pôr outro jogo no lugar da final que ainda está em quadra. Com quadra cadastrada, a
+        // vaga consumida é a da quadra que o `Cruza` já tranca.
+        var consumidas = new HashSet<int>();
+        void ConsumirAsSeguintes(DateTime inicio, TimeSpan dur, int aPartirDe)
+        {
+            int extras = (int)Math.Ceiling(dur.TotalMinutes / duracao.TotalMinutes) - 1;
+            for (int m = 1; m <= extras; m++)
+            {
+                var alvo = inicio + duracao * m;
+                for (int j = Math.Max(0, aPartirDe); j < horarios.Count; j++)
+                {
+                    if (horarios[j] != alvo || consumidas.Contains(j)) continue;
+                    consumidas.Add(j);
+                    break;
+                }
+            }
+        }
 
         // ⚠️ A AGENDA É POR OCUPANTE, E A COLISÃO É POR INTERVALO — as duas eram por INSTANTE
         // EXATO (`Dictionary<DateTime, HashSet<int>>`) até 21/08/2026, e isso era um bug vivo
@@ -206,9 +234,9 @@ public static class GradeDeJogos
         // clube). Sem o lugar é impossível responder "ela acabou de jogar no outro clube?", que
         // é a única pergunta que a folga de deslocamento faz. A da QUADRA continua só com o
         // relógio: o nome da quadra é único no torneio, então ele já É o lugar.
-        var ocupados = new Dictionary<int, List<(DateTime Quando, int? Clube)>>();  // pessoa -> quando e onde
-        var ocupadas = new Dictionary<string, List<DateTime>>();                    // quadra -> quando está tomada
-        var semQuadra = new Dictionary<int, List<DateTime>>();                      // clube -> quando um jogo SEM quadra toma uma dele
+        var ocupados = new Dictionary<int, List<(DateTime Quando, int? Clube, TimeSpan Dur)>>();  // pessoa -> quando, onde e por quanto tempo
+        var ocupadas = new Dictionary<string, List<(DateTime Quando, TimeSpan Dur)>>();          // quadra -> quando está tomada
+        var semQuadra = new Dictionary<int, List<(DateTime Quando, TimeSpan Dur)>>();            // clube -> quando um jogo SEM quadra toma uma dele
 
         // Quem JÁ jogou no local externo — a memória de "que a dupla jogue apenas um lá".
         // Semeada com os jogos que já estavam marcados: sem isso, um "Refazer grade" no meio do
@@ -216,11 +244,11 @@ public static class GradeDeJogos
         // novo à tarde.
         var jaJogaramNoExterno = new HashSet<int>();
 
-        bool Cruza(List<DateTime> quando, DateTime horario) =>
-            quando.Any(h => (h - horario).Duration() < duracao);
+        bool Cruza(List<(DateTime Quando, TimeSpan Dur)> quando, DateTime horario, TimeSpan dur) =>
+            quando.Any(h => Sobrepoe(h.Quando, h.Dur, horario, dur));
 
-        bool CruzaComAPessoa(List<(DateTime Quando, int? Clube)> agenda, DateTime horario) =>
-            agenda.Any(j => (j.Quando - horario).Duration() < duracao);
+        bool CruzaComAPessoa(List<(DateTime Quando, int? Clube, TimeSpan Dur)> agenda, DateTime horario, TimeSpan dur) =>
+            agenda.Any(j => Sobrepoe(j.Quando, j.Dur, horario, dur));
 
         void Anotar<TChave, TQuando>(Dictionary<TChave, List<TQuando>> agenda, TChave chave, TQuando quando)
             where TChave : notnull
@@ -239,10 +267,11 @@ public static class GradeDeJogos
         // A folga só existe entre clubes DIFERENTES e ambos conhecidos. Dois jogos seguidos no
         // mesmo clube continuam separados só pela duração da partida, como sempre foram.
         var folga = sede.FolgaParaTrocarDeClube;
-        bool PrecisaAtravessarACidade(List<(DateTime Quando, int? Clube)> agenda, DateTime horario, int? clube) =>
+        bool PrecisaAtravessarACidade(List<(DateTime Quando, int? Clube, TimeSpan Dur)> agenda, DateTime horario,
+            int? clube, TimeSpan dur) =>
             folga > TimeSpan.Zero && clube != null
             && agenda.Any(j => j.Clube != null && j.Clube != clube
-                            && (j.Quando - horario).Duration() < duracao + folga);
+                            && Sobrepoe(j.Quando, j.Dur + folga, horario, dur + folga));
 
         var fila = new List<Partida>(jogos);
 
@@ -261,8 +290,10 @@ public static class GradeDeJogos
             // dá é o balcão, conforme vaga) e o carimbo é tudo que diz em que prédio o jogo é.
             // Só pro jogo JÁ MARCADO: o da fila carrega carimbo velho quando é reencaixado.
             var ondeEle = OndeJoga(marcado) ?? marcado.ClubeId;
-            foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
-            foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) Anotar(ocupados, pessoa, (quando, ondeEle));
+            var durDele = D(marcado);
+            foreach (var pessoa in Ocupantes(marcado.Dupla1Id)) Anotar(ocupados, pessoa, (quando, ondeEle, durDele));
+            foreach (var pessoa in Ocupantes(marcado.Dupla2Id)) Anotar(ocupados, pessoa, (quando, ondeEle, durDele));
+            ConsumirAsSeguintes(quando, durDele, 0);
 
             // ⚠️ JOGO JÁ MARCADO SEM QUADRA OCUPA UMA QUADRA DO CLUBE DELE (10/09/2026, ensaio do dia
             // inteiro, achado C6). Até aqui ele não bloqueava quadra nenhuma — a ocupação é por NOME
@@ -274,11 +305,11 @@ public static class GradeDeJogos
             // desconta — qual delas vai ser é decisão do balcão. Ver `livresAgora`, abaixo.
             if (string.IsNullOrEmpty(marcado.NomeQuadra))
             {
-                if (ondeEle is int clubeDele) Anotar(semQuadra, clubeDele, quando);
+                if (ondeEle is int clubeDele) Anotar(semQuadra, clubeDele, (quando, durDele));
             }
             else
             {
-                Anotar(ocupadas, marcado.NomeQuadra, quando);
+                Anotar(ocupadas, marcado.NomeQuadra, (quando, durDele));
             }
 
             // Pelo clube, e não pelo nome da quadra: o jogo sem quadra carimbado no local externo
@@ -297,6 +328,7 @@ public static class GradeDeJogos
         for (int i = 0; i < horarios.Count; i++)
         {
             if (fila.Count == 0) break;
+            if (consumidas.Contains(i)) continue;   // tomada por um jogo longo que começou antes
 
             var horario = horarios[i];
 
@@ -313,7 +345,7 @@ public static class GradeDeJogos
             if (temQuadraCadastrada)
             {
                 livresAgora = quadras!
-                    .Where(q => !(ocupadas.TryGetValue(q, out var quando) && Cruza(quando, horario)))
+                    .Where(q => !(ocupadas.TryGetValue(q, out var quando) && Cruza(quando, horario, duracao)))
                     // ⚠️ A JANELA DA QUADRA (08/09/2026) É TRAVA DURA, e é a única aqui que não
                     // cede nunca: o local externo é ALUGADO por hora, e fora dela o portão está
                     // trancado. Torneio de uma sede só responde sempre `true` e nada muda.
@@ -335,7 +367,7 @@ public static class GradeDeJogos
                 // vagas por instante (VagasDaGrade.Descontando) já segura o total.
                 foreach (var (clube, quando) in semQuadra)
                 {
-                    int tomadas = quando.Count(h => (h - horario).Duration() < duracao);
+                    int tomadas = quando.Count(h => Sobrepoe(h.Quando, h.Dur, horario, duracao));
                     for (int k = livresAgora.Count - 1; k >= 0 && tomadas > 0; k--)
                     {
                         if (sede.ClubeDaQuadra(livresAgora[k]) != clube) continue;
@@ -354,7 +386,17 @@ public static class GradeDeJogos
             // local alugado (`Categoria.PodeJogarNaSedeExtra`, o jeito do Er — a sede principal
             // enche e o resto transborda). A primeira já pinou a categoria num lugar, então a
             // segunda nem chega a ser perguntada pra ela.
+            // Jogo mais longo que a vaga precisa da quadra livre pelo tempo TODO dele.
             List<string> LivresPara(Partida p)
+            {
+                var livres = LivresParaAVaga(p);
+                var dur = D(p);
+                return dur <= duracao
+                    ? livres
+                    : livres.Where(q => !(ocupadas.TryGetValue(q, out var quando) && Cruza(quando, horario, dur))).ToList();
+            }
+
+            List<string> LivresParaAVaga(Partida p)
             {
                 if (sede.QuadrasDe(p.CategoriaId) is { } daSede)
                     return livresAgora.Where(daSede.Contains).ToList();
@@ -407,8 +449,8 @@ public static class GradeDeJogos
             // diferentes — e proibir isso só espalharia a grade e atrasaria o encerramento.
             // Dentro de UMA categoria a impossibilidade já é estrutural: a folga entre fases
             // (AberturaDaProximaFase) nunca deixa a final encostar na semifinal que a decide.
-            bool OcupadaAgora(int pessoa) =>
-                ocupados.TryGetValue(pessoa, out var agenda) && CruzaComAPessoa(agenda, horario);
+            bool OcupadaAgora(int pessoa, TimeSpan dur) =>
+                ocupados.TryGetValue(pessoa, out var agenda) && CruzaComAPessoa(agenda, horario, dur);
 
             // A janela é MEIO ABERTA ([Inicio, Fim)): o corte de sábado passa de "ImpedimentoManha"
             // pra "ImpedimentoTarde" exatamente no meio-dia, e um jogo marcado ÀS 12h00 precisa
@@ -443,7 +485,7 @@ public static class GradeDeJogos
                 && DentroDeJanela(janelasSoNaEliminatoriaPorCategoria, p.CategoriaId);
 
             bool Livre(Partida p) =>
-                !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                !Ocupantes(p.Dupla1Id).Any(x => OcupadaAgora(x, D(p))) && !Ocupantes(p.Dupla2Id).Any(x => OcupadaAgora(x, D(p)))
                 && !DentroDeJanelaProibida(p.Dupla1Id) && !DentroDeJanelaProibida(p.Dupla2Id)
                 && !ForaDoTurnoConcentrado(p) && !EliminatoriaEmHoraProibida(p);
 
@@ -461,7 +503,7 @@ public static class GradeDeJogos
 
                 bool Correria(int pessoa) =>
                     ocupados.TryGetValue(pessoa, out var agenda)
-                    && PrecisaAtravessarACidade(agenda, horario, clube);
+                    && PrecisaAtravessarACidade(agenda, horario, clube, D(p));
 
                 return !Ocupantes(p.Dupla1Id).Any(Correria) && !Ocupantes(p.Dupla2Id).Any(Correria);
             }
@@ -591,7 +633,7 @@ public static class GradeDeJogos
                 }
 
                 jogo = fila.FirstOrDefault(p =>
-                    !Ocupantes(p.Dupla1Id).Any(OcupadaAgora) && !Ocupantes(p.Dupla2Id).Any(OcupadaAgora)
+                    !Ocupantes(p.Dupla1Id).Any(x => OcupadaAgora(x, D(p))) && !Ocupantes(p.Dupla2Id).Any(x => OcupadaAgora(x, D(p)))
                     && TemOndeJogar(p) && SemSaida(p));
             }
 
@@ -613,7 +655,7 @@ public static class GradeDeJogos
                 // contrário: com quadra cadastrada e nenhuma livre, a vaga é pulada em vez de o
                 // jogo nascer com hora e sem quadra (o incidente do Interno de 05/08/2026). Só o
                 // aperto de fila desfaz isso.
-                int vagasRestantes = horarios.Count - i - 1;
+                int vagasRestantes = horarios.Count - i - 1 - consumidas.Count(c => c > i);
                 if (vagasRestantes >= fila.Count) continue;
 
                 // ⚠️ MAS NUNCA NUM HORÁRIO EM QUE NENHUMA QUADRA EXISTE (11/11/2026): todas fora da
@@ -657,7 +699,7 @@ public static class GradeDeJogos
                 && PreferenciaDeQuadra.Escolher(LivresPara(jogo), Preferidas(jogo), comDono) is { } livre)
             {
                 jogo.NomeQuadra = livre;
-                Anotar(ocupadas, livre, horario);
+                Anotar(ocupadas, livre, (horario, D(jogo)));
 
                 if (sede.EhSedeExtra(livre))
                 {
@@ -667,8 +709,10 @@ public static class GradeDeJogos
             }
 
             var onde = OndeJoga(jogo);
-            foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) Anotar(ocupados, pessoa, (horario, onde));
-            foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) Anotar(ocupados, pessoa, (horario, onde));
+            var durDoJogo = D(jogo);
+            foreach (var pessoa in Ocupantes(jogo.Dupla1Id)) Anotar(ocupados, pessoa, (horario, onde, durDoJogo));
+            foreach (var pessoa in Ocupantes(jogo.Dupla2Id)) Anotar(ocupados, pessoa, (horario, onde, durDoJogo));
+            ConsumirAsSeguintes(horario, durDoJogo, i + 1);
             fila.Remove(jogo);
         }
     }

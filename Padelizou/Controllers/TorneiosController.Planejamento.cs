@@ -572,11 +572,11 @@ namespace Padelizou.Controllers
             // (`MontarPrevisaoDaGrade(...).TotalDeJogos`). (GradeNuncaPassaDoFimDoTorneioTests)
             if (sorteados > 0)
                 return (torneio.Formato == FormatoDoTorneio.Padrao
-                    ? Math.Max(sorteados, MontarPrevisaoDaGrade(torneio).TotalDeJogos)
+                    ? Math.Max(sorteados, MontarPrevisaoDaGrade(torneio).VagasNecessarias)
                     : sorteados, true);
 
             return (torneio.Formato == FormatoDoTorneio.Padrao
-                ? MontarPrevisaoDaGrade(torneio).TotalDeJogos
+                ? MontarPrevisaoDaGrade(torneio).VagasNecessarias
                 : 0, false);
         }
 

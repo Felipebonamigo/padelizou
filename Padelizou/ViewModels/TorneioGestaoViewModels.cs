@@ -188,6 +188,11 @@ public class PrevisaoGradeVM
     public int JogosDeMataMata { get; set; }
     public int TotalDeJogos { get; set; }
 
+    // As VAGAS que esses jogos tomam na grade: igual a TotalDeJogos quando toda fase dura o
+    // mesmo; maior quando semi/final duram mais que uma vaga (Services/DuracaoDaPartida). É este
+    // o número que se compara com as vagas que o torneio tem.
+    public int VagasNecessarias { get; set; }
+
     public DateTime Inicio { get; set; }
 
     // Quando o último jogo TERMINA (o começo mais a duração) — é o que o organizador precisa

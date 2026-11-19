@@ -78,7 +78,7 @@ namespace Padelizou.Controllers
             // (GerarChavesPerguntaQuandoNaoCabeTests)
             if (!sortearMesmoSemCaber && PrecisaDeHorario(torneio))
             {
-                var plano = MontarPlano(Botoes(torneio), MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                var plano = MontarPlano(Botoes(torneio), MontarPrevisaoDaGrade(torneio).VagasNecessarias,
                     await QuadrasDoPlanejamentoAsync(id));
                 if (plano.Faltam > 0)
                 {
@@ -586,7 +586,7 @@ namespace Padelizou.Controllers
         // A régua mora em Services/AuditoriaDaGrade, e é a MESMA que o teste de regressão usa.
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> ConferirGrade(int id)
+        public async Task<IActionResult> ConferirGrade(int id, string[]? ocultar = null)
         {
             // Com os JOGADORES: sem eles a dupla vira "Dupla 589" e a pessoa vira "alguém" — e o
             // organizador não tem como mexer na mão no que não sabe quem é (10/09/2026).
@@ -605,6 +605,9 @@ namespace Padelizou.Controllers
 
             ViewBag.Torneio = torneio;
             ViewBag.TotalDeJogos = jogos.Count;
+            // O filtro por tipo de ponto (Services/FiltroDaConferencia). Só leitura: decide o que a
+            // tela desenha, nunca o que a auditoria calcula.
+            ViewBag.Ocultos = (ocultar ?? Array.Empty<string>()).Where(o => !string.IsNullOrWhiteSpace(o)).Distinct().ToArray();
 
             // ⚠️ O "POR QUÊ", e não só o "quais" (09/09/2026). 🗣️ Felipe, num print do dev: *"como
             // que tem jogo dia 15, no torneio do er? se termina dia 13? […] por que esse erro?"*.
@@ -1435,13 +1438,15 @@ namespace Padelizou.Controllers
             if (intocados.Count == 0) return torneio.AberturaDaGrade;
 
             var agora = DateTime.Now;
-            var emQuadra = intocados
+            // Cada jogo em quadra libera pelo tempo da FASE dele (Services/DuracaoDaPartida): a
+            // final de 80 min segura a quadra mais que o jogo de grupo de 50.
+            var calendario = HorarioDoDia.Do(torneio);
+            var liberaQuadra = intocados
                 .Where(p => p.Status == "AoVivo")
-                .Select(p => p.HorarioInicioReal ?? p.HorarioPrevisto ?? agora)
-                .DefaultIfEmpty(agora)
+                .Select(p => calendario.DepoisDe(p.HorarioInicioReal ?? p.HorarioPrevisto ?? agora,
+                    DuracaoDaPartida.Minutos(torneio, p.Fase)))
+                .DefaultIfEmpty(calendario.DepoisDe(agora, torneio.TempoPrevistoPartidaMinutos))
                 .Max();
-
-            var liberaQuadra = HorarioDoDia.Do(torneio).DepoisDe(emQuadra, torneio.TempoPrevistoPartidaMinutos);
 
             return agora > liberaQuadra ? agora : liberaQuadra;
         }
@@ -1670,9 +1675,13 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null, string? filtros = null)
+        public async Task<IActionResult> TrocarQuadra(int id, int jogoId, string quadra, string? voltarPara = null, string? filtros = null,
+            string? previa = null)
         {
             if (!await PodeOperarODiaDeJogoAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            if (ReferenciaDoJogo.Ler(previa) is { EhPrevia: true } referenciaDaPrevia)
+                return await TrocarQuadraDaPreviaAsync(id, referenciaDaPrevia, quadra, voltarPara, filtros);
 
             var doTorneio = await _context.Partidas.Where(p => p.TorneioId == id).ToListAsync();
             var jogo = doTorneio.FirstOrDefault(p => p.Id == jogoId);
@@ -1725,6 +1734,108 @@ namespace Padelizou.Controllers
                        ? " A transmissão saiu junto: a nova quadra não tem câmera cadastrada."
                        : " A transmissão passou a ser a da nova quadra.");
 
+            return VoltarPara(voltarPara, id, filtros);
+        }
+
+        // MUDAR A QUADRA DE UMA PRÉVIA (19/11/2026). 🗣️ Felipe, nas quartas previstas da Wallau:
+        // *"Permita aqui trocar a quadra também, lembrando que tem que trocar por outra quadra e no
+        // mesmo horário"*. O HORÁRIO NÃO MUDA — é a mesma regra do "Mudar de quadra" do jogo real
+        // (Services/TrocaDeQuadra):
+        //   • quadra com jogo NAQUELE horário (real ou outra prévia) → os dois trocam de quadra. Como
+        //     o horário é o mesmo, isso É a troca de slot do ⇄, e ela reaproveita a conferência e as
+        //     reservas de lá (TrocarSlotsAsync);
+        //   • quadra livre → a prévia ganha reserva nesse horário e nessa quadra, conferida pela
+        //     prévia refeita como toda reserva.
+        private async Task<IActionResult> TrocarQuadraDaPreviaAsync(int id, ReferenciaDoJogo referencia, string quadra,
+            string? voltarPara, string? filtros)
+        {
+            var torneio = await _context.Torneios.FindAsync(id);
+            if (torneio == null) return NotFound();
+
+            var partidas = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1)
+                .Include(p => p.Dupla2)
+                .Where(p => p.TorneioId == id)
+                .ToListAsync();
+            var reservas = await ReservasDeHorario.DoTorneio(_context, id).ToListAsync();
+            var projetados = await ProjetarProximasFasesAsync(id, partidas, reservas);
+
+            bool EhEla(ProximasFasesDaChave.JogoQueVem j) =>
+                j.CategoriaId == referencia.CategoriaId && j.Fase == referencia.Fase && j.Numero == referencia.Numero;
+
+            var previsto = projetados.FirstOrDefault(EhEla);
+            if (previsto?.Horario is not DateTime horario)
+            {
+                TempData["Erro"] = "Não encontrei esse jogo previsto com horário.";
+                return VoltarPara(voltarPara, id, filtros);
+            }
+
+            var quadras = await QuadrasEmUsoAsync(id);
+            if (string.IsNullOrWhiteSpace(quadra) || !quadras.Contains(quadra))
+            {
+                TempData["Erro"] = "Escolha uma das quadras do torneio.";
+                return VoltarPara(voltarPara, id, filtros);
+            }
+            if (quadra == previsto.Quadra)
+            {
+                TempData["Erro"] = $"O jogo já está na {quadra}.";
+                return VoltarPara(voltarPara, id, filtros);
+            }
+
+            var rotulo = $"{previsto.Categoria} · {previsto.FaseNumerada}";
+            var deOnde = previsto.Quadra;
+
+            // Quem está na quadra de destino NESTE horário: jogo real ainda por jogar, ou outra prévia.
+            var real = partidas.FirstOrDefault(p => p.HorarioPrevisto == horario && p.NomeQuadra == quadra
+                                                  && p.Status != "Finalizada");
+            var outraPrevia = real == null
+                ? projetados.FirstOrDefault(j => !EhEla(j) && j.Horario == horario && j.Quadra == quadra)
+                : null;
+
+            if (real != null || outraPrevia != null)
+            {
+                var ocupante = real != null
+                    ? ReferenciaDoJogo.Real(real.Id)
+                    : ReferenciaDoJogo.Prevista(outraPrevia!.CategoriaId ?? 0, outraPrevia.Fase, outraPrevia.Numero);
+                var resultado = await TrocarSlotsAsync(id, referencia, ocupante, voltarPara, filtros);
+
+                if (TempData.Peek("Erro") == null)
+                {
+                    var quemCedeu = real != null ? $"o jogo {real.Codigo}" : $"{outraPrevia!.Categoria} · {outraPrevia.FaseNumerada} (prévia)";
+                    var extra = (TempData.Peek("Sucesso") as string ?? "").Split(" ⚠️ ", 2) is { Length: 2 } partes ? " ⚠️ " + partes[1] : "";
+                    TempData["Sucesso"] = $"Quadras trocadas às {horario:dd/MM HH:mm}: {rotulo} vai pra {quadra} e " +
+                        $"{quemCedeu} assume a {deOnde ?? "quadra que estava livre"}." + extra;
+                }
+                return resultado;
+            }
+
+            var reserva = reservas.FirstOrDefault(r =>
+                r.CategoriaId == referencia.CategoriaId && r.Fase == referencia.Fase && r.Numero == referencia.Numero);
+            if (reserva == null)
+            {
+                reserva = new ReservaDeHorario
+                {
+                    CategoriaId = referencia.CategoriaId, Fase = referencia.Fase, Numero = referencia.Numero,
+                };
+                reservas.Add(reserva);
+                _context.ReservasDeHorario.Add(reserva);
+            }
+            reserva.Horario = horario;
+            reserva.NomeQuadra = quadra;
+
+            // A conferência de toda reserva: a prévia refeita tem que mostrar o jogo onde ele foi posto.
+            var conferencia = await ProjetarProximasFasesAsync(id, partidas, reservas);
+            var depois = conferencia.FirstOrDefault(EhEla);
+            if (depois == null || depois.Horario != horario || depois.Quadra != quadra)
+            {
+                TempData["Erro"] = $"Não consegui pôr {rotulo} na {quadra} às {horario:dd/MM HH:mm}.";
+                return VoltarPara(voltarPara, id, filtros);
+            }
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = $"Agora {rotulo} é na {quadra}, no mesmo horário ({horario:dd/MM HH:mm}). " +
+                "O jogo previsto nasce nessa quadra quando a fase anterior terminar.";
             return VoltarPara(voltarPara, id, filtros);
         }
 
@@ -2110,6 +2221,7 @@ namespace Padelizou.Controllers
             // O Conferir grade de ANTES da hora nova — só pro jogo real: a prévia não sabe quem joga.
             List<Padelizou.Services.AuditoriaDaGrade.Achado>? achadosAntes = null;
             List<Dupla>? duplasDoTorneio = null;
+            string? quadraQueMudou = null;
 
             if (referencia.EhPrevia)
             {
@@ -2141,6 +2253,25 @@ namespace Padelizou.Controllers
             else
             {
                 real = partidas.FirstOrDefault(p => p.Id == referencia.PartidaId);
+
+                // A quadra do jogo está tomada na hora nova? Vai pra livre desse horário, em vez de
+                // recusar (Services/HorarioNaMao.QuadraLivre — 🗣️ Rafael: "já bota na livre").
+                var quadrasDoTorneio = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
+                if (real != null && real.Status == "Agendada" && !string.IsNullOrWhiteSpace(real.NomeQuadra)
+                    && partidas.Any(p => p.Id != real.Id && p.Status != "Finalizada" && p.HorarioPrevisto == hora
+                        && string.Equals(p.NomeQuadra?.Trim(), real.NomeQuadra.Trim(), StringComparison.OrdinalIgnoreCase)))
+                {
+                    var jogosReaisAgora = ReservasDeHorario.JogosQueExistem(partidas);
+                    if (HorarioNaMao.QuadraLivre(real, hora, partidas, quadrasDoTorneio, torneio, sedes,
+                            q => ReservasDeHorario.QuemReservou(reservas, jogosReaisAgora, hora, q) != null) is { } livre)
+                    {
+                        quadraQueMudou = $"{real.NomeQuadra} → {livre.Nome}";
+                        real.NomeQuadra = livre.Nome;
+                        // O clube é o da quadra nova (quadra sem clube = o principal do torneio).
+                        if (real.ClubeId != null || livre.ClubeId != null) real.ClubeId = livre.ClubeId ?? torneio.ClubeId;
+                    }
+                }
+
                 var motivo = HorarioNaMao.MotivoParaNaoDefinir(real, id, hora, partidas);
                 if (real == null || motivo != null)
                 {
@@ -2159,8 +2290,8 @@ namespace Padelizou.Controllers
                     .ToListAsync();
                 achadosAntes = Padelizou.Services.AuditoriaDaGrade.Conferir(torneio, partidas, duplasDoTorneio, sedes);
 
-                var quadras = await _context.Quadras.Where(q => q.TorneioId == id).ToListAsync();
-                HorarioNaMao.Definir(real, hora, HorarioNaMao.ClubeParaOHorario(real, hora, torneio, quadras));
+                HorarioNaMao.Definir(real, hora, quadraQueMudou != null ? null
+                    : HorarioNaMao.ClubeParaOHorario(real, hora, torneio, quadrasDoTorneio));
                 rotulo = $"o jogo {real.Codigo}";
             }
 
@@ -2191,6 +2322,7 @@ namespace Padelizou.Controllers
 
             var onde = real == null ? null : LugarDoJogo.Etiqueta(sedes, real.NomeQuadra, real.CategoriaId, real.ClubeId);
             TempData["Sucesso"] = $"Agora {rotulo} é {hora:dd/MM HH:mm}" + (onde != null ? $" · {onde}" : "") + "." +
+                (quadraQueMudou != null ? $" A quadra de antes estava ocupada nesse horário: mudou {quadraQueMudou}." : "") +
                 (referencia.EhPrevia ? " O jogo previsto nasce nesse horário quando a fase anterior terminar." : "");
 
             if (mortas.Count > 0)
@@ -2315,7 +2447,7 @@ namespace Padelizou.Controllers
             // pelo robô, e ele também precisa de quadra. `MontarPrevisaoDaGrade` já faz essa conta,
             // e é a mesma que a tela de previsão mostra.
             var motivos = PorQueNaoCoube.Analisar(torneio, quadras, sedes,
-                MontarPrevisaoDaGrade(torneio).TotalDeJogos,
+                MontarPrevisaoDaGrade(torneio).VagasNecessarias,
                 ultimo == default ? null : ultimo);
 
             if (motivos.Count == 0) return;
@@ -2335,7 +2467,7 @@ namespace Padelizou.Controllers
         // somam antes de virar horário.
         private static PrevisaoGradeVM MontarPrevisaoDaGrade(Torneio torneio)
         {
-            int duplas = 0, grupos = 0, jogosDeGrupo = 0, jogosDeMataMata = 0;
+            int duplas = 0, grupos = 0, jogosDeGrupo = 0, jogosDeMataMata = 0, vagasDeMataMata = 0;
 
             foreach (var categoria in torneio.Categorias)
             {
@@ -2365,6 +2497,7 @@ namespace Padelizou.Controllers
 
                     duplas += naChave;
                     jogosDeMataMata += naChave - 1;
+                    vagasDeMataMata += PrevisaoDoTorneio.VagasDoMataMata(torneio, naChave - 1);
                     continue;
                 }
 
@@ -2386,18 +2519,21 @@ namespace Padelizou.Controllers
                 grupos += g;
                 jogosDeGrupo += jogos;
                 jogosDeMataMata += PrevisaoDoTorneio.MataMata(g);
+                vagasDeMataMata += PrevisaoDoTorneio.VagasDoMataMata(torneio, PrevisaoDoTorneio.MataMata(g));
             }
 
             int total = jogosDeGrupo + jogosDeMataMata;
+            int vagasNecessarias = jogosDeGrupo + vagasDeMataMata;
             var inicio = torneio.AberturaDaGrade;
 
             // Pelo calendário do torneio, que conhece a faixa própria de cada dia.
             DateTime? ultimo = total > 0
                 ? HorarioDoDia.Do(torneio).Horarios(inicio, torneio.QuantidadeQuadras,
-                    torneio.TempoPrevistoPartidaMinutos, total).Last()
+                    torneio.TempoPrevistoPartidaMinutos, vagasNecessarias).Last()
                 : null;
 
-            var duracao = torneio.TempoPrevistoPartidaMinutos > 0 ? torneio.TempoPrevistoPartidaMinutos : 50;
+            // A última vaga é da final quando há mata-mata, e a final pode durar mais que a vaga.
+            var duracao = jogosDeMataMata > 0 ? DuracaoDaPartida.Minutos(torneio, "Final") : VagasDaGrade.Duracao(torneio);
             var fim = ultimo?.AddMinutes(duracao) ?? inicio;
 
             return new PrevisaoGradeVM
@@ -2407,6 +2543,7 @@ namespace Padelizou.Controllers
                 JogosDeGrupo = jogosDeGrupo,
                 JogosDeMataMata = jogosDeMataMata,
                 TotalDeJogos = total,
+                VagasNecessarias = vagasNecessarias,
                 Inicio = inicio,
                 FimPrevisto = fim,
                 Dias = ultimo == null ? 1 : PrevisaoDoTorneio.DiasOcupados(inicio, ultimo.Value),

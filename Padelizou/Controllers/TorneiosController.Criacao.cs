@@ -406,7 +406,8 @@ namespace Padelizou.Controllers
             // `bool` normal (e não `bool?` como na edição) porque aqui não existe dado gravado
             // a preservar: o torneio está nascendo, e o pior caso da caixa ausente é ele nascer
             // sem o desvio — que é o padrão de qualquer jeito.
-            bool finalSeparada = false)
+            bool finalSeparada = false,
+            bool mesmaDuracaoEmTodasAsFases = true)
         {
             var criadorId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -712,6 +713,23 @@ namespace Padelizou.Controllers
                 torneio.SetsSoDaFinal = 0;
                 torneio.GamesSoDaFinal = 0;
                 torneio.PontosTieBreakSoDaFinal = 0;
+            }
+
+            // A CAIXA "Mesma duração em todas as fases" (19/11/2026, Services/DuracaoDaPartida).
+            // Marcada — o padrão —, os campos escondidos que vieram junto não gravam nada: zero é
+            // "igual aos grupos". Desmarcada, cada fase fica com o que veio, dentro da faixa do
+            // campo (a tela já limita; isto é a fronteira pra POST montado à mão).
+            if (mesmaDuracaoEmTodasAsFases)
+            {
+                torneio.TempoMataMataMinutos = 0;
+                torneio.TempoSemifinalMinutos = 0;
+                torneio.TempoFinalMinutos = 0;
+            }
+            else
+            {
+                torneio.TempoMataMataMinutos = Math.Clamp(torneio.TempoMataMataMinutos, 0, DuracaoDaPartida.MaximoDeMinutos);
+                torneio.TempoSemifinalMinutos = Math.Clamp(torneio.TempoSemifinalMinutos, 0, DuracaoDaPartida.MaximoDeMinutos);
+                torneio.TempoFinalMinutos = Math.Clamp(torneio.TempoFinalMinutos, 0, DuracaoDaPartida.MaximoDeMinutos);
             }
 
             // Como contar os games decide teto de placar e "já dá pra encerrar?", então um
@@ -1350,6 +1368,8 @@ namespace Padelizou.Controllers
             bool? finalSeparada = null,
             int? setsSoDaFinal = null, int? gamesSoDaFinal = null,
             int? pontosTieBreakSoDaFinal = null,
+            bool? mesmaDuracaoEmTodasAsFases = null,
+            int? tempoMataMataMinutos = null, int? tempoSemifinalMinutos = null, int? tempoFinalMinutos = null,
             // Nulo = o campo não veio, e aí a forma gravada FICA. O rádio só é desenhado
             // enquanto o torneio não tem inscrito — ver FormaDePagamentoDoTorneio.
             string? formaPagamento = null,
@@ -1501,6 +1521,16 @@ namespace Padelizou.Controllers
             {
                 TempData["Erro"] = "A duração de cada jogo precisa ser de pelo menos 1 minuto. "
                                  + "Pra jogar sem hora marcada, use \"Sem horário previsto\".";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // A duração de cada fase, quando a caixa "Mesma duração em todas as fases" veio
+            // DESMARCADA. Mesma faixa do campo dos grupos na tela de gestão.
+            if (mesmaDuracaoEmTodasAsFases == false
+                && new[] { tempoMataMataMinutos, tempoSemifinalMinutos, tempoFinalMinutos }
+                    .Any(m => m is int v && (v < 1 || v > DuracaoDaPartida.MaximoDeMinutos)))
+            {
+                TempData["Erro"] = $"A duração de cada fase precisa ficar entre 1 e {DuracaoDaPartida.MaximoDeMinutos} minutos.";
                 return RedirectToAction("Details", new { id });
             }
 
@@ -1677,6 +1707,22 @@ namespace Padelizou.Controllers
                 torneio.ContagemDeGames = contagemDeGames!;
             }
             torneio.TempoPrevistoPartidaMinutos = tempoPrevistoPartidaMinutos ?? torneio.TempoPrevistoPartidaMinutos;
+
+            // A caixa "Mesma duração em todas as fases" (Services/DuracaoDaPartida). Nula = aba
+            // antiga, e o gravado FICA; marcada zera as três (= igual aos grupos), mesmo que os
+            // campos escondidos tenham mandado número; desmarcada grava o que veio.
+            if (mesmaDuracaoEmTodasAsFases == true)
+            {
+                torneio.TempoMataMataMinutos = 0;
+                torneio.TempoSemifinalMinutos = 0;
+                torneio.TempoFinalMinutos = 0;
+            }
+            else if (mesmaDuracaoEmTodasAsFases == false)
+            {
+                torneio.TempoMataMataMinutos = tempoMataMataMinutos ?? torneio.TempoMataMataMinutos;
+                torneio.TempoSemifinalMinutos = tempoSemifinalMinutos ?? torneio.TempoSemifinalMinutos;
+                torneio.TempoFinalMinutos = tempoFinalMinutos ?? torneio.TempoFinalMinutos;
+            }
 
             // ⚠️ LIGAR "sem horário previsto" TEM QUE APAGAR o horário que já existe. A chave
             // só evitava marcar horário no sorteio SEGUINTE — quem sorteou antes e ligou

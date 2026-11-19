@@ -499,6 +499,36 @@
                             <input type="number" asp-for="TempoPrevistoPartidaMinutos" min="10" max="180" class="form-control bg-light" required />
                             <span class="input-group-text">min</span>
                         </div>
+                        @* A DURAÇÃO POR FASE (19/11/2026, Services/DuracaoDaPartida). Marcada por padrão;
+                           o torneio COPIADO com durações próprias abre desmarcado. Esconder não é não
+                           enviar — por isso o servidor pergunta pela caixa antes de gravar. *@
+                        @{ bool mesmaDuracaoNaCriacao = Padelizou.Services.DuracaoDaPartida.TodasIguais(Model); }
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" value="true"
+                                   name="mesmaDuracaoEmTodasAsFases" id="pdzMesmaDuracaoCriacao"
+                                   checked="@mesmaDuracaoNaCriacao"
+                                   onchange="document.getElementById('pdzDuracaoPorFaseCriacao').hidden = this.checked;" />
+                            <input type="hidden" name="mesmaDuracaoEmTodasAsFases" value="false" />
+                            <label class="form-check-label small" for="pdzMesmaDuracaoCriacao">Mesma duração em todas as fases</label>
+                        </div>
+                        <div id="pdzDuracaoPorFaseCriacao" hidden="@mesmaDuracaoNaCriacao" class="mt-2">
+                            <div class="small text-muted mb-1">O campo acima vale pros <strong>grupos</strong>.</div>
+                            @foreach (var (nome, rotulo, valor) in new[]
+                            {
+                                (nameof(Padelizou.Models.Torneio.TempoMataMataMinutos), "Mata-mata", Model.TempoMataMataMinutos),
+                                (nameof(Padelizou.Models.Torneio.TempoSemifinalMinutos), "Semifinal", Model.TempoSemifinalMinutos),
+                                (nameof(Padelizou.Models.Torneio.TempoFinalMinutos), "Final", Model.TempoFinalMinutos),
+                            })
+                            {
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text" style="min-width: 6.5rem;">@rotulo</span>
+                                    <input type="number" min="10" max="@Padelizou.Services.DuracaoDaPartida.MaximoDeMinutos"
+                                           name="@nome" class="form-control bg-light"
+                                           value="@(valor > 0 ? valor.ToString() : "")" placeholder="igual" />
+                                    <span class="input-group-text">min</span>
+                                </div>
+                            }
+                        </div>
                     </div>
                     @* Duas aberturas porque o torneio de fim de semana tem duas: sexta à
                        noite (todo mundo trabalha de dia) e sábado/domingo cedo. *@

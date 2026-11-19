@@ -42,6 +42,20 @@ public static class PrevisaoDoTorneio
     // motor de verdade, e não a uma tabela escrita à mão.
     public static int MataMata(int grupos) => grupos <= 0 ? 0 : 2 * grupos - 1;
 
+    // As VAGAS que o mata-mata de uma categoria toma (19/11/2026, Services/DuracaoDaPartida). O
+    // quadro de N jogos sempre fecha em 1 final e até 2 semifinais; o resto é mata-mata anterior.
+    // Sem duração própria por fase, é o próprio número de jogos.
+    public static int VagasDoMataMata(Padelizou.Models.Torneio torneio, int jogos)
+    {
+        if (jogos <= 0) return 0;
+        int final = 1;
+        int semis = Math.Min(2, jogos - final);
+        int antes = jogos - final - semis;
+        return final * DuracaoDaPartida.Vagas(torneio, "Final")
+             + semis * DuracaoDaPartida.Vagas(torneio, "Semifinal")
+             + antes * DuracaoDaPartida.Vagas(torneio, "Quartas de Final");
+    }
+
     // O torneio inteiro, de uma categoria: grupos + mata-mata.
     public static int TotalDeJogos(int duplas)
     {

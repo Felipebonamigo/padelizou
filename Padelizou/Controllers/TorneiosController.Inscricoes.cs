@@ -934,6 +934,61 @@ namespace Padelizou.Controllers
             return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
         }
 
+        // ── OS HORÁRIOS QUE O ORGANIZADOR COMBINA COM A DUPLA (19/11/2026, Models/HorarioDaDupla) ──
+        // 🗣️ Felipe: "pode jogar entre" e "não pode jogar", quantos quiser, e *"só os organizadores do
+        // evento podem fazer; pra usuário normal segue o impedimento padrão"*. Por isso a checagem é
+        // `EhOrganizadorAsync` sobre o torneio da DUPLA, lido do banco — nunca um id do formulário.
+        // 💰 Não mexe no valor da inscrição. Vale a partir do próximo sorteio ou "Refazer grade".
+        // 🗣️ *"Se não couber, coloca aonde der dentro do limite de dias e horário [...] não pode
+        // ficar sem horário nenhum jogo"* — é o que a grade já faz com impedimento e concentração.
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdicionarHorarioDaDupla(int duplaId, bool podeJogar, DateTime dia,
+            TimeSpan? de, TimeSpan? ate, bool diaInteiro = false)
+        {
+            var dupla = await _context.Duplas.Include(d => d.Categoria).FirstOrDefaultAsync(d => d.Id == duplaId);
+            if (dupla == null) return NotFound();
+            int torneioId = dupla.Categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var inicio = dia.Date + (diaInteiro ? TimeSpan.Zero : de ?? TimeSpan.Zero);
+            // Sem hora final, ou "até 00:00", é o fim do dia — e não o começo dele.
+            var fim = diaInteiro || ate is null || ate == TimeSpan.Zero ? dia.Date.AddDays(1) : dia.Date + ate.Value;
+
+            if (fim <= inicio)
+            {
+                TempData["Erro"] = "O horário final precisa ser depois do inicial.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+            }
+
+            _context.HorariosDaDupla.Add(new HorarioDaDupla { DuplaId = duplaId, PodeJogar = podeJogar, Inicio = inicio, Fim = fim });
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = (podeJogar ? "Anotado: a grade vai tentar pôr os jogos de grupo da dupla em " : "Anotado: a grade vai evitar jogo da dupla em ")
+                + $"{HorariosDaDupla.Rotulo(podeJogar, inicio, fim)}. Se não couber, o jogo vai pro horário possível mais "
+                + "próximo dentro do torneio — nunca fica sem horário. Vale a partir do próximo sorteio (ou do \"Refazer grade\").";
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemoverHorarioDaDupla(int id)
+        {
+            var horario = await _context.HorariosDaDupla
+                .Include(h => h.Dupla).ThenInclude(d => d.Categoria)
+                .FirstOrDefaultAsync(h => h.Id == id);
+            if (horario == null) return NotFound();
+            int torneioId = horario.Dupla.Categoria.TorneioId;
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            _context.HorariosDaDupla.Remove(horario);
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = "Horário removido. Vale a partir do próximo sorteio (ou do \"Refazer grade\").";
+            return RedirectToAction("Details", "Torneios", new { id = torneioId }, "pagamentos");
+        }
+
         // ── SEM ELIMINATÓRIA NO SÁBADO À NOITE, POR CATEGORIA (sub-aba "Eliminatórias") ───
         // 🗣️ Pedido do Felipe (08/09/2026): "colocar por categoria, se vai ter jogos de
         // eliminatórias no sabado a noite ainda ou não. por exemplo, a 5a categoria feminina

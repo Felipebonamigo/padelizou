@@ -515,6 +515,77 @@ public class ReservaDeHorarioTests
         Assert.Equal("Quadra 2", reserva.NomeQuadra);
     }
 
+    // ═══ MUDAR A QUADRA DE UMA PRÉVIA (19/11/2026) ═══
+    // 🗣️ Felipe, na prévia das quartas da Wallau: *"Permita aqui trocar a quadra também, lembrando
+    // que tem que trocar por outra quadra e no mesmo horário"*. O horário não muda nunca: quadra
+    // livre vira reserva da prévia; quadra com jogo naquele horário troca com ele.
+
+    private static string OutraQuadra(string? atual) => atual == "Quadra 1" ? "Quadra 2" : "Quadra 1";
+
+    [Fact]
+    public async Task Mudar_a_quadra_de_uma_previa_pra_quadra_livre_reserva_no_mesmo_horario()
+    {
+        var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
+        var antes = FinalDa(await PreviaAsync(c), c.A);
+        var destino = OutraQuadra(antes.Quadra);
+        var previaDeAntes = await PreviaAsync(c);
+        Assert.DoesNotContain(previaDeAntes, j => j.Horario == antes.Horario && j.Quadra == destino);
+
+        var controller = Controller(c);
+        await controller.TrocarQuadra(c.Torneio.Id, 0, destino, previa: Previa(c.A, "Final", 1));
+
+        Assert.Null(controller.TempData["Erro"]);
+        var depois = FinalDa(await PreviaAsync(c), c.A);
+        Assert.Equal(antes.Horario, depois.Horario);
+        Assert.Equal(destino, depois.Quadra);
+        var reserva = Assert.Single(await ReservasAsync(c));
+        Assert.Equal((antes.Horario, destino), (reserva.Horario, reserva.NomeQuadra));
+    }
+
+    [Fact]
+    public async Task Mudar_a_quadra_de_uma_previa_pra_quadra_com_jogo_no_mesmo_horario_troca_as_duas()
+    {
+        var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
+        var antes = FinalDa(await PreviaAsync(c), c.A);
+        var destino = OutraQuadra(antes.Quadra);
+
+        // Um jogo real da OUTRA categoria no mesmo horário, na quadra de destino.
+        var b2 = await JogoAsync(c, "B2");
+        b2.HorarioPrevisto = antes.Horario;
+        b2.NomeQuadra = destino;
+        await c.Ctx.SaveChangesAsync();
+        var antesComOReal = FinalDa(await PreviaAsync(c), c.A);
+        Assert.Equal(antes.Horario, antesComOReal.Horario);
+
+        var controller = Controller(c);
+        await controller.TrocarQuadra(c.Torneio.Id, 0, destino, previa: Previa(c.A, "Final", 1));
+        c.Ctx.ChangeTracker.Clear();
+
+        Assert.Null(controller.TempData["Erro"]);
+        var real = await JogoAsync(c, "B2");
+        Assert.Equal(antes.Horario, real.HorarioPrevisto);
+        Assert.Equal(antesComOReal.Quadra, real.NomeQuadra);
+        var depois = FinalDa(await PreviaAsync(c), c.A);
+        Assert.Equal((antes.Horario, destino), (depois.Horario, depois.Quadra));
+    }
+
+    [Fact]
+    public async Task Mudar_a_previa_pra_quadra_que_ela_ja_esta_ou_que_nao_existe_e_recusado()
+    {
+        var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
+        var antes = FinalDa(await PreviaAsync(c), c.A);
+
+        var mesma = Controller(c);
+        await mesma.TrocarQuadra(c.Torneio.Id, 0, antes.Quadra!, previa: Previa(c.A, "Final", 1));
+        Assert.NotNull(mesma.TempData["Erro"]);
+
+        var inexistente = Controller(c);
+        await inexistente.TrocarQuadra(c.Torneio.Id, 0, "Quadra 9", previa: Previa(c.A, "Final", 1));
+        Assert.NotNull(inexistente.TempData["Erro"]);
+
+        Assert.Empty(await ReservasAsync(c));
+    }
+
     [Fact]
     public async Task Troca_que_faz_outra_reserva_deixar_de_valer_apaga_a_reserva_e_avisa()
     {

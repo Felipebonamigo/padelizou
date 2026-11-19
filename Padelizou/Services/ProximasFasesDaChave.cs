@@ -104,8 +104,10 @@ public static class ProximasFasesDaChave
 
     // O caminho de UMA categoria até a final. `DepoisDe` é o último jogo que já tem hora e
     // que alimenta a primeira rodada projetada — dele sai a folga de abertura.
+    // `FaseDoDepoisDe` é a fase do jogo que `DepoisDe` aponta — é ela que diz QUANTO ele dura
+    // (Services/DuracaoDaPartida). Nula = fim dos grupos, que dura uma vaga.
     public record CadeiaDeFases(string Categoria, DateTime? DepoisDe, IReadOnlyList<RodadaQueVem> Rodadas,
-                                int? CategoriaId = null)
+                                int? CategoriaId = null, string? FaseDoDepoisDe = null)
     {
         public static readonly CadeiaDeFases Vazia = new("", null, Array.Empty<RodadaQueVem>());
     }
@@ -179,9 +181,10 @@ public static class ProximasFasesDaChave
         if (irmaos.Count > 0)
             rodadas[0] = rodadas[0] with { UltimoIrmaoReal = UltimoHorario(irmaos) };
 
-        return new CadeiaDeFases(categoria,
-            UltimoHorario(partidasDeMataMata.Where(p => p.Fase != faseQueSegue).ToList()),
-            rodadas, categoriaId);
+        var anteriores = partidasDeMataMata.Where(p => p.Fase != faseQueSegue).ToList();
+        var ultimoAnterior = UltimoHorario(anteriores);
+        return new CadeiaDeFases(categoria, ultimoAnterior, rodadas, categoriaId,
+            FaseDoDepoisDe: anteriores.FirstOrDefault(p => p.Horario == ultimoAnterior)?.Fase);
     }
 
     // ---- Entrada 2: a chave AINDA NEM COMEÇOU (categoria na fase de grupos) ----
@@ -332,7 +335,8 @@ public static class ProximasFasesDaChave
         SedesDoTorneio? Sedes = null,
         // O calendário do torneio, com a faixa própria de cada dia (Services/HorarioDoDia).
         // Nulo = só os dois campos acima, como sempre foi.
-        HorarioDoDia.Calendario? Calendario = null);
+        HorarioDoDia.Calendario? Calendario = null,
+        Func<string?, int>? MinutosDaFase = null);
 
     // Põe TODAS as cadeias na mesma grade, disputando as mesmas quadras.
     //
@@ -441,7 +445,8 @@ public static class ProximasFasesDaChave
             // passavam pelo horário e eram empurradas por um jogo que nunca ia estar ali. Nenhuma
             // rodada da cadeia abre antes de `AbrirRodada(DepoisDe)`, então dá pra saber já aqui.
             // (O `Vale` na emissão continua: a rodada seguinte pode abrir ainda mais tarde.)
-            if (!ReservasDeHorario.Vale(r.Horario, AbrirRodada(cadeiaQueEmite.DepoisDe, grade))) continue;
+            if (!ReservasDeHorario.Vale(r.Horario, AbrirRodada(cadeiaQueEmite.DepoisDe, grade,
+                    MinutosDaFaseNaGrade(grade, cadeiaQueEmite.FaseDoDepoisDe)))) continue;
 
             reservadas[(r.CategoriaId, r.Fase, r.Numero)] = r;
             lotacao[r.Horario] = lotacao.GetValueOrDefault(r.Horario) + 1;
@@ -456,7 +461,7 @@ public static class ProximasFasesDaChave
 
         // Estado de cada cadeia: qual a próxima rodada e a partir de quando ela pode abrir.
         var proxima = new int[vivas.Count];
-        var abertura = vivas.Select(c => AbrirRodada(c.DepoisDe, grade)).ToArray();
+        var abertura = vivas.Select(c => AbrirRodada(c.DepoisDe, grade, MinutosDaFaseNaGrade(grade, c.FaseDoDepoisDe))).ToArray();
 
         var jogos = new List<JogoQueVem>();
 
@@ -484,6 +489,37 @@ public static class ProximasFasesDaChave
         // QUANTOS jogos cabem no horário: as quadras abertas nele, quando alguma tem janela —
         // senão a capacidade do torneio, como sempre. É o que faz o domingo do Er ter 5 vagas por
         // horário, e não 7.
+        // ⚠️ A DURAÇÃO POR FASE (19/11/2026, Services/DuracaoDaPartida): o jogo mais longo que a
+        // vaga segura as vagas seguintes da quadra dele, e a fase seguinte espera o FIM dele.
+        // Sem `MinutosDaFase`, todo jogo dura uma vaga — a prévia de sempre.
+        int MinutosDe(string? fase) => MinutosDaFaseNaGrade(grade, fase);
+        int Vaga() => grade.DuracaoMinutos > 0 ? grade.DuracaoMinutos : 50;
+        int VagasDe(string? fase) =>
+            Math.Max(1, ((MinutosDe(fase) > 0 ? MinutosDe(fase) : Vaga()) + Vaga() - 1) / Vaga());
+
+        void Tomar(DateTime h, string? quadra)
+        {
+            lotacao[h] = lotacao.GetValueOrDefault(h) + 1;
+            if (string.IsNullOrEmpty(quadra)) return;
+            if (!ocupadas.TryGetValue(h, out var nomes)) ocupadas[h] = nomes = new HashSet<string>();
+            nomes.Add(quadra);
+        }
+
+        // As vagas que o jogo segura DEPOIS da primeira. A vaga é a da cadência da grade
+        // (`Seguinte`), a mesma que a prévia já anda.
+        void TomarAsSeguintes(DateTime h, string? quadra, string? fase)
+        {
+            var vaga = h;
+            for (int m = 1; m < VagasDe(fase); m++)
+            {
+                vaga = Seguinte(vaga);
+                Tomar(vaga, quadra);
+            }
+        }
+
+        foreach (var vaga in jaMarcados ?? Array.Empty<VagaOcupada>())
+            TomarAsSeguintes(vaga.Horario, vaga.Quadra, vaga.Fase);
+
         int CapacidadeEm(DateTime h) =>
             grade.Sedes?.QuadrasAbertasEm(h) is int abertas ? abertas : capacidade;
 
@@ -654,12 +690,8 @@ public static class ProximasFasesDaChave
 
                     quadra = grade.Quadras.FirstOrDefault(q => Serve(q, h, permitidas));
 
-                    lotacao[h] = lotacao.GetValueOrDefault(h) + 1;
-                    if (quadra != null)
-                    {
-                        if (!ocupadas.TryGetValue(h, out var nomes)) ocupadas[h] = nomes = new HashSet<string>();
-                        nomes.Add(quadra);
-                    }
+                    Tomar(h, quadra);
+                    TomarAsSeguintes(h, quadra, rodada.Fase);
 
                     horario = h;
                     quando = h;
@@ -676,7 +708,7 @@ public static class ProximasFasesDaChave
                 }
             }
 
-            abertura[escolha] = AbrirRodada(ultimoDaRodada ?? horario, grade);
+            abertura[escolha] = AbrirRodada(ultimoDaRodada ?? horario, grade, MinutosDe(rodada.Fase));
             proxima[escolha]++;
         }
 
@@ -686,11 +718,16 @@ public static class ProximasFasesDaChave
     // Quando a rodada abre: uma rodada de folga depois do fim da anterior. A regra mora em
     // GradeDeJogos.AberturaDaProximaFase, que é a mesma usada na grade de verdade — projeção
     // e grade dizendo horas diferentes seria pior que não projetar.
-    private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, ConfiguracaoDaGrade grade) =>
+    private static int MinutosDaFaseNaGrade(ConfiguracaoDaGrade grade, string? fase) =>
+        grade.MinutosDaFase?.Invoke(fase) is int m && m > 0 ? m : grade.DuracaoMinutos;   // cru: quem recebe já normaliza o 0
+
+    // `minutos` é a duração do jogo da fase anterior (o DepoisDe da cadeia é o fim dos grupos,
+    // que dura uma vaga). Ver Services/DuracaoDaPartida.
+    private static DateTime? AbrirRodada(DateTime? ultimoDaFaseAnterior, ConfiguracaoDaGrade grade, int? minutos = null) =>
         ultimoDaFaseAnterior is DateTime ultimo
-            ? grade.Calendario?.DepoisDe(ultimo, grade.DuracaoMinutos)
+            ? grade.Calendario?.DepoisDe(ultimo, minutos ?? grade.DuracaoMinutos)
               ?? GradeDeJogos.AberturaDaProximaFase(ultimo, grade.UltimoInicioDoDia,
-                                                    grade.AberturaDiasSeguintes, grade.DuracaoMinutos)
+                                                    grade.AberturaDiasSeguintes, minutos ?? grade.DuracaoMinutos)
             : null;
 
     // Primeiro cruza com último — a regra de ChaveamentoMataMata.ParearVencedores, aplicada

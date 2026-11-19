@@ -83,7 +83,8 @@ public static class LevasDaGrade
             GradeDeJogos.Encaixar(daLeva, vagas, VagasDaGrade.Duracao(torneio),
                 restricoes.Ocupantes, restricoes.Quadras, jaEmQuadra, restricoes.QuadrasPorCategoria,
                 restricoes.Janelas, restricoes.Sedes, restricoes.Concentracao?.Janelas,
-                restricoes.NoiteDeSabado);
+                restricoes.NoiteDeSabado,
+                duracaoDoJogo: p => DuracaoDaPartida.Tempo(torneio, p.Fase));
 
             jaEmQuadra.AddRange(daLeva.Where(j => j.HorarioPrevisto != null));
         }
@@ -180,17 +181,17 @@ public static class LevasDaGrade
     public static DateTime? PisoDaCategoria(Torneio torneio, IEnumerable<Partida> jaEmQuadra,
         int posto, int categoriaId)
     {
-        var fim = jaEmQuadra
+        // ⚠️ O FIM DE CADA JOGO PELA DURAÇÃO DA FASE DELE (19/11/2026, Services/DuracaoDaPartida):
+        // a final espera a semifinal de 80 min ACABAR, e não a vaga de 50 que ela começou.
+        // Sem duração própria, é o "último início + uma vaga" de sempre.
+        var calendario = HorarioDoDia.Do(torneio);
+        var fins = jaEmQuadra
             .Where(j => j.CategoriaId == categoriaId && j.HorarioPrevisto != null
                      && OrdemDasFases.Posto(j.Fase) < posto)
-            .Select(j => j.HorarioPrevisto!.Value)
-            .DefaultIfEmpty()
-            .Max();
+            .Select(j => calendario.DepoisDe(j.HorarioPrevisto!.Value, DuracaoDaPartida.Minutos(torneio, j.Fase)))
+            .ToList();
 
-        return fim == default
-            ? null
-            // A mesma regra de GradeDeJogos.AberturaDaProximaFase, pelo calendário do torneio.
-            : HorarioDoDia.Do(torneio).DepoisDe(fim, VagasDaGrade.Duracao(torneio));
+        return fins.Count == 0 ? null : fins.Max();
     }
 
     // A ORDEM DA FILA QUE CHEGA AO ENCAIXE.
