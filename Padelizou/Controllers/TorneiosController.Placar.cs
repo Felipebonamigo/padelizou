@@ -227,7 +227,8 @@ namespace Padelizou.Controllers
                 // `i < pontos1.Length` aceitava array mais COMPRIDO, que é exatamente o que um
                 // card com dois campos `pontos1` produzia (ver _JogosDoTorneio.cshtml).
                 bool mexeuNosPontos = false;
-                if (TieBreakDoJogo.PodeAcontecer(formato)
+                // O super tie-break do 1x1 (Services/SetsDoJogo) conta nos mesmos campos.
+                if ((TieBreakDoJogo.PodeAcontecer(formato) || SetsDoJogo.EmSuperTieBreak(formato, partida.SetsDupla1, partida.SetsDupla2))
                     && pontos1 != null && pontos2 != null
                     && pontos1.Length == partidaId.Length && pontos2.Length == partidaId.Length)
                 {
@@ -307,6 +308,8 @@ namespace Padelizou.Controllers
                             // decidido até a próxima atualização automática — que nem roda com o
                             // cursor dentro de um campo (`estaOcupado`).
                             tieBreak = TieBreakNaResposta(f, p, g1, g2),
+                            // O "Fechar set" acende no toque que termina o set (Services/SetsDoJogo).
+                            fecharSet = p.Status == "AoVivo" && SetsDoJogo.PodeFecharSet(f, p),
                         };
                     }),
                 });
@@ -330,12 +333,15 @@ namespace Padelizou.Controllers
         // "tie-break 7-5" ter um formato só no projeto.
         private static object TieBreakNaResposta(FormatoDaPartida.Formato formato, Partida p, int games1, int games2)
         {
-            bool emAndamento = TieBreakDoJogo.EmAndamento(formato, games1, games2);
+            // O super tie-break do 1x1 (Services/SetsDoJogo) usa o mesmo bloco; quem o fecha é o
+            // "Fechar set", então não há "fechar em 9x8" pra oferecer.
+            bool superTieBreak = SetsDoJogo.EmSuperTieBreak(formato, p.SetsDupla1, p.SetsDupla2);
+            bool emAndamento = superTieBreak || TieBreakDoJogo.EmAndamento(formato, games1, games2);
             int pontos1 = p.PontosTieBreak1 ?? 0, pontos2 = p.PontosTieBreak2 ?? 0;
 
             // O placar do fechamento só existe DENTRO do tie-break: fora dele, um 7-5 guardado de
             // um jogo que já fechou não pode voltar a oferecer "fechar em 9x8".
-            var fechamento = emAndamento
+            var fechamento = emAndamento && !superTieBreak
                 ? TieBreakDoJogo.GamesAoFechar(formato, pontos1, pontos2)
                 : null;
 
@@ -435,6 +441,15 @@ namespace Padelizou.Controllers
             // Sem placar não há vencedor. A conta antiga comparava os campos NULÁVEIS direto,
             // e `4 > null` é false em C# — então um jogo 4 x (em branco) saía com a dupla 2
             // vencedora, sem regra nenhuma por trás. Ver Services/QuemVenceu.
+            // Jogo de vários sets: só finaliza com alguém tendo vencido os sets (Services/SetsDoJogo).
+            if (partida != null && partida.TorneioId is int torneioDosSets
+                && SetsDoJogo.MotivoParaNaoFinalizar(
+                       FormatoDaPartida.De(await _context.Torneios.FindAsync(torneioDosSets), partida), partida) is { } motivoDosSets)
+            {
+                TempData["Erro"] = $"Jogo {partida.Codigo}: {motivoDosSets}";
+                return DepoisDeFinalizar(voltarPara, partida.TorneioId);
+            }
+
             if (partida != null && QuemVenceu.MotivoParaNaoFinalizar(partida) is { } motivo)
             {
                 TempData["Erro"] = $"Jogo {partida.Codigo}: {motivo}";
@@ -474,6 +489,39 @@ namespace Padelizou.Controllers
                 await _encerramento.AplicarAsync(partida, acabouDeTerminar: true, LinksDoAviso(partida.TorneioId));
             }
             return DepoisDeFinalizar(voltarPara, partida?.TorneioId);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // FECHAR O SET (19/11/2026, Services/SetsDoJogo). Mesma régua de quem marca placar no card
+        // ao vivo (PodeOperarODiaDeJogoAsync). Lê o placar GRAVADO — cada toque no −/+ já salva.
+        public async Task<IActionResult> FecharSet(int partidaId, string? voltarPara = null)
+        {
+            var partida = await _context.Partidas.FirstOrDefaultAsync(p => p.Id == partidaId);
+            if (partida == null || partida.TorneioId is not int torneioId) return NotFound();
+            if (!await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var formato = FormatoDaPartida.De(await _context.Torneios.FindAsync(torneioId), partida);
+            if (partida.Status != "AoVivo" || !SetsDoJogo.PodeFecharSet(formato, partida))
+            {
+                TempData["Erro"] = $"Jogo {partida.Codigo}: o set ainda não terminou — confira o placar.";
+                return VoltarPara(voltarPara, torneioId);
+            }
+
+            bool eraSuperTieBreak = SetsDoJogo.EmSuperTieBreak(formato, partida.SetsDupla1, partida.SetsDupla2);
+            SetsDoJogo.Fechar(formato, partida);
+            partida.PlacarMarcadoEm = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            bool decidido = SetsDoJogo.JogoDecidido(formato, partida.SetsDupla1, partida.SetsDupla2);
+            TempData["Sucesso"] = $"Jogo {partida.Codigo}: {(eraSuperTieBreak ? "super tie-break" : "set")} fechado — sets "
+                + $"{partida.SetsDupla1} x {partida.SetsDupla2} ({partida.PlacarDosSets}). "
+                + (decidido ? "Jogo decidido: é só finalizar."
+                   : SetsDoJogo.EmSuperTieBreak(formato, partida.SetsDupla1, partida.SetsDupla2)
+                       ? "1 x 1: agora é o super tie-break de 10."
+                       : "Próximo set em jogo.");
+            return VoltarPara(voltarPara, torneioId);
         }
 
         // Os endereços que o push do encerramento leva. Montar rota é trabalho do

@@ -665,7 +665,15 @@
            indistinguível de um 9x8 jogado game a game — e a contagem que o sistema passou a
            guardar não apareceria em nenhuma tela depois do jogo terminar. Só em jogo que
            REALMENTE teve tie-break: ver Services/TieBreakDoJogo.Houve. *@
-        @if (Model.Finalizada && Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))
+        @* O PLACAR SET A SET (19/11/2026, Services/SetsDoJogo): "6-3 4-6 [10-8]". Quando ele existe,
+           o super tie-break já está nele entre colchetes, e a linha do tie-break abaixo calaria. *@
+        @if (Model.Finalizada && Padelizou.Services.SetsDoJogo.Texto(jogo) is string setsDoJogo)
+        {
+            <div class="small text-body-secondary mt-1">
+                <i class="bi bi-list-ol"></i> Sets: @setsDoJogo
+            </div>
+        }
+        else if (Model.Finalizada && Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))
         {
             <div class="small text-body-secondary mt-1">
                 <i class="bi bi-arrow-left-right"></i> @Padelizou.Services.TieBreakDoJogo.Etiqueta(jogo.PontosTieBreak1, jogo.PontosTieBreak2)

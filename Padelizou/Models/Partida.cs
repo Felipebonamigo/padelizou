@@ -25,6 +25,11 @@ public partial class Partida
 
     public int? GamesDupla2 { get; set; }
 
+    // OS SETS JÁ FECHADOS, em ordem (19/11/2026, Services/SetsDoJogo): "6-3 4-6 [10-8]" — o
+    // colchete é o super tie-break do 1x1. Nulo = jogo de um set só, ou nenhum set fechado ainda.
+    [System.ComponentModel.DataAnnotations.MaxLength(60)]
+    public string? PlacarDosSets { get; set; }
+
     public virtual Categoria Categoria { get; set; } = null!;
 
     public virtual Dupla Dupla1 { get; set; } = null!;

@@ -1,0 +1,29 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace Padelizou.Migrations
+{
+    /// <inheritdoc />
+    public partial class PlacarDosSets : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<string>(
+                name: "PlacarDosSets",
+                table: "Partida",
+                type: "character varying(60)",
+                maxLength: 60,
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "PlacarDosSets",
+                table: "Partida");
+        }
+    }
+}

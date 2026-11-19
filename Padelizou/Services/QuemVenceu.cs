@@ -61,10 +61,17 @@ public static class QuemVenceu
     // ⚠️ Não é uma terceira conta — é a composição das duas que já existem. O formato diz se o
     // jogo está DECIDIDO (FormatoDaPartida.PodeEncerrar) e o `Lado` acima diz a favor de quem.
     // Escrever aqui um `games1 >= 9` seria o `limiteGames: 9` cravado voltando por outra porta.
-    public static int? LadoJaDecidido(FormatoDaPartida.Formato formato, int? sets1, int? sets2, int? games1, int? games2) =>
-        FormatoDaPartida.PodeEncerrar(formato, games1 ?? 0, games2 ?? 0)
+    public static int? LadoJaDecidido(FormatoDaPartida.Formato formato, int? sets1, int? sets2, int? games1, int? games2)
+    {
+        // Jogo de vários sets só está decidido quando alguém VENCEU os sets (19/11/2026,
+        // Services/SetsDoJogo) — "sets diferentes" no meio do segundo set não é vitória.
+        if (SetsDoJogo.TemMaisDeUmSet(formato))
+            return SetsDoJogo.JogoDecidido(formato, sets1, sets2) ? Lado(sets1, sets2, games1, games2) : null;
+
+        return FormatoDaPartida.PodeEncerrar(formato, games1 ?? 0, games2 ?? 0)
             ? Lado(sets1, sets2, games1, games2)
             : null;
+    }
 
     private static int? LadoPorSets(int? sets1, int? sets2)
     {
