@@ -108,20 +108,29 @@ public static class ConcentracaoDeJogos
     // isso deixaria a dupla sem horário possível, o oposto exato do favor que se pediu.
     public static IEnumerable<(DateTime Inicio, DateTime Fim)> Da(Torneio torneio, Dupla dupla)
     {
-        if (dupla.ConcentrarJogosEm is not TurnoDeConcentracao turno
-            || turno == TurnoDeConcentracao.Nenhuma) yield break;
-
         if (torneio.DataInicio is not DateTime inicio) yield break;
-        if (JanelaDoTurno(torneio, turno) is not { } podeJogar) yield break;
 
-        var antes = inicio.Date - Horizonte;
+        // ONDE A DUPLA PODE JOGAR: o turno do "Pôr os 2 jogos em" e os "pode jogar entre" que o
+        // organizador combinou (19/11/2026, Models/HorarioDaDupla) — a UNIÃO dos dois. O que sai
+        // daqui é o complemento, que é o que a grade lê.
+        var podeJogar = new List<(DateTime Inicio, DateTime Fim)>();
+        if (JanelaDoTurnoDaDupla(torneio, dupla) is { } doTurno) podeJogar.Add(doTurno);
+        podeJogar.AddRange(dupla.HorariosDoOrganizador
+            .Where(h => h.PodeJogar && h.Fim > h.Inicio)
+            .Select(h => (h.Inicio, h.Fim)));
+        if (podeJogar.Count == 0) yield break;
+
+        var cursor = inicio.Date - Horizonte;
         var depois = inicio.Date + Horizonte;
 
-        // Janela vazia não é devolvida: quando o turno escolhido é o próprio começo do
-        // horizonte, o pedaço "antes" tem largura zero e não proíbe nada. Devolvê-lo só
-        // encheria o mapa de entradas que o Encaixar checaria à toa.
-        if (antes < podeJogar.Inicio) yield return (antes, podeJogar.Inicio);
-        if (podeJogar.Fim < depois) yield return (podeJogar.Fim, depois);
+        // Janela vazia não é devolvida: o pedaço entre duas janelas coladas tem largura zero e
+        // não proíbe nada. Devolvê-lo só encheria o mapa de entradas que o Encaixar checaria à toa.
+        foreach (var janela in podeJogar.OrderBy(j => j.Inicio))
+        {
+            if (janela.Inicio > cursor) yield return (cursor, janela.Inicio);
+            if (janela.Fim > cursor) cursor = janela.Fim;
+        }
+        if (cursor < depois) yield return (cursor, depois);
     }
 
     // AS DUAS SE CONTRADIZEM? "Não posso sábado de manhã" + "os 2 jogos no sábado de manhã" não
@@ -191,6 +200,10 @@ public static class ConcentracaoDeJogos
 
         foreach (var dupla in duplas)
         {
+            // O "pode jogar entre" do organizador também diz até onde a grade precisa ir.
+            foreach (var h in dupla.HorariosDoOrganizador.Where(h => h.PodeJogar && h.Fim > h.Inicio))
+                if (maisTarde == null || h.Fim > maisTarde) maisTarde = h.Fim;
+
             if (dupla.ConcentrarJogosEm is not TurnoDeConcentracao turno
                 || turno == TurnoDeConcentracao.Nenhuma) continue;
 

@@ -5989,7 +5989,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                    tinha como distinguir o pedido que ele PRECISA respeitar do
                                    ajuste que ele mesmo fez. *@
                                 @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum
-                                     || concentracao != Padelizou.Services.TurnoDeConcentracao.Nenhuma)
+                                     || concentracao != Padelizou.Services.TurnoDeConcentracao.Nenhuma
+                                     || dupla.HorariosDoOrganizador.Count > 0)
                                 {
                                     <div class="d-flex gap-2 flex-wrap mt-2">
                                         @if (turnoAtual != Padelizou.Services.TurnoDoImpedimento.Nenhum)
@@ -6006,6 +6007,13 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <i class="bi bi-pin-map"></i>
                                                 <strong>Jogar em:</strong> @Padelizou.Services.ConcentracaoDeJogos.Rotulo(concentracao)
                                                 <span class="opacity-75">· posto pelo organizador</span>
+                                            </span>
+                                        }
+                                        @foreach (var h in dupla.HorariosDoOrganizador.OrderBy(h => h.Inicio))
+                                        {
+                                            <span class="badge rounded-pill fw-normal @(h.PodeJogar ? "bg-success-subtle text-success-emphasis border border-success-subtle" : "bg-danger-subtle text-danger-emphasis border border-danger-subtle")">
+                                                @(h.PodeJogar ? "✅" : "⛔") @Padelizou.Services.HorariosDaDupla.Rotulo(h)
+                                                <span class="opacity-75">· organizador</span>
                                             </span>
                                         }
                                     </div>
@@ -6092,6 +6100,62 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </form>
                                             </div>
                                         </div>
+
+                                        @* OS HORÁRIOS QUE O ORGANIZADOR COMBINA COM A DUPLA (19/11/2026, Models/HorarioDaDupla).
+                                           Esta aba é só de quem organiza; o jogador continua com o impedimento padrão. *@
+                                        <hr class="my-3" />
+                                        <label class="form-label fw-bold small mb-1">
+                                            <i class="bi bi-clock text-primary"></i> Horários da dupla
+                                            <span class="text-muted fw-normal">(só o organizador vê)</span>
+                                        </label>
+                                        <p class="text-muted small mb-2">
+                                            <strong>Pode jogar entre</strong> vale nos jogos de grupo; <strong>não pode jogar</strong> vale em
+                                            todas as fases. Se não couber, a grade põe no horário possível mais próximo dentro do torneio —
+                                            nenhum jogo fica sem horário. Não cobra nada.
+                                        </p>
+                                        @if (dupla.HorariosDoOrganizador.Count > 0)
+                                        {
+                                            <ul class="list-unstyled mb-2">
+                                                @foreach (var h in dupla.HorariosDoOrganizador.OrderBy(h => h.Inicio))
+                                                {
+                                                    <li class="d-flex align-items-center gap-2 mb-1">
+                                                        <span class="badge rounded-pill fw-normal @(h.PodeJogar ? "bg-success-subtle text-success-emphasis border border-success-subtle" : "bg-danger-subtle text-danger-emphasis border border-danger-subtle")">
+                                                            @(h.PodeJogar ? "✅ Pode" : "⛔ Não pode") · @Padelizou.Services.HorariosDaDupla.Rotulo(h)
+                                                        </span>
+                                                        <form asp-controller="Torneios" asp-action="RemoverHorarioDaDupla" method="post" class="d-inline" data-manter-posicao>
+                                                            <input type="hidden" name="id" value="@h.Id" />
+                                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Remover" aria-label="Remover">
+                                                                <i class="bi bi-x-circle"></i>
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                        <form asp-controller="Torneios" asp-action="AdicionarHorarioDaDupla" method="post"
+                                              class="d-flex gap-2 align-items-center flex-wrap" data-manter-posicao>
+                                            <input type="hidden" name="duplaId" value="@dupla.Id" />
+                                            <select name="podeJogar" class="form-select form-select-sm" style="width: auto;">
+                                                <option value="true">Pode jogar</option>
+                                                <option value="false">Não pode jogar</option>
+                                            </select>
+                                            <select name="dia" class="form-select form-select-sm" style="width: auto;">
+                                                @foreach (var d in Padelizou.Services.HorariosDaDupla.DiasDoTorneio(Model))
+                                                {
+                                                    <option value="@d.ToString("yyyy-MM-dd")">@d.ToString("ddd dd/MM", new System.Globalization.CultureInfo("pt-BR"))</option>
+                                                }
+                                            </select>
+                                            <input type="time" name="de" class="form-control form-control-sm" style="width: auto;" aria-label="De" />
+                                            <span class="small text-muted">até</span>
+                                            <input type="time" name="ate" class="form-control form-control-sm" style="width: auto;" aria-label="Até" />
+                                            <div class="form-check mb-0">
+                                                <input class="form-check-input" type="checkbox" name="diaInteiro" value="true" id="diaInteiro-@dupla.Id" />
+                                                <label class="form-check-label small" for="diaInteiro-@dupla.Id">dia inteiro</label>
+                                            </div>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-plus-lg"></i> Adicionar
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </li>

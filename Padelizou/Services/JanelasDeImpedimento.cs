@@ -91,6 +91,11 @@ public static class JanelasDeImpedimento
             if (dupla.ImpedimentoSabadoManha) yield return (sabado, corte);
             if (dupla.ImpedimentoSabadoTarde) yield return (corte, sabado.AddDays(1));
         }
+
+        // O "não pode jogar" que o ORGANIZADOR combinou com a dupla (19/11/2026, Models/HorarioDaDupla):
+        // quantos ele quiser, em qualquer dia e hora, e vale em toda fase como o impedimento pago.
+        foreach (var horario in dupla.HorariosDoOrganizador.Where(h => !h.PodeJogar && h.Fim > h.Inicio))
+            yield return (horario.Inicio, horario.Fim);
     }
 
     // Mesmo padrão de RoboDoChaveamento.OcupantesPorDupla: um mapa pronto pra passar direto

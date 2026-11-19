@@ -85,6 +85,9 @@ public partial class DbPadelContext : DbContext
     // O horário que o organizador reservou pra uma eliminatória que ainda não nasceu. Ver
     // Models/ReservaDeHorario.
     public DbSet<ReservaDeHorario> ReservasDeHorario { get; set; }
+
+    // Os horários que o organizador combinou com cada dupla. Ver Models/HorarioDaDupla.
+    public DbSet<HorarioDaDupla> HorariosDaDupla { get; set; }
     public DbSet<InscricaoAmericana> InscricoesAmericanas { get; set; }
     public DbSet<PushSubscriptionJogador> PushSubscriptionsJogador { get; set; }
     public DbSet<SeguidorDePartida> SeguidoresDePartida { get; set; }
@@ -1426,6 +1429,19 @@ public partial class DbPadelContext : DbContext
         // Ver Models/PagamentoManualDoJogador: a PK composta segura o clique duplo, e a marca
         // morre junto com a inscrição. Sem FK pro Jogador de propósito — a marca é da inscrição,
         // e a conta apagada (LGPD) não pode travar a exclusão.
+        // Ver Models/HorarioDaDupla. Morre com a inscrição; AUTO-INCLUÍDA porque quem a lê
+        // (JanelasDeImpedimento.Da, ConcentracaoDeJogos.Da) recebe a Dupla pronta, de uma dúzia de
+        // consultas diferentes — e Include esquecido aqui é restrição que some calada.
+        modelBuilder.Entity<HorarioDaDupla>(entity =>
+        {
+            entity.HasOne(e => e.Dupla)
+                .WithMany(d => d.HorariosDoOrganizador)
+                .HasForeignKey(e => e.DuplaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => e.DuplaId);
+        });
+        modelBuilder.Entity<Dupla>().Navigation(d => d.HorariosDoOrganizador).AutoInclude();
+
         modelBuilder.Entity<PagamentoManualDoJogador>(entity =>
         {
             entity.HasKey(e => new { e.DuplaId, e.JogadorId });

@@ -104,6 +104,10 @@ public partial class Dupla
     // regra mora em Services/ConcentracaoDeJogos; ela e o impedimento são EXCLUSIVOS entre si
     // — marcar um zera o outro (ver AlteracaoDeImpedimento.Aplicar/AplicarConcentracao).
     public Padelizou.Services.TurnoDeConcentracao? ConcentrarJogosEm { get; set; }
+
+    // Os horários que o ORGANIZADOR combinou com a dupla — "pode jogar entre" e "não pode jogar".
+    // Ver Models/HorarioDaDupla. Auto-incluída no DbPadelContext.
+    public virtual ICollection<HorarioDaDupla> HorariosDoOrganizador { get; set; } = new List<HorarioDaDupla>();
     public int? GrupoTorneioId { get; set; }
     public virtual GrupoTorneio? GrupoTorneio { get; set; }
 

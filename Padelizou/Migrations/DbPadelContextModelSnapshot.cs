@@ -1699,6 +1699,33 @@ namespace Padelizou.Migrations
                     b.ToTable("HistoricoDePadelimetro");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.HorarioDaDupla", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DuplaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Fim")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("Inicio")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("PodeJogar")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DuplaId");
+
+                    b.ToTable("HorarioDaDupla");
+                });
+
             modelBuilder.Entity("Padelizou.Models.HorarioDisponivel", b =>
                 {
                     b.Property<int>("Id")
@@ -5012,6 +5039,17 @@ namespace Padelizou.Migrations
                     b.Navigation("Partida");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.HorarioDaDupla", b =>
+                {
+                    b.HasOne("Padelizou.Models.Dupla", "Dupla")
+                        .WithMany("HorariosDoOrganizador")
+                        .HasForeignKey("DuplaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Dupla");
+                });
+
             modelBuilder.Entity("Padelizou.Models.HorarioDisponivel", b =>
                 {
                     b.HasOne("Padelizou.Models.LocalAula", "LocalAula")
@@ -6103,6 +6141,8 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.Dupla", b =>
                 {
+                    b.Navigation("HorariosDoOrganizador");
+
                     b.Navigation("PartidasDupla1");
 
                     b.Navigation("PartidasDupla2");
