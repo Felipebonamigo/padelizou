@@ -1,6 +1,14 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **21/11/2026** — 🎁 **SORTEIO DE BRINDES DO TORNEIO.** ⚠️ **COM MIGRATION** (`SorteioDeBrindes`: duas tabelas novas, `SorteioDoTorneio` e `GanhadorDoSorteio` — só aditiva). ⏳ **NÃO PUBLICADO.** 🗣️ Felipe: *"vamos adicionar uma opção de sorteador, alguns torneios sorteiam brindes e outras coisas para quem joga"*.
+>
+> 🎟️ **Quem concorre:** quem está NA CHAVE (`InscricaoQueConta` sem a linha de TIME) — *"se ficou na lista de espera, não participa"* —, **uma chance por pessoa** mesmo em duas categorias (`SorteioDeBrindes.Participantes`). O organizador (régua `EhOrganizadorAsync`, sem papel novo) abre **"Sorteio de brindes"** nas ferramentas, digita **quantos nomes** e, se quiser, o prêmio. O servidor sorteia com `RandomNumberGenerator` (Fisher–Yates) e **grava antes** da roleta girar na tela — a animação é teatro. **Repetir, a critério dele:** *adicionar* (quem já ganhou fica de fora, salvo a caixinha "quem já ganhou concorre de novo") ou *refazer* um sorteio — o antigo **não some**, fica riscado com "refeito às HH:mm". A PK (sorteio, jogador) segura o nome repetido no mesmo sorteio.
+>
+> 📣 **Onde aparece:** bloco "Sorteios" na página do torneio (público, refeitos riscados) e **destaque no telão** por 3 min (os nomes entram um a um). O ganhador recebe *"Você ganhou no sorteio! 🎁"* (app + e-mail, sem WhatsApp); no refeito, quem SAIU recebe *"Sorteio refeito"* (🗣️ *"sim, avisa"*).
+>
+> 🧪 `SorteioDeBrindesTests` (16): os 12 de comportamento **vistos vermelhos** com o esqueleto ("não implementado"; lista vazia), + as recusas de quantidade e a **tradução das duas consultas no Postgres** (`ToQueryString`). Suíte inteira: 8.364 verdes. ⚠️ Telas não vistas no navegador (sem Postgres nesta sessão) — conferir em `dev`.
+>
 > Última atualização: **21/11/2026** — 🎾 **TELÃO MOSTRA QUEM ESTÁ SACANDO** (Wallau, foto da TV). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#448, `build-1712-5e4fc12`).
 >
 > 🗣️ *"Aqui não tá aparecendo o sacador"*. Bolinha de padel (`.tl-saque`) ao lado do placar da dupla que saca, no card AO VIVO do telão — mesmo dado do card do celular (`Partida.DuplaSacandoId`), régua em `TelaoDoTorneio.Saca`. Sem saque marcado, nenhuma bolinha. Chega sozinha à TV pela atualização de 20 s. 🧪 `SaqueNoTelaoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080.

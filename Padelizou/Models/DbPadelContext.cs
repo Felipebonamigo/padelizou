@@ -41,6 +41,8 @@ public partial class DbPadelContext : DbContext
     public virtual DbSet<CategoriaPadrao> CategoriasPadrao { get; set; }
     public virtual DbSet<TorneioOrganizador> TorneioOrganizadores { get; set; }
     public virtual DbSet<TorneioMarcador> TorneioMarcadores { get; set; }
+    public virtual DbSet<SorteioDoTorneio> SorteiosDoTorneio { get; set; }
+    public virtual DbSet<GanhadorDoSorteio> GanhadoresDoSorteio { get; set; }
     // O tamanho da camiseta de brinde, uma linha por (torneio, atleta). Ver Models/CamisetaDoAtleta.
     public virtual DbSet<CamisetaDoAtleta> CamisetasDosAtletas { get; set; }
     // Quem já chegou ao clube, uma linha por PESSOA por torneio (Models/PresencaNoTorneio).
@@ -420,6 +422,28 @@ public partial class DbPadelContext : DbContext
                 .WithMany()
                 .HasForeignKey(c => c.TorneioId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+        // O SORTEIO DE BRINDES (Services/SorteioDeBrindes). Torneio em Cascade: o sorteio não
+        // sobrevive ao torneio. Ganhador → Jogador em Restrict, a regra das tabelas de vínculo.
+        modelBuilder.Entity<SorteioDoTorneio>(entity =>
+        {
+            entity.HasOne(s => s.Torneio)
+                .WithMany()
+                .HasForeignKey(s => s.TorneioId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(s => s.TorneioId);
+        });
+        modelBuilder.Entity<GanhadorDoSorteio>(entity =>
+        {
+            entity.HasKey(g => new { g.SorteioId, g.JogadorId });
+            entity.HasOne(g => g.Sorteio)
+                .WithMany(s => s.Ganhadores)
+                .HasForeignKey(g => g.SorteioId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(g => g.Jogador)
+                .WithMany()
+                .HasForeignKey(g => g.JogadorId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<TorneioMarcador>(entity =>
         {

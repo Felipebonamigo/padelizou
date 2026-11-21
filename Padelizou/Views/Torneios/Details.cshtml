@@ -356,6 +356,12 @@
     </fieldset>
 }
 
+@* Os sorteios de brinde, à vista de todos (Services/SorteioDeBrindes). *@
+@if (ViewBag.Sorteios is List<Padelizou.Models.SorteioDoTorneio> sorteiosDoTorneio && sorteiosDoTorneio.Count > 0)
+{
+    <partial name="_SorteiosDoTorneio" model="sorteiosDoTorneio" />
+}
+
 
 @* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
    grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
