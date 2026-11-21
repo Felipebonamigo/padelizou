@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/11/2026** — 🔙 **TELÃO COM BOTÃO DE VOLTAR + ESPAÇO NO BOTÃO DO GRUPO DO WHATSAPP** (dia da Wallau). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.**
+> Última atualização: **21/11/2026** — 🔙 **TELÃO COM BOTÃO DE VOLTAR + ESPAÇO NO BOTÃO DO GRUPO DO WHATSAPP** (dia da Wallau). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#444, `build-1703-a37bc58`).
 >
 > 🗣️ *"A abrir telão não tem botão de voltar"* — a página não usa o layout do site; ganhou uma seta "←" discreta no topo (`.tl-voltar`, mínimo de 34px pra dedo) que volta pra página do torneio. 🗣️ *"o botão de entrar no grupo do torneio está quase em cima"* do card das ferramentas — `mt-3`. 🧪 `VoltarDoTelaoEEspacoDoGrupoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080 e 390×844.
 >
