@@ -4436,6 +4436,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
 
+                            @* OCULTAR QUEM VOTOU (21/11/2026, Torneio.OcultarQuemPalpitou). O hidden vem DEPOIS
+                               da caixa, como o do MVP: desmarcada ela não manda nada, e o silêncio seria lido
+                               como "aba antiga, mantenha". *@
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" role="switch" name="ocultarQuemPalpitou" value="true"
+                                       id="editOcultarQuemPalpitou" @(Model.OcultarQuemPalpitou ? "checked" : "") />
+                                <input type="hidden" name="ocultarQuemPalpitou" value="false" />
+                                <label class="form-check-label fw-bold" for="editOcultarQuemPalpitou">Ocultar quem votou no palpitômetro</label>
+                                <div class="small text-muted">
+                                    Some o "ver quem votou" de cada jogo pra quem não organiza — a barra com a
+                                    porcentagem e o total de votos continuam. Você e os outros organizadores
+                                    seguem vendo os nomes.
+                                </div>
+                            </div>
+
                             @* Quem pode marcar o placar (Services/QuemMarcaOPlacar). Editável a
                                qualquer momento — abrir pros jogadores no meio do dia, quando a
                                mesa aperta, é o caso de uso. Formulário escrito à mão como os

@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **21/11/2026** — 🙈 **"OCULTAR QUEM VOTOU" NO PALPITÔMETRO, POR TORNEIO.** ⚠️ **COM MIGRATION** (`OcultarQuemPalpitou`: `Torneio.OcultarQuemPalpitou` bool, padrão false). ⏳ **NÃO PUBLICADO.** Decisões do Felipe: some **só o modal** de cada jogo (aba Palpiteiros fica) e **o organizador continua vendo**.
+>
+> 🗣️ *"Para a organização do torneio, criar a opção de ocultar o nome de quem votou no palpitômetro"*. Caixa na gestão (ao lado do alcance do palpitômetro; hidden depois da caixa, `bool?` = aba antiga mantém). Ligada: `PartidasController.VerVotos` recusa (Forbid) pra quem não organiza nem é admin (`OrganizaOTorneioAsync` — sem o marcador); a lista de jogos não desenha o botão (`ViewBag.VerQuemPalpitou`). A barra de %, o total de votos e a aba Palpiteiros não mudam. Cópia de torneio leva a opção.
+>
+> 🧪 `OcultarQuemPalpitouTests` (8; 5 **vistos vermelhos**, 3 travando o de hoje). **Visto rodando** local: a caixa gravou pela gestão; organizador recebe a lista (200), visitante recusado. 8.339 verdes.
+>
 > Última atualização: **21/11/2026** — 🔙 **TELÃO COM BOTÃO DE VOLTAR + ESPAÇO NO BOTÃO DO GRUPO DO WHATSAPP** (dia da Wallau). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#444, `build-1703-a37bc58`).
 >
 > 🗣️ *"A abrir telão não tem botão de voltar"* — a página não usa o layout do site; ganhou uma seta "←" discreta no topo (`.tl-voltar`, mínimo de 34px pra dedo) que volta pra página do torneio. 🗣️ *"o botão de entrar no grupo do torneio está quase em cima"* do card das ferramentas — `mt-3`. 🧪 `VoltarDoTelaoEEspacoDoGrupoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080 e 390×844.

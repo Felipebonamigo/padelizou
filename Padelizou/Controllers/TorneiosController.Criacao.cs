@@ -1382,6 +1382,7 @@ namespace Padelizou.Controllers
             // torneio rolando — o palpite já dado continua gravado e contando no ranking, e o
             // que muda é só o que a tela oferece daqui pra frente.
             string? palpitometroEm = null,
+            bool? ocultarQuemPalpitou = null,
             // "Só confirmo a inscrição depois de pago". Nulo = campo ausente (aba antiga, ou
             // torneio que não cobra pelo site e por isso nem desenha a chave): o que está
             // gravado FICA.
@@ -1608,6 +1609,9 @@ namespace Padelizou.Controllers
             // POST torto RELIGARIA o palpitômetro que o organizador desligou.
             if (AlcanceDoPalpitometro.Existe(palpitometroEm))
                 torneio.PalpitometroEm = palpitometroEm!;
+
+            // "Ocultar quem votou" (Torneio.OcultarQuemPalpitou). Nulo = aba antiga: fica o gravado.
+            if (ocultarQuemPalpitou is bool ocultarNomes) torneio.OcultarQuemPalpitou = ocultarNomes;
 
             // ── "Só confirmo a inscrição depois de pago", agora editável ────────────────
             // A chave só existia na tela de CRIAÇÃO, e o Editar nunca a lia — o mesmo buraco

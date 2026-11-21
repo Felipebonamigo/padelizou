@@ -48,6 +48,16 @@ namespace Padelizou.Controllers
         // ABRIA pro admin (ela usa o outro critério), com todos os botões à vista, e aí
         // "Começar o jogo" e "Salvar placar" respondiam 403 — no meio do torneio, no clube,
         // com a quadra esperando.
+        // Quem ORGANIZA o torneio (ou é admin) — sem o marcador, que opera o placar mas não é a
+        // organização. Usado pelo "ocultar quem votou" (Torneio.OcultarQuemPalpitou).
+        private async Task<bool> OrganizaOTorneioAsync(int torneioId)
+        {
+            var jogadorId = ObterJogadorIdLogado();
+            if (jogadorId == null) return false;
+            return await _context.TorneioOrganizadores.AnyAsync(o => o.TorneioId == torneioId && o.JogadorId == jogadorId)
+                || await _context.Jogadores.AnyAsync(j => j.Id == jogadorId && (j.IsAdminRaiz || j.IsAdminGeral));
+        }
+
         private async Task<bool> PodeControlarPlacarAsync(Partida partida)
         {
             var jogadorId = ObterJogadorIdLogado();
@@ -196,6 +206,17 @@ namespace Padelizou.Controllers
             // e isso é 404, não erro do sistema (foram três 500 no vigia em 11/09/2026).
             var votantes = await _palpites.ObterVotantesAsync(partidaId);
             if (votantes == null) return NotFound();
+
+            // "OCULTAR QUEM VOTOU" (21/11/2026, Torneio.OcultarQuemPalpitou): com a opção ligada, só
+            // quem organiza (ou o admin) recebe os nomes. ⚠️ É AQUI que vale — esconder o botão sem
+            // recusar a lista deixaria os nomes a um GET de distância.
+            var torneioDoJogo = await _context.Partidas.Where(p => p.Id == partidaId)
+                .Select(p => p.TorneioId)
+                .FirstOrDefaultAsync();
+            if (torneioDoJogo is int idDoTorneio
+                && await _context.Torneios.AnyAsync(t => t.Id == idDoTorneio && t.OcultarQuemPalpitou)
+                && !await OrganizaOTorneioAsync(idDoTorneio))
+                return Forbid();
 
             return Json(votantes);
         }

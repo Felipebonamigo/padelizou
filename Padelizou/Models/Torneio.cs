@@ -625,6 +625,13 @@ public partial class Torneio
     // escreveria string vazia (ele olha o tipo, não o inicializador) — ver a nota lá.
     public string PalpitometroEm { get; set; } = Padelizou.Services.AlcanceDoPalpitometro.Todas;
 
+    // "OCULTAR QUEM VOTOU" (21/11/2026). 🗣️ Felipe: *"para a organização do torneio, criar a opção de
+    // ocultar o nome de quem votou no palpitômetro"*. Ligada, o "ver quem votou" de cada jogo some
+    // pra quem não organiza — e o servidor recusa a lista (PartidasController.VerVotos). O
+    // organizador continua vendo; a aba Palpiteiros, a barra e o total de votos não mudam (decisões
+    // dele). Nasce desligada: é o comportamento de todo torneio até hoje.
+    public bool OcultarQuemPalpitou { get; set; }
+
     // Quando o "vote no MVP" foi disparado pra quem jogou. Nulo = ainda não saiu.
     //
     // ⚠️ É esta coluna — e não o relógio — que garante UM aviso só. O varredor passa a cada
