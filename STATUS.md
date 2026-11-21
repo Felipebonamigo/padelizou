@@ -1,6 +1,12 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **21/11/2026** — 🙈 **"OCULTAR QUEM VOTOU" NO PALPITÔMETRO, POR TORNEIO.** ⚠️ **COM MIGRATION** (`OcultarQuemPalpitou`: `Torneio.OcultarQuemPalpitou` bool, padrão false). ⏳ **NÃO PUBLICADO.** Decisões do Felipe: somem o "ver quem votou" de cada jogo **e o modal com os palpites de cada um no ranking** (o ranking fica; o nome vira link do perfil), e **o organizador continua vendo**.
+>
+> 🗣️ *"Para a organização do torneio, criar a opção de ocultar o nome de quem votou no palpitômetro"*. Caixa na gestão (ao lado do alcance do palpitômetro; hidden depois da caixa, `bool?` = aba antiga mantém). Ligada: `PartidasController.VerVotos` recusa (Forbid) pra quem não organiza nem é admin (`OrganizaOTorneioAsync` — sem o marcador); a lista de jogos não desenha o botão (`ViewBag.VerQuemPalpitou`). No ranking (aba/página Palpiteiros): `PalpitesDoPalpiteiro` recusa e o nome não abre o modal (`PalpitesDeCadaUmVisiveisAsync`, `ViewBag.PalpitesDeCadaUmVisiveis`). A barra de %, o total de votos e o ranking em si não mudam. Cópia de torneio leva a opção.
+>
+> 🧪 `OcultarQuemPalpitouTests` (8; 5 **vistos vermelhos**, 3 travando o de hoje) + `OcultarPalpitesDoPalpiteiroTests` (3; 2 **vistos vermelhos**). **Visto rodando** local: a caixa gravou pela gestão; organizador recebe a lista (200), visitante recusado; no ranking, visitante vê o nome como link do perfil e o organizador abre o modal. 8.342 verdes.
+>
 > Última atualização: **21/11/2026** — 🔙 **TELÃO COM BOTÃO DE VOLTAR + ESPAÇO NO BOTÃO DO GRUPO DO WHATSAPP** (dia da Wallau). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#444, `build-1703-a37bc58`).
 >
 > 🗣️ *"A abrir telão não tem botão de voltar"* — a página não usa o layout do site; ganhou uma seta "←" discreta no topo (`.tl-voltar`, mínimo de 34px pra dedo) que volta pra página do torneio. 🗣️ *"o botão de entrar no grupo do torneio está quase em cima"* do card das ferramentas — `mt-3`. 🧪 `VoltarDoTelaoEEspacoDoGrupoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080 e 390×844.

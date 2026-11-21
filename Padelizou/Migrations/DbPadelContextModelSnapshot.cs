@@ -3768,6 +3768,9 @@ namespace Padelizou.Migrations
                         .IsUnicode(false)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<bool>("OcultarQuemPalpitou")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("Oculto")
                         .HasColumnType("boolean");
 

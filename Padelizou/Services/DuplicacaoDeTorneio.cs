@@ -55,6 +55,7 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.LocalTorneio),
         nameof(Torneio.QuantidadeQuadras),
         nameof(Torneio.TempoPrevistoPartidaMinutos),
+        nameof(Torneio.OcultarQuemPalpitou),   // escolha do organizador sobre o palpitômetro
         // A duração por fase (19/11/2026, Services/DuracaoDaPartida) — é formato do torneio, como os sets.
         nameof(Torneio.TempoMataMataMinutos),
         nameof(Torneio.TempoSemifinalMinutos),

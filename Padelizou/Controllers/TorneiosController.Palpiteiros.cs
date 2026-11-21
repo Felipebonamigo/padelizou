@@ -44,6 +44,10 @@ namespace Padelizou.Controllers
             // site, montar o ranking inteiro só pra decidir se desenha um botão.
             if (ranking == null || !ranking.TemRanking) return NotFound();
 
+            // "Ocultar quem votou" (Torneio.OcultarQuemPalpitou): o ranking fica, mas o nome deixa de
+            // abrir os palpites de cada um pra quem não organiza (vira o link do perfil).
+            ViewBag.PalpitesDeCadaUmVisiveis = await PalpitesDeCadaUmVisiveisAsync(torneio);
+
             return View(ranking);
         }
 
@@ -66,6 +70,10 @@ namespace Padelizou.Controllers
             if (torneio == null || !await VisibilidadeDoTorneio.PodeAbrirAsync(_context, torneio, ObterJogadorIdLogado()))
                 return NotFound();
 
+            // "Ocultar quem votou" (Torneio.OcultarQuemPalpitou): é AQUI que vale — esconder o botão sem
+            // recusar a lista deixaria os palpites de cada um a um GET de distância.
+            if (!await PalpitesDeCadaUmVisiveisAsync(torneio)) return Forbid();
+
             var lista = await RankingDePalpiteiros.DoPalpiteiroNoTorneioAsync(_context, id, jogadorId);
 
             // ⚠️ 404 e não lista vazia, pelo mesmo motivo da página inteira: quem não palpitou
@@ -75,5 +83,11 @@ namespace Padelizou.Controllers
 
             return Json(lista);
         }
+
+        // Os palpites de CADA UM (o modal do ranking e o "ver quem votou" de cada jogo) aparecem pra
+        // quem olha? Sim, a não ser que o organizador tenha ligado "ocultar quem votou" — e aí só
+        // quem organiza continua vendo (decisão do Felipe, 21/11/2026).
+        private async Task<bool> PalpitesDeCadaUmVisiveisAsync(Padelizou.Models.Torneio torneio) =>
+            !torneio.OcultarQuemPalpitou || await EhOrganizadorAsync(torneio.Id, ObterJogadorIdLogado() ?? 0);
     }
 }

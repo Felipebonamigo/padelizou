@@ -167,9 +167,11 @@
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-body">
         @* O `TorneioId` é o que faz o nome abrir "o que esta pessoa palpitou" (12/09/2026) —
-           sem ele, a tabela do hub continua mandando o nome pro perfil. *@
+           sem ele, a tabela do hub continua mandando o nome pro perfil. Com "ocultar quem votou"
+           (Torneio.OcultarQuemPalpitou) ele não vai pra quem não organiza: o nome vira o perfil. *@
         <partial name="_TabelaDePalpiteiros"
-                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao, Model.TorneioId))' />
+                 model='@(new Padelizou.ViewModels.TabelaDePalpiteirosVM(Model.Linhas, Model.EuId, comPlacar, Model.PalpitesEmAberto > 0, !Model.ModoParticipacao,
+                     (ViewData["PalpitesDeCadaUmVisiveis"] as bool? ?? true) ? Model.TorneioId : null))' />
     </div>
 </div>
 

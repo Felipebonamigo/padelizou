@@ -466,6 +466,7 @@ namespace Padelizou.Controllers
                 var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(
                     _context, id, ObterJogadorIdLogado(), fasePalpiteiros);
                 ViewBag.RankingDePalpiteiros = palpiteirosDoTorneio;
+                ViewBag.PalpitesDeCadaUmVisiveis = await PalpitesDeCadaUmVisiveisAsync(torneio);
                 ViewBag.TemRankingDePalpiteiros = palpiteirosDoTorneio?.TemRanking == true;
             }
 
@@ -1892,7 +1893,11 @@ namespace Padelizou.Controllers
             // Só SUBTRAI do alcance acima; visitante deslogado recebe o padrão, que é ver tudo.
             var euEOPalpitometro = await PreferenciaDoPalpitometro.DeAsync(_context, ObterJogadorIdLogado());
             ViewBag.VerPalpitometro = euEOPalpitometro.VerPalpitometro;
-            ViewBag.VerQuemPalpitou = euEOPalpitometro.VerQuemPalpitou;
+            // E O QUE O ORGANIZADOR ESCONDEU (21/11/2026, Torneio.OcultarQuemPalpitou): com a opção
+            // ligada, o "ver quem votou" some pra quem não organiza. Quem recusa de verdade é o
+            // PartidasController.VerVotos — aqui só não se desenha um botão que daria 403.
+            ViewBag.VerQuemPalpitou = euEOPalpitometro.VerQuemPalpitou
+                && (torneioDaTela?.OcultarQuemPalpitou != true || await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0));
 
             ViewBag.QuemMarcaPlacar = torneioDaTela?.QuemMarcaPlacar;
             ViewBag.EhInscritoDoTorneio = meuId != null
