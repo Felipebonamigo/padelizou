@@ -1,7 +1,7 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
-> Última atualização: **21/11/2026** — 🎾 **TELÃO MOSTRA QUEM ESTÁ SACANDO** (Wallau, foto da TV). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.**
+> Última atualização: **21/11/2026** — 🎾 **TELÃO MOSTRA QUEM ESTÁ SACANDO** (Wallau, foto da TV). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#448, `build-1712-5e4fc12`).
 >
 > 🗣️ *"Aqui não tá aparecendo o sacador"*. Bolinha de padel (`.tl-saque`) ao lado do placar da dupla que saca, no card AO VIVO do telão — mesmo dado do card do celular (`Partida.DuplaSacandoId`), régua em `TelaoDoTorneio.Saca`. Sem saque marcado, nenhuma bolinha. Chega sozinha à TV pela atualização de 20 s. 🧪 `SaqueNoTelaoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080.
 >
