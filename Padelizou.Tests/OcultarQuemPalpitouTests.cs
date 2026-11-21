@@ -113,3 +113,62 @@ public class OcultarQuemPalpitouTests
         Assert.Contains(nameof(Torneio.OcultarQuemPalpitou), DuplicacaoDeTorneio.Copiadas);
     }
 }
+
+// 🗣️ Felipe, depois: *"o ranking aí oculta os resultados que palpitou, aquele modal, e oculta também
+// o da aba jogos quem votou"*. O ranking fica; some o modal com os palpites de cada um (o nome vira
+// link do perfil) — e o organizador continua vendo.
+public class OcultarPalpitesDoPalpiteiroTests
+{
+    private static async Task<(DbPadelContext ctx, Torneio torneio, Jogador org, Jogador torcedor)> MontarAsync(bool ocultar)
+    {
+        var ctx = TestInfra.NovoContexto();
+        var (torneio, categoria, org) = TestInfra.MontarTorneio(ctx, qtdDuplas: 2);
+        torneio.OcultarQuemPalpitou = ocultar;
+        var duplas = ctx.Duplas.Where(d => d.CategoriaId == categoria.Id).ToList();
+        var partida = new Partida
+        {
+            TorneioId = torneio.Id, CategoriaId = categoria.Id, Dupla1Id = duplas[0].Id, Dupla2Id = duplas[1].Id,
+            Status = "Agendada", Fase = FasesTorneio.FaseDeGrupos, Codigo = "P1",
+        };
+        ctx.Partidas.Add(partida);
+        var torcedor = new Jogador { Nome = "Torcedor", Cpf = "52998224725" };
+        ctx.Jogadores.Add(torcedor);
+        await ctx.SaveChangesAsync();
+        await new PalpiteService(ctx).RegistrarVotoAsync(partida.Id, torcedor.Id, duplas[0].Id, 9, 4);
+        return (ctx, torneio, org, torcedor);
+    }
+
+    [Fact]
+    public async Task Com_a_opcao_ligada_o_modal_de_palpites_e_recusado_pra_quem_nao_organiza()
+    {
+        var (ctx, torneio, org, torcedor) = await MontarAsync(ocultar: true);
+        using var _ = ctx;
+
+        Assert.IsType<ForbidResult>(await TestInfra.NovoTorneiosController(ctx, torcedor.Id).PalpitesDoPalpiteiro(torneio.Id, torcedor.Id));
+        Assert.IsType<JsonResult>(await TestInfra.NovoTorneiosController(ctx, org.Id).PalpitesDoPalpiteiro(torneio.Id, torcedor.Id));
+    }
+
+    [Fact]
+    public async Task Com_a_opcao_desligada_o_modal_abre_pra_todos()
+    {
+        var (ctx, torneio, _, torcedor) = await MontarAsync(ocultar: false);
+        using var _ = ctx;
+
+        Assert.IsType<JsonResult>(await TestInfra.NovoTorneiosController(ctx, torcedor.Id).PalpitesDoPalpiteiro(torneio.Id, torcedor.Id));
+    }
+
+    [Fact]
+    public async Task A_pagina_do_ranking_avisa_a_tela_se_o_nome_abre_o_modal()
+    {
+        var (ctx, torneio, org, torcedor) = await MontarAsync(ocultar: true);
+        using var _ = ctx;
+
+        var doTorcedor = TestInfra.NovoTorneiosController(ctx, torcedor.Id);
+        await doTorcedor.Palpiteiros(torneio.Id);
+        var doOrganizador = TestInfra.NovoTorneiosController(ctx, org.Id);
+        await doOrganizador.Palpiteiros(torneio.Id);
+
+        Assert.False(doTorcedor.ViewBag.PalpitesDeCadaUmVisiveis as bool? ?? true);
+        Assert.True(doOrganizador.ViewBag.PalpitesDeCadaUmVisiveis as bool? ?? false);
+    }
+}

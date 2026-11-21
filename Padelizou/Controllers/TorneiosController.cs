@@ -466,6 +466,7 @@ namespace Padelizou.Controllers
                 var palpiteirosDoTorneio = await RankingDePalpiteiros.DoTorneioAsync(
                     _context, id, ObterJogadorIdLogado(), fasePalpiteiros);
                 ViewBag.RankingDePalpiteiros = palpiteirosDoTorneio;
+                ViewBag.PalpitesDeCadaUmVisiveis = await PalpitesDeCadaUmVisiveisAsync(torneio);
                 ViewBag.TemRankingDePalpiteiros = palpiteirosDoTorneio?.TemRanking == true;
             }
 
