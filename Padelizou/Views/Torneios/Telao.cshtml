@@ -45,6 +45,13 @@
                    background: radial-gradient(circle at 35% 35%, #d9f99d 0%, #a3e635 35%, #65a30d 75%, transparent 76%);
                    opacity: .35; filter: blur(.3vw); }
         .tl-logo { height: 4.2vw; width: auto; position: relative; }
+        /* VOLTAR (21/11/2026): a página não usa o layout do site, então não herda a seta do topo —
+           aberta no celular, era beco sem saída. Discreto pra TV, mas com tamanho mínimo de dedo. */
+        .tl-voltar { position: relative; display: inline-flex; align-items: center; justify-content: center;
+                     width: 2.6vw; height: 2.6vw; min-width: 34px; min-height: 34px; border-radius: 50%;
+                     color: #cbd5e1; text-decoration: none; font-size: max(1.4vw, 18px); line-height: 1;
+                     border: .1vw solid rgba(148,163,184,.35); opacity: .6; }
+        .tl-voltar:hover, .tl-voltar:focus { opacity: 1; color: #a3e635; }
         .tl-sep { width: .15vw; height: 4.5vw; background: #a3e635; border-radius: .1vw; position: relative; }
         .tl-sep-fina { width: .08vw; height: 4vw; background: rgba(148,163,184,.35); position: relative; }
         .tl-topo h1 { font-size: 2.6vw; line-height: 1; font-style: italic; font-weight: 800; text-transform: uppercase;
@@ -126,6 +133,7 @@
 <body>
     <header class="tl-topo">
         <div class="tl-bola"></div>
+        <a class="tl-voltar" asp-action="Details" asp-route-id="@torneio.Id" title="Voltar pro torneio" aria-label="Voltar pro torneio">&#8592;</a>
         <img class="tl-logo" src="~/image/logo-raquetes.webp" asp-append-version="true" alt="Padelizou" />
         <div class="tl-sep"></div>
         <h1>@torneio.Nome</h1>
