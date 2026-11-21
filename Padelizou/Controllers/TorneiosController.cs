@@ -1135,6 +1135,13 @@ namespace Padelizou.Controllers
                     .Select(p => p.CategoriaId)
                     .Distinct()
                     .ToListAsync();
+                // ...mas a HORA desses jogos já criados vai pra prévia: a projeção só promete o que
+                // falta, e sem isto a vaga do jogo real era a única do quadro "a definir"
+                // (🗣️ Rafael, Wallau 21/11/2026). Ver Services/AberturaJaCriada.
+                ViewBag.AberturaJaCriadaPorCategoria = partidasMataMata
+                    .Where(p => gruposEmAbertoNaChave.Contains(p.CategoriaId))
+                    .GroupBy(p => p.CategoriaId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
                 partidasMataMata = partidasMataMata
                     .Where(p => !gruposEmAbertoNaChave.Contains(p.CategoriaId))
                     .ToList();
