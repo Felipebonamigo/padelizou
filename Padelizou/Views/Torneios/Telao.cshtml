@@ -88,6 +88,11 @@
         .tl-linha { display: flex; justify-content: space-between; align-items: center; gap: 1vw; padding: .35vw 0; }
         .tl-linha-2 { border-top: .1vw solid rgba(148,163,184,.3); }
         .tl-dupla { font-size: 1.45vw; font-weight: 700; line-height: 1.15; overflow: hidden; }
+        /* A bolinha do saque (21/11/2026, TelaoDoTorneio.Saca): uma bola de padel ao lado do placar de
+           quem saca. Fica entre o nome e o número pra não empurrar nenhum dos dois. */
+        .tl-saque { flex: 0 0 auto; width: 1.3vw; height: 1.3vw; min-width: 12px; min-height: 12px; border-radius: 50%; margin-left: auto;
+                    background: radial-gradient(circle at 35% 35%, #ecfccb 0%, #bef264 40%, #84cc16 100%);
+                    box-shadow: 0 0 .6vw rgba(163,230,53,.8); }
         .tl-placar { font-size: 3.6vw; font-weight: 800; color: #a3e635; line-height: 1; }
         .tl-tiebreak { color: #facc15; font-weight: 700; font-size: 1.2vw; margin-top: .3vw; }
         .tl-palpite { margin-top: .5vw; }

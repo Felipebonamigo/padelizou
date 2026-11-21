@@ -147,3 +147,29 @@ public class TelaoDoTorneioTests
         Assert.IsType<NotFoundResult>(await TestInfra.NovoTorneiosController(ctx, 0).Telao(torneio.Id, null));
     }
 }
+
+// 🗣️ Felipe, com a foto da TV da Wallau (21/11/2026): *"aqui não tá aparecendo o sacador"*.
+public class SaqueNoTelaoTests
+{
+    [Fact]
+    public void So_a_dupla_que_saca_ganha_a_bolinha()
+    {
+        var jogo = new Padelizou.Models.Partida { Codigo = "J", Dupla1Id = 1, Dupla2Id = 2, DuplaSacandoId = 2 };
+
+        Assert.False(Padelizou.Services.TelaoDoTorneio.Saca(jogo, 1));
+        Assert.True(Padelizou.Services.TelaoDoTorneio.Saca(jogo, 2));
+        Assert.False(Padelizou.Services.TelaoDoTorneio.Saca(new Padelizou.Models.Partida { Codigo = "J", Dupla1Id = 1, Dupla2Id = 2 }, 1));
+    }
+
+    [Fact]
+    public void O_card_ao_vivo_do_telao_desenha_a_bolinha_nas_duas_linhas()
+    {
+        var pasta = AppContext.BaseDirectory;
+        while (pasta != null && !File.Exists(Path.Combine(pasta, "Padelizou", "Padelizou.csproj")))
+            pasta = Directory.GetParent(pasta)?.FullName;
+        var miolo = File.ReadAllText(Path.Combine(pasta!, "Padelizou", "Views", "Torneios", "_TelaoConteudo.cshtml"));
+
+        Assert.Contains("TelaoDoTorneio.Saca(p, p.Dupla1Id)", miolo);
+        Assert.Contains("TelaoDoTorneio.Saca(p, p.Dupla2Id)", miolo);
+    }
+}

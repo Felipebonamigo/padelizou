@@ -1,6 +1,10 @@
 # Padelizou — Status e Roadmap
 
 > **Documento vivo.** Atualizar ao fim de cada bloco de trabalho: mover itens de "Próximos" para "Feito" e ajustar prioridades.
+> Última atualização: **21/11/2026** — 🎾 **TELÃO MOSTRA QUEM ESTÁ SACANDO** (Wallau, foto da TV). ✅ **SEM MIGRATION.** ⏳ **NÃO PUBLICADO.**
+>
+> 🗣️ *"Aqui não tá aparecendo o sacador"*. Bolinha de padel (`.tl-saque`) ao lado do placar da dupla que saca, no card AO VIVO do telão — mesmo dado do card do celular (`Partida.DuplaSacandoId`), régua em `TelaoDoTorneio.Saca`. Sem saque marcado, nenhuma bolinha. Chega sozinha à TV pela atualização de 20 s. 🧪 `SaqueNoTelaoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080.
+>
 > Última atualização: **21/11/2026** — 🙈 **"OCULTAR QUEM VOTOU" NO PALPITÔMETRO, POR TORNEIO.** ⚠️ **COM MIGRATION** (`OcultarQuemPalpitou`: `Torneio.OcultarQuemPalpitou` bool, padrão false). ✅ **PUBLICADO em dev e prod** (#446, `build-1708-9ec9d29`). Decisões do Felipe: somem o "ver quem votou" de cada jogo **e o modal com os palpites de cada um no ranking** (o ranking fica; o nome vira link do perfil), e **o organizador continua vendo**.
 >
 > 🗣️ *"Para a organização do torneio, criar a opção de ocultar o nome de quem votou no palpitômetro"*. Caixa na gestão (ao lado do alcance do palpitômetro; hidden depois da caixa, `bool?` = aba antiga mantém). Ligada: `PartidasController.VerVotos` recusa (Forbid) pra quem não organiza nem é admin (`OrganizaOTorneioAsync` — sem o marcador); a lista de jogos não desenha o botão (`ViewBag.VerQuemPalpitou`). No ranking (aba/página Palpiteiros): `PalpitesDoPalpiteiro` recusa e o nome não abre o modal (`PalpitesDeCadaUmVisiveisAsync`, `ViewBag.PalpitesDeCadaUmVisiveis`). A barra de %, o total de votos e o ranking em si não mudam. Cópia de torneio leva a opção.
