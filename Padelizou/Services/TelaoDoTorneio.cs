@@ -49,4 +49,10 @@ public static class TelaoDoTorneio
 
         return new Quadro(aoVivo, proximos, resultados);
     }
+
+    // A BOLINHA DO SAQUE NA TV (21/11/2026). 🗣️ Felipe: *"aqui não tá aparecendo o sacador"*. O dado
+    // é o mesmo do card do celular (`Partida.DuplaSacandoId`, que a Mesa e o card ao vivo marcam);
+    // sem saque marcado, nenhuma bolinha — inventar um lado seria pior que não mostrar.
+    public static bool Saca(Partida jogo, int duplaId) =>
+        jogo.DuplaSacandoId is int quemSaca && quemSaca == duplaId;
 }

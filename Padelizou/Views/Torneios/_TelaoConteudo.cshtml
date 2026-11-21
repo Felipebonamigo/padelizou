@@ -61,10 +61,18 @@
             <div class="tl-sub">@(p.Categoria?.Nome) · @Fase(p)</div>
             <div class="tl-linha">
                 <span class="tl-dupla">@NomeEmDuasLinhas(p.Dupla1)</span>
+                @if (TelaoDoTorneio.Saca(p, p.Dupla1Id))
+                {
+                    <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
+                }
                 <span class="tl-placar">@(p.GamesDupla1 ?? 0)</span>
             </div>
             <div class="tl-linha tl-linha-2">
                 <span class="tl-dupla">@NomeEmDuasLinhas(p.Dupla2)</span>
+                @if (TelaoDoTorneio.Saca(p, p.Dupla2Id))
+                {
+                    <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
+                }
                 <span class="tl-placar">@(p.GamesDupla2 ?? 0)</span>
             </div>
             @if (emTieBreak)
