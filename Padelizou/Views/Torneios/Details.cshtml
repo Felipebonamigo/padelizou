@@ -7467,6 +7467,14 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                        1, 4, 2, 3 (ver Services/ArvoreDaChave), então o mapa é montado
                                        AQUI, na ordem da projeção, e entregue ao partial por número GLOBAL
                                        do jogo. Casar lá dentro, na ordem da árvore, pegaria o jogo errado. *@
+                                    @* ⚠️ O JOGO QUE JÁ NASCEU (avanço parcial) não está na projeção — ela só
+                                       promete o que falta. A hora dele vem do próprio jogo; sem isto
+                                       era a única vaga "a definir" do quadro (🗣️ Rafael, Wallau
+                                       21/11/2026). Ver Services/AberturaJaCriada. *@
+                                    var aberturaJaCriada = Padelizou.Services.AberturaJaCriada.PorVaga(
+                                        (ViewBag.AberturaJaCriadaPorCategoria as Dictionary<int, List<Padelizou.Models.Partida>>)
+                                            ?.GetValueOrDefault(categoria.Id) ?? new List<Padelizou.Models.Partida>(),
+                                        categoria.Nome);
                                     var previstosDoQuadro = new Dictionary<int, Padelizou.Services.ProximasFasesDaChave.JogoQueVem>();
                                     foreach (var rodada in rodadasProjetadas)
                                     {
@@ -7475,7 +7483,8 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
 
                                         for (int i = 0; i < rodada.Jogos.Count; i++)
                                         {
-                                            var previsto = daFase?.FirstOrDefault(j => j.Numero == i + 1);
+                                            var previsto = daFase?.FirstOrDefault(j => j.Numero == i + 1)
+                                                ?? aberturaJaCriada.GetValueOrDefault((rodada.Fase, i + 1));
                                             if (previsto != null)
                                             {
                                                 previstosDoQuadro[rodada.Jogos[i].Numero] = previsto;
