@@ -158,14 +158,42 @@ public static class ReservasDeHorario
     // como qualquer fora de ordem, e a reserva dele morre. Quem está na hora da reserva fica onde
     // está, com a quadra que TEM (mudar de quadra depois de nascer também é decisão de alguém).
     //
-    // `pessoaOcupada(jogo, quando)`: alguém deste jogo já está marcado nesse horário em OUTRO jogo?
-    // A prévia não sabe quem vai jogar, então a reserva foi feita às cegas; na hora em que a
-    // rodada nasce as duplas existem, e o encaixe respeitaria a agenda da pessoa — a reserva
-    // também tem que respeitar (revisão adversarial, 10/09/2026). Se ela poria a mesma pessoa em
-    // duas quadras no mesmo minuto, morre, e o jogo vai pra grade como qualquer outro.
+    // ⚠️ A AGENDA DA PESSOA NÃO DERRUBA A RESERVA (22/11/2026). Derrubava desde 10/09 — a reserva
+    // que punha alguém em duas quadras morria e o jogo ia pra grade, que o largou depois da própria
+    // semifinal na Wallau. Agora o prometido fica e o organizador é avisado (ver RoboDoChaveamento).
+    // A MÃO DO ORGANIZADOR VIRA A PROMESSA (22/11/2026, Wallau). 🗣️ Felipe: *"se foi movido pelo
+    // organizador, não mova novamente"*. Até aqui mexer num jogo de mata-mata já nascido (hora,
+    // troca, quadra) matava a reserva dele no reencaixe seguinte — e sem reserva ele virava "fora de
+    // ordem" na primeira rodada que nascesse em QUALQUER categoria, e o robô o remarcava. Agora quem
+    // move chama isto: a reserva do jogo passa a ser o horário e a quadra que ele tem, e `Aplicar`
+    // o trata como reservado dali em diante.
+    //
+    // `daCategoria` são os jogos da categoria inteira (o número na fase depende da fase toda — ver
+    // `NumeroNaFase`). Jogo de grupo não tem reserva (o reencaixe nunca o alcança) e fica de fora.
+    public static void FixarNaMao(DbPadelContext ctx, Partida jogo, IEnumerable<Partida> daCategoria)
+    {
+        if (!ChaveamentoMataMata.EhFaseDeMataMata(jogo.Fase) || jogo.HorarioPrevisto is not DateTime horario) return;
+        if (!NumeroNaFase(daCategoria.Where(p => p.CategoriaId == jogo.CategoriaId))
+                .TryGetValue(jogo.Id, out var numero)) return;
+
+        var reserva = ctx.ReservasDeHorario.Local.FirstOrDefault(r =>
+                          r.CategoriaId == jogo.CategoriaId && r.Fase == jogo.Fase && r.Numero == numero)
+                      ?? ctx.ReservasDeHorario.FirstOrDefault(r =>
+                          r.CategoriaId == jogo.CategoriaId && r.Fase == jogo.Fase && r.Numero == numero);
+        if (reserva == null)
+        {
+            reserva = new ReservaDeHorario { CategoriaId = jogo.CategoriaId, Fase = jogo.Fase, Numero = numero };
+            ctx.ReservasDeHorario.Add(reserva);
+        }
+
+        reserva.Horario = horario;
+        reserva.NomeQuadra = jogo.NomeQuadra;
+        reserva.OrdemNoHorario = jogo.OrdemNoHorario;
+    }
+
     public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
         IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe,
-        Func<Partida, DateTime, bool>? pessoaOcupada = null, DateTime? relogioDoTorneio = null)
+        DateTime? relogioDoTorneio = null)
     {
         var reservados = new List<Partida>();
         var mortas = new List<ReservaDeHorario>();
@@ -183,16 +211,18 @@ public static class ReservasDeHorario
                 continue;
             }
 
-            if (!Vale(reserva.Horario, abreARodadaDe(jogo), relogioDoTorneio)) continue;
+            // ⚠️ O JOGO QUE JÁ ESTÁ NA HORA DA RESERVA FICA, MESMO ATRASADO (22/11/2026). A régua de
+            // validade (fase anterior / relógio do torneio) existe pra reserva virar horário de jogo
+            // NOVO. Aplicada a quem já nasceu nela, o jogo que atrasou e ainda não entrou em quadra
+            // perdia a reserva e o robô o remarcava sozinho — 🗣️ *"se foi movido pelo organizador,
+            // não mova novamente"*. Quem está na reserva é reservado, ponto.
+            if (jogo.HorarioPrevisto == null
+                && !Vale(reserva.Horario, abreARodadaDe(jogo), relogioDoTorneio)) continue;
 
             if (jogo.HorarioPrevisto == null)
             {
-                if (pessoaOcupada != null && pessoaOcupada(jogo, reserva.Horario))
-                {
-                    mortas.Add(reserva);
-                    continue;
-                }
-
+                // A pessoa em outro jogo no mesmo minuto NÃO derruba a reserva (22/11/2026): o
+                // prometido fica, e o organizador é avisado na aba Jogos. Ver RoboDoChaveamento.
                 jogo.HorarioPrevisto = reserva.Horario;
                 jogo.NomeQuadra = reserva.NomeQuadra;
                 // A POSIÇÃO DENTRO DO HORÁRIO VEM JUNTO (10/09/2026, Services/OrdemNoHorario): a

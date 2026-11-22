@@ -1506,6 +1506,79 @@ namespace Padelizou.Controllers
                 .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
         }
 
+        // JOGADOR QUE PODE CAIR EM DUAS ELIMINATÓRIAS AO MESMO TEMPO (22/11/2026). Pra cada pessoa em
+        // mais de uma categoria: os jogos de mata-mata reais em que ela está (ainda não encerrados) +
+        // as prévias do caminho dela — a MESMA régua do "só meus jogos" (RecortarProjecaoDoJogador),
+        // pra não avisar de jogo que nunca vai ser dela. A conta mora em
+        // Services/EliminatoriasNoMesmoHorario.
+        //
+        // `todas` precisa vir com Categoria, duplas, jogadores e GrupoTorneio carregados — é a lista
+        // da grade inteira de CarregarViewBagJogosAsync (`jogosDoTorneio`).
+        private async Task<List<string>> EliminatoriasNoMesmoHorarioAsync(
+            int torneioId, List<Partida> todas, List<ProximasFasesDaChave.JogoQueVem> projetados)
+        {
+            var torneio = await _context.Torneios.AsNoTracking().FirstOrDefaultAsync(t => t.Id == torneioId);
+            if (torneio == null) return new List<string>();
+
+            var duplas = await _context.Duplas.AsNoTracking()
+                .Include(d => d.Jogador1).Include(d => d.Jogador2)
+                .Where(d => d.Categoria.TorneioId == torneioId)
+                .ToListAsync();
+
+            // Quem está em mais de uma categoria, com o nome pra mensagem.
+            var pessoas = duplas
+                .SelectMany(d => new[] { (Id: d.Jogador1Id, Nome: d.Jogador1?.Nome, d.CategoriaId),
+                                         (Id: d.Jogador2Id ?? 0, Nome: d.Jogador2?.Nome, d.CategoriaId) })
+                .Where(x => x.Id > 0)
+                .GroupBy(x => x.Id)
+                .Where(g => g.Select(x => x.CategoriaId).Distinct().Count() > 1)
+                .Select(g => (Id: g.Key, Nome: g.Select(x => x.Nome).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? $"jogador {g.Key}"))
+                .ToList();
+            if (pessoas.Count == 0) return new List<string>();
+
+            var numeroNaFase = ReservasDeHorario.NumeroNaFase(todas);
+            string RotuloDoReal(Partida p) =>
+                p.Fase == "Final" || !numeroNaFase.TryGetValue(p.Id, out var n) ? p.Fase : $"{p.Fase} {n}";
+
+            var porPessoa = pessoas.Select(pessoa =>
+            {
+                var jogos = new List<EliminatoriasNoMesmoHorario.Jogo>();
+                foreach (var p in todas)
+                    if (p.HorarioPrevisto is DateTime quando && ChaveamentoMataMata.EhFaseDeMataMata(p.Fase)
+                        && p.Status != "Finalizada" && EstouNesteJogo(p, pessoa.Id))
+                        jogos.Add(new EliminatoriasNoMesmoHorario.Jogo(p.Categoria?.Nome ?? "", RotuloDoReal(p),
+                            quando, DuracaoDaPartida.Tempo(torneio, p.Fase), Real: true));
+                foreach (var j in RecortarProjecaoDoJogador(projetados, todas, pessoa.Id))
+                    if (j.Horario is DateTime quando)
+                        jogos.Add(new EliminatoriasNoMesmoHorario.Jogo(j.Categoria, j.FaseNumerada,
+                            quando, DuracaoDaPartida.Tempo(torneio, j.Fase), Real: false));
+                return (pessoa.Nome, (IReadOnlyList<EliminatoriasNoMesmoHorario.Jogo>)jogos);
+            });
+
+            return EliminatoriasNoMesmoHorario.Possiveis(porPessoa);
+        }
+
+        private async Task<List<string>> PessoasEmDoisJogosAsync(int torneioId)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == torneioId);
+            if (torneio == null) return new List<string>();
+
+            var pendentes = await _context.Partidas.AsNoTracking()
+                .Where(p => p.TorneioId == torneioId && p.Status != "Finalizada" && p.HorarioPrevisto != null)
+                .ToListAsync();
+            if (pendentes.Count < 2) return new List<string>();
+
+            return AuditoriaDaGrade.Conferir(torneio, pendentes,
+                    torneio.Categorias.SelectMany(c => c.Duplas).ToList(), await SedesAsync(torneioId))
+                .Where(a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos)
+                .Select(a => a.Descricao)
+                .ToList();
+        }
+
         private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
             FiltroDeJogos? sequencia = null)
         {
@@ -1805,6 +1878,21 @@ namespace Padelizou.Controllers
             // (colocar no ar, placar, W.O., trocar quadra/horário, refazer grade, salvar em
             // lote) é exatamente o trabalho dele — e cada POST confere de novo no servidor.
             ViewBag.EhOrganizador = await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0);
+
+            // ⚠️ MESMA PESSOA EM DOIS JOGOS, NA CARA DE QUEM ORGANIZA (22/11/2026, Wallau). O horário
+            // prometido de uma eliminatória não se mexe mais quando ela nasce com alguém que já está
+            // em outro jogo no mesmo minuto (ver RoboDoChaveamento.AgendarNaGradeAsync) — decisão do
+            // Felipe: *"manter e avisar"*. O aviso é este: a mesma régua do "Conferir a grade", só
+            // com os jogos que ainda não acabaram (conflito de jogo encerrado é história).
+            ViewBag.PessoasEmDoisJogos = ViewBag.EhOrganizador == true
+                ? await PessoasEmDoisJogosAsync(torneioId)
+                : new List<string>();
+            // E a POSSIBILIDADE, antes de virar conflito: quem pode cair em duas eliminatórias de
+            // categorias diferentes no mesmo horário (22/11/2026). Mostrado na aprovação da chave,
+            // na aba Jogos e no Conferir a grade (_EliminatoriasNoMesmoHorario).
+            ViewBag.EliminatoriasNoMesmoHorario = ViewBag.EhOrganizador == true
+                ? await EliminatoriasNoMesmoHorarioAsync(torneioId, jogosDoTorneio, projetados)
+                : new List<string>();
 
             // Chave pública = grade travada: a lista de jogos esconde o "Ajustar horários" (o
             // servidor recusa de qualquer jeito — ver RefazerGrade/AjustarHorarios).

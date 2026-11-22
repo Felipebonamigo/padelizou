@@ -3101,6 +3101,7 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             aparecem pra ninguém — nem pros inscritos. Dá uma olhada nos jogos e nos
                             horários antes de liberar; se algo não ficou bom, dá pra sortear de novo.
                         </div>
+                        <partial name="_EliminatoriasNoMesmoHorario" model="@(ViewBag.EliminatoriasNoMesmoHorario as List<string> ?? new List<string>())" />
 
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             <a asp-controller="Torneios" asp-action="Jogos" asp-route-id="@Model.Id"
