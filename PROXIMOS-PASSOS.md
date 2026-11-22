@@ -77,6 +77,18 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
 
 ## 🐞 Defeitos achados que ficaram pra depois
 
+- [ ] ❓ **Tie-break no 6x6 do set de 6** (Wallau, 22/11/2026: *"na final não tá abrindo a opção de
+      tie-break no set — tá 6x6 o set, daí não abre o tie pra contar"*; Felipe: *"pra arrumar
+      depois"*). Por desenho, o tie-break só existe onde o limite NÃO estende
+      (`TieBreakDoJogo.PodeAcontecer` pergunta ao `FormatoDaPartida.TetoDeGames`): até 9 → 8x8; até
+      6 (par) → 5x5 estende pra 7 e o tie-break nunca abre. No padel o set de 6 vai pro tie-break
+      no 6x6 e fecha 7x6. **Proposta (falta o ok do Felipe — o "vencer por dois" foi decisão dele):**
+      no "até N par" com tie-break configurado, o (N-1)x(N-1) segue estendendo e o **NxN abre o
+      tie-break**, que fecha em (N+1)xN. Muda a régua no servidor (`PodeAcontecer`, `EmAndamento`,
+      `GamesAoFechar`) e as cópias em JS (`mesa-offline.js`, `placar-ao-vivo.js` via resposta do
+      servidor), com `conferir-mesa-offline.js`. Enquanto isso: marcar 7x6 na mão (o teto já
+      permite) e contar os pontos no papel. M.
+
 - [ ] **Categoria com 49+ duplas quebra o mata-mata** (P): 17 grupos → 34 classificados → quadro de
       64; `ChaveamentoMataMata.NomeFase(64)` cai em "Final" (2 jogos, 30 byes, sem fase seguinte).
       Falta a trava que a chave direta tem (`ProblemaNaChaveDireta`, 32).
