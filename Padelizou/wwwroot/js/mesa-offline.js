@@ -114,7 +114,7 @@ const MesaOffline = (function () {
             return Math.max(0, limite - doOutro);
         }
 
-        if (limite <= 1 || limite % 2 !== 0) return limite;
+        if (!estende(limite)) return limite;
 
         const empatouNaPenultima = e.games1 >= limite - 1 && e.games2 >= limite - 1;
         return empatouNaPenultima ? limite + 1 : limite;
@@ -143,9 +143,24 @@ const MesaOffline = (function () {
         if (emSuperTieBreak(id)) return true;
 
         if (alvoDoTieBreak(id) <= 0 || contagem === "Soma" || limite <= 1) return false;
-        if (e.games1 !== limite - 1 || e.games2 !== limite - 1) return false;
 
-        return tetoDaPartida(id, "games1") === limite;
+        const empate = empateDoTieBreak(id);
+        return e.games1 === empate && e.games2 === empate;
+    }
+
+    // Em que empate o tie-break começa — a cópia de Services/TieBreakDoJogo.EmpateDoTieBreak (22/11/2026,
+    // Wallau): a um game do fim onde o limite não estende (8x8 no até 9), e no próprio limite onde
+    // ele estende (6x6 no até 6, que fecha 7x6). "Estende?" é a mesma paridade do `tetoDaPartida`.
+    function empateDoTieBreak(id) {
+        const limite = limiteDaPartida(id);
+        return estende(limite) ? limite : limite - 1;
+    }
+
+    // O limite ESTENDE no empate a um game do fim? (até 4: 3x3 vai pro 5º; até 9: não.) A paridade
+    // mora AQUI e só aqui — teto de games e empate do tie-break perguntam pra ela
+    // (TieBreakNaTelaTests: uma cópia só, a mesma de FormatoDaPartida.TetoDeGames).
+    function estende(limite) {
+        return limite > 1 && limite % 2 === 0;
     }
 
     // O jogo está no super tie-break? Mesma régua de Services/SetsDoJogo.EmSuperTieBreak: os dois

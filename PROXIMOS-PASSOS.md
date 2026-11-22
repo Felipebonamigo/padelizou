@@ -77,7 +77,7 @@ Ordem combinada: 1 → 2 → 6 → 3 → 4, uma de cada vez, até o fim.
 
 ## 🐞 Defeitos achados que ficaram pra depois
 
-- [ ] ❓ **Tie-break no 6x6 do set de 6** (Wallau, 22/11/2026: *"na final não tá abrindo a opção de
+- [x] ✅ **Tie-break no 6x6 do set de 6** (Felipe aprovou em 22/11; feito — ver STATUS) (Wallau, 22/11/2026: *"na final não tá abrindo a opção de
       tie-break no set — tá 6x6 o set, daí não abre o tie pra contar"*; Felipe: *"pra arrumar
       depois"*). Por desenho, o tie-break só existe onde o limite NÃO estende
       (`TieBreakDoJogo.PodeAcontecer` pergunta ao `FormatoDaPartida.TetoDeGames`): até 9 → 8x8; até
