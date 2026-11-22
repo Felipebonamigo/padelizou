@@ -87,13 +87,13 @@
         .tl-card-vivo .tl-sub { margin: .2vw 0 .4vw; }
         .tl-linha { display: flex; justify-content: space-between; align-items: center; gap: 1vw; padding: .35vw 0; }
         .tl-linha-2 { border-top: .1vw solid rgba(148,163,184,.3); }
-        .tl-dupla { font-size: 1.45vw; font-weight: 700; line-height: 1.15; overflow: hidden; }
+        .tl-dupla { flex: 1 1 auto; min-width: 0; font-size: 1.45vw; font-weight: 700; line-height: 1.15; overflow: hidden; }
         /* A bolinha do saque (21/11/2026, TelaoDoTorneio.Saca): uma bola de padel ao lado do placar de
            quem saca. Fica entre o nome e o número pra não empurrar nenhum dos dois. */
-        .tl-saque { flex: 0 0 auto; width: 1.3vw; height: 1.3vw; min-width: 12px; min-height: 12px; border-radius: 50%; margin-left: auto;
+        .tl-saque { flex: 0 0 auto; width: 1.3vw; height: 1.3vw; min-width: 12px; min-height: 12px; border-radius: 50%;
                     background: radial-gradient(circle at 35% 35%, #ecfccb 0%, #bef264 40%, #84cc16 100%);
                     box-shadow: 0 0 .6vw rgba(163,230,53,.8); }
-        .tl-placar { font-size: 3.6vw; font-weight: 800; color: #a3e635; line-height: 1; }
+        .tl-placar { font-size: 3.6vw; font-weight: 800; color: #a3e635; line-height: 1; min-width: 4.4vw; text-align: right; }
         .tl-tiebreak { color: #facc15; font-weight: 700; font-size: 1.2vw; margin-top: .3vw; }
         .tl-palpite { margin-top: .5vw; }
         .tl-palpite-barra { height: .45vw; background: #334155; border-radius: .3vw; overflow: hidden; }
@@ -135,7 +135,9 @@
         .tl-atualizado.tl-velho { color: #facc15; }
         /* Os sets já fechados no card da quadra (TelaoDoTorneio.SetsFechados): pequenos, antes do
            número grande do set em jogo; o set que a dupla venceu fica aceso. */
-        .tl-set { font-size: 2vw; font-weight: 700; opacity: .45; margin-right: .8vw; min-width: 1.2em; text-align: center; }
+        /* O bloco dos números (sets + placar), sempre à direita e do mesmo tamanho nas duas linhas. */
+        .tl-numeros { flex: 0 0 auto; display: flex; align-items: center; gap: .8vw; }
+        .tl-set { font-size: 2vw; font-weight: 700; opacity: .45; width: 2.4vw; text-align: center; }
         .tl-set-ganho { opacity: 1; color: #ffd54f; }
         /* O SORTEIO DE BRINDES em destaque (Services/SorteioDeBrindes): os nomes entram um a um. */
         .tl-sorteio { text-align: center; padding: 1.2rem; margin-bottom: 1rem; border-radius: 1rem;
