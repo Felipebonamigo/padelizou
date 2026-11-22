@@ -9,6 +9,12 @@
 >
 > 🧪 `SorteioDeBrindesTests` (16): os 12 de comportamento **vistos vermelhos** com o esqueleto ("não implementado"; lista vazia), + as recusas de quantidade e a **tradução das duas consultas no Postgres** (`ToQueryString`). Suíte inteira: 8.364 verdes. ⚠️ Telas não vistas no navegador (sem Postgres nesta sessão) — conferir em `dev`.
 >
+> Última atualização: **21/11/2026** — 🕐 **QUARTAS JÁ CRIADA MOSTRA A HORA NA PRÉVIA DA CHAVE, EM VEZ DE "A DEFINIR"** (Wallau, print do Rafael). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#450, `build-1716-2c42b9d`).
+>
+> 🗣️ Rafael: *"Porque fica 'a definir' o horário?"* — Quartas 2 e 4 da 4ª Masculina, já com as duplas, sem hora na aba Chaves. Eram jogos REAIS (avanço parcial, 20:40), mas com grupo em aberto a aba desenha a prévia, cuja hora vem só da projeção — e a projeção omite o que já nasceu. `Services/AberturaJaCriada.PorVaga` dá hora/quadra/clube do jogo real por (fase, número no quadro); o controller entrega os jogos em `ViewBag.AberturaJaCriadaPorCategoria`; a view usa quando a projeção não tem a vaga.
+>
+> 🧪 `AberturaJaCriadaNaPreviaDaChaveTests` (4; **vistos vermelhos** — serviço inexistente, e o de fonte com a correção retirada). 8.348 verdes. **Visto em prod**: Wallau 4ª Masculina mostra "4 · 21/11 20:40" e "2 · 21/11 20:40".
+>
 > Última atualização: **21/11/2026** — 🎾 **TELÃO MOSTRA QUEM ESTÁ SACANDO** (Wallau, foto da TV). ✅ **SEM MIGRATION.** ✅ **PUBLICADO em dev e prod** (#448, `build-1712-5e4fc12`).
 >
 > 🗣️ *"Aqui não tá aparecendo o sacador"*. Bolinha de padel (`.tl-saque`) ao lado do placar da dupla que saca, no card AO VIVO do telão — mesmo dado do card do celular (`Partida.DuplaSacandoId`), régua em `TelaoDoTorneio.Saca`. Sem saque marcado, nenhuma bolinha. Chega sozinha à TV pela atualização de 20 s. 🧪 `SaqueNoTelaoTests` (2, **vistos vermelhos**). **Visto rodando** em 1920×1080.
