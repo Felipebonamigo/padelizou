@@ -3411,6 +3411,24 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-jl-dupla .pdz-jl-games { margin-left: auto; }
 .pdz-jl-dupla .pdz-jl-games + .pdz-palpite-pct { margin-left: .5rem; }
 
+/* O PLACAR POR SETS no card do jogo finalizado (22/11/2026, Services/PlacarNoCard): os games de cada
+   set, pequenos e de largura fixa (a coluna das duas duplas cai uma embaixo da outra), antes do
+   número grande dos sets vencidos. O vencedor de cada set fica aceso. */
+.pdz-jl-set {
+    flex: 0 0 auto;
+    width: 1.4rem;
+    text-align: center;
+    font-size: .85rem;
+    font-weight: 600;
+    opacity: .5;
+    font-variant-numeric: tabular-nums;
+}
+.pdz-jl-set.pdz-jl-set-ganho { opacity: 1; font-weight: 800; }
+/* O primeiro set empurra o bloco pra direita (o papel que o número grande tinha sozinho); o número
+   grande, depois dos sets, só se afasta um pouco. */
+.pdz-jl-dupla > :not(.pdz-jl-set) + .pdz-jl-set { margin-left: auto; }
+.pdz-jl-dupla .pdz-jl-set + .pdz-jl-games { margin-left: .5rem; }
+
 /* ── A BOLINHA DO CHECK-IN (12/09/2026) ────────────────────────────────────
    Do lado do nome de cada dupla, na ponta esquerda da linha, e só pra quem opera o dia
    de jogo. Botão de verdade (é um submit), mas sem cara de botão: numa lista de 97 jogos

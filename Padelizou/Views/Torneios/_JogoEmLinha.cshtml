@@ -27,10 +27,12 @@
     // As setas ↑↓ do menu só em jogo AGENDADO: mover quem está em quadra é reescrever o que
     // está acontecendo. O menu em si continua no AO VIVO, por causa do relógio.
     var ehAgendado = jogo.Status == "Agendada";
-    var g1 = jogo.GamesDupla1 ?? 0;
-    var g2 = jogo.GamesDupla2 ?? 0;
-    var venceu1 = Model.Finalizada && g1 > g2;
-    var venceu2 = Model.Finalizada && g2 > g1;
+    // O placar como o card mostra (Services/PlacarNoCard): em jogo de vários sets, os SETS vencidos
+    // em grande e os games de cada set ao lado; o vencedor pelos sets (ou o gravado), nunca pelos
+    // games do último set — que no super tie-break estão 0 × 0.
+    var placarNoCard = Padelizou.Services.PlacarNoCard.De(jogo);
+    var venceu1 = Model.Finalizada && placarNoCard.Vencedor == 1;
+    var venceu2 = Model.Finalizada && placarNoCard.Vencedor == 2;
 
     var r = Model.Palpites;
     bool temPalpite = r != null && r.TotalVotos > 0;
@@ -614,7 +616,11 @@
             }
             @if (Model.Finalizada)
             {
-                <span class="pdz-jl-games">@g1</span>
+                @foreach (var (gamesDoSet, ganhouOSet) in placarNoCard.Dupla1.Sets)
+                {
+                    <span class="pdz-jl-set @(ganhouOSet ? "pdz-jl-set-ganho" : "")">@gamesDoSet</span>
+                }
+                <span class="pdz-jl-games">@placarNoCard.Dupla1.Grande</span>
             }
             @if (mostraPalpitometro)
             {
@@ -651,7 +657,11 @@
             }
             @if (Model.Finalizada)
             {
-                <span class="pdz-jl-games">@g2</span>
+                @foreach (var (gamesDoSet, ganhouOSet) in placarNoCard.Dupla2.Sets)
+                {
+                    <span class="pdz-jl-set @(ganhouOSet ? "pdz-jl-set-ganho" : "")">@gamesDoSet</span>
+                }
+                <span class="pdz-jl-games">@placarNoCard.Dupla2.Grande</span>
             }
             @if (mostraPalpitometro)
             {
@@ -667,11 +677,10 @@
            REALMENTE teve tie-break: ver Services/TieBreakDoJogo.Houve. *@
         @* O PLACAR SET A SET (19/11/2026, Services/SetsDoJogo): "6-3 4-6 [10-8]". Quando ele existe,
            o super tie-break já está nele entre colchetes, e a linha do tie-break abaixo calaria. *@
-        @if (Model.Finalizada && Padelizou.Services.SetsDoJogo.Texto(jogo) is string setsDoJogo)
+        @* Com o placar por sets nas linhas das duplas (PlacarNoCard), a linha "Sets: 6-3 4-6" repetiria
+           o que já está à vista — sobra só o tie-break de jogo de um set. *@
+        @if (Model.Finalizada && placarNoCard.PorSets)
         {
-            <div class="small text-body-secondary mt-1">
-                <i class="bi bi-list-ol"></i> Sets: @setsDoJogo
-            </div>
         }
         else if (Model.Finalizada && Padelizou.Services.TieBreakDoJogo.Houve(jogo.PontosTieBreak1, jogo.PontosTieBreak2))
         {
