@@ -220,18 +220,19 @@ public class TieBreakDoJogoTests
         // assim precisa ser avisado de que aquela fase nunca terá tie-break. Sem separar as
         // duas, o aviso só apareceria depois de configurar — tarde.
         Assert.True(Padelizou.Services.TieBreakDoJogo.AFaseComporta(Ate(9, TieBreakDoJogo.Desligado)));
-        Assert.False(Padelizou.Services.TieBreakDoJogo.AFaseComporta(Ate(6, TieBreakDoJogo.Desligado)));
+        // Desde 22/11/2026 a fase PAR comporta (o 6x6 abre o tie-break — TieBreakNoEmpateDoSetTests).
+        Assert.True(Padelizou.Services.TieBreakDoJogo.AFaseComporta(Ate(6, TieBreakDoJogo.Desligado)));
         Assert.False(Padelizou.Services.TieBreakDoJogo.AFaseComporta(Soma(9, TieBreakDoJogo.Desligado)));
         Assert.False(Padelizou.Services.TieBreakDoJogo.AFaseComporta(Ate(1, 7)));
     }
 
     [Fact]
-    public void Tie_break_configurado_em_fase_de_numero_PAR_e_inerte_e_a_regua_sabe_dizer()
+    public void Tie_break_configurado_vale_tambem_na_fase_de_numero_PAR()
     {
-        // O padrão da final é 6 games. Configurar "até 10 pontos" ali não faz nada, porque o
-        // 5x5 vai pro 7º game — e o organizador precisa ser avisado na tela, senão ele
-        // configura, confia e descobre na quadra.
-        Assert.False(TieBreakDoJogo.PodeAcontecer(Ate(6, 10)));
+        // Até 21/11/2026 a fase par era inerte (o 5x5 ia pro 7º game e o tie-break nunca vinha).
+        // 🗣️ Felipe, 22/11/2026, depois do 6x6 da final da Wallau: *"pode fazer assim"* — o 6x6 abre
+        // o tie-break e fecha 7x6 (TieBreakNoEmpateDoSetTests). O 5x5 continua indo pro 7º game.
+        Assert.True(TieBreakDoJogo.PodeAcontecer(Ate(6, 10)));
         Assert.True(TieBreakDoJogo.PodeAcontecer(Ate(9, 7)));
         Assert.False(TieBreakDoJogo.PodeAcontecer(Ate(9, TieBreakDoJogo.Desligado)));
         Assert.False(TieBreakDoJogo.PodeAcontecer(Soma(9, 7)));

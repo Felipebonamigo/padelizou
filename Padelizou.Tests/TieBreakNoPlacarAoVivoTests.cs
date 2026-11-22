@@ -128,23 +128,22 @@ public class TieBreakNoPlacarAoVivoTests
     }
 
     [Fact]
-    public async Task Fase_de_numero_PAR_nao_grava_ponto_nenhum()
+    public async Task Fase_de_numero_PAR_grava_os_pontos_do_tie_break_do_4x4()
     {
-        // Num jogo até 4 o desempate é o 5º game, não um tie-break — a régua diz que ali ele
-        // nem pode acontecer, e o POST obedece à régua.
+        // Até 21/11/2026 a fase par não gravava ponto nenhum (o tie-break nunca vinha). Desde 22/11
+        // (Felipe, depois do 6x6 da Wallau) o NxN abre o tie-break: num jogo até 4, o 4x4.
         var (ctx, torneio, aoVivo, org) = await ComJogosNoArAsync(1, gamesDaFase: 4, pontosDoTieBreak: 7);
         using var _ = ctx;
 
         var controller = TestInfra.NovoTorneiosController(ctx, org.Id);
         await controller.SalvarPlacaresAoVivo(
             torneio.Id, new[] { aoVivo[0].Id },
-            games1: new[] { 3 }, games2: new[] { 3 },
+            games1: new[] { 4 }, games2: new[] { 4 },
             voltarPara: null,
             pontos1: new[] { 5 }, pontos2: new[] { 3 });
 
         var depois = await ctx.Partidas.FindAsync(aoVivo[0].Id);
-        Assert.Null(depois!.PontosTieBreak1);
-        Assert.Null(depois.PontosTieBreak2);
+        Assert.Equal((5, 3), (depois!.PontosTieBreak1, depois.PontosTieBreak2));
     }
 
     [Fact]

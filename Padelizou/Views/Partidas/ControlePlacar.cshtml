@@ -226,6 +226,8 @@
                         }
                         else if (Padelizou.Services.TieBreakDoJogo.PodeAcontecer(formato))
                         {
+                            // Onde o tie-break começa: 8x8 no até 9, 6x6 no até 6 (TieBreakDoJogo.EmpateDoTieBreak).
+                            var empateDoTb = Padelizou.Services.TieBreakDoJogo.EmpateDoTieBreak(formato);
                             var noTieBreak = Padelizou.Services.TieBreakDoJogo.EmAndamento(
                                 formato, Model.GamesDupla1 ?? 0, Model.GamesDupla2 ?? 0);
 
@@ -237,19 +239,19 @@
                                 <p class="small text-body-secondary mb-2">
                                     @if (noTieBreak)
                                     {
-                                        <strong>O jogo está @(formato.Games - 1)x@(formato.Games - 1): é tie-break agora.</strong>
+                                        <strong>O jogo está @(empateDoTb)x@(empateDoTb): é tie-break agora.</strong>
                                         <text>
                                             Fecha com @formato.PontosTieBreak pontos e <strong>2 de frente</strong>
                                             (@(formato.PontosTieBreak)x@(formato.PontosTieBreak - 1) não fecha) — e quem
-                                            fechar leva o @(formato.Games)º game, ou seja, o placar vira
-                                            @(formato.Games) x @(formato.Games - 1).
+                                            fechar leva o @(empateDoTb + 1)º game, ou seja, o placar vira
+                                            @(empateDoTb + 1) x @(empateDoTb).
                                         </text>
                                     }
                                     else
                                     {
                                         <text>
-                                            Vale quando o jogo chega a <strong>@(formato.Games - 1)x@(formato.Games - 1)</strong>.
-                                            Quem fecha o tie-break leva o @(formato.Games)º game — o placar de games é o
+                                            Vale quando o jogo chega a <strong>@(empateDoTb)x@(empateDoTb)</strong>.
+                                            Quem fecha o tie-break leva o @(empateDoTb + 1)º game — o placar de games é o
                                             que decide o jogo, aqui fica só a contagem.
                                         </text>
                                     }

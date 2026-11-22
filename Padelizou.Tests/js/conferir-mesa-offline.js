@@ -216,6 +216,27 @@ function campoDoCorpo(corpo, nome) {
         conferir('fora do 1x1 a contagem não aparece', t.elementos.tieBreak_1.hidden === true);
     }
 
+    // 6. O TIE-BREAK DO SET DE 6 (22/11/2026, Wallau): no até 6 com tie-break, o 6x6 abre a contagem
+    //    (o 5x5 continua indo pro 7º game), e fechar marca o 7º game de quem venceu: 7x6.
+    {
+        const t = mesa({ tela: { gamesA_1: 6, gamesB_1: 6, pontosA_1: 7, pontosB_1: 5 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 6, partidas: [{ id: 1, games: 6, tieBreak: 7 }] });
+        conferir('até 6: o 6x6 abre a contagem do tie-break', t.elementos.tieBreak_1.hidden === false);
+        conferir('e o atalho de fechar aparece (7-5)', t.elementos.tieBreakFechar_1.hidden === false);
+        t.MesaOffline.fecharTieBreak(1);
+        conferir('fechar escreve 7x6', t.elementos.gamesA_1.innerText === 7 && t.elementos.gamesB_1.innerText === 6);
+    }
+    {
+        const t = mesa({ tela: { gamesA_1: 5, gamesB_1: 5 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 6, partidas: [{ id: 1, games: 6, tieBreak: 7 }] });
+        conferir('até 6: o 5x5 NÃO abre (vai pro 7º game)', t.elementos.tieBreak_1.hidden === true);
+    }
+    {
+        const t = mesa({ tela: { gamesA_1: 8, gamesB_1: 8 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 9, partidas: [{ id: 1, games: 9, tieBreak: 7 }] });
+        conferir('até 9: o 8x8 continua abrindo', t.elementos.tieBreak_1.hidden === false);
+    }
+
     console.log('');
     console.log(falhas === 0 ? 'TUDO VERDE' : falhas + ' FALHA(S)');
     process.exit(falhas === 0 ? 0 : 1);

@@ -56,11 +56,23 @@ public static class TieBreakDoJogo
     // teto vira 5 (o desempate é um game a mais, o "vencer por dois" que já está em quadra e
     // que o Felipe decidiu não mexer). Escrever `% 2` de novo aqui seria a segunda cópia da
     // regra — exatamente como o `limiteGames: 9` cravado no JavaScript sobreviveu tanto tempo.
+    //
+    // ⚠️ E DESDE 22/11/2026 O LIMITE PAR TAMBÉM TEM TIE-BREAK (Wallau: *"tá 6x6 o set, daí não abre o
+    // tie pra contar"*; Felipe aprovou, *"alguns jogos vão até 6, alguns até 9; o tie-break alguns
+    // até 7 e outros até 9"*). O (N-1)x(N-1) segue estendendo — o "vencer por dois" de games não
+    // mudou —, e o NxN abre o tie-break, que fecha em (N+1)xN: o 6x6 → 7x6 do padel. Onde o empate
+    // acontece é `EmpateDoTieBreak`, que continua perguntando ao TetoDeGames.
     public static bool PodeAcontecer(FormatoDaPartida.Formato formato) =>
         formato.PontosTieBreak > 0
         && !formato.EhSoma
-        && formato.Games > 1
-        && FormatoDaPartida.TetoDeGames(formato.Games, formato.Games - 1, formato.Games - 1) == formato.Games;
+        && formato.Games > 1;
+
+    // Em que empate de games o tie-break começa: a um game do fim onde o limite não estende (8x8 no
+    // até 9), e no próprio limite onde ele estende (6x6 no até 6).
+    public static int EmpateDoTieBreak(FormatoDaPartida.Formato formato) =>
+        FormatoDaPartida.TetoDeGames(formato.Games, formato.Games - 1, formato.Games - 1) == formato.Games
+            ? formato.Games - 1
+            : formato.Games;
 
     // A FASE comporta tie-break, esquecendo o que foi configurado? É a pergunta da TELA DE
     // CONFIGURAÇÃO, e ela é diferente do `PodeAcontecer`: ali o organizador ainda não escolheu o
@@ -70,11 +82,11 @@ public static class TieBreakDoJogo
     public static bool AFaseComporta(FormatoDaPartida.Formato formato) =>
         PodeAcontecer(formato with { PontosTieBreak = PontosPadrao });
 
-    // O jogo está EM tie-break agora? É o empate a um game do fim — 8x8 no jogo até 9.
+    // O jogo está EM tie-break agora? É o empate do `EmpateDoTieBreak` — 8x8 no até 9, 6x6 no até 6.
     public static bool EmAndamento(FormatoDaPartida.Formato formato, int games1, int games2) =>
         PodeAcontecer(formato)
-        && games1 == formato.Games - 1
-        && games2 == formato.Games - 1;
+        && games1 == EmpateDoTieBreak(formato)
+        && games2 == EmpateDoTieBreak(formato);
 
     // Dá pra fechar? ⚠️ Alcançar o alvo NÃO basta: precisa de 2 pontos de frente (decisão do
     // Felipe, 12/09/2026) — 7-6 continua, 8-6 fecha. É o "vencer por dois" que o projeto já
@@ -98,8 +110,8 @@ public static class TieBreakDoJogo
     public static (int Games1, int Games2)? GamesAoFechar(FormatoDaPartida.Formato formato, int pontos1, int pontos2) =>
         LadoQueFechou(formato, pontos1, pontos2) switch
         {
-            1 => (formato.Games, formato.Games - 1),
-            2 => (formato.Games - 1, formato.Games),
+            1 => (EmpateDoTieBreak(formato) + 1, EmpateDoTieBreak(formato)),
+            2 => (EmpateDoTieBreak(formato), EmpateDoTieBreak(formato) + 1),
             _ => null
         };
 
