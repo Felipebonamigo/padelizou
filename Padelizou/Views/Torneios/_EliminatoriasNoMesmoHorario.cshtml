@@ -6,16 +6,17 @@
    aprovação da chave, na aba Jogos e no Conferir a grade. *@
 @if (Model.Count > 0)
 {
-    <div class="alert alert-warning small mb-2" role="alert">
-        <strong><i class="bi bi-people-fill"></i>
+    @* Fechado por padrão, como o aviso de jogador em dois jogos (AvisosDeConflitoMinimizadosTests). *@
+    <details class="alert alert-warning small mb-2" role="alert">
+        <summary style="cursor: pointer;"><strong><i class="bi bi-people-fill"></i>
             @(Model.Count == 1 ? "1 jogador pode cair em duas eliminatórias no mesmo horário"
                                : $"{Model.Count} casos de jogador que pode cair em duas eliminatórias no mesmo horário")</strong>
-        — a prévia não sabe quem vai passar. Se quiser evitar, troque o horário de uma delas antes.
+        — toque pra ver. A prévia não sabe quem vai passar; se quiser evitar, troque o horário de uma delas antes.</summary>
         <ul class="mb-0 mt-1 ps-3">
             @foreach (var aviso in Model)
             {
                 <li>@aviso</li>
             }
         </ul>
-    </div>
+    </details>
 }
