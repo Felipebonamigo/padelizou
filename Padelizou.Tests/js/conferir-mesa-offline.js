@@ -36,6 +36,9 @@ function mesa(opcoes) {
         daTela(chave).innerText = String((opcoes.tela || {})[chave] || 0);
     }
     daTela('mesaStatus');
+    // O bloco da contagem do tie-break e o atalho de fechar, que a view desenha escondidos.
+    daTela('tieBreak_1').hidden = true;
+    daTela('tieBreakFechar_1').hidden = true;
 
     const guardado = {};
     const armazem = {
@@ -192,6 +195,25 @@ function campoDoCorpo(corpo, nome) {
         conferir('a tela adota o placar do servidor', t.elementos.gamesA_1.innerText === 7);
         conferir('e a tarja NÃO diz sincronizado', t.tarja().indexOf('Placar sincronizado') === -1);
         conferir('ela diz que o toque não valeu', t.tarja().length > 0);
+    }
+
+    // 5. O SUPER TIE-BREAK DA FINAL DE 2 SETS (22/11/2026, Wallau). 🗣️ "o mini tie-break da final
+    //    de dois sets não tá aparecendo a contagem de um por um". No 1x1 em sets os games estão
+    //    zerados, e a régua do 8x8 nunca acendia o bloco. O servidor diz por partida em que empate
+    //    de sets ele acontece (`superTieBreak`, 0 = não decide assim — Services/SetsDoJogo).
+    {
+        const t = mesa({ tela: { setsA_1: 1, setsB_1: 1 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 6, partidas: [{ id: 1, games: 6, tieBreak: 0, superTieBreak: 1 }] });
+        conferir('super tie-break: a contagem aparece no 1x1 em sets', t.elementos.tieBreak_1.hidden === false);
+        conferir('e o atalho que marca o último GAME fica escondido (ali fecha o set)', t.elementos.tieBreakFechar_1.hidden === true);
+
+        t.MesaOffline.tocar(1, 'pontos1', 1);
+        conferir('o +1 conta o ponto', t.elementos.pontosA_1.innerText === 1);
+    }
+    {
+        const t = mesa({ tela: { setsA_1: 1, setsB_1: 0 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 6, partidas: [{ id: 1, games: 6, tieBreak: 0, superTieBreak: 1 }] });
+        conferir('fora do 1x1 a contagem não aparece', t.elementos.tieBreak_1.hidden === true);
     }
 
     console.log('');

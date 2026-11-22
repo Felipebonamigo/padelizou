@@ -199,7 +199,11 @@
             // torneio que não usa contagem — e a Mesa então nem desenha o bloco.
             var f = Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, p);
             int alvo = Padelizou.Services.TieBreakDoJogo.PodeAcontecer(f) ? f.PontosTieBreak : 0;
-            return $"{{id:{p.Id},games:{f.Games},tieBreak:{alvo}}}";
+            // O SUPER TIE-BREAK (22/11/2026, Wallau): em que empate de sets ele acontece (1 = o 1x1
+            // da final de 2 sets), pra Mesa acender a contagem ponto a ponto — 0 = não decide assim.
+            int superTie = Padelizou.Services.SetsDoJogo.DecideNoSuperTieBreak(f)
+                ? Padelizou.Services.SetsDoJogo.SetsParaVencer(f) - 1 : 0;
+            return $"{{id:{p.Id},games:{f.Games},tieBreak:{alvo},superTieBreak:{superTie}}}";
         });
 
     // A CONTAGEM é do torneio inteiro (não muda por fase), então vai uma vez só. Vem do

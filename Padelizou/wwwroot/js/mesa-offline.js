@@ -13,6 +13,9 @@ const MesaOffline = (function () {
     let torneioId, limiteGames, contagem, chaveFila;
     const limitePorPartida = {};
     const alvoDoTieBreakPorPartida = {};   // partidaId -> pontos do tie-break (0 = desligado)
+    // partidaId -> sets de cada lado no empate que vai pro SUPER TIE-BREAK (1 = o 1x1 da final de
+    // 2 sets); ausente = o jogo não decide assim. Vem pronto de Services/SetsDoJogo.
+    const superTieBreakPorPartida = {};
     const estado = {};          // partidaId -> {games1, games2, sets1, sets2, pontos1, pontos2}
     let fila = {};              // partidaId -> {placar: {...estado, marcadoEm}, finalizar: ms|null}
     let enviando = false;
@@ -64,7 +67,8 @@ const MesaOffline = (function () {
         const fechar = document.getElementById("tieBreakFechar_" + id);
         if (!fechar) return;
 
-        const lado = ladoQueFechaOTieBreak(id);
+        // No super tie-break o atalho não serve: ele marca o último GAME, e ali quem fecha é o set.
+        const lado = emSuperTieBreak(id) ? 0 : ladoQueFechaOTieBreak(id);
         fechar.hidden = !ligado || lado === 0;
         fechar.setAttribute("data-lado", String(lado));
     }
@@ -134,10 +138,22 @@ const MesaOffline = (function () {
         const limite = limiteDaPartida(id);
         const e = estado[id];
 
+        // O SUPER TIE-BREAK (22/11/2026, Wallau): no empate de sets que decide o jogo os games
+        // estão zerados, e a régua do 8x8 abaixo nunca acendia a contagem.
+        if (emSuperTieBreak(id)) return true;
+
         if (alvoDoTieBreak(id) <= 0 || contagem === "Soma" || limite <= 1) return false;
         if (e.games1 !== limite - 1 || e.games2 !== limite - 1) return false;
 
         return tetoDaPartida(id, "games1") === limite;
+    }
+
+    // O jogo está no super tie-break? Mesma régua de Services/SetsDoJogo.EmSuperTieBreak: os dois
+    // lados com os sets do empate que decide. Quem fecha ali é o set, não um game.
+    function emSuperTieBreak(id) {
+        const empate = superTieBreakPorPartida[id] || 0;
+        const e = estado[id];
+        return empate > 0 && e.sets1 === empate && e.sets2 === empate;
     }
 
     // Que lado pode FECHAR o tie-break agora (1, 2 ou 0 pra ninguém). ⚠️ Alcançar o alvo não
@@ -339,6 +355,7 @@ const MesaOffline = (function () {
             // O alvo do tie-break vem por partida pelo mesmo motivo do limite de games: é
             // configuração por FASE (7 nos grupos, 10 na final). Ausente = desligado.
             if (item && typeof item === "object" && item.tieBreak > 0) alvoDoTieBreakPorPartida[id] = item.tieBreak;
+            if (item && typeof item === "object" && item.superTieBreak > 0) superTieBreakPorPartida[id] = item.superTieBreak;
 
             estado[id] = {
                 games1: parseInt(document.getElementById("gamesA_" + id)?.innerText) || 0,
