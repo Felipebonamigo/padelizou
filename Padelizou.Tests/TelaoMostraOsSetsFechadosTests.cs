@@ -44,4 +44,27 @@ public class TelaoMostraOsSetsFechadosTests
 
         Assert.Contains("TelaoDoTorneio.SetsFechados(p)", view);
     }
+
+    // ALINHADOS (22/11/2026). 🗣️ Vini, com a foto da TV: *"deu certo mas ficou deslocado"* — a
+    // bolinha do saque só existe na linha de quem saca, e o set vinha logo depois dela: o 6 de cima
+    // colava na bolinha e o 2 de baixo ia pro meio. Sets e placar moram num bloco só, à direita,
+    // com largura fixa por set — as colunas das duas linhas caem uma embaixo da outra.
+    [Fact]
+    public void Sets_e_placar_ficam_num_bloco_so_a_direita_nas_duas_linhas()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, ".github", "workflows"))) dir = dir.Parent;
+        var raiz = dir?.FullName ?? throw new DirectoryNotFoundException();
+        var conteudo = TestInfra.SemComentarios(File.ReadAllText(Path.Combine(raiz, "Padelizou", "Views", "Torneios", "_TelaoConteudo.cshtml")));
+        var pagina = File.ReadAllText(Path.Combine(raiz, "Padelizou", "Views", "Torneios", "Telao.cshtml"));
+
+        foreach (var lado in new[] { "1", "2" })
+        {
+            var bloco = conteudo.IndexOf("<span class=\"tl-numeros\">", conteudo.IndexOf($"set.Vencedor == {lado}", StringComparison.Ordinal) - 400, StringComparison.Ordinal);
+            var set = conteudo.IndexOf($"set.Games{lado}", StringComparison.Ordinal);
+            var placar = conteudo.IndexOf($"p.GamesDupla{lado} ?? 0", StringComparison.Ordinal);
+            Assert.True(bloco >= 0 && bloco < set && set < placar, $"linha {lado}: sets e placar fora do bloco tl-numeros");
+        }
+        Assert.Contains(".tl-numeros {", pagina);
+    }
 }

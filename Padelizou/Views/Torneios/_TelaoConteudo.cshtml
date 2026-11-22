@@ -81,12 +81,15 @@
                 {
                     <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
                 }
-                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque. *@
-                @foreach (var set in setsFechados)
-                {
-                    <span class="tl-set @(set.Vencedor == 1 ? "tl-set-ganho" : "")">@(set.Games1)</span>
-                }
-                <span class="tl-placar">@(p.GamesDupla1 ?? 0)</span>
+                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque — num bloco só,
+                   à direita, pra coluna das duas linhas cair uma embaixo da outra com ou sem a bolinha. *@
+                <span class="tl-numeros">
+                    @foreach (var set in setsFechados)
+                    {
+                        <span class="tl-set @(set.Vencedor == 1 ? "tl-set-ganho" : "")">@(set.Games1)</span>
+                    }
+                    <span class="tl-placar">@(p.GamesDupla1 ?? 0)</span>
+                </span>
             </div>
             <div class="tl-linha tl-linha-2">
                 <span class="tl-dupla">@NomeEmDuasLinhas(p.Dupla2)</span>
@@ -94,12 +97,15 @@
                 {
                     <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
                 }
-                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque. *@
-                @foreach (var set in setsFechados)
-                {
-                    <span class="tl-set @(set.Vencedor == 2 ? "tl-set-ganho" : "")">@(set.Games2)</span>
-                }
-                <span class="tl-placar">@(p.GamesDupla2 ?? 0)</span>
+                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque — num bloco só,
+                   à direita, pra coluna das duas linhas cair uma embaixo da outra com ou sem a bolinha. *@
+                <span class="tl-numeros">
+                    @foreach (var set in setsFechados)
+                    {
+                        <span class="tl-set @(set.Vencedor == 2 ? "tl-set-ganho" : "")">@(set.Games2)</span>
+                    }
+                    <span class="tl-placar">@(p.GamesDupla2 ?? 0)</span>
+                </span>
             </div>
             @if (emTieBreak)
             {
