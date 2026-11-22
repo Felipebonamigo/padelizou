@@ -1,0 +1,21 @@
+@model List<string>
+@* JOGADOR QUE PODE CAIR EM DUAS ELIMINATÓRIAS AO MESMO TEMPO (22/11/2026, Wallau).
+   🗣️ Felipe: "tem que prever isso na hora do chaveamento, avisando que existe a possibilidade de
+   tal jogador jogar as duas eliminatórias por categorias diferentes no mesmo horário". A lista vem
+   de TorneiosController.EliminatoriasNoMesmoHorarioAsync — só pra quem organiza. Mostrado na
+   aprovação da chave, na aba Jogos e no Conferir a grade. *@
+@if (Model.Count > 0)
+{
+    <div class="alert alert-warning small mb-2" role="alert">
+        <strong><i class="bi bi-people-fill"></i>
+            @(Model.Count == 1 ? "1 jogador pode cair em duas eliminatórias no mesmo horário"
+                               : $"{Model.Count} casos de jogador que pode cair em duas eliminatórias no mesmo horário")</strong>
+        — a prévia não sabe quem vai passar. Se quiser evitar, troque o horário de uma delas antes.
+        <ul class="mb-0 mt-1 ps-3">
+            @foreach (var aviso in Model)
+            {
+                <li>@aviso</li>
+            }
+        </ul>
+    </div>
+}

@@ -630,6 +630,22 @@ namespace Padelizou.Controllers
 
             ViewBag.PorQueNaoCoube = porQueNaoCoube;
 
+            // Quem pode cair em duas eliminatórias de categorias diferentes no mesmo horário
+            // (22/11/2026). A lista precisa da grade com duplas, jogadores e grupos — a régua do
+            // "só meus jogos" recorta a prévia pelo grupo de cada um.
+            var gradeComGente = await _context.Partidas
+                .Include(p => p.Categoria)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2!)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2!)
+                .Include(p => p.Dupla1).ThenInclude(d => d.GrupoTorneio)
+                .Include(p => p.Dupla2).ThenInclude(d => d.GrupoTorneio)
+                .Where(p => p.TorneioId == id)
+                .ToListAsync();
+            ViewBag.EliminatoriasNoMesmoHorario = await EliminatoriasNoMesmoHorarioAsync(
+                id, gradeComGente, await ProjetarProximasFasesAsync(id, gradeComGente));
+
             return View(AuditoriaDaGrade.Conferir(torneio, jogos, duplas, sedesDaConferencia));
         }
 
@@ -1720,6 +1736,9 @@ namespace Padelizou.Controllers
             var linkAntes = jogo.LinkTransmissao;
 
             TrocaDeQuadra.Mudar(jogo, quadra, ocupante, cameras);
+            // A mão do organizador vira a promessa dos dois: o robô não os remarca mais (22/11/2026).
+            ReservasDeHorario.FixarNaMao(_context, jogo, doTorneio);
+            if (ocupante != null) ReservasDeHorario.FixarNaMao(_context, ocupante, doTorneio);
             await _context.SaveChangesAsync();
 
             TempData["Sucesso"] = (ocupante != null
@@ -2111,6 +2130,10 @@ namespace Padelizou.Controllers
             Receber(ladoA, slotDeB, slotDePrevia: ladoB.Previsto != null, ordemDeB);
             Receber(ladoB, slotDeA, slotDePrevia: ladoA.Previsto != null, ordemDeA);
 
+            // A mão do organizador vira a promessa do jogo real: o robô não o remarca mais (22/11/2026).
+            foreach (var lado in new[] { ladoA, ladoB })
+                if (lado.Real is Partida realTrocado) ReservasDeHorario.FixarNaMao(_context, realTrocado, partidas);
+
             // A CONFERÊNCIA: a prévia refeita com a troca tem que mostrar cada jogo previsto no
             // slot que ele recebeu. Se não mostra, a reserva não vale (o jogo cairia antes de a
             // fase anterior da categoria dele terminar) — e aí nada é gravado: o contexto é da
@@ -2292,6 +2315,8 @@ namespace Padelizou.Controllers
 
                 HorarioNaMao.Definir(real, hora, quadraQueMudou != null ? null
                     : HorarioNaMao.ClubeParaOHorario(real, hora, torneio, quadrasDoTorneio));
+                // A mão do organizador vira a promessa: o robô não o remarca mais (22/11/2026).
+                ReservasDeHorario.FixarNaMao(_context, real, partidas);
                 rotulo = $"o jogo {real.Codigo}";
             }
 

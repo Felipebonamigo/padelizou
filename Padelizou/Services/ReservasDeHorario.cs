@@ -161,6 +161,36 @@ public static class ReservasDeHorario
     // ⚠️ A AGENDA DA PESSOA NÃO DERRUBA A RESERVA (22/11/2026). Derrubava desde 10/09 — a reserva
     // que punha alguém em duas quadras morria e o jogo ia pra grade, que o largou depois da própria
     // semifinal na Wallau. Agora o prometido fica e o organizador é avisado (ver RoboDoChaveamento).
+    // A MÃO DO ORGANIZADOR VIRA A PROMESSA (22/11/2026, Wallau). 🗣️ Felipe: *"se foi movido pelo
+    // organizador, não mova novamente"*. Até aqui mexer num jogo de mata-mata já nascido (hora,
+    // troca, quadra) matava a reserva dele no reencaixe seguinte — e sem reserva ele virava "fora de
+    // ordem" na primeira rodada que nascesse em QUALQUER categoria, e o robô o remarcava. Agora quem
+    // move chama isto: a reserva do jogo passa a ser o horário e a quadra que ele tem, e `Aplicar`
+    // o trata como reservado dali em diante.
+    //
+    // `daCategoria` são os jogos da categoria inteira (o número na fase depende da fase toda — ver
+    // `NumeroNaFase`). Jogo de grupo não tem reserva (o reencaixe nunca o alcança) e fica de fora.
+    public static void FixarNaMao(DbPadelContext ctx, Partida jogo, IEnumerable<Partida> daCategoria)
+    {
+        if (!ChaveamentoMataMata.EhFaseDeMataMata(jogo.Fase) || jogo.HorarioPrevisto is not DateTime horario) return;
+        if (!NumeroNaFase(daCategoria.Where(p => p.CategoriaId == jogo.CategoriaId))
+                .TryGetValue(jogo.Id, out var numero)) return;
+
+        var reserva = ctx.ReservasDeHorario.Local.FirstOrDefault(r =>
+                          r.CategoriaId == jogo.CategoriaId && r.Fase == jogo.Fase && r.Numero == numero)
+                      ?? ctx.ReservasDeHorario.FirstOrDefault(r =>
+                          r.CategoriaId == jogo.CategoriaId && r.Fase == jogo.Fase && r.Numero == numero);
+        if (reserva == null)
+        {
+            reserva = new ReservaDeHorario { CategoriaId = jogo.CategoriaId, Fase = jogo.Fase, Numero = numero };
+            ctx.ReservasDeHorario.Add(reserva);
+        }
+
+        reserva.Horario = horario;
+        reserva.NomeQuadra = jogo.NomeQuadra;
+        reserva.OrdemNoHorario = jogo.OrdemNoHorario;
+    }
+
     public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
         IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe,
         DateTime? relogioDoTorneio = null)
@@ -181,7 +211,13 @@ public static class ReservasDeHorario
                 continue;
             }
 
-            if (!Vale(reserva.Horario, abreARodadaDe(jogo), relogioDoTorneio)) continue;
+            // ⚠️ O JOGO QUE JÁ ESTÁ NA HORA DA RESERVA FICA, MESMO ATRASADO (22/11/2026). A régua de
+            // validade (fase anterior / relógio do torneio) existe pra reserva virar horário de jogo
+            // NOVO. Aplicada a quem já nasceu nela, o jogo que atrasou e ainda não entrou em quadra
+            // perdia a reserva e o robô o remarcava sozinho — 🗣️ *"se foi movido pelo organizador,
+            // não mova novamente"*. Quem está na reserva é reservado, ponto.
+            if (jogo.HorarioPrevisto == null
+                && !Vale(reserva.Horario, abreARodadaDe(jogo), relogioDoTorneio)) continue;
 
             if (jogo.HorarioPrevisto == null)
             {

@@ -133,6 +133,15 @@ public class ReservaDeHorarioTests
     private static Task<List<ReservaDeHorario>> ReservasAsync(Cenario c) =>
         c.Ctx.ReservasDeHorario.OrderBy(r => r.CategoriaId).ToListAsync();
 
+    // Só as reservas de jogos que AINDA VÃO NASCER (prévias). Desde 22/11/2026 o jogo real movido à
+    // mão também tem a dele (ReservasDeHorario.FixarNaMao) — é ela que o segura no lugar.
+    private static async Task<List<ReservaDeHorario>> ReservasDePreviasAsync(Cenario c)
+    {
+        var existem = ReservasDeHorario.JogosQueExistem(
+            await c.Ctx.Partidas.AsNoTracking().Where(p => p.TorneioId == c.Torneio.Id).ToListAsync());
+        return (await ReservasAsync(c)).Where(r => !existem.Contains((r.CategoriaId, r.Fase, r.Numero))).ToList();
+    }
+
     private static async Task ReservarAsync(Cenario c, Categoria categoria, string fase, int numero, string hora,
         string quadra = "Quadra Central")
     {
@@ -213,7 +222,7 @@ public class ReservaDeHorarioTests
 
         Assert.Equal(finalA.Horario, (await JogoAsync(c, "B2")).HorarioPrevisto);
 
-        var reserva = Assert.Single(await ReservasAsync(c));
+        var reserva = Assert.Single(await ReservasDePreviasAsync(c));
         Assert.Equal(c.A.Id, reserva.CategoriaId);
         Assert.Equal("Final", reserva.Fase);
         Assert.Equal(1, reserva.Numero);
@@ -392,9 +401,11 @@ public class ReservaDeHorarioTests
 
         await FinalizarAsync(c, "B1", "B2", "B3", "B4");
 
+        // Desde 22/11/2026 a troca feita na mão também PRENDE o jogo: ele não volta pra reserva das
+        // 22:00 e nem é reencaixado pelo robô — fica onde o organizador pôs.
         var final = await c.Ctx.Partidas.SingleAsync(p => p.Id == finalA.Id);
-        Assert.NotEqual(As("22:00"), final.HorarioPrevisto);
-        Assert.Empty(await ReservasAsync(c));
+        Assert.Equal(As("20:55"), final.HorarioPrevisto);
+        Assert.Empty(await ReservasDePreviasAsync(c));
     }
 
     // ═══ HORÁRIO NA MÃO (10/09/2026) ═══
@@ -460,7 +471,7 @@ public class ReservaDeHorarioTests
         Assert.Equal(finalA.Horario, depois.HorarioPrevisto);
         Assert.Null(depois.NomeQuadra);
 
-        var reserva = Assert.Single(await ReservasAsync(c));
+        var reserva = Assert.Single(await ReservasDePreviasAsync(c));
         Assert.Equal(As("20:33"), reserva.Horario);
         Assert.Null(reserva.NomeQuadra);
     }
@@ -511,7 +522,7 @@ public class ReservaDeHorarioTests
         c.Ctx.ChangeTracker.Clear();
 
         Assert.Equal("Quadra 1", (await JogoAsync(c, "B2")).NomeQuadra);
-        var reserva = Assert.Single(await ReservasAsync(c));
+        var reserva = Assert.Single(await ReservasDePreviasAsync(c));
         Assert.Equal("Quadra 2", reserva.NomeQuadra);
     }
 
@@ -538,7 +549,7 @@ public class ReservaDeHorarioTests
         var depois = FinalDa(await PreviaAsync(c), c.A);
         Assert.Equal(antes.Horario, depois.Horario);
         Assert.Equal(destino, depois.Quadra);
-        var reserva = Assert.Single(await ReservasAsync(c));
+        var reserva = Assert.Single(await ReservasDePreviasAsync(c));
         Assert.Equal((antes.Horario, destino), (reserva.Horario, reserva.NomeQuadra));
     }
 
@@ -605,7 +616,7 @@ public class ReservaDeHorarioTests
         Assert.Null(controller.TempData["Erro"]);
         c.Ctx.ChangeTracker.Clear();
         Assert.Equal(As("20:55"), (await JogoAsync(c, "A2")).HorarioPrevisto);
-        Assert.Empty(await ReservasAsync(c));
+        Assert.Empty(await ReservasDePreviasAsync(c));
 
         // ⚠️ NA MENSAGEM DE SUCESSO, e não num TempData["Aviso"] à parte: a página Jogos (de onde
         // o organizador troca) só mostra Sucesso e Erro — o aviso separado era descartado calado.
@@ -647,6 +658,97 @@ public class ReservaDeHorarioTests
         Assert.IsType<ViewResult>(await controller.Jogos(c.Torneio.Id, null, null));
         List<string> avisos = Assert.IsType<List<string>>((object?)controller.ViewBag.PessoasEmDoisJogos);
         Assert.Contains(avisos, a => a.Contains("Final", StringComparison.Ordinal));
+    }
+
+    // ═══ JOGO MOVIDO À MÃO NÃO É MOVIDO DE NOVO (22/11/2026, Wallau) ═══
+    //
+    // 🗣️ Felipe: *"Se foi movido pelo organizador, não mova novamente"*. Até aqui a troca na mão
+    // matava a reserva do jogo (horário ≠ reserva → morta), e sem reserva ele virava "fora de ordem"
+    // na próxima rodada que nascesse em qualquer categoria — e o robô o remarcava. Agora a mão do
+    // organizador VIRA a promessa: o jogo fica onde ele pôs.
+    //
+    // O cenário: Final da A nasce, o organizador a põe às 22:30 (Quadra Central, uma quadra só). Aí
+    // as Quartas da B acabam e a Semifinal da B nasce — e a Final da A, posto maior, fica "fora de
+    // ordem" em relação a ela.
+    private async Task<Partida> FinalDaAMovidaAsync(Cenario c, Func<Padelizou.Controllers.TorneiosController, Partida, Task> mover)
+    {
+        await FinalizarAsync(c, "A1", "A2");
+        var final = await c.Ctx.Partidas.SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
+        await mover(Controller(c), final);
+        c.Ctx.ChangeTracker.Clear();
+        return await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == final.Id);
+    }
+
+    [Fact]
+    public async Task Jogo_com_horario_definido_a_mao_nao_e_remarcado_quando_outra_categoria_avanca()
+    {
+        var c = Montar(faseDaB: "Quartas de Final");
+        var movida = await FinalDaAMovidaAsync(c, (ctrl, final) =>
+            ctrl.DefinirHorario(c.Torneio.Id, ReferenciaDoJogo.Real(final.Id).ToString(), As("22:30")));
+        Assert.Equal(As("22:30"), movida.HorarioPrevisto);
+
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");   // nasce a Semifinal da B
+
+        var depois = await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == movida.Id);
+        Assert.Equal(As("22:30"), depois.HorarioPrevisto);
+        Assert.Equal(movida.NomeQuadra, depois.NomeQuadra);
+    }
+
+    [Fact]
+    public async Task Jogo_com_quadra_trocada_a_mao_nao_e_remarcado_quando_outra_categoria_avanca()
+    {
+        var c = Montar(faseDaB: "Quartas de Final", quadras: new[] { "Quadra 1", "Quadra 2" });
+        var movida = await FinalDaAMovidaAsync(c, (ctrl, final) =>
+            ctrl.TrocarQuadra(c.Torneio.Id, final.Id, OutraQuadra(final.NomeQuadra)));
+
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");
+
+        var depois = await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == movida.Id);
+        Assert.Equal(movida.HorarioPrevisto, depois.HorarioPrevisto);
+        Assert.Equal(movida.NomeQuadra, depois.NomeQuadra);
+    }
+
+    [Fact]
+    public async Task Jogos_trocados_de_horario_a_mao_nao_sao_remarcados_quando_outra_categoria_avanca()
+    {
+        // A Final da A troca de horário com a Quartas 4 da B (jogo real, 20:55).
+        var c = Montar(faseDaB: "Quartas de Final");
+        var b4 = await JogoAsync(c, "B4");
+        var movida = await FinalDaAMovidaAsync(c, (ctrl, final) =>
+            ctrl.TrocarHorario(c.Torneio.Id, final.Id.ToString(), b4.Id.ToString()));
+        Assert.Equal(As("20:55"), movida.HorarioPrevisto);
+
+        // As quartas da B acabam e as semis dela nascem — a Final da A fica fora de ordem.
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");
+
+        var depois = await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == movida.Id);
+        Assert.Equal(As("20:55"), depois.HorarioPrevisto);
+    }
+
+    [Fact]
+    public async Task Jogo_que_atrasou_na_hora_prometida_nao_e_remarcado_sozinho()
+    {
+        // A Final da A nasce na reserva das 20:44. O torneio anda (as quartas da B são jogadas e
+        // encerradas depois disso, o relógio do torneio passa das 20:44) e a Final ainda não entrou
+        // em quadra. Quando a Semifinal da B nasce, a Final não pode ser remarcada pelo robô.
+        var c = Montar(faseDaB: "Quartas de Final");
+        await ReservarAsync(c, c.A, "Final", 1, "21:30");
+        await FinalizarAsync(c, "A1", "A2");
+        var final = await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
+        Assert.Equal(As("21:30"), final.HorarioPrevisto);
+
+        // As quartas da B são jogadas tarde: o relógio do torneio passa das 21:30.
+        foreach (var codigo in new[] { "B1", "B2", "B3", "B4" })
+        {
+            var jogo = await c.Ctx.Partidas.SingleAsync(p => p.Codigo == codigo);
+            jogo.HorarioPrevisto = As("21:40");
+        }
+        await c.Ctx.SaveChangesAsync();
+        c.Ctx.ChangeTracker.Clear();
+        await FinalizarAsync(c, "B1", "B2", "B3", "B4");
+
+        var depois = await c.Ctx.Partidas.AsNoTracking().SingleAsync(p => p.Id == final.Id);
+        Assert.Equal(As("21:30"), depois.HorarioPrevisto);
     }
 
     [Fact]

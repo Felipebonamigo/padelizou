@@ -121,8 +121,12 @@ public class ReservaNaFaseQueNasceuPelaMetadeTests
         c.Ctx.ChangeTracker.Clear();
         Assert.Equal(As("13:10"), (await c.Ctx.Partidas.SingleAsync(p => p.Id == c.S1.Id)).HorarioPrevisto);
         Assert.Equal(As("12:20"), (await Semifinal2Async(c)).Horario);
-        var reserva = Assert.Single(await c.Ctx.ReservasDeHorario.ToListAsync());
-        Assert.Equal((2, As("12:20")), (reserva.Numero, reserva.Horario));
+        // A da Semifinal 2 (prévia). Desde 22/11/2026 a Semifinal 1 real, movida na mão, também tem a
+        // dela — é o que a segura nas 13:10 (ReservasDeHorario.FixarNaMao).
+        var reservas = await c.Ctx.ReservasDeHorario.ToListAsync();
+        var reserva = Assert.Single(reservas, r => r.Numero == 2);
+        Assert.Equal(As("12:20"), reserva.Horario);
+        Assert.Equal(As("13:10"), Assert.Single(reservas, r => r.Numero == 1).Horario);
 
         // A Final espera as DUAS semis — inclusive a real, que agora é a mais tarde (13:10).
         var controllerDaTela = Controller(c);
