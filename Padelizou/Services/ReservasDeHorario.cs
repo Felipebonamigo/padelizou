@@ -158,14 +158,12 @@ public static class ReservasDeHorario
     // como qualquer fora de ordem, e a reserva dele morre. Quem está na hora da reserva fica onde
     // está, com a quadra que TEM (mudar de quadra depois de nascer também é decisão de alguém).
     //
-    // `pessoaOcupada(jogo, quando)`: alguém deste jogo já está marcado nesse horário em OUTRO jogo?
-    // A prévia não sabe quem vai jogar, então a reserva foi feita às cegas; na hora em que a
-    // rodada nasce as duplas existem, e o encaixe respeitaria a agenda da pessoa — a reserva
-    // também tem que respeitar (revisão adversarial, 10/09/2026). Se ela poria a mesma pessoa em
-    // duas quadras no mesmo minuto, morre, e o jogo vai pra grade como qualquer outro.
+    // ⚠️ A AGENDA DA PESSOA NÃO DERRUBA A RESERVA (22/11/2026). Derrubava desde 10/09 — a reserva
+    // que punha alguém em duas quadras morria e o jogo ia pra grade, que o largou depois da própria
+    // semifinal na Wallau. Agora o prometido fica e o organizador é avisado (ver RoboDoChaveamento).
     public static Aplicacao Aplicar(IEnumerable<Partida> jogos, Func<Partida, int> numeroDe,
         IReadOnlyCollection<ReservaDeHorario> reservas, Func<Partida, DateTime?> abreARodadaDe,
-        Func<Partida, DateTime, bool>? pessoaOcupada = null, DateTime? relogioDoTorneio = null)
+        DateTime? relogioDoTorneio = null)
     {
         var reservados = new List<Partida>();
         var mortas = new List<ReservaDeHorario>();
@@ -187,12 +185,8 @@ public static class ReservasDeHorario
 
             if (jogo.HorarioPrevisto == null)
             {
-                if (pessoaOcupada != null && pessoaOcupada(jogo, reserva.Horario))
-                {
-                    mortas.Add(reserva);
-                    continue;
-                }
-
+                // A pessoa em outro jogo no mesmo minuto NÃO derruba a reserva (22/11/2026): o
+                // prometido fica, e o organizador é avisado na aba Jogos. Ver RoboDoChaveamento.
                 jogo.HorarioPrevisto = reserva.Horario;
                 jogo.NomeQuadra = reserva.NomeQuadra;
                 // A POSIÇÃO DENTRO DO HORÁRIO VEM JUNTO (10/09/2026, Services/OrdemNoHorario): a

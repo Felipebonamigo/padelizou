@@ -1009,6 +1009,24 @@
            depois que os jogos começaram, e é justamente aí que o furo dói. *@
         @if (ehOrganizador)
         {
+            @* MESMA PESSOA EM DOIS JOGOS (22/11/2026, Wallau). O horário prometido não se mexe mais
+               sozinho quando a eliminatória nasce com alguém em outro jogo no mesmo minuto — decisão
+               do Felipe: "manter e avisar". Este é o aviso. Ver PessoasEmDoisJogosAsync. *@
+            var pessoasEmDoisJogos = ViewBag.PessoasEmDoisJogos as List<string> ?? new List<string>();
+            if (pessoasEmDoisJogos.Count > 0)
+            {
+                <div class="alert alert-danger small mb-2" role="alert">
+                    <strong><i class="bi bi-exclamation-triangle-fill"></i>
+                        @(pessoasEmDoisJogos.Count == 1 ? "Jogador em dois jogos ao mesmo tempo" : $"{pessoasEmDoisJogos.Count} conflitos de jogador em dois jogos ao mesmo tempo")</strong>
+                    — ajuste o horário de um deles na mão.
+                    <ul class="mb-0 mt-1 ps-3">
+                        @foreach (var conflito in pessoasEmDoisJogos)
+                        {
+                            <li>@conflito</li>
+                        }
+                    </ul>
+                </div>
+            }
             <a asp-controller="Torneios" asp-action="ConferirGrade" asp-route-id="@Model.TorneioId"
                class="btn btn-sm btn-outline-secondary mb-2">
                 <i class="bi bi-clipboard-check"></i> Conferir a grade

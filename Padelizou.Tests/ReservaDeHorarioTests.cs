@@ -614,14 +614,17 @@ public class ReservaDeHorarioTests
         Assert.Contains("3ª Feminina", mensagem);
     }
 
+    // ⚠️ A REGRA VIROU AO CONTRÁRIO EM 22/11/2026 (Wallau). Até aqui a reserva com a pessoa em
+    // outro jogo MORRIA e o jogo ia "pra grade" — a primeira quadra livre do torneio. 🗣️ Rafael:
+    // *"do nada, um jogo que era às 22:20 mudou pra amanhã 13h"* — a Quartas 3 da 4ª, com o Matheus
+    // Gerlach também na Quartas 1 da 3ª às 22:20, foi parar DEPOIS da própria semifinal. Decisão do
+    // Felipe: **manter o horário prometido e avisar o organizador** — quem resolve é ele, na mão.
     [Fact]
-    public async Task A_reserva_nao_poe_a_mesma_pessoa_em_duas_quadras_no_mesmo_minuto()
+    public async Task A_reserva_vale_mesmo_com_a_pessoa_em_outro_jogo_e_o_organizador_e_avisado()
     {
         // O jogador P joga na A e na B. A Final da A está reservada pras 22:00 na Quadra 1, e a B
         // tem um jogo com P às 22:00 na Quadra 2 (a prévia não sabe quem joga, então não tinha como
-        // evitar). Quando a final nasce e P está nela, a reserva não pode valer: o encaixe respeita
-        // a agenda da pessoa, e a reserva também tem que respeitar. A final vai pra grade e a
-        // reserva morre.
+        // evitar).
         var c = Montar(quadras: new[] { "Quadra 1", "Quadra 2" });
         await ReservarAsync(c, c.A, "Final", 1, "22:00", quadra: "Quadra 1");
 
@@ -635,9 +638,15 @@ public class ReservaDeHorarioTests
         await FinalizarAsync(c, "A1", "A2");           // a Dupla1 da A1 (com P) vence e vai pra final
 
         var final = await c.Ctx.Partidas.SingleAsync(p => p.CategoriaId == c.A.Id && p.Fase == "Final");
-        Assert.NotNull(final.HorarioPrevisto);
-        Assert.NotEqual(As("22:00"), final.HorarioPrevisto);
-        Assert.Empty(await ReservasAsync(c));
+        Assert.Equal(As("22:00"), final.HorarioPrevisto);   // o prometido não se mexe
+        Assert.Equal("Quadra 1", final.NomeQuadra);
+
+        // E quem organiza vê o conflito na aba Jogos, com o nome do jogo.
+        c.Ctx.ChangeTracker.Clear();
+        var controller = Controller(c);
+        Assert.IsType<ViewResult>(await controller.Jogos(c.Torneio.Id, null, null));
+        List<string> avisos = Assert.IsType<List<string>>((object?)controller.ViewBag.PessoasEmDoisJogos);
+        Assert.Contains(avisos, a => a.Contains("Final", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -1502,6 +1502,27 @@ namespace Padelizou.Controllers
                 .ToDictionaryAsync(p => (p.PartidaId, p.JogadorId), p => p.ChegouEm);
         }
 
+        private async Task<List<string>> PessoasEmDoisJogosAsync(int torneioId)
+        {
+            var torneio = await _context.Torneios
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador1)
+                .Include(t => t.Categorias).ThenInclude(c => c.Duplas).ThenInclude(d => d.Jogador2)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == torneioId);
+            if (torneio == null) return new List<string>();
+
+            var pendentes = await _context.Partidas.AsNoTracking()
+                .Where(p => p.TorneioId == torneioId && p.Status != "Finalizada" && p.HorarioPrevisto != null)
+                .ToListAsync();
+            if (pendentes.Count < 2) return new List<string>();
+
+            return AuditoriaDaGrade.Conferir(torneio, pendentes,
+                    torneio.Categorias.SelectMany(c => c.Duplas).ToList(), await SedesAsync(torneioId))
+                .Where(a => a.Regra == AuditoriaDaGrade.PessoaEmDoisJogos)
+                .Select(a => a.Descricao)
+                .ToList();
+        }
+
         private async Task CarregarViewBagJogosAsync(int torneioId, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,
             FiltroDeJogos? sequencia = null)
         {
@@ -1801,6 +1822,15 @@ namespace Padelizou.Controllers
             // (colocar no ar, placar, W.O., trocar quadra/horário, refazer grade, salvar em
             // lote) é exatamente o trabalho dele — e cada POST confere de novo no servidor.
             ViewBag.EhOrganizador = await PodeOperarODiaDeJogoAsync(torneioId, ObterJogadorIdLogado() ?? 0);
+
+            // ⚠️ MESMA PESSOA EM DOIS JOGOS, NA CARA DE QUEM ORGANIZA (22/11/2026, Wallau). O horário
+            // prometido de uma eliminatória não se mexe mais quando ela nasce com alguém que já está
+            // em outro jogo no mesmo minuto (ver RoboDoChaveamento.AgendarNaGradeAsync) — decisão do
+            // Felipe: *"manter e avisar"*. O aviso é este: a mesma régua do "Conferir a grade", só
+            // com os jogos que ainda não acabaram (conflito de jogo encerrado é história).
+            ViewBag.PessoasEmDoisJogos = ViewBag.EhOrganizador == true
+                ? await PessoasEmDoisJogosAsync(torneioId)
+                : new List<string>();
 
             // Chave pública = grade travada: a lista de jogos esconde o "Ajustar horários" (o
             // servidor recusa de qualquer jeito — ver RefazerGrade/AjustarHorarios).

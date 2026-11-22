@@ -775,34 +775,23 @@ public class RoboDoChaveamento
         DateTime? AbreARodadaDe(int posto, int categoriaId) =>
             LevasDaGrade.PisoDaCategoria(torneio, jaMarcados, posto, categoriaId);
 
-        // A agenda das PESSOAS, pra reserva não pôr alguém em duas quadras no mesmo minuto
-        // (revisão adversarial, 10/09/2026). Mesma régua por intervalo do GradeDeJogos.Encaixar
-        // (`Cruza`: menos de uma partida de distância). Os fora de ordem ficam de fora da conta
-        // porque vão ser remarcados de qualquer jeito.
+        // A agenda das pessoas vai pro encaixe (abaixo), pros jogos SEM reserva.
+        //
+        // ⚠️ A RESERVA NÃO OLHA MAIS A AGENDA DAS PESSOAS (22/11/2026, Wallau). Olhava desde 10/09: com
+        // alguém em outro jogo no horário reservado, a reserva morria e o jogo ia pra primeira quadra
+        // livre do torneio. 🗣️ Rafael: *"do nada, um jogo que era às 22:20 mudou pra amanhã 13h"* —
+        // a Quartas 3 da 4ª (com o Matheus Gerlach, que também estava na Quartas 1 da 3ª às 22:20)
+        // caiu DEPOIS da própria semifinal. Decisão do Felipe: **manter o horário prometido e
+        // avisar o organizador** — o aviso é a lista de "mesma pessoa em dois jogos" da aba Jogos
+        // (TorneiosController.CarregarViewBagJogosAsync). Ver ReservaDeHorarioTests.
         var ocupantesPorDupla = await OcupantesPorDuplaAsync(torneioId.Value);
-        // Cada jogo pelo tempo da FASE dele (Services/DuracaoDaPartida): a final de 80 min ainda
-        // ocupa quem está nela na vaga de 50 seguinte.
-        TimeSpan DuracaoDe(Partida p) => DuracaoDaPartida.Tempo(torneio, p.Fase);
-        var queFicamOndeEstao = jaMarcados.Except(forasDeOrdem).ToList();
-
-        int[] Pessoas(Partida p) => Gente(p.Dupla1Id).Concat(Gente(p.Dupla2Id)).ToArray();
-        int[] Gente(int duplaId) =>
-            ocupantesPorDupla.TryGetValue(duplaId, out var pessoas) && pessoas.Length > 0 ? pessoas : new[] { -duplaId };
-        bool PessoaOcupada(Partida jogo, DateTime quando)
-        {
-            var minhas = Pessoas(jogo);
-            return queFicamOndeEstao.Any(p => !ReferenceEquals(p, jogo)
-                && p.HorarioPrevisto is DateTime h
-                && h < quando + DuracaoDe(jogo) && quando < h + DuracaoDe(p)
-                && Pessoas(p).Intersect(minhas).Any());
-        }
 
         // ⚠️ O RELÓGIO DO TORNEIO ENTRA AQUI, e é o que faltava (13/09/2026): este é o ponto em
         // que a reserva vira HORÁRIO DE JOGO DE VERDADE, e uma reserva de um horário que o
         // torneio já deixou pra trás não pode ressuscitar. A prévia continua sem relógio — ela
         // projeta um torneio que ainda vai acontecer inteiro.
         var (reservados, mortas) = ReservasDeHorario.Aplicar(candidatos, NumeroDe, reservas,
-            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId), PessoaOcupada,
+            p => AbreARodadaDe(OrdemDasFases.Posto(p.Fase), p.CategoriaId),
             relogioDoTorneio: ReservasDeHorario.RelogioDoTorneio(todos));
 
         // A reserva de um jogo que já saiu dela (trocado depois de nascer) morre aqui — quem chama
