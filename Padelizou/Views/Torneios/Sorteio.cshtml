@@ -1,0 +1,122 @@
+@model List<Padelizou.Models.SorteioDoTorneio>
+@*
+    O SORTEIO DE BRINDES — a tela do organizador (21/11/2026). A regra mora em
+    Services/SorteioDeBrindes; aqui é o formulário, a roleta e o histórico.
+
+    🎲 A ROLETA É TEATRO: o servidor já sorteou e gravou quando esta página abre com `animar`. Os
+    nomes giram (os de quem concorre) e param nos ganhadores gravados — na ordem gravada.
+*@
+@{
+    var torneio = (Padelizou.Models.Torneio)ViewBag.Torneio;
+    ViewData["Title"] = $"Sorteio de brindes — {torneio.Nome}";
+    var nomes = ViewBag.NomesNaRoleta as List<string> ?? new List<string>();
+    var animar = ViewBag.Animar as int?;
+    var doAnimar = animar is int idAnimar ? Model.FirstOrDefault(s => s.Id == idAnimar) : null;
+    var valendo = Model.Where(s => s.SubstituidoPorId == null).ToList();
+}
+
+<div class="container mt-4 mb-5" style="max-width: 760px;">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+        <div>
+            <h3 class="fw-bold mb-0"><i class="bi bi-gift-fill"></i> Sorteio de brindes</h3>
+            <div class="text-muted">@torneio.Nome · @nomes.Count pessoa(s) na chave concorrem</div>
+        </div>
+        <a asp-action="Details" asp-route-id="@torneio.Id" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left"></i> Voltar ao torneio
+        </a>
+    </div>
+
+    @if (TempData["Erro"] is string erro)
+    {
+        <div class="alert alert-danger">@erro</div>
+    }
+
+    @if (doAnimar != null)
+    {
+        var ganhadores = doAnimar.Ganhadores.OrderBy(g => g.Ordem).Select(g => g.Jogador.NomeNaTela).ToList();
+        <div class="card border-0 shadow mb-4 text-center" id="pdzRoleta"
+             data-nomes='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(nomes.Select(Padelizou.Services.NomeBonito.Formatar)))'
+             data-ganhadores='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(ganhadores))'>
+            <div class="card-body py-4">
+                <div class="text-muted small mb-1">@(doAnimar.Premio ?? "Sorteio")</div>
+                <div id="pdzRoletaNome" class="display-6 fw-bold my-3" style="min-height: 1.4em;">…</div>
+                <ol id="pdzRoletaSaiu" class="list-unstyled fs-5 mb-0"></ol>
+            </div>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form asp-action="Sortear" asp-route-id="@torneio.Id" method="post" class="row g-3 align-items-end">
+                <div class="col-sm-6">
+                    <label class="form-label small fw-semibold" for="premio">Prêmio (opcional)</label>
+                    <input id="premio" name="premio" maxlength="120" class="form-control" placeholder="Ex.: Kit Head" />
+                </div>
+                <div class="col-sm-3">
+                    <label class="form-label small fw-semibold" for="quantidade">Quantos nomes</label>
+                    <input id="quantidade" name="quantidade" type="number" min="1" max="@Math.Max(1, nomes.Count)" value="1" required class="form-control" />
+                </div>
+                <div class="col-sm-3">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill"><i class="bi bi-shuffle"></i> Sortear</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="true" id="quemJaGanhouConcorre" name="quemJaGanhouConcorre" />
+                        <label class="form-check-label small" for="quemJaGanhouConcorre">Quem já ganhou concorre de novo</label>
+                    </div>
+                    @if (valendo.Count > 0)
+                    {
+                        <label class="form-label small fw-semibold mt-2" for="substituir">Este sorteio…</label>
+                        <select id="substituir" name="substituir" class="form-select form-select-sm">
+                            <option value="">… é mais um (adiciona aos que já saíram)</option>
+                            @foreach (var s in valendo)
+                            {
+                                <option value="@s.Id">… refaz o de @s.FeitoEm.ToString("HH:mm")@(s.Premio != null ? $" ({s.Premio})" : "") — o antigo fica riscado</option>
+                            }
+                        </select>
+                    }
+                    <div class="form-text">Concorre quem está na chave (lista de espera fica de fora), uma chance por pessoa. Os ganhadores são avisados no app e por e-mail, e o resultado aparece na página do torneio e no telão.</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Count > 0)
+    {
+        <partial name="_SorteiosDoTorneio" model="Model" />
+    }
+</div>
+
+@if (doAnimar != null)
+{
+    <script>
+        (function () {
+            var card = document.getElementById('pdzRoleta');
+            var nomes = JSON.parse(card.dataset.nomes || '[]');
+            var ganhadores = JSON.parse(card.dataset.ganhadores || '[]');
+            var visor = document.getElementById('pdzRoletaNome');
+            var lista = document.getElementById('pdzRoletaSaiu');
+            if (nomes.length === 0) nomes = ganhadores;
+
+            // Um nome por vez: gira rápido e desacelera, então para no ganhador gravado.
+            function girar(ganhador, pronto) {
+                var passo = 0, espera = 50;
+                (function tique() {
+                    if (espera > 400) {
+                        visor.textContent = ganhador;
+                        var li = document.createElement('li');
+                        li.textContent = '🎉 ' + ganhador;
+                        lista.appendChild(li);
+                        setTimeout(pronto, 900);
+                        return;
+                    }
+                    visor.textContent = nomes[passo++ % nomes.length];
+                    espera = Math.round(espera * 1.08);
+                    setTimeout(tique, espera);
+                })();
+            }
+            var i = 0;
+            (function proximo() { if (i < ganhadores.length) girar(ganhadores[i++], proximo); })();
+        })();
+    </script>
+}

@@ -1656,6 +1656,24 @@ namespace Padelizou.Migrations
                     b.ToTable("FundamentoDoProfessor");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.GanhadorDoSorteio", b =>
+                {
+                    b.Property<int>("SorteioId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("JogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer");
+
+                    b.HasKey("SorteioId", "JogadorId");
+
+                    b.HasIndex("JogadorId");
+
+                    b.ToTable("GanhadorDoSorteio");
+                });
+
             modelBuilder.Entity("Padelizou.Models.HistoricoDePadelimetro", b =>
                 {
                     b.Property<int>("Id")
@@ -3569,6 +3587,43 @@ namespace Padelizou.Migrations
                     b.ToTable("SolicitacoesRegistroResultados");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.SorteioDoTorneio", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("FeitoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("FeitoPorJogadorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Premio")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("Quantidade")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SubstituidoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("SubstituidoPorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TorneioId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TorneioId");
+
+                    b.ToTable("SorteioDoTorneio");
+                });
+
             modelBuilder.Entity("Padelizou.Models.Time", b =>
                 {
                     b.Property<int>("Id")
@@ -5021,6 +5076,25 @@ namespace Padelizou.Migrations
                     b.Navigation("Professor");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.GanhadorDoSorteio", b =>
+                {
+                    b.HasOne("Padelizou.Models.Jogador", "Jogador")
+                        .WithMany()
+                        .HasForeignKey("JogadorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Padelizou.Models.SorteioDoTorneio", "Sorteio")
+                        .WithMany("Ganhadores")
+                        .HasForeignKey("SorteioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Jogador");
+
+                    b.Navigation("Sorteio");
+                });
+
             modelBuilder.Entity("Padelizou.Models.HistoricoDePadelimetro", b =>
                 {
                     b.HasOne("Padelizou.Models.Categoria", "Categoria")
@@ -5816,6 +5890,17 @@ namespace Padelizou.Migrations
                     b.Navigation("Torneio");
                 });
 
+            modelBuilder.Entity("Padelizou.Models.SorteioDoTorneio", b =>
+                {
+                    b.HasOne("Padelizou.Models.Torneio", "Torneio")
+                        .WithMany()
+                        .HasForeignKey("TorneioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Torneio");
+                });
+
             modelBuilder.Entity("Padelizou.Models.TimeAdministrador", b =>
                 {
                     b.HasOne("Padelizou.Models.Jogador", "Jogador")
@@ -6186,6 +6271,11 @@ namespace Padelizou.Migrations
             modelBuilder.Entity("Padelizou.Models.SessaoGrupo", b =>
                 {
                     b.Navigation("Confirmacoes");
+                });
+
+            modelBuilder.Entity("Padelizou.Models.SorteioDoTorneio", b =>
+                {
+                    b.Navigation("Ganhadores");
                 });
 
             modelBuilder.Entity("Padelizou.Models.Time", b =>

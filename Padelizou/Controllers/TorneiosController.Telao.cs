@@ -46,6 +46,11 @@ namespace Padelizou.Controllers
                 ? new Dictionary<int, Padelizou.ViewModels.PalpiteResumoVM>()
                 : await _palpites.ObterResumosAsync(quadro.AoVivo.Select(p => p.Id), null);
 
+            // O sorteio de brinde dos últimos 3 minutos entra em destaque (Services/SorteioDeBrindes).
+            ViewBag.SorteioRecente = await SorteioDeBrindes.Recente(_context, id, DateTime.Now)
+                .Include(s => s.Ganhadores).ThenInclude(g => g.Jogador)
+                .AsNoTracking().FirstOrDefaultAsync();
+
             if (parcial) return PartialView("_TelaoConteudo", quadro);
 
             // O QR leva pra página do torneio — quem está no clube abre no celular e acompanha.

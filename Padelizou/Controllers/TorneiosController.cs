@@ -1343,6 +1343,10 @@ namespace Padelizou.Controllers
                     .Where(c => c.TorneioId == id)
                     .ToDictionaryAsync(c => c.JogadorId, c => c.Tamanho);
 
+            // Os sorteios de brinde (Services/SorteioDeBrindes), públicos como o resto da página: o
+            // resultado à vista é o que impede o "foi armado". Os refeitos vêm junto, riscados.
+            ViewBag.Sorteios = await SorteiosDoTorneioAsync(id);
+
             return View(torneio);
         }
         public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,

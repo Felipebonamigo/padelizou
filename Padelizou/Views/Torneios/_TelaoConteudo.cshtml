@@ -40,6 +40,21 @@
     var colunas = Math.Max(1, Math.Min(aoVivo.Count, 4));
 }
 
+@* O SORTEIO DE BRINDES dos últimos 3 minutos, em destaque (Services/SorteioDeBrindes.Recente). *@
+@if (ViewBag.SorteioRecente is Padelizou.Models.SorteioDoTorneio sorteio)
+{
+    <section class="tl-sorteio">
+        <h2>🎁 SORTEIO@(sorteio.Premio != null ? " · " + sorteio.Premio : "")</h2>
+        <ol>
+            @{ var ordem = 0; }
+            @foreach (var g in sorteio.Ganhadores.OrderBy(g => g.Ordem))
+            {
+                <li style="animation-delay: @(ordem++ * 800)ms">@g.Jogador.NomeNaTela</li>
+            }
+        </ol>
+    </section>
+}
+
 <div class="tl-faixa">
     <h2><span class="tl-ponto"></span> JOGOS AO VIVO</h2>
     <span class="tl-contagem">@(Model.AoVivo.Count == 1 ? "1 QUADRA" : Model.AoVivo.Count + " QUADRAS")</span>

@@ -133,6 +133,13 @@
         .tl-rodape .tl-div { width: .1vw; height: 3vw; background: rgba(148,163,184,.4); }
         .tl-atualizado { position: absolute; right: 8vw; color: #64748b; font-size: .8vw; }
         .tl-atualizado.tl-velho { color: #facc15; }
+        /* O SORTEIO DE BRINDES em destaque (Services/SorteioDeBrindes): os nomes entram um a um. */
+        .tl-sorteio { text-align: center; padding: 1.2rem; margin-bottom: 1rem; border-radius: 1rem;
+                      background: linear-gradient(135deg, #ffd54f, #ff8f00); color: #1a1a1a; }
+        .tl-sorteio h2 { margin: 0 0 .4rem; font-size: 2.2rem; }
+        .tl-sorteio ol { list-style: none; padding: 0; margin: 0; font-size: 2.6rem; font-weight: 800; }
+        .tl-sorteio li { opacity: 0; animation: tl-sorteio-entra .6s ease-out forwards; }
+        @@keyframes tl-sorteio-entra { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>

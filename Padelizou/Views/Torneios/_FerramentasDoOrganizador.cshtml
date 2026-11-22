@@ -78,6 +78,14 @@
                title="Tela pra TV do clube: jogos ao vivo, próximos e resultados, atualizando sozinha.">
                 <i class="bi bi-tv"></i> Abrir telão
             </a>
+            @* O SORTEIO DE BRINDES (21/11/2026): sorteia N nomes entre quem está na chave, com
+               roleta na tela; o resultado fica gravado e aparece na página e no telão
+               (Services/SorteioDeBrindes). *@
+            <a asp-action="Sorteio" asp-route-id="@Model.Id"
+               class="btn btn-sm btn-outline-primary rounded-pill px-3"
+               title="Sorteie brindes entre quem está na chave: o resultado aparece aqui na página e no telão.">
+                <i class="bi bi-gift"></i> Sorteio de brindes
+            </a>
             @if (ViewBag.ClubesDoTorneio is IReadOnlyList<(int Id, string Nome)> clubesDoTelao && clubesDoTelao.Count > 1)
             {
                 foreach (var (clubeId, nomeDoClube) in clubesDoTelao)
