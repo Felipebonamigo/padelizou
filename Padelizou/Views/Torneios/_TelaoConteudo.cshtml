@@ -68,6 +68,7 @@
     @foreach (var p in aoVivo)
     {
         bool emTieBreak = TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2);
+        var setsFechados = TelaoDoTorneio.SetsFechados(p);
         <article class="tl-card-vivo">
             <div class="tl-card-topo">
                 <span class="tl-quadra"><span class="tl-icone-quadra"></span>@Quadra(p).ToUpperInvariant()</span>
@@ -80,6 +81,11 @@
                 {
                     <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
                 }
+                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque. *@
+                @foreach (var set in setsFechados)
+                {
+                    <span class="tl-set @(set.Vencedor == 1 ? "tl-set-ganho" : "")">@(set.Games1)</span>
+                }
                 <span class="tl-placar">@(p.GamesDupla1 ?? 0)</span>
             </div>
             <div class="tl-linha tl-linha-2">
@@ -87,6 +93,11 @@
                 @if (TelaoDoTorneio.Saca(p, p.Dupla2Id))
                 {
                     <span class="tl-saque" title="Sacando" aria-label="Sacando"></span>
+                }
+                @* Os sets fechados antes do set em jogo, o vencedor de cada um em destaque. *@
+                @foreach (var set in setsFechados)
+                {
+                    <span class="tl-set @(set.Vencedor == 2 ? "tl-set-ganho" : "")">@(set.Games2)</span>
                 }
                 <span class="tl-placar">@(p.GamesDupla2 ?? 0)</span>
             </div>
