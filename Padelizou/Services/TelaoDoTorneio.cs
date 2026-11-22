@@ -55,4 +55,27 @@ public static class TelaoDoTorneio
     // sem saque marcado, nenhuma bolinha — inventar um lado seria pior que não mostrar.
     public static bool Saca(Partida jogo, int duplaId) =>
         jogo.DuplaSacandoId is int quemSaca && quemSaca == duplaId;
+
+    // OS SETS JÁ FECHADOS NO CARD DA TV (22/11/2026, Wallau). 🗣️ Vini: *"Telão não mostra que a
+    // dupla ganhou o primeiro set"* — só havia os games do set em jogo. Lê `Partida.PlacarDosSets`
+    // ("6-3 4-6 [10-8]", o colchete é o super tie-break; Services/SetsDoJogo grava). Texto torto
+    // não vira número inventado: o pedaço que não lê é pulado.
+    public sealed record SetFechado(int Games1, int Games2, bool SuperTieBreak)
+    {
+        public int Vencedor => Games1 > Games2 ? 1 : Games2 > Games1 ? 2 : 0;
+    }
+
+    public static IReadOnlyList<SetFechado> SetsFechados(Partida jogo)
+    {
+        if (string.IsNullOrWhiteSpace(jogo.PlacarDosSets)) return Array.Empty<SetFechado>();
+        var sets = new List<SetFechado>();
+        foreach (var pedaco in jogo.PlacarDosSets.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            bool super = pedaco.StartsWith('[') && pedaco.EndsWith(']');
+            var lados = pedaco.Trim('[', ']').Split('-');
+            if (lados.Length == 2 && int.TryParse(lados[0], out var g1) && int.TryParse(lados[1], out var g2))
+                sets.Add(new SetFechado(g1, g2, super));
+        }
+        return sets;
+    }
 }
