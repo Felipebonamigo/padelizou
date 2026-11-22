@@ -351,17 +351,20 @@
     var pessoasEmDoisJogos = ViewBag.PessoasEmDoisJogos as List<string> ?? new List<string>();
     if (pessoasEmDoisJogos.Count > 0)
     {
-        <div class="alert alert-danger small mb-2" role="alert">
-            <strong><i class="bi bi-exclamation-triangle-fill"></i>
+        @* FECHADO POR PADRÃO (22/11/2026). 🗣️ Felipe: "isso aqui polui muito a tela, coloque
+           minimizado, para o organizador abrir se quiser". O título com a contagem fica à vista;
+           a lista abre no toque (AvisosDeConflitoMinimizadosTests). *@
+        <details class="alert alert-danger small mb-2" role="alert">
+            <summary style="cursor: pointer;"><strong><i class="bi bi-exclamation-triangle-fill"></i>
                 @(pessoasEmDoisJogos.Count == 1 ? "Jogador em dois jogos ao mesmo tempo" : $"{pessoasEmDoisJogos.Count} conflitos de jogador em dois jogos ao mesmo tempo")</strong>
-            — ajuste o horário de um deles na mão.
+            — toque pra ver; ajuste o horário de um deles na mão.</summary>
             <ul class="mb-0 mt-1 ps-3">
                 @foreach (var conflito in pessoasEmDoisJogos)
                 {
                     <li>@conflito</li>
                 }
             </ul>
-        </div>
+        </details>
     }
     <partial name="_EliminatoriasNoMesmoHorario" model="@(ViewBag.EliminatoriasNoMesmoHorario as List<string> ?? new List<string>())" />
 }
