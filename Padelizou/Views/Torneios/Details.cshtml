@@ -7294,13 +7294,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                                     <span class="pdz-grupo-jogo-quadra">@ondeJoga</span>
                                                                 }
                                                             </div>
+                                                            @{ // Jogo de vários sets: sets vencidos e os games de cada set (Services/PlacarNoCard).
+                                                               var placarDoGrupo = Padelizou.Services.PlacarNoCard.De(jogoDoGrupo); }
                                                             <div class="pdz-grupo-jogo-lado @(ganhou1 ? "pdz-chave-venceu" : ganhou2 ? "text-muted" : "")">
                                                                 <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla1)</span>
-                                                                <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla1?.ToString() ?? "0") : "–")</span>
+                                                                <span class="pdz-chave-games">@if (acabou || noAr)
+                                                                    {@foreach (var (gamesDoSet, ganhouOSet) in placarDoGrupo.Dupla1.Sets){<span class="pdz-chave-set @(ganhouOSet ? "pdz-chave-set-ganho" : "")">@gamesDoSet</span>}@(placarDoGrupo.PorSets ? placarDoGrupo.Dupla1.Grande.ToString() : (jogoDoGrupo.GamesDupla1?.ToString() ?? "0"))}
+                                                                    else {<text>–</text>}</span>
                                                             </div>
                                                             <div class="pdz-grupo-jogo-lado @(ganhou2 ? "pdz-chave-venceu" : ganhou1 ? "text-muted" : "")">
                                                                 <span class="pdz-chave-nome">@NomeCurtoDaDupla(jogoDoGrupo.Dupla2)</span>
-                                                                <span class="pdz-chave-games">@(acabou || noAr ? (jogoDoGrupo.GamesDupla2?.ToString() ?? "0") : "–")</span>
+                                                                <span class="pdz-chave-games">@if (acabou || noAr)
+                                                                    {@foreach (var (gamesDoSet, ganhouOSet) in placarDoGrupo.Dupla2.Sets){<span class="pdz-chave-set @(ganhouOSet ? "pdz-chave-set-ganho" : "")">@gamesDoSet</span>}@(placarDoGrupo.PorSets ? placarDoGrupo.Dupla2.Grande.ToString() : (jogoDoGrupo.GamesDupla2?.ToString() ?? "0"))}
+                                                                    else {<text>–</text>}</span>
                                                             </div>
                                                         </a>
                                                     }

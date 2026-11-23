@@ -116,6 +116,10 @@
                                 <span class="badge bg-primary rounded-pill mx-2">@jogo.Games1 x @jogo.Games2</span>
                                 <span class="@(jogo.Dupla1Venceu ? "" : "fw-bold")">@jogo.Dupla2</span>
                             </div>
+                            @if (jogo.Sets is string setsDoJogo)
+                            {
+                                <div class="small text-muted">Sets: @setsDoJogo</div>
+                            }
                         </li>
                     }
                 </ul>

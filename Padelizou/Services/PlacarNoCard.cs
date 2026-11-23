@@ -23,10 +23,13 @@ public static class PlacarNoCard
         var sets = TelaoDoTorneio.SetsFechados(jogo);
         bool porSets = sets.Count > 0 && (jogo.SetsDupla1 != null || jogo.SetsDupla2 != null);
 
-        int grande1 = porSets ? jogo.SetsDupla1 ?? 0 : jogo.GamesDupla1 ?? 0;
-        int grande2 = porSets ? jogo.SetsDupla2 ?? 0 : jogo.GamesDupla2 ?? 0;
+        // AO VIVO o número grande é o set EM JOGO (os fechados vão ao lado) — o mesmo do telão; só
+        // depois de acabar ele vira a contagem de sets.
+        bool aoVivo = jogo.Status == "AoVivo";
+        int grande1 = porSets && !aoVivo ? jogo.SetsDupla1 ?? 0 : jogo.GamesDupla1 ?? 0;
+        int grande2 = porSets && !aoVivo ? jogo.SetsDupla2 ?? 0 : jogo.GamesDupla2 ?? 0;
 
-        int? vencedor = jogo.VencedorId is int id && id == jogo.Dupla1Id ? 1
+        int? vencedor = aoVivo ? null : jogo.VencedorId is int id && id == jogo.Dupla1Id ? 1
             : jogo.VencedorId is int id2 && id2 == jogo.Dupla2Id ? 2
             : grande1 > grande2 ? 1 : grande2 > grande1 ? 2 : null;
 
@@ -34,4 +37,11 @@ public static class PlacarNoCard
         var lado2 = porSets ? sets.Select(s => (s.Games2, s.Vencedor == 2)).ToList() : new List<(int, bool)>();
         return new Placar(new Lado(grande1, lado1), new Lado(grande2, lado2), vencedor, porSets);
     }
+
+    // O PLACAR EM TEXTO (23/11/2026) — a arte da chave, o compartilhar: jogo de vários sets sai set a
+    // set ("6-3 7-6 [10-8]"), que é o que diz como foi; jogo de um set, "9 x 7" como sempre.
+    public static string Texto(Partida jogo) =>
+        De(jogo).PorSets && SetsDoJogo.Texto(jogo) is string sets
+            ? sets
+            : $"{jogo.GamesDupla1 ?? 0} x {jogo.GamesDupla2 ?? 0}";
 }
