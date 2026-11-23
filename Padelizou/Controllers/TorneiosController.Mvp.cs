@@ -22,7 +22,10 @@ namespace Padelizou.Controllers
                 ? int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!)
                 : null;
 
-            var votacao = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now);
+            // A PARCIAL (23/11/2026): quem organiza — e o admin — acompanha a contagem com a votação
+            // aberta. A régua é a de sempre pra gerir o torneio; pra todo o resto a cédula segue sem número.
+            bool verParcial = meuId is int quemOlha && await EhOrganizadorAsync(id, quemOlha);
+            var votacao = await MvpDoTorneio.DoTorneioAsync(_context, id, meuId, DateTime.Now, verParcial);
             if (votacao == null) return NotFound();
 
             // Mesma porta do Details: torneio oculto não tem página pública nenhuma. Vale

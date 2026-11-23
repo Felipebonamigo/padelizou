@@ -255,6 +255,52 @@
                     <text>até agora.</text>
                 }
             </div>
+
+            @* CHAMAR GENTE PRA VOTAR (23/11/2026). 🗣️ Felipe: *"crie um botão para compartilhar link (para
+               chamar as pessoas para votarem)"*. O mesmo par do "compartilhar jogos" (js/compartilhar-texto.js):
+               no celular o menu nativo, no computador o WhatsApp Web; e o copiar, pro grupo que não é de WhatsApp. *@
+            @if (Model.Aberta)
+            {
+                var linkDoMvp = Url.Action("Mvp", "Torneios", new { id = Model.TorneioId }, Context.Request.Scheme)
+                                ?? $"https://padelizou.com.br/Torneios/Mvp/{Model.TorneioId}";
+                var convite = $"⭐ Vote no MVP do {Model.Torneio}! Quem jogou escolhe o melhor jogador entre os campeões"
+                              + (Model.FechaEm is DateTime fecha ? $" — até {fecha:dd/MM} às {fecha:HH}h{fecha:mm}" : "")
+                              + $": {linkDoMvp}";
+                <textarea id="conviteDoMvp" class="visually-hidden" readonly aria-hidden="true">@convite</textarea>
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <a class="btn btn-success rounded-pill px-3 pdz-compartilhar-texto" data-origem="conviteDoMvp"
+                       href="https://wa.me/?text=@Uri.EscapeDataString(convite)" target="_blank" rel="noopener">
+                        <i class="bi bi-share-fill"></i> Chamar a galera pra votar
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3 pdz-copiar-texto" data-origem="conviteDoMvp">
+                        <i class="bi bi-clipboard"></i> Copiar o link
+                    </button>
+                </div>
+            }
+
+            @* A PARCIAL, SÓ PRA QUEM ORGANIZA (23/11/2026). 🗣️ Felipe: *"deixe os organizadores (e eu) vendo como
+               está a votação"*. Quem preenche `Parcial` é o serviço, e só quando o controller pede — pela régua de
+               organizador. A cédula de cima continua sem número: quem vota não vê. *@
+            @if (Model.Aberta && Model.Cedulas.Any(c => c.Parcial.Count > 0))
+            {
+                <div class="mt-3 p-3 rounded-3 border border-warning-subtle">
+                    <div class="fw-bold small mb-2"><i class="bi bi-eye-fill"></i> Parcial — só a organização vê</div>
+                    @foreach (var cedula in Model.Cedulas.Where(c => c.Parcial.Count > 0))
+                    {
+                        @if (Model.Dividida)
+                        {
+                            <div class="small fw-semibold mt-2">@cedula.Titulo</div>
+                        }
+                        <ol class="small mb-1 ps-3">
+                            @foreach (var c in cedula.Parcial)
+                            {
+                                <li>@c.Nome — <strong>@c.Votos</strong> @(c.Votos == 1 ? "voto" : "votos")</li>
+                            }
+                        </ol>
+                    }
+                    <div class="small text-muted">Pra ser eleito precisa de pelo menos @Padelizou.Services.MvpDoTorneio.VotosMinimos votos. Quem vota não vê estes números.</div>
+                </div>
+            }
         </div>
     </div>
     }
@@ -373,3 +419,7 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script src="~/js/compartilhar-texto.js" asp-append-version="true"></script>
+}
