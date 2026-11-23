@@ -168,7 +168,7 @@ public static class MvpDoTorneio
     // Monta a votação inteira de um torneio, do ponto de vista de quem está olhando.
     // `olhandoId` nulo = visitante deslogado (vê a tela, não vota).
     public static async Task<VotacaoDeMvp?> DoTorneioAsync(
-        DbPadelContext contexto, int torneioId, int? olhandoId, DateTime agora)
+        DbPadelContext contexto, int torneioId, int? olhandoId, DateTime agora, bool verParcial = false)
     {
         var torneio = await contexto.Torneios
             .AsNoTracking()
@@ -219,6 +219,13 @@ public static class MvpDoTorneio
                 ? null
                 : votos.FirstOrDefault(v => v.VotanteId == olhandoId.Value && v.Naipe == cedula.Naipe)?.CandidatoId;
             cedula.Vencedores = encerrada ? Apurar(cedula.Candidatos) : new List<CandidatoAMvp>();
+            cedula.Parcial = verParcial
+                ? PorVotos(cedula.Candidatos.Select(c => new CandidatoAMvp
+                {
+                    JogadorId = c.JogadorId, Nome = c.Nome, Foto = c.Foto, Categorias = c.Categorias,
+                    Naipe = c.Naipe, Votos = porCandidato.GetValueOrDefault((cedula.Naipe, c.JogadorId)),
+                }))
+                : new List<CandidatoAMvp>();
         }
 
         var eleitores = await EleitoresAsync(contexto, torneioId);
@@ -611,6 +618,13 @@ public sealed class CedulaDoMvp
         : MvpDoTorneio.PorVotos(Candidatos.Where(c => !Vencedores.Any(v => v.JogadorId == c.JogadorId)));
 
     public bool Recolhida => Aberta && MeuVoto != null;
+
+    // A PARCIAL, SÓ PRA QUEM ORGANIZA (23/11/2026). 🗣️ Felipe: *"deixe os organizadores (e eu) vendo como
+    // está a votação"*. Cópias dos candidatos COM a contagem, do mais votado pro menos — à parte da
+    // cédula, que continua sem número enquanto a votação está aberta (o efeito manada de 15/09).
+    // Vazia pra todo mundo que não pediu `verParcial` (DoTorneioAsync), e é o controller que decide
+    // quem pede: a régua de organizador.
+    public List<CandidatoAMvp> Parcial { get; set; } = new();
 }
 
 // O NAIPE DE QUEM ESTÁ NA CÉDULA, e quando a cédula se divide.
