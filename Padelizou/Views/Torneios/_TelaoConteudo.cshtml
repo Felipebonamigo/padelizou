@@ -158,10 +158,12 @@
         {
             bool venceu1 = p.VencedorId != null && p.VencedorId == p.Dupla1Id;
             bool venceu2 = p.VencedorId != null && p.VencedorId == p.Dupla2Id;
+            // Jogo de vários sets: sets vencidos em grande e os games de cada set ao lado (PlacarNoCard).
+            var placarFinal = PlacarNoCard.De(p);
             <div class="tl-finalizado">
                 <div class="tl-sub">@(p.Categoria?.Nome) · @Fase(p)@(TieBreakDoJogo.Houve(p.PontosTieBreak1, p.PontosTieBreak2) ? " · " + TieBreakDoJogo.Etiqueta(p.PontosTieBreak1, p.PontosTieBreak2) : "")</div>
-                <div class="tl-res @(venceu1 ? "tl-venceu" : "")"><span>@Nome(p.Dupla1)</span><b>@(p.GamesDupla1 ?? 0)</b></div>
-                <div class="tl-res @(venceu2 ? "tl-venceu" : "")"><span>@Nome(p.Dupla2)</span><b>@(p.GamesDupla2 ?? 0)</b></div>
+                <div class="tl-res @(venceu1 ? "tl-venceu" : "")"><span>@Nome(p.Dupla1)</span><span class="tl-numeros">@foreach (var (gamesDoSet, ganhouOSet) in placarFinal.Dupla1.Sets){<span class="tl-set-final @(ganhouOSet ? "tl-set-ganho" : "")">@gamesDoSet</span>}<b>@placarFinal.Dupla1.Grande</b></span></div>
+                <div class="tl-res @(venceu2 ? "tl-venceu" : "")"><span>@Nome(p.Dupla2)</span><span class="tl-numeros">@foreach (var (gamesDoSet, ganhouOSet) in placarFinal.Dupla2.Sets){<span class="tl-set-final @(ganhouOSet ? "tl-set-ganho" : "")">@gamesDoSet</span>}<b>@placarFinal.Dupla2.Grande</b></span></div>
             </div>
         }
     </section>

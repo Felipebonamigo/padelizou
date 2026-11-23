@@ -268,7 +268,7 @@ public class CartaoDosResultadosTests
             Fase: i == 1 ? "Final" : "Grupo A",
             Dupla1: $"Jogador {i} da Silva  &  Parceiro {i} de Souza",
             Dupla2: $"Rival {i} Pereira  &  Colega {i} Antunes",
-            Games1: 6, Games2: i % 5, Dupla1Venceu: true, Dupla2Venceu: false)).ToList(),
+            Games1: 6, Games2: i % 5, Sets: null, Dupla1Venceu: true, Dupla2Venceu: false)).ToList(),
         Total: total,
         Torneio: "NATA PADEL TOUR",
         Clube: "Arena Beira Rio");
@@ -279,7 +279,7 @@ public class CartaoDosResultadosTests
     [Fact]
     public void Jogo_finalizado_sem_vencedor_nao_coroa_ninguem()
     {
-        var jogo = new ResultadoDeJogo("Final", "Ana & Bia", "Carla & Dani", 6, 6,
+        var jogo = new ResultadoDeJogo("Final", "Ana & Bia", "Carla & Dani", 6, 6, null,
             Dupla1Venceu: false, Dupla2Venceu: false);
 
         // E o desenho não quebra nesse estado — os dois saem sem destaque, em branco.

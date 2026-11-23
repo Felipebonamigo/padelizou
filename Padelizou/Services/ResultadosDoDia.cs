@@ -8,7 +8,7 @@ namespace Padelizou.Services;
 // placar no meio do caminho), e a negação faria o card coroar a dupla 2 num jogo que ninguém
 // venceu. Com os dois, o card sabe também o caso "nenhum": desenha sem destaque.
 public sealed record ResultadoDeJogo(
-    string Fase, string Dupla1, string Dupla2, int Games1, int Games2,
+    string Fase, string Dupla1, string Dupla2, int Games1, int Games2, string? Sets,
     bool Dupla1Venceu, bool Dupla2Venceu);
 
 public sealed record DiaDeResultados(
@@ -95,8 +95,11 @@ public static class ResultadosDoDia
                 Fase: x.Partida.Fase,
                 Dupla1: x.Partida.Dupla1 == null ? "" : NomeDaDupla.Na(x.Partida.Dupla1),
                 Dupla2: x.Partida.Dupla2 == null ? "" : NomeDaDupla.Na(x.Partida.Dupla2),
-                Games1: x.Partida.GamesDupla1 ?? 0,
-                Games2: x.Partida.GamesDupla2 ?? 0,
+                // Jogo de vários sets: os SETS vencidos (2 x 0), e não os games do último set —
+                // o detalhe set a set vai no `Sets` (PlacarNoCard, 23/11/2026).
+                Games1: PlacarNoCard.De(x.Partida).Dupla1.Grande,
+                Games2: PlacarNoCard.De(x.Partida).Dupla2.Grande,
+                Sets: SetsDoJogo.Texto(x.Partida),
                 // ⚠️ Quem venceu sai de `QuemVenceu.Da`, a MESMA função que grava o
                 // `VencedorId` ao finalizar — nunca de `games1 > games2`. As duas divergem
                 // quando um lado está sem placar, e foi assim que a tabela de um grupo

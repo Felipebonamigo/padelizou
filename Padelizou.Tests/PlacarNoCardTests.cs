@@ -67,4 +67,51 @@ public class PlacarNoCardTests
 
         Assert.Contains("PlacarNoCard.De(jogo)", view);
     }
+
+    // ── 23/11/2026: O MESMO PLACAR EM TODO LUGAR (Wallau). 🗣️ *"não aparecem os sets aqui também, no
+    // chaves e grupos"* — e o Felipe: *"já verifica se em mais algum lugar ficou faltando"*. ──
+
+    [Fact]
+    public void Ao_vivo_o_grande_sao_os_games_do_set_em_jogo_e_os_sets_fechados_ao_lado()
+    {
+        var aoVivo = Jogo("6-3", 1, 0, 2, 4);
+        aoVivo.Status = "AoVivo";
+
+        var p = PlacarNoCard.De(aoVivo);
+
+        Assert.Equal((2, 4), (p.Dupla1.Grande, p.Dupla2.Grande));
+        Assert.Equal(new[] { (6, true) }, p.Dupla1.Sets);
+    }
+
+    [Theory]
+    [InlineData("6-3 7-6", 2, 0, 7, 6, "6-3 7-6")]
+    [InlineData(null, null, null, 9, 7, "9 x 7")]
+    public void Em_texto_o_jogo_de_varios_sets_sai_set_a_set(string? sets, int? s1, int? s2, int g1, int g2, string texto) =>
+        Assert.Equal(texto, PlacarNoCard.Texto(Jogo(sets, s1, s2, g1, g2)));
+
+    [Theory]
+    [InlineData("_ChaveDoMataMata.cshtml")]
+    [InlineData("_ChaveVaga.cshtml")]
+    [InlineData("_TelaoConteudo.cshtml")]
+    public void As_telas_de_placar_passam_pelo_PlacarNoCard(string arquivo)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, ".github", "workflows"))) dir = dir.Parent;
+        var view = TestInfra.SemComentarios(File.ReadAllText(Path.Combine(
+            dir?.FullName ?? throw new DirectoryNotFoundException(), "Padelizou", "Views", "Torneios", arquivo)));
+
+        Assert.Contains("PlacarNoCard.De(", view);
+    }
+
+    [Fact]
+    public void A_arte_da_chave_e_os_resultados_do_dia_passam_pelo_PlacarNoCard()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !Directory.Exists(Path.Combine(dir.FullName, ".github", "workflows"))) dir = dir.Parent;
+        string Ler(string arq) => TestInfra.SemComentarios(File.ReadAllText(Path.Combine(
+            dir?.FullName ?? throw new DirectoryNotFoundException(), "Padelizou", "Services", arq)));
+
+        Assert.Contains("PlacarNoCard.Texto(", Ler("ChaveParaCard.cs"));
+        Assert.Contains("PlacarNoCard.De(", Ler("ResultadosDoDia.cs"));
+    }
 }

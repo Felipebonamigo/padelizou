@@ -116,9 +116,11 @@ public static class ChaveParaCard
                         Dupla2: NomeOuVaga(p.Dupla2),
                         // Sem os dois lados marcados não há placar — meio placar não existe
                         // (a mesma régua do jogo de panelinha).
+                        // Jogo de vários sets sai set a set ("6-3 7-6"), e não os games do último
+                        // set (PlacarNoCard, 23/11/2026).
                         Placar: p.GamesDupla1 == null || p.GamesDupla2 == null
                             ? null
-                            : $"{p.GamesDupla1} x {p.GamesDupla2}",
+                            : PlacarNoCard.Texto(p),
                         // ⚠️ Quem venceu sai de `QuemVenceu.Da`, a MESMA função que grava o
                         // `VencedorId` — nunca de `games1 > games2`, que diverge dela quando
                         // um lado está sem placar (cicatriz de 05/08/2026).
