@@ -1160,6 +1160,63 @@ namespace Padelizou.Controllers
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
+        // CATEGORIA COM NOME PRÓPRIO (25/11/2026) — 🗣️ Rafael (Treta): "não tem branco, preto e
+        // verde"; Felipe: "categoria fora do padrão, para ele categorizar como quiser".
+        //
+        // ⚠️ SÓ EM TORNEIO FORA DO RANKING: o ranking por categoria agrupa pelo NOME
+        // (EstatisticasService), e um nome livre num torneio que conta inventaria uma categoria
+        // de ranking que o catálogo não tem. No torneio-festa não há ranking pra bagunçar.
+        public async Task<IActionResult> AdicionarCategoriaComNomeProprio(int torneioId, string? nome, int? limiteDuplas)
+        {
+            if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+            IActionResult Voltar() =>
+                RedirectToAction("Details", "Torneios", new { id = torneioId }, fragment: "categoriasDoTorneio");
+
+            var torneio = await _context.Torneios.FindAsync(torneioId);
+            if (torneio == null) return NotFound();
+            if (!torneio.ForaDoRanking)
+            {
+                TempData["Erro"] = "Categoria com nome próprio só em torneio fora do ranking (como o Treta).";
+                return Voltar();
+            }
+
+            nome = (nome ?? "").Trim();
+            // 50 = a coluna Categoria.Nome.
+            if (nome.Length == 0 || nome.Length > 50)
+            {
+                TempData["Erro"] = "Dê um nome de até 50 letras pra categoria.";
+                return Voltar();
+            }
+
+            // Mesmo motivo do AdicionarCategoria: dois nomes iguais dividem os inscritos.
+            var nomeMinusculo = nome.ToLower();
+            if (await _context.Categorias.AnyAsync(c => c.TorneioId == torneioId && c.Nome.ToLower() == nomeMinusculo))
+            {
+                TempData["Erro"] = $"O torneio já tem a categoria \"{nome}\".";
+                return Voltar();
+            }
+
+            _context.Categorias.Add(new Categoria
+            {
+                TorneioId = torneioId,
+                Nome = nome,
+                // Código: as letras do nome, em maiúscula (a coluna aceita 50).
+                Codigo = new string(nome.Where(char.IsLetterOrDigit).Take(40).ToArray()).ToUpperInvariant() is { Length: > 0 } cod
+                    ? cod : "CAT",
+                LimiteDuplas = limiteDuplas is > 0 ? limiteDuplas : null,
+                // Nasce já com DTN quando o torneio é Treta, como as do catálogo na criação.
+                DuplasNoDtnPorGrupo = await _context.Categorias.AnyAsync(c =>
+                    c.TorneioId == torneioId && c.PapelDaChave == null && c.DuplasNoDtnPorGrupo > 0) ? 1 : 0,
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Sucesso"] = $"Categoria \"{nome}\" adicionada.";
+            return Voltar();
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoverCategoria(int categoriaId)
         {
             var categoria = await _context.Categorias
