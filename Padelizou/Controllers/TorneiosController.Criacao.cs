@@ -1383,6 +1383,9 @@ namespace Padelizou.Controllers
             bool? tieBreakNaPenultima = null,
             // Torneio.ForaDoRanking (25/11/2026). `bool?` pelo mesmo motivo.
             bool? foraDoRanking = null,
+            // TIPO DO TORNEIO (25/11/2026): Padrao, Treta, Americano, AmericanoDuplas — ver
+            // Services/TrocaDoTipoDoTorneio. Nulo = aba antiga, mantém.
+            string? tipoDoTorneio = null,
             int? pontosTieBreakSoDaFinal = null,
             bool? mesmaDuracaoEmTodasAsFases = null,
             int? tempoMataMataMinutos = null, int? tempoSemifinalMinutos = null, int? tempoFinalMinutos = null,
@@ -1481,6 +1484,25 @@ namespace Padelizou.Controllers
             {
                 TempData["Erro"] = "Valor negativo não dá: use zero pra não cobrar nada.";
                 return RedirectToAction("Details", new { id });
+            }
+
+            // O TIPO DO TORNEIO (25/11/2026, Services/TrocaDoTipoDoTorneio). Conferido ANTES de
+            // gravar qualquer coisa, como a chave logo abaixo: recusa não deixa meio salvo.
+            List<Categoria>? categoriasDoTipo = null;
+            if (tipoDoTorneio != null)
+            {
+                categoriasDoTipo = await _context.Categorias.Where(c => c.TorneioId == id).ToListAsync();
+                bool temInscricaoOuJogo =
+                    await _context.Duplas.AnyAsync(d => d.Categoria.TorneioId == id)
+                    || await _context.InscricoesAmericanas.AnyAsync(i => i.Categoria.TorneioId == id)
+                    || await _context.Partidas.AnyAsync(p => p.TorneioId == id);
+                var quem = await _context.Jogadores.FindAsync(jogadorId);
+                if (TrocaDoTipoDoTorneio.Problema(torneio, categoriasDoTipo, tipoDoTorneio,
+                        temInscricaoOuJogo, quem) is { } problemaDoTipo)
+                {
+                    TempData["Erro"] = problemaDoTipo;
+                    return RedirectToAction("Details", new { id });
+                }
             }
 
             // A chave é conferida ANTES de qualquer gravação: recusar depois deixaria o
@@ -1703,6 +1725,9 @@ namespace Padelizou.Controllers
             torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(pontosTieBreakFinal ?? torneio.PontosTieBreakFinal);
             torneio.TieBreakNaPenultima = tieBreakNaPenultima ?? torneio.TieBreakNaPenultima;
             torneio.ForaDoRanking = foraDoRanking ?? torneio.ForaDoRanking;
+            // Depois das caixas soltas: escolher "Treta" ganha delas (é o que liga as duas).
+            if (tipoDoTorneio != null && categoriasDoTipo != null)
+                TrocaDoTipoDoTorneio.Aplicar(torneio, categoriasDoTipo, tipoDoTorneio);
 
             // A REGRA PRÓPRIA DA FINAL. Os três só mexem quando a caixa VEIO no formulário —
             // nulo é a aba antiga em cache, e aí o que está gravado fica (ver o comentário na

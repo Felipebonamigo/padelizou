@@ -3893,6 +3893,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <label class="form-label fw-bold small">Nome do Torneio</label>
                                     <input type="text" name="nome" class="form-control" value="@Model.Nome" maxlength="150" required />
                                 </div>
+                                @* O TIPO DO TORNEIO (25/11/2026) — quando pode trocar mora em
+                                   Services/TrocaDoTipoDoTorneio (Treta é Oficial + DTN; Oficial ↔
+                                   Americano só sem inscrição). *@
+                                @{
+                                    var tipoAtualDoTorneio = Padelizou.Services.TrocaDoTipoDoTorneio.TipoAtual(Model, Model.Categorias);
+                                }
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" for="pdzTipoDoTorneio">Tipo do torneio</label>
+                                    <select name="tipoDoTorneio" id="pdzTipoDoTorneio" class="form-select">
+                                        @foreach (var (valor, texto) in Padelizou.Services.TrocaDoTipoDoTorneio.Opcoes)
+                                        {
+                                            <option value="@valor" selected="@(valor == tipoAtualDoTorneio)">@texto</option>
+                                        }
+                                    </select>
+                                    <small class="text-muted d-block mt-1">
+                                        Treta liga a chave DTN, o tie-break no 5x5 e tira do ranking. Entre Oficial e
+                                        Americano só dá pra trocar antes da primeira inscrição.
+                                    </small>
+                                </div>
                                 @* "Local" e "Clube" eram o MESMO dado pedido duas vezes: o local
                                    do torneio é o clube onde ele acontece. A criação já pedia só
                                    o clube; aqui tinha sobrado o campo de texto, e os dois
