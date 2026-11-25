@@ -356,6 +356,12 @@
     </fieldset>
 }
 
+@* Treta: a Finalíssima DTN por criar e o Troféu DTN (Services/FinalissimaDtn). *@
+@if (ViewBag.PainelDoTreta is Padelizou.Services.FinalissimaDtn.Painel painelDoTreta)
+{
+    <partial name="_PainelDoTreta" model="painelDoTreta" />
+}
+
 @* Os sorteios de brinde, à vista de todos (Services/SorteioDeBrindes). *@
 @if (ViewBag.Sorteios is List<Padelizou.Models.SorteioDoTorneio> sorteiosDoTorneio && sorteiosDoTorneio.Count > 0)
 {

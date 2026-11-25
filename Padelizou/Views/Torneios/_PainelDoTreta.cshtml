@@ -1,0 +1,92 @@
+@model Padelizou.Services.FinalissimaDtn.Painel
+@*
+    TRETA (25/11/2026) — ver TRETA.md e Services/FinalissimaDtn.
+
+    1. A Finalíssima por criar (só quem organiza vê): as duas duplas que perderam o DTN, com a
+       troca "direita com direita" proposta. O lado não é confiável no banco, então quem
+       organiza confere e confirma — nada nasce sozinho.
+    2. O Troféu DTN: quem levou, e o formulário pra quem pode escolher (a dupla vencedora do
+       jogo decisivo enquanto não registrou; quem organiza, sempre).
+*@
+@{
+    string Nome(int id) => Model.Nomes.TryGetValue(id, out var n) ? n : $"Atleta {id}";
+}
+<div class="card shadow-sm border-0 mb-4" id="pdzTreta">
+    <div class="card-body">
+        <h6 class="fw-bold mb-3"><i class="bi bi-emoji-dizzy-fill"></i> DTN</h6>
+
+        @foreach (var p in Model.Pendentes)
+        {
+            var d1 = p.Perdedora1;
+            var d2 = p.Perdedora2;
+            <form asp-action="CriarFinalissima" asp-route-id="@p.Modulo1.TorneioId" method="post" class="mb-4">
+                <input type="hidden" name="moduloId" value="@p.Modulo1.Id" />
+                <div class="fw-semibold mb-1">Finalíssima DTN: @p.Modulo1.Nome × @p.Modulo2.Nome</div>
+                <p class="small text-muted mb-2">
+                    As duplas que perderam o DTN trocam o atleta do mesmo lado (direita com direita).
+                    Confira quem joga na <strong>direita</strong> em cada uma.
+                    @if (!p.Proposta.Certa)
+                    {
+                        <span class="text-danger d-block">O lado de alguém não está no cadastro — confira antes de criar.</span>
+                    }
+                </p>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Direita — @p.Modulo1.Nome</label>
+                        <select name="direitaDaPrimeira" class="form-select form-select-sm">
+                            @foreach (var j in new[] { d1.Jogador1Id, d1.Jogador2Id ?? d1.Jogador1Id }.Distinct())
+                            {
+                                <option value="@j" selected="@(j == p.Proposta.DireitaDaPrimeira)">@Nome(j)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Direita — @p.Modulo2.Nome</label>
+                        <select name="direitaDaSegunda" class="form-select form-select-sm">
+                            @foreach (var j in new[] { d2.Jogador1Id, d2.Jogador2Id ?? d2.Jogador1Id }.Distinct())
+                            {
+                                <option value="@j" selected="@(j == p.Proposta.DireitaDaSegunda)">@Nome(j)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-dark">Criar a Finalíssima</button>
+            </form>
+        }
+
+        @foreach (var t in Model.Trofeus)
+        {
+            var cat = t.Decisivo.Categoria;
+            <div class="mb-3">
+                <div class="small text-muted">@cat.Nome</div>
+                @if (cat.TrofeuDtnJogadorId is int premiado)
+                {
+                    <div class="fw-bold fs-5">🏆 Troféu DTN: @Nome(premiado)</div>
+                }
+                else
+                {
+                    <div class="small">
+                        A dupla vencedora (@string.Join(" e ", t.Decisivo.Vencedores.Select(Nome)))
+                        escolhe quem leva o troféu.
+                    </div>
+                }
+
+                @if (t.PodeEscolher)
+                {
+                    <form asp-action="RegistrarTrofeuDtn" asp-route-id="@cat.TorneioId" method="post" class="d-flex gap-2 mt-2 flex-wrap">
+                        <input type="hidden" name="categoriaId" value="@cat.Id" />
+                        <select name="jogadorId" class="form-select form-select-sm" style="max-width: 16rem;">
+                            @foreach (var j in t.Decisivo.Perdedores)
+                            {
+                                <option value="@j" selected="@(j == cat.TrofeuDtnJogadorId)">@Nome(j)</option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-outline-dark">
+                            @(cat.TrofeuDtnJogadorId == null ? "Registrar o troféu" : "Corrigir")
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+</div>

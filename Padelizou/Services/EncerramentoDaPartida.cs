@@ -249,6 +249,10 @@ public class EncerramentoDaPartida
             .AnyAsync(p => p.TorneioId == torneioId && p.Status != "Finalizada");
         if (aindaTemJogo) return;
 
+        // Treta: a Finalíssima DTN nasce só quando o organizador confirma a troca de lados —
+        // até lá ela é um jogo que ainda não existe, mas vai existir (Services/FinalissimaDtn).
+        if (await new FinalissimaDtn(_context).FaltaFinalissimaAsync(torneioId)) return;
+
         var torneio = await _context.Torneios.FindAsync(torneioId);
         if (torneio == null) return;
 
