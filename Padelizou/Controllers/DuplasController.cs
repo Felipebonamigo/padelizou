@@ -250,6 +250,14 @@ namespace Padelizou.Controllers
                 return RedirectToAction("Details", "Torneios", new { id = torneioId });
             }
 
+            // Treta: DTN e Finalíssima são montadas pelo robô (ou pelo organizador) com quem já
+            // joga o módulo. Nem nascem durante as inscrições; isto segura o POST montado à mão.
+            if (categoria.PapelDaChave != null)
+            {
+                TempData["Erro"] = "Essa chave é montada pelo organizador — não dá pra se inscrever nela.";
+                return RedirectToAction("Details", "Torneios", new { id = torneioId });
+            }
+
             // Categoria de TIMES não aceita inscrição de dupla: quem cadastra time é o
             // organizador. A tela nem oferece a opção; isto segura o POST montado à mão.
             if (categoria.DeTimes)

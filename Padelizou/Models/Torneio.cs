@@ -437,6 +437,12 @@ public partial class Torneio
     // Torneio restrito: só quem tiver a ChaveAcesso consegue se inscrever (Dupla ou
     // InscricaoAmericana). Chave gerada automaticamente na criação quando Restrito = true.
     public bool Restrito { get; set; }
+
+    // FORA DO RANKING (25/11/2026) — 🗣️ organizador do Treta: os jogos "não" contam.
+    // Torneio-festa: aberto pra quem quiser (não é o `Restrito`, que pede chave), mas sem ponto,
+    // título de ranking nem Padelímetro. Perfil e histórico continuam mostrando — aconteceu.
+    // Quem lê é EstatisticasService.ContaNoRanking, em todas as suas escritas.
+    public bool ForaDoRanking { get; set; }
     public string? ChaveAcesso { get; set; }
 
     // ---- TORNEIO DE UM TIME SÓ (Felipe, 16/09/2026) ----

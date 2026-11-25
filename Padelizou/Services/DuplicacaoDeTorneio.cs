@@ -102,6 +102,8 @@ public static class DuplicacaoDeTorneio
         // (que é sorteada de novo em TorneiosController.Duplicacao, porque a velha já circulou),
         // aqui não há nada a renovar: a camisa não vaza de uma edição pra outra.
         nameof(Torneio.TimeExclusivoId),
+        // Torneio-festa (o Treta) é festa na próxima edição também.
+        nameof(Torneio.ForaDoRanking),
         nameof(Torneio.ValidarPeloRankingRs),
         nameof(Torneio.Oculto),
 

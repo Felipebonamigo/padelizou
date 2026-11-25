@@ -729,6 +729,9 @@ namespace Padelizou.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CategoriaDeOrigemId")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("ChaveDireta")
                         .HasColumnType("boolean");
 
@@ -751,6 +754,9 @@ namespace Padelizou.Migrations
                     b.Property<bool>("DeTimes")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("DuplasNoDtnPorGrupo")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("EliminatoriaNoSabadoANoite")
                         .HasColumnType("boolean");
 
@@ -765,6 +771,13 @@ namespace Padelizou.Migrations
                         .HasMaxLength(50)
                         .IsUnicode(false)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PapelDaChave")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("ParDaFinalissimaId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("PassamPorGrupo")
                         .HasColumnType("integer");
@@ -784,12 +797,21 @@ namespace Padelizou.Migrations
                     b.Property<int>("TorneioId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("TrofeuDtnJogadorId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id")
                         .HasName("PK__Categori__3214EC079FE58FF8");
 
+                    b.HasIndex("CategoriaDeOrigemId");
+
                     b.HasIndex("ClubeId");
 
+                    b.HasIndex("ParDaFinalissimaId");
+
                     b.HasIndex("TorneioId");
+
+                    b.HasIndex("TrofeuDtnJogadorId");
 
                     b.ToTable("Categoria");
                 });
@@ -3749,6 +3771,9 @@ namespace Padelizou.Migrations
                     b.Property<bool>("ExcluirSeNaoPagar")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("ForaDoRanking")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("FormaPagamento")
                         .IsRequired()
                         .HasColumnType("text");
@@ -4735,9 +4760,19 @@ namespace Padelizou.Migrations
 
             modelBuilder.Entity("Padelizou.Models.Categoria", b =>
                 {
+                    b.HasOne("Padelizou.Models.Categoria", "CategoriaDeOrigem")
+                        .WithMany()
+                        .HasForeignKey("CategoriaDeOrigemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Padelizou.Models.Clube", "Clube")
                         .WithMany()
                         .HasForeignKey("ClubeId");
+
+                    b.HasOne("Padelizou.Models.Categoria", "ParDaFinalissima")
+                        .WithMany()
+                        .HasForeignKey("ParDaFinalissimaId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Padelizou.Models.Torneio", "Torneio")
                         .WithMany("Categorias")
@@ -4745,9 +4780,20 @@ namespace Padelizou.Migrations
                         .IsRequired()
                         .HasConstraintName("FK__Categoria__Torne__5165187F");
 
+                    b.HasOne("Padelizou.Models.Jogador", "TrofeuDtnJogador")
+                        .WithMany()
+                        .HasForeignKey("TrofeuDtnJogadorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CategoriaDeOrigem");
+
                     b.Navigation("Clube");
 
+                    b.Navigation("ParDaFinalissima");
+
                     b.Navigation("Torneio");
+
+                    b.Navigation("TrofeuDtnJogador");
                 });
 
             modelBuilder.Entity("Padelizou.Models.ChamadoDoMural", b =>

@@ -101,7 +101,7 @@ public class PadelimetroService : IPadelimetroService
         partida.Status == "Finalizada"
         && partida.GamesDupla1 != null && partida.GamesDupla2 != null
         && !EncerramentoPorWo.Foi(partida)
-        && EstatisticasService.ContaNoRanking(categoria.Torneio)
+        && EstatisticasService.CategoriaContaNoRanking(categoria)
         && !categoria.DeTimes
         && !dupla1.EhTime && !dupla2.EhTime
         && dupla1.Jogador2Id != null && dupla2.Jogador2Id != null;
@@ -233,7 +233,7 @@ public class PadelimetroService : IPadelimetroService
         // padel contra o mundo não tem campanha, e torneio cancelado não valeu — a mesma
         // régua do CampeoesDoTorneio.PodeAnunciar.
         var torneio = categoria.Torneio;
-        if (!EstatisticasService.ContaNoRanking(torneio)) return 0;
+        if (!EstatisticasService.CategoriaContaNoRanking(categoria)) return 0;
         if (categoria.DeTimes) return 0;
         if (!CampeoesDoTorneio.PodeAnunciar(torneio?.Status)) return 0;
 

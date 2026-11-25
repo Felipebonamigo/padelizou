@@ -125,7 +125,8 @@ namespace Padelizou.Controllers
                 // carregada pra estar certo. Ver Services/TaxaDoTorneioExterno.
                 var duplasDoTorneio = await _context.Duplas
                     .Include(d => d.Jogador1).Include(d => d.Jogador2).Include(d => d.Categoria)
-                    .Where(d => d.Categoria.TorneioId == id && !d.Categoria.ChaveDireta)
+                    .Where(d => d.Categoria.TorneioId == id && !d.Categoria.ChaveDireta
+                        && d.Categoria.PapelDaChave == null)   // Treta: DTN e Finalíssima, mesma razão
                     .ToListAsync();
 
                 var americanosDoTorneio = await _context.InscricoesAmericanas

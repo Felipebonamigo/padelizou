@@ -44,7 +44,10 @@ public static class QuantosInscritos
         IEnumerable<Categoria> categorias,
         IEnumerable<InscricaoAmericana> inscricoesAmericanas)
     {
-        var todasAsDuplas = categorias.SelectMany(c => c.Duplas ?? new List<Dupla>()).ToList();
+        // Treta: DTN e Finalíssima são montadas pelo robô com quem já está inscrito no módulo —
+        // contar de novo inflaria o "N duplas" do torneio.
+        var todasAsDuplas = categorias.Where(c => c.PapelDaChave == null)
+            .SelectMany(c => c.Duplas ?? new List<Dupla>()).ToList();
         var americanas = inscricoesAmericanas.ToList();
 
         // Americano cobra e joga por pessoa: contar "duplas" ali seria inventar um número
