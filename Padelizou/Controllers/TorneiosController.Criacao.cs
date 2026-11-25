@@ -398,6 +398,10 @@ namespace Padelizou.Controllers
             int[]? clubesDoTorneio = null,
             string[]? clubesQuadras = null,
             string[]? clubesCategorias = null,
+            // TRETA (25/11/2026, TRETA.md): torneio-festa com chave DTN — fora do ranking, tie-break
+            // no 5x5 e os últimos de cada grupo de toda categoria no DTN. O par da Finalíssima se
+            // escolhe depois, na gestão de cada categoria.
+            bool treta = false,
             // A CAIXA "a final tem regra própria" (12/09/2026). ⚠️ Ela precisa vir no POST
             // porque ESCONDER NÃO É NÃO ENVIAR: o `<div hidden>` da tela manda o valor padrão
             // dos campos igual, e sem esta pergunta todo torneio novo nasceria com uma final
@@ -766,6 +770,13 @@ namespace Padelizou.Controllers
             }
 
             // Salva o Torneio primeiro para gerar o ID dele
+            // Treta: torneio-festa com chave DTN (TRETA.md). Formato segue Padrão de propósito —
+            // os ~60 pontos que leem `Formato` tratam um valor novo de jeitos diferentes.
+            if (treta)
+            {
+                torneio.ForaDoRanking = true;
+                torneio.TieBreakNaPenultima = true;
+            }
             _context.Torneios.Add(torneio);
             await _context.SaveChangesAsync();
 
@@ -867,6 +878,7 @@ namespace Padelizou.Controllers
                             else comParNoRanking++;
                         }
 
+                        if (treta) novaCategoria.DuplasNoDtnPorGrupo = 1;
                         _context.Categorias.Add(novaCategoria);
                         categoriasCriadas[catId] = novaCategoria;
                     }
@@ -1369,6 +1381,8 @@ namespace Padelizou.Controllers
             int? setsSoDaFinal = null, int? gamesSoDaFinal = null,
             // Torneio.TieBreakNaPenultima (25/11/2026). `bool?` pelo mesmo motivo do de cima.
             bool? tieBreakNaPenultima = null,
+            // Torneio.ForaDoRanking (25/11/2026). `bool?` pelo mesmo motivo.
+            bool? foraDoRanking = null,
             int? pontosTieBreakSoDaFinal = null,
             bool? mesmaDuracaoEmTodasAsFases = null,
             int? tempoMataMataMinutos = null, int? tempoSemifinalMinutos = null, int? tempoFinalMinutos = null,
@@ -1688,6 +1702,7 @@ namespace Padelizou.Controllers
             torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(pontosTieBreakMataMata ?? torneio.PontosTieBreakMataMata);
             torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(pontosTieBreakFinal ?? torneio.PontosTieBreakFinal);
             torneio.TieBreakNaPenultima = tieBreakNaPenultima ?? torneio.TieBreakNaPenultima;
+            torneio.ForaDoRanking = foraDoRanking ?? torneio.ForaDoRanking;
 
             // A REGRA PRÓPRIA DA FINAL. Os três só mexem quando a caixa VEIO no formulário —
             // nulo é a aba antiga em cache, e aí o que está gravado fica (ver o comentário na

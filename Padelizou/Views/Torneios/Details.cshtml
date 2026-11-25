@@ -4835,6 +4835,16 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </small>
                                             }
 
+                                            @* Torneio.ForaDoRanking (25/11/2026, Treta): torneio-festa. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="foraDoRanking" id="pdzForaDoRanking"
+                                                       checked="@Model.ForaDoRanking" />
+                                                <input type="hidden" name="foraDoRanking" value="false" />
+                                                <label class="form-check-label small" for="pdzForaDoRanking">
+                                                    Fora do ranking (não conta pontos nem Padelímetro)
+                                                </label>
+                                            </div>
                                             @* Torneio.TieBreakNaPenultima (25/11/2026, Treta). Mesmo par
                                                caixa + hidden do `finalSeparada`: silêncio = aba antiga. *@
                                             <div class="form-check mb-2">
@@ -5212,6 +5222,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                    class="form-control form-control-sm" style="width: 96px;" placeholder="Sem limite" />
                                             <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar limite</button>
                                         </form>
+
+                                        @* TRETA (TRETA.md): quantos dos últimos de cada grupo vão pro DTN, e com
+                                           que categoria esta faz a Finalíssima. Não vale pra DTN/Finalíssima. *@
+                                        @if (cat.PapelDaChave == null && !cat.DeTimes && !cat.ChaveDireta)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="ConfigurarDtnDaCategoria" method="post"
+                                                  class="d-flex gap-1 align-items-center flex-wrap">
+                                                <input type="hidden" name="categoriaId" value="@cat.Id" />
+                                                <select name="duplasNoDtnPorGrupo" class="form-select form-select-sm" style="width: auto;" aria-label="DTN">
+                                                    <option value="0" selected="@(cat.DuplasNoDtnPorGrupo == 0)">Sem DTN</option>
+                                                    <option value="1" selected="@(cat.DuplasNoDtnPorGrupo == 1)">Último de cada grupo pro DTN</option>
+                                                    <option value="2" selected="@(cat.DuplasNoDtnPorGrupo == 2)">2 últimos de cada grupo pro DTN</option>
+                                                </select>
+                                                <select name="parDaFinalissimaId" class="form-select form-select-sm" style="width: auto;" aria-label="Finalíssima com">
+                                                    <option value="">Sem Finalíssima</option>
+                                                    @foreach (var outra in Model.Categorias.Where(o => o.Id != cat.Id && o.PapelDaChave == null && !o.DeTimes && !o.ChaveDireta))
+                                                    {
+                                                        <option value="@outra.Id"
+                                                                selected="@(cat.ParDaFinalissimaId == outra.Id || outra.ParDaFinalissimaId == cat.Id)">Finalíssima com @outra.Nome</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar DTN</button>
+                                            </form>
+                                        }
 
                                         @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
                                         {

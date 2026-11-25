@@ -481,6 +481,19 @@ public class TraducaoDasConsultasDoTretaTests
     }
 
     [Fact]
+    public void Os_pares_antigos_da_Finalissima_viram_SQL()
+    {
+        using var ctx = ContextoPostgres();
+        int torneioId = 1;
+        var envolvidos = new List<int> { 3, 4 };
+        var sql = ctx.Categorias
+            .Where(c => c.TorneioId == torneioId && c.ParDaFinalissimaId != null
+                     && (envolvidos.Contains(c.ParDaFinalissimaId.Value) || envolvidos.Contains(c.Id)))
+            .ToQueryString();
+        Assert.Contains("SELECT", sql);
+    }
+
+    [Fact]
     public void A_DTN_invertida_no_avanco_vira_SQL()
     {
         using var ctx = ContextoPostgres();

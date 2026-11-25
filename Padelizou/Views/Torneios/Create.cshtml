@@ -207,6 +207,20 @@
                                 <i class="bi bi-whatsapp"></i> Não é nenhum desses? Fale conosco que montamos seu tipo de torneio
                             </a>
                         </div>
+                        @* TRETA (25/11/2026, TRETA.md): torneio Oficial em modo festa — fora do ranking,
+                           tie-break no 5x5 e chave DTN (os últimos de cada grupo num mata-mata
+                           invertido) em toda categoria. Quem faz a Finalíssima com quem se escolhe
+                           depois, na gestão de cada categoria. *@
+                        @if (ViewBag.PodeCriarOficial == true)
+                        {
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="treta" value="true" id="pdzTreta" />
+                                <label class="form-check-label small" for="pdzTreta">
+                                    <strong>Torneio Treta</strong> — com chave DTN (o último de cada grupo joga um mata-mata em que
+                                    quem perde avança), fora do ranking e tie-break no 5x5.
+                                </label>
+                            </div>
+                        }
                         @if (ViewBag.PodeCriarOficial != true)
                         {
                             @* A recusa com SAÍDA. Antes ela terminava em "fale com a gente pelo

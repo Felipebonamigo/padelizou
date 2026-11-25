@@ -1,7 +1,30 @@
 # Treta — formato com chave DTN e Finalíssima
 
-> **Design para aprovação. Nenhum código escrito.** Nível *architectural* (gera migration).
-> Base: o PDF "Treta Chaves e DTN" (5 páginas) + respostas do organizador em 25/11/2026.
+> **Implementado em 25/11/2026** (aprovado: "pode fazer tudo"), branch
+> `claude/determined-heisenberg-5212c2`. Base: o PDF "Treta Chaves e DTN" + respostas do
+> organizador. Migrations `TretaChaveDtn` e `TieBreakNaPenultima` (só aditivas).
+>
+> ## Como ficou (difere do design abaixo nestes pontos)
+>
+> - **DTN usa CÓPIAS das duplas** (categoria `ChaveDireta` + `PapelDaChave = "DTN"`), não as
+>   originais: ~10 caminhos (W.O., correção, reabrir) carimbam `UltimaFase` na dupla do jogo e
+>   o DTN apareceria no pódio do módulo. Cópias nascem `Pago = true` (padrão dos times), do
+>   pior pro melhor — o bye cai no pior. Serviço: `RoboDoChaveamento.Dtn.cs`, `ChaveDtn`.
+> - **DTN e Finalíssima nascem só quando precisam** (grupos fechados; organizador confirma a
+>   troca). O módulo guarda `ParDaFinalissimaId` em vez de a Finalíssima existir antes.
+> - **Troféu**: sem tabela de votos — `Categoria.TrofeuDtnJogadorId`, registrado uma vez pela
+>   dupla vencedora; o organizador corrige (`FinalissimaDtn`, `TorneiosController.Treta`).
+> - **W.O. no DTN** ("joga a que veio jogar"): sem regra nova — o organizador troca o atleta da
+>   dupla com o "Trocar parceiro" que já existe (`DuplasController.TrocarParceiro`).
+> - **Tie no 5x5**: `Torneio.TieBreakNaPenultima` — o limite par para de estender.
+> - **Preset**: caixa "Torneio Treta" na criação (fora do ranking + tie no 5x5 + DTN em toda
+>   categoria); na gestão de cada categoria, "quantos pro DTN" e "Finalíssima com". As
+>   categorias vêm do catálogo, então os módulos se chamam pela categoria, não Branco/Preto/Verde.
+> - **Não visto rodando no navegador** (sem Postgres nesta sessão): só pela suíte.
+>
+> ---
+>
+> *Design original, para referência:*
 
 ## As regras, fechadas
 
