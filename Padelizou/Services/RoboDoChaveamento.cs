@@ -23,7 +23,7 @@ namespace Padelizou.Services;
 // A regra deste arquivo é: quem quiser criar fase de mata-mata passa por aqui. Duas cópias de
 // uma regra de chaveamento elegem dois campeões diferentes no primeiro caso que divergir — e
 // no Interno divergiram.
-public class RoboDoChaveamento
+public partial class RoboDoChaveamento
 {
     private readonly DbPadelContext _context;
     // Os pontos do ranking, pro desempate de grupo (ClassificacaoDeGrupos). Consultados só
@@ -52,6 +52,10 @@ public class RoboDoChaveamento
             .Where(p => p.CategoriaId == categoriaId
                      && (p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")))
             .ToListAsync();
+
+        // Treta: com os grupos fechados, os últimos vão pra chave DTN (RoboDoChaveamento.Dtn).
+        // Antes de tudo porque os caminhos do Principal abaixo têm cada um o seu `return`.
+        await MontarChaveDtnSeOsGruposFecharamAsync(categoria, torneioId, partidasDeGrupo);
 
         // ── O AVANÇO PARCIAL DOS GRUPOS (11/09/2026) ─────────────────────────────────────
         // 🗣️ Felipe: *"quando um grupo finalizar os 3 jogos, já coloque eles para a próxima fase

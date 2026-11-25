@@ -83,7 +83,7 @@ public class FormatoDaPartidaTests
     [InlineData(1, 0, 0, 1)]
     public void O_teto_sobe_um_game_quando_empata_na_penultima(int limite, int g1, int g2, int teto)
     {
-        Assert.Equal(teto, FormatoDaPartida.TetoDeGames(limite, g1, g2));
+        Assert.Equal(teto, FormatoDaPartida.TetoDeGames(limite, g1, g2, tieBreakNaPenultima: false));
     }
 
     [Theory]
@@ -96,7 +96,7 @@ public class FormatoDaPartidaTests
     [InlineData(9, 8, 8, false)]
     public void Encerrar_so_quando_alguem_venceu(int limite, int g1, int g2, bool pode)
     {
-        Assert.Equal(pode, FormatoDaPartida.PodeEncerrar(limite, g1, g2));
+        Assert.Equal(pode, FormatoDaPartida.PodeEncerrar(limite, g1, g2, tieBreakNaPenultima: false));
     }
 
     // ── CONTAGEM POR SOMA (Felipe, 08/08/2026) ────────────────────────────────────────────

@@ -24,7 +24,9 @@ namespace Padelizou.Controllers
             // porque aqui a Categoria não vem carregada — e um `false` silencioso viraria
             // dinheiro cobrado a mais.
             var duplas = await _context.Duplas
-                .Where(d => d.Categoria.TorneioId == torneioId && !d.Categoria.ChaveDireta).ToListAsync();
+                .Where(d => d.Categoria.TorneioId == torneioId && !d.Categoria.ChaveDireta
+                        && d.Categoria.PapelDaChave == null)   // Treta: DTN e Finalíssima, mesma razão
+                .ToListAsync();
             var americanas = await _context.InscricoesAmericanas
                 .Where(i => i.Categoria.TorneioId == torneioId).ToListAsync();
             return TaxaDoTorneioExterno.PessoasInscritas(duplas, americanas);

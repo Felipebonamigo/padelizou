@@ -265,7 +265,9 @@ public static class MvpDoTorneio
             .AsNoTracking()
             .Where(d => d.Categoria.TorneioId == torneioId
                      && d.UltimaFase == CampeoesDoTorneio.FaseDeCampeao
-                     && d.NomeTime == null)
+                     && d.NomeTime == null
+                     // Treta: quem vence a Finalíssima DTN não foi campeão de nada que conte.
+                     && d.Categoria.PapelDaChave == null)
             // Projeção CHATA e plana de propósito: um anônimo aninhado dentro de um ternário
             // (`J2 = d.Jogador2Id == null ? null : new { ... }`) é o tipo de expressão que o
             // provedor ou não traduz, ou traduz avaliando em memória depois de trazer a tabela.

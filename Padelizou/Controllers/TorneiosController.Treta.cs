@@ -1,0 +1,92 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Padelizou.Models;
+using Padelizou.Services;
+
+namespace Padelizou.Controllers
+{
+    // A FINALÍSSIMA DTN E O TROFÉU (Treta, 25/11/2026) — só o HTTP; a regra mora em
+    // Services/FinalissimaDtn. Ver TRETA.md.
+    //
+    // 🔒 Criar a Finalíssima é de quem organiza (EhOrganizadorAsync, sem régua nova). Registrar o
+    // troféu é da dupla vencedora do jogo decisivo OU de quem organiza — o serviço confere quem
+    // venceu; aqui só se descobre se é organizador.
+    public partial class TorneiosController
+    {
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CriarFinalissima(int id, int moduloId, int direitaDaPrimeira, int direitaDaSegunda)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var erro = await new FinalissimaDtn(_context)
+                .CriarAsync(id, moduloId, direitaDaPrimeira, direitaDaSegunda, Robo);
+            if (erro != null) TempData["Erro"] = erro;
+            else TempData["Sucesso"] = "Finalíssima DTN criada.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarTrofeuDtn(int id, int categoriaId, int jogadorId)
+        {
+            var quem = ObterJogadorIdLogado() ?? 0;
+            if (quem <= 0) return Forbid();
+            bool ehOrganizador = await EhOrganizadorAsync(id, quem);
+
+            var erro = await new FinalissimaDtn(_context)
+                .RegistrarTrofeuAsync(id, categoriaId, jogadorId, quem, ehOrganizador);
+            if (erro != null) TempData["Erro"] = erro;
+            else TempData["Sucesso"] = "Troféu DTN registrado.";
+            return RedirectToAction("Details", new { id });
+        }
+    
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfigurarDtnDaCategoria(int categoriaId, int duplasNoDtnPorGrupo, int? parDaFinalissimaId)
+        {
+            var categoria = await _context.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+            if (!await EhOrganizadorAsync(categoria.TorneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            // A DTN e a Finalíssima não têm DTN própria.
+            if (categoria.PapelDaChave != null)
+            {
+                TempData["Erro"] = "Essa chave já é do DTN.";
+                return RedirectToAction("Details", new { id = categoria.TorneioId });
+            }
+
+            // 0 desliga; mais de 2 por grupo não é um DTN, é outra chave inteira.
+            categoria.DuplasNoDtnPorGrupo = Math.Clamp(duplasNoDtnPorGrupo, 0, 2);
+
+            // O par só vale no mesmo torneio, entre módulos comuns, e nunca ela mesma.
+            Categoria? par = parDaFinalissimaId is int parId && parId != categoria.Id
+                ? await _context.Categorias.FirstOrDefaultAsync(c =>
+                    c.Id == parId && c.TorneioId == categoria.TorneioId && c.PapelDaChave == null)
+                : null;
+
+            // Um módulo, um par: quem apontava pra esta ou pro par novo deixa de apontar — senão a
+            // mesma categoria estaria em duas Finalíssimas (FinalissimaDtn lê os dois sentidos).
+            var envolvidos = new List<int> { categoria.Id, par?.Id ?? 0 };
+            foreach (var antiga in await _context.Categorias
+                         .Where(c => c.TorneioId == categoria.TorneioId && c.ParDaFinalissimaId != null
+                                  && (envolvidos.Contains(c.ParDaFinalissimaId.Value) || envolvidos.Contains(c.Id)))
+                         .ToListAsync())
+                antiga.ParDaFinalissimaId = null;
+
+            categoria.ParDaFinalissimaId = par?.Id;
+            if (par != null && par.DuplasNoDtnPorGrupo <= 0) par.DuplasNoDtnPorGrupo = categoria.DuplasNoDtnPorGrupo > 0 ? categoria.DuplasNoDtnPorGrupo : 1;
+
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = categoria.DuplasNoDtnPorGrupo == 0
+                ? $"\"{categoria.Nome}\" ficou sem DTN."
+                : $"\"{categoria.Nome}\": os {categoria.DuplasNoDtnPorGrupo} último(s) de cada grupo vão pro DTN"
+                  + (par != null ? $", com Finalíssima contra \"{par.Nome}\"." : ".");
+            return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, fragment: $"categoria-{categoria.Id}");
+        }
+    }
+}

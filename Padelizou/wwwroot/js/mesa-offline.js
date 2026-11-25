@@ -10,7 +10,7 @@
 // reentregue dobraria o game). O servidor decide por "marcadoEm" — o relógio DESTE aparelho
 // no momento do toque — então placar velho preso na fila nunca atropela um mais novo.
 const MesaOffline = (function () {
-    let torneioId, limiteGames, contagem, chaveFila;
+    let torneioId, limiteGames, contagem, chaveFila, tieNaPenultima = false;
     const limitePorPartida = {};
     const alvoDoTieBreakPorPartida = {};   // partidaId -> pontos do tie-break (0 = desligado)
     // partidaId -> sets de cada lado no empate que vai pro SUPER TIE-BREAK (1 = o 1x1 da final de
@@ -160,7 +160,7 @@ const MesaOffline = (function () {
     // mora AQUI e só aqui — teto de games e empate do tie-break perguntam pra ela
     // (TieBreakNaTelaTests: uma cópia só, a mesma de FormatoDaPartida.TetoDeGames).
     function estende(limite) {
-        return limite > 1 && limite % 2 === 0;
+        return !tieNaPenultima && limite > 1 && limite % 2 === 0;
     }
 
     // O jogo está no super tie-break? Mesma régua de Services/SetsDoJogo.EmSuperTieBreak: os dois
@@ -360,6 +360,9 @@ const MesaOffline = (function () {
         // "Soma" = joga-se esse total de games e acabou; qualquer outra coisa (inclusive
         // ausente, que é a Mesa de um torneio antigo) é o "até" de sempre.
         contagem = config.contagem === "Soma" ? "Soma" : "Ate";
+        // Torneio.TieBreakNaPenultima (25/11/2026): ligado, nenhum limite estende — o 5x5 do até 6
+        // vai pro tie-break e fecha 6x5. Ausente = a regra de sempre.
+        tieNaPenultima = config.tieNaPenultima === true;
         chaveFila = "pdz-mesa-fila-v1-" + torneioId;
 
         // `partidas` aceita o Id solto (forma antiga) ou {id, games} — a Mesa passa o limite

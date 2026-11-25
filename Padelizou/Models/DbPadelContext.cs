@@ -1160,6 +1160,18 @@ public partial class DbPadelContext : DbContext
                 .HasForeignKey(d => d.TorneioId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Categoria__Torne__5165187F");
+
+            // Treta (TRETA.md): ligações da DTN. SetNull: apagar o módulo ou o par não
+            // pode travar nem levar junto a categoria que só apontava pra eles.
+            entity.HasOne(d => d.CategoriaDeOrigem).WithMany()
+                .HasForeignKey(d => d.CategoriaDeOrigemId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.ParDaFinalissima).WithMany()
+                .HasForeignKey(d => d.ParDaFinalissimaId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.TrofeuDtnJogador).WithMany()
+                .HasForeignKey(d => d.TrofeuDtnJogadorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // A quadra preferida de cada categoria. Chave composta: a linha É o par, e um Id

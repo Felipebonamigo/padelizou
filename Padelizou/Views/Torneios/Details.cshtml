@@ -356,6 +356,12 @@
     </fieldset>
 }
 
+@* Treta: a Finalíssima DTN por criar e o Troféu DTN (Services/FinalissimaDtn). *@
+@if (ViewBag.PainelDoTreta is Padelizou.Services.FinalissimaDtn.Painel painelDoTreta)
+{
+    <partial name="_PainelDoTreta" model="painelDoTreta" />
+}
+
 @* Os sorteios de brinde, à vista de todos (Services/SorteioDeBrindes). *@
 @if (ViewBag.Sorteios is List<Padelizou.Models.SorteioDoTorneio> sorteiosDoTorneio && sorteiosDoTorneio.Count > 0)
 {
@@ -3887,6 +3893,25 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                     <label class="form-label fw-bold small">Nome do Torneio</label>
                                     <input type="text" name="nome" class="form-control" value="@Model.Nome" maxlength="150" required />
                                 </div>
+                                @* O TIPO DO TORNEIO (25/11/2026) — quando pode trocar mora em
+                                   Services/TrocaDoTipoDoTorneio (Treta é Oficial + DTN; Oficial ↔
+                                   Americano só sem inscrição). *@
+                                @{
+                                    var tipoAtualDoTorneio = Padelizou.Services.TrocaDoTipoDoTorneio.TipoAtual(Model, Model.Categorias);
+                                }
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" for="pdzTipoDoTorneio">Tipo do torneio</label>
+                                    <select name="tipoDoTorneio" id="pdzTipoDoTorneio" class="form-select">
+                                        @foreach (var (valor, texto) in Padelizou.Services.TrocaDoTipoDoTorneio.Opcoes)
+                                        {
+                                            <option value="@valor" selected="@(valor == tipoAtualDoTorneio)">@texto</option>
+                                        }
+                                    </select>
+                                    <small class="text-muted d-block mt-1">
+                                        Treta liga a chave DTN, o tie-break no 5x5 e tira do ranking. Entre Oficial e
+                                        Americano só dá pra trocar antes da primeira inscrição.
+                                    </small>
+                                </div>
                                 @* "Local" e "Clube" eram o MESMO dado pedido duas vezes: o local
                                    do torneio é o clube onde ele acontece. A criação já pedia só
                                    o clube; aqui tinha sobrado o campo de texto, e os dois
@@ -4829,6 +4854,27 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </small>
                                             }
 
+                                            @* Torneio.ForaDoRanking (25/11/2026, Treta): torneio-festa. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="foraDoRanking" id="pdzForaDoRanking"
+                                                       checked="@Model.ForaDoRanking" />
+                                                <input type="hidden" name="foraDoRanking" value="false" />
+                                                <label class="form-check-label small" for="pdzForaDoRanking">
+                                                    Fora do ranking (não conta pontos nem Padelímetro)
+                                                </label>
+                                            </div>
+                                            @* Torneio.TieBreakNaPenultima (25/11/2026, Treta). Mesmo par
+                                               caixa + hidden do `finalSeparada`: silêncio = aba antiga. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="tieBreakNaPenultima" id="pdzTieNaPenultima"
+                                                       checked="@Model.TieBreakNaPenultima" />
+                                                <input type="hidden" name="tieBreakNaPenultima" value="false" />
+                                                <label class="form-check-label small" for="pdzTieNaPenultima">
+                                                    Tie-break no empate da penúltima (até 6: 5x5 vira tie-break e fecha 6x5)
+                                                </label>
+                                            </div>
                                             @* A FINAL SOZINHA (Felipe, 12/09/2026). Fica DENTRO deste
                                                card, e não numa quarta coluna, porque as três colunas já
                                                apertam no celular — e porque o desvio é exceção do bloco
@@ -5195,6 +5241,30 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                    class="form-control form-control-sm" style="width: 96px;" placeholder="Sem limite" />
                                             <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar limite</button>
                                         </form>
+
+                                        @* TRETA (TRETA.md): quantos dos últimos de cada grupo vão pro DTN, e com
+                                           que categoria esta faz a Finalíssima. Não vale pra DTN/Finalíssima. *@
+                                        @if (cat.PapelDaChave == null && !cat.DeTimes && !cat.ChaveDireta)
+                                        {
+                                            <form asp-controller="Torneios" asp-action="ConfigurarDtnDaCategoria" method="post"
+                                                  class="d-flex gap-1 align-items-center flex-wrap">
+                                                <input type="hidden" name="categoriaId" value="@cat.Id" />
+                                                <select name="duplasNoDtnPorGrupo" class="form-select form-select-sm" style="width: auto;" aria-label="DTN">
+                                                    <option value="0" selected="@(cat.DuplasNoDtnPorGrupo == 0)">Sem DTN</option>
+                                                    <option value="1" selected="@(cat.DuplasNoDtnPorGrupo == 1)">Último de cada grupo pro DTN</option>
+                                                    <option value="2" selected="@(cat.DuplasNoDtnPorGrupo == 2)">2 últimos de cada grupo pro DTN</option>
+                                                </select>
+                                                <select name="parDaFinalissimaId" class="form-select form-select-sm" style="width: auto;" aria-label="Finalíssima com">
+                                                    <option value="">Sem Finalíssima</option>
+                                                    @foreach (var outra in Model.Categorias.Where(o => o.Id != cat.Id && o.PapelDaChave == null && !o.DeTimes && !o.ChaveDireta))
+                                                    {
+                                                        <option value="@outra.Id"
+                                                                selected="@(cat.ParDaFinalissimaId == outra.Id || outra.ParDaFinalissimaId == cat.Id)">Finalíssima com @outra.Nome</option>
+                                                    }
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar DTN</button>
+                                            </form>
+                                        }
 
                                         @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
                                         {
@@ -6887,6 +6957,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             var fasesPresentes = ordemFases.Where(f => jogosMata.Any(p => p.Fase == f)).ToList();
                             bool chaveJaComecou = fasesPresentes.Any();
                             bool temGrupos = categoria.GruposTorneio.Any();
+                        }
+
+                        @* Treta (TRETA.md): a chave DTN é invertida — sem o aviso, o quadro lê
+                           como um mata-mata comum e o "vencedor" destacado parece quem avança. *@
+                        @if (categoria.PapelDaChave == Padelizou.Services.ChaveDtn.Dtn)
+                        {
+                            <div class="alert alert-warning py-2 mb-3 aviso-dtn">
+                                <strong>Chave DTN — mata-mata invertido.</strong>
+                                Aqui quem <strong>perde</strong> avança. Quem perder a final leva o DTN.
+                            </div>
+                        }
+                        else if (categoria.PapelDaChave == Padelizou.Services.ChaveDtn.Finalissima)
+                        {
+                            <div class="alert alert-warning py-2 mb-3 aviso-dtn">
+                                <strong>Finalíssima DTN.</strong>
+                                As duplas que perderam o DTN, com os parceiros trocados. A dupla vencedora escolhe quem leva o troféu.
+                            </div>
                         }
 
                         @* Com o mata-mata em andamento a CHAVE vem primeiro (order do flex,

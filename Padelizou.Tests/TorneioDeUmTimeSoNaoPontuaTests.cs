@@ -81,9 +81,9 @@ public class TorneioDeUmTimeSoNaoPontuaTests
         // ⚠️ É esta que as consultas enxutas (`.Select`) usam. Ela já tinha esquecido o
         // Americano uma vez, e cada esquecimento foi um bug diferente: pontos do perfil,
         // pontos da busca, ranking de times.
-        Assert.True(EstatisticasService.ContaNoRanking(restrito: false, timeExclusivoId: null, formato: "Padrao"));
-        Assert.False(EstatisticasService.ContaNoRanking(restrito: false, timeExclusivoId: TimeDaCasa, formato: "Padrao"));
-        Assert.False(EstatisticasService.ContaNoRanking(restrito: true, timeExclusivoId: null, formato: "Padrao"));
+        Assert.True(EstatisticasService.ContaNoRanking(restrito: false, timeExclusivoId: null, formato: "Padrao", foraDoRanking: false));
+        Assert.False(EstatisticasService.ContaNoRanking(restrito: false, timeExclusivoId: TimeDaCasa, formato: "Padrao", foraDoRanking: false));
+        Assert.False(EstatisticasService.ContaNoRanking(restrito: true, timeExclusivoId: null, formato: "Padrao", foraDoRanking: false));
     }
 
     [Fact]

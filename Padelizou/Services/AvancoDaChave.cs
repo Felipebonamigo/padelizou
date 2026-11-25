@@ -60,7 +60,7 @@ public static class AvancoDaChave
         var daCategoria = await context.Partidas
             .Where(p => p.CategoriaId == categoriaId)
             .OrderBy(p => p.Id)
-            .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.Status, p.VencedorId, p.NumeroNaFase })
+            .Select(p => new { p.Id, p.CategoriaId, p.Fase, p.Status, p.VencedorId, p.NumeroNaFase, p.Dupla1Id, p.Dupla2Id })
             .ToListAsync();
 
         // ⚠️ NA ORDEM DO QUADRO, E NÃO POR Id (13/09/2026). Desde que o jogo pode nascer fora de
@@ -103,8 +103,14 @@ public static class AvancoDaChave
             if (fasesDaCategoria.Contains(seguinte)) return new List<int?>();
         }
 
+        // Treta: na chave DTN o mata-mata é INVERTIDO — quem avança é quem PERDEU.
+        bool invertida = await context.Categorias
+            .AnyAsync(c => c.Id == categoriaId && c.PapelDaChave == ChaveDtn.Dtn);
+
         var vagas = partidasDaFase
-            .Select(p => p.Status == "Finalizada" ? p.VencedorId : null)
+            .Select(p => p.Status != "Finalizada" || p.VencedorId == null ? null
+                : invertida ? (p.VencedorId == p.Dupla1Id ? p.Dupla2Id : p.Dupla1Id)
+                : p.VencedorId)
             .ToList();
 
         // O bye é coisa da PRIMEIRA rodada do mata-mata: quem folgou entra na SEGUNDA fase e

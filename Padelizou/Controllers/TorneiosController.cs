@@ -1347,6 +1347,10 @@ namespace Padelizou.Controllers
             // resultado à vista é o que impede o "foi armado". Os refeitos vêm junto, riscados.
             ViewBag.Sorteios = await SorteiosDoTorneioAsync(id);
 
+            // Treta (TRETA.md): a Finalíssima por criar (só organizador) e o Troféu DTN.
+            ViewBag.PainelDoTreta = await new FinalissimaDtn(_context)
+                .PainelAsync(id, jogadorLogadoId, ehOrganizadorDeVerdade);
+
             return View(torneio);
         }
         public async Task<IActionResult> Jogos(int id, int? timeFiltroId, int[]? categoriaFiltroIds, bool soMeusJogos = false,

@@ -161,7 +161,8 @@ namespace padelizou.Controllers
             // cresce até o fechamento e o valor se combina aqui, na resposta.
             var torneioIds = pedidos.Select(p => p.TorneioId).Distinct().ToList();
             var duplasPorTorneio = (await _context.Duplas
-                    .Where(d => torneioIds.Contains(d.Categoria.TorneioId) && !d.Categoria.ChaveDireta)
+                    .Where(d => torneioIds.Contains(d.Categoria.TorneioId) && !d.Categoria.ChaveDireta
+                        && d.Categoria.PapelDaChave == null)   // Treta: DTN e Finalíssima, mesma razão
                     .Select(d => new { d.Categoria.TorneioId, Dupla = d })
                     .ToListAsync())
                 .ToLookup(x => x.TorneioId, x => x.Dupla);

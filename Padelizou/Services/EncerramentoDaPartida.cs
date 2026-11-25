@@ -164,6 +164,13 @@ public class EncerramentoDaPartida
             {
                 await _robo.MontarFinalDoAmericanoAsync(partida.CategoriaId, torneioId);
             }
+            else if (partida.Fase == "Final"
+                     && await _context.Categorias.AnyAsync(c => c.Id == partida.CategoriaId && c.PapelDaChave != null))
+            {
+                // Treta: final de DTN (ou Finalíssima) não coroa ninguém — quem PERDE leva o DTN.
+                // Sem campanha do Padelímetro: a categoria está fora dele (entrega 1).
+                await CarimbarODtnAsync(perdedorId, torneioId);
+            }
             else if (partida.Fase == "Final")
             {
                 await CoroarCampeaoAsync(partida, vencedorId, torneioId);
@@ -194,6 +201,15 @@ public class EncerramentoDaPartida
         await NotificarResultadoAsync(partida, vencedorId, perdedorId, links.DoTorneio);
 
         if (acabouDeTerminar) await AvisarProximoDaQuadraAsync(partida, links.DaListaDeJogos);
+    }
+
+    private async Task CarimbarODtnAsync(int perdedorId, int torneioId)
+    {
+        var perdedor = await _context.Duplas.FindAsync(perdedorId);
+        if (perdedor != null) perdedor.UltimaFase = ChaveDtn.Perdedor;
+        await _context.SaveChangesAsync();
+
+        await FinalizarOTorneioSeAcabouEmTodasAsCategoriasAsync(torneioId);
     }
 
     private async Task CoroarCampeaoAsync(Partida partida, int vencedorId, int torneioId)
@@ -232,6 +248,10 @@ public class EncerramentoDaPartida
         bool aindaTemJogo = await _context.Partidas
             .AnyAsync(p => p.TorneioId == torneioId && p.Status != "Finalizada");
         if (aindaTemJogo) return;
+
+        // Treta: a Finalíssima DTN nasce só quando o organizador confirma a troca de lados —
+        // até lá ela é um jogo que ainda não existe, mas vai existir (Services/FinalissimaDtn).
+        if (await new FinalissimaDtn(_context).FaltaFinalissimaAsync(torneioId)) return;
 
         var torneio = await _context.Torneios.FindAsync(torneioId);
         if (torneio == null) return;

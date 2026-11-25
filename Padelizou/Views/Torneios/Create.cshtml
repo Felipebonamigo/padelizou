@@ -207,6 +207,20 @@
                                 <i class="bi bi-whatsapp"></i> Não é nenhum desses? Fale conosco que montamos seu tipo de torneio
                             </a>
                         </div>
+                        @* TRETA (25/11/2026, TRETA.md): torneio Oficial em modo festa — fora do ranking,
+                           tie-break no 5x5 e chave DTN (os últimos de cada grupo num mata-mata
+                           invertido) em toda categoria. Quem faz a Finalíssima com quem se escolhe
+                           depois, na gestão de cada categoria. *@
+                        @if (ViewBag.PodeCriarOficial == true)
+                        {
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="treta" value="true" id="pdzTreta" />
+                                <label class="form-check-label small" for="pdzTreta">
+                                    <strong>Torneio Treta</strong> — com chave DTN (o último de cada grupo joga um mata-mata em que
+                                    quem perde avança), fora do ranking e tie-break no 5x5.
+                                </label>
+                            </div>
+                        }
                         @if (ViewBag.PodeCriarOficial != true)
                         {
                             @* A recusa com SAÍDA. Antes ela terminava em "fale com a gente pelo
@@ -1411,6 +1425,13 @@
                                 8x8 vira tie-break. Em número par (até 6) o 5x5 já vai pro 7º game,
                                 e a contagem não entra.
                             </small>
+                            @* Torneio.TieBreakNaPenultima (25/11/2026, Treta: "set até 6, tie em 5:5"). *@
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" asp-for="TieBreakNaPenultima" />
+                                <label class="form-check-label small" asp-for="TieBreakNaPenultima">
+                                    Tie-break no empate da penúltima (até 6: 5x5 vira tie-break e fecha 6x5)
+                                </label>
+                            </div>
                         </div>
                     </div>
 

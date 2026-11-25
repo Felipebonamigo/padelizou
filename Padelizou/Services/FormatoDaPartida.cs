@@ -31,7 +31,9 @@ public static class FormatoDaPartida
     // pontos vai o tie-break desta partida?" é a mesma pergunta que "até quantos games?": a
     // resposta sai da FASE, e este é o único lugar do projeto que traduz fase → formato.
     public record Formato(int Sets, int Games, string Contagem = ContagemDeGamesDoTorneio.Ate,
-                          int PontosTieBreak = TieBreakDoJogo.Desligado)
+                          int PontosTieBreak = TieBreakDoJogo.Desligado,
+                          // Ver Torneio.TieBreakNaPenultima: o limite par para de estender.
+                          bool TieBreakNaPenultima = false)
     {
         public bool EhSoma => ContagemDeGamesDoTorneio.EhSoma(Contagem);
     }
@@ -57,17 +59,21 @@ public static class FormatoDaPartida
         // que o organizador escolhe de propósito ("sem contagem"), e zero em sets sem zero em
         // games seria uma linha meio configurada. Um interruptor só. Ver Torneio.GamesSoDaFinal.
         if (fase == "Final" && torneio.GamesSoDaFinal > 0)
-            return Valido(torneio.SetsSoDaFinal, torneio.GamesSoDaFinal, contagem, torneio.PontosTieBreakSoDaFinal);
+            return Valido(torneio.SetsSoDaFinal, torneio.GamesSoDaFinal, contagem, torneio.PontosTieBreakSoDaFinal)
+                with { TieBreakNaPenultima = torneio.TieBreakNaPenultima };
 
         // Sem desvio, a final volta pro bloco das semis — que é como o torneio inteiro sempre
         // funcionou, e continua sendo o caso da esmagadora maioria.
         if (fase is "Semifinal" or "Final")
-            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem, torneio.PontosTieBreakFinal);
+            return Valido(torneio.SetsFaseFinal, torneio.GamesFaseFinal, contagem, torneio.PontosTieBreakFinal)
+                with { TieBreakNaPenultima = torneio.TieBreakNaPenultima };
 
         if (FasesTorneio.EhFaseDeGrupos(fase) || (fase?.StartsWith("Americano") ?? false))
-            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem, torneio.PontosTieBreakGrupos);
+            return Valido(torneio.SetsFaseGrupos, torneio.GamesFaseGrupos, contagem, torneio.PontosTieBreakGrupos)
+                with { TieBreakNaPenultima = torneio.TieBreakNaPenultima };
 
-        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem, torneio.PontosTieBreakMataMata);
+        return Valido(torneio.SetsFaseMataMata, torneio.GamesFaseMataMata, contagem, torneio.PontosTieBreakMataMata)
+                with { TieBreakNaPenultima = torneio.TieBreakNaPenultima };
     }
 
     // O formato de UM JOGO: o próprio, quando o organizador trocou na hora (Partida.GamesDoJogo),
@@ -81,7 +87,8 @@ public static class FormatoDaPartida
             var contagem = torneio == null
                 ? ContagemDeGamesDoTorneio.Ate
                 : ContagemDeGamesDoTorneio.Valido(torneio.ContagemDeGames);
-            return Valido(partida.SetsDoJogo ?? 0, games, contagem, partida.PontosTieBreakDoJogo ?? TieBreakDoJogo.Desligado);
+            return Valido(partida.SetsDoJogo ?? 0, games, contagem, partida.PontosTieBreakDoJogo ?? TieBreakDoJogo.Desligado)
+                with { TieBreakNaPenultima = torneio?.TieBreakNaPenultima ?? false };
         }
 
         return De(torneio, partida?.Fase);
@@ -107,9 +114,13 @@ public static class FormatoDaPartida
     //
     // O teto sobe só DEPOIS de o empate acontecer. Sem essa condição, um jogo até 4 poderia
     // terminar 5x0 — e ninguém joga um quinto game numa partida decidida por 4x0.
-    public static int TetoDeGames(int limite, int games1, int games2)
+    //
+    // ⚠️ `tieBreakNaPenultima` (Torneio.TieBreakNaPenultima, 25/11/2026): ligado, o limite par
+    // também NÃO estende — o empate a um game do fim vai pro tie-break e fecha no próprio limite
+    // (até 6: 5x5 → 6x5). Obrigatório de propósito: sem valor padrão, quem chama decide.
+    public static int TetoDeGames(int limite, int games1, int games2, bool tieBreakNaPenultima)
     {
-        if (limite <= 1 || limite % 2 != 0) return limite;
+        if (limite <= 1 || limite % 2 != 0 || tieBreakNaPenultima) return limite;
 
         bool empatouNaPenultima = games1 >= limite - 1 && games2 >= limite - 1;
         return empatouNaPenultima ? limite + 1 : limite;
@@ -117,9 +128,9 @@ public static class FormatoDaPartida
 
     // O placar já dá pra encerrar? Alguém chegou no número que vence — respeitando o
     // desempate: em 3x3 (jogo até 4) ninguém venceu ainda, apesar de o 3 ser "quase lá".
-    public static bool PodeEncerrar(int limite, int games1, int games2)
+    public static bool PodeEncerrar(int limite, int games1, int games2, bool tieBreakNaPenultima)
     {
-        int teto = TetoDeGames(limite, games1, games2);
+        int teto = TetoDeGames(limite, games1, games2, tieBreakNaPenultima);
         return games1 >= teto || games2 >= teto
             || (games1 >= limite && games1 > games2)
             || (games2 >= limite && games2 > games1);
@@ -136,7 +147,7 @@ public static class FormatoDaPartida
     public static int TetoDoLado(Formato formato, int meusGames, int gamesDoOutro) =>
         formato.EhSoma
             ? Math.Max(0, formato.Games - gamesDoOutro)
-            : TetoDeGames(formato.Games, meusGames, gamesDoOutro);
+            : TetoDeGames(formato.Games, meusGames, gamesDoOutro, formato.TieBreakNaPenultima);
 
     // Na soma o jogo fecha quando os games ACABAM (o total foi jogado), não quando alguém
     // chega num número — 5x2 e 4x3 fecham a mesma soma de 7. Já 6x0 numa soma de 7 ainda tem
@@ -144,7 +155,7 @@ public static class FormatoDaPartida
     public static bool PodeEncerrar(Formato formato, int games1, int games2) =>
         formato.EhSoma
             ? games1 + games2 >= formato.Games
-            : PodeEncerrar(formato.Games, games1, games2);
+            : PodeEncerrar(formato.Games, games1, games2, formato.TieBreakNaPenultima);
 
     // Um placar inteiro ajustado ao formato. Existe pra Mesa, tela cheia e salvar-em-lote não
     // terem três versões da mesma conta — que é exatamente como o `limiteGames: 9` cravado no
@@ -164,7 +175,7 @@ public static class FormatoDaPartida
             return (g1, Math.Min(games2, formato.Games - g1));
         }
 
-        int teto = TetoDeGames(formato.Games, games1, games2);
+        int teto = TetoDeGames(formato.Games, games1, games2, formato.TieBreakNaPenultima);
         return (Math.Min(games1, teto), Math.Min(games2, teto));
     }
 }

@@ -140,7 +140,7 @@ public class TieBreakDoJogoTests
         var formato = Ate(9, 7);
         Assert.False(FormatoDaPartida.PodeEncerrar(formato, 8, 8));
         Assert.True(FormatoDaPartida.PodeEncerrar(formato, 9, 8));
-        Assert.Equal(9, FormatoDaPartida.TetoDeGames(9, 8, 8));
+        Assert.Equal(9, FormatoDaPartida.TetoDeGames(9, 8, 8, tieBreakNaPenultima: false));
     }
 
     // ── PONTO GRAVADO: LIXO NÃO ENTRA ────────────────────────────────────────────────────

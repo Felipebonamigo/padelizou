@@ -188,6 +188,13 @@ public partial class Torneio
     // ⚠️ SÓ VALE EM FASE DE NÚMERO ÍMPAR DE GAMES. Num jogo até 6 o 5x5 continua indo pro 7º
     // game (o "vencer por dois" que já está em quadra), então um 10 gravado aqui fica INERTE —
     // e as telas avisam. Ver Services/TieBreakDoJogo.PodeAcontecer.
+    // TIE-BREAK NO EMPATE DA PENÚLTIMA (25/11/2026) — 🗣️ organizador do Treta: "um set até 6.
+    // Tie em 5:5". Ligado, o limite PAR deixa de estender: no até 6 o 5x5 abre o tie-break e
+    // fecha 6x5 — o mesmo do até 9, que fecha 9x8. Desligado (todo torneio que já existia) é a
+    // regra de sempre: 5x5 vai pro 7º game, 6x6 abre o tie-break e fecha 7x6. Quem lê é
+    // FormatoDaPartida (o `Formato` carrega) e a Mesa offline (config `tieNaPenultima`).
+    public bool TieBreakNaPenultima { get; set; }
+
     public int PontosTieBreakGrupos { get; set; }
     public int PontosTieBreakMataMata { get; set; }
     public int PontosTieBreakFinal { get; set; }
@@ -437,6 +444,12 @@ public partial class Torneio
     // Torneio restrito: só quem tiver a ChaveAcesso consegue se inscrever (Dupla ou
     // InscricaoAmericana). Chave gerada automaticamente na criação quando Restrito = true.
     public bool Restrito { get; set; }
+
+    // FORA DO RANKING (25/11/2026) — 🗣️ organizador do Treta: os jogos "não" contam.
+    // Torneio-festa: aberto pra quem quiser (não é o `Restrito`, que pede chave), mas sem ponto,
+    // título de ranking nem Padelímetro. Perfil e histórico continuam mostrando — aconteceu.
+    // Quem lê é EstatisticasService.ContaNoRanking, em todas as suas escritas.
+    public bool ForaDoRanking { get; set; }
     public string? ChaveAcesso { get; set; }
 
     // ---- TORNEIO DE UM TIME SÓ (Felipe, 16/09/2026) ----

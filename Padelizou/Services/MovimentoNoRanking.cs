@@ -71,6 +71,7 @@ public static class MovimentoNoRanking
     public static Task<Janela?> DoOficialAsync(DbPadelContext ctx, DateTime agora) =>
         UltimoAsync(ctx, ctx.Torneios.Where(t => !t.Restrito
                                               && t.TimeExclusivoId == null
+                                              && !t.ForaDoRanking
                                               && t.Formato != FormatoDoTorneio.Americano
                                               && t.Formato != FormatoDoTorneio.AmericanoDeDuplas), agora);
 

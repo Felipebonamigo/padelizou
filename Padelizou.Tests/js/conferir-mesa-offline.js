@@ -237,6 +237,16 @@ function campoDoCorpo(corpo, nome) {
         conferir('até 9: o 8x8 continua abrindo', t.elementos.tieBreak_1.hidden === false);
     }
 
+    // 7. TIE-BREAK NO 5x5 (25/11/2026, Treta: "um set até 6. Tie em 5:5"). Com `tieNaPenultima`, o
+    //    até 6 para de estender: o 5x5 abre a contagem e fechar escreve 6x5.
+    {
+        const t = mesa({ tela: { gamesA_1: 5, gamesB_1: 5, pontosA_1: 7, pontosB_1: 5 } });
+        t.MesaOffline.iniciar({ torneioId: 9, limiteGames: 6, tieNaPenultima: true, partidas: [{ id: 1, games: 6, tieBreak: 7 }] });
+        conferir('tie no 5x5: o 5x5 abre a contagem', t.elementos.tieBreak_1.hidden === false);
+        t.MesaOffline.fecharTieBreak(1);
+        conferir('tie no 5x5: fechar escreve 6x5', t.elementos.gamesA_1.innerText === 6 && t.elementos.gamesB_1.innerText === 5);
+    }
+
     console.log('');
     console.log(falhas === 0 ? 'TUDO VERDE' : falhas + ' FALHA(S)');
     process.exit(falhas === 0 ? 0 : 1);

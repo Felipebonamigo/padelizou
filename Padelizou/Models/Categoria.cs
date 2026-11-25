@@ -146,4 +146,40 @@ public partial class Categoria
     // NOVO pra todo mundo é só a preferência: a grade enche a sede principal primeiro (ver
     // Services/GradeDeJogos.Encaixar), que é o que se quer quando a outra é alugada por hora.
     public bool PodeJogarNaSedeExtra { get; set; } = true;
+
+    // ---- TRETA: A CHAVE DTN E A FINALÍSSIMA (25/11/2026) ----
+    //
+    // 🗣️ Felipe, com o PDF do Treta Padel: um mata-mata INVERTIDO pros últimos de cada grupo,
+    // em que quem PERDE avança e quem perde a final leva o Troféu DTN; e a Finalíssima, que
+    // junta os perdedores de dois DTNs com os parceiros trocados. Design em TRETA.md.
+    //
+    // ⚠️ O DTN É UMA CATEGORIA À PARTE, e não uma segunda chave dentro desta: o motor inteiro
+    // é chaveado por (CategoriaId, Fase) — avanço, índice único, desenho, coroação. É o caminho
+    // do `ChaveDireta` (duplas remontadas numa categoria paralela).
+    //
+    // NULL = categoria normal (todas as que já existiam). Valores em Services/ChaveDtn.
+    [StringLength(20)]
+    public string? PapelDaChave { get; set; }
+
+    // A DTN aponta pro módulo de onde vieram as duplas.
+    public int? CategoriaDeOrigemId { get; set; }
+    public virtual Categoria? CategoriaDeOrigem { get; set; }
+
+    // No MÓDULO: quantos dos últimos de cada grupo vão pro DTN. 0 = sem DTN (o de sempre).
+    // Os `ClassificadosPorGrupo` do topo seguem pro Principal; o meio é eliminado.
+    public int DuplasNoDtnPorGrupo { get; set; }
+
+    // No MÓDULO: o outro módulo cujo perdedor do DTN enfrenta o nosso na Finalíssima (com os
+    // parceiros trocados). NULL = sem Finalíssima: o troféu sai da própria final DTN.
+    // Basta marcar de um lado — quem lê é Services/ChaveDtn, que olha os dois sentidos.
+    //
+    // ⚠️ DTN e Finalíssima NASCEM SÓ QUANDO O ROBÔ PRECISA (grupos fechados, finais DTN
+    // fechadas). Por isso não existem durante as inscrições e nunca aparecem como opção.
+    public int? ParDaFinalissimaId { get; set; }
+    public virtual Categoria? ParDaFinalissima { get; set; }
+
+    // Na categoria do jogo decisivo (a DTN sem Finalíssima, ou a Finalíssima): o atleta que a
+    // dupla vencedora escolheu, em consenso, entre os dois perdedores.
+    public int? TrofeuDtnJogadorId { get; set; }
+    public virtual Jogador? TrofeuDtnJogador { get; set; }
 }

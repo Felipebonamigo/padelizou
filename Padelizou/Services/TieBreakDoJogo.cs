@@ -70,7 +70,7 @@ public static class TieBreakDoJogo
     // Em que empate de games o tie-break começa: a um game do fim onde o limite não estende (8x8 no
     // até 9), e no próprio limite onde ele estende (6x6 no até 6).
     public static int EmpateDoTieBreak(FormatoDaPartida.Formato formato) =>
-        FormatoDaPartida.TetoDeGames(formato.Games, formato.Games - 1, formato.Games - 1) == formato.Games
+        FormatoDaPartida.TetoDeGames(formato.Games, formato.Games - 1, formato.Games - 1, formato.TieBreakNaPenultima) == formato.Games
             ? formato.Games - 1
             : formato.Games;
 
