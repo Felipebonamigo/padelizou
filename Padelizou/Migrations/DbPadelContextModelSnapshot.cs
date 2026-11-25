@@ -3988,6 +3988,9 @@ namespace Padelizou.Migrations
                     b.Property<int>("TempoSemifinalMinutos")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("TieBreakNaPenultima")
+                        .HasColumnType("boolean");
+
                     b.Property<int?>("TimeExclusivoId")
                         .HasColumnType("integer");
 

@@ -4835,6 +4835,17 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 </small>
                                             }
 
+                                            @* Torneio.TieBreakNaPenultima (25/11/2026, Treta). Mesmo par
+                                               caixa + hidden do `finalSeparada`: silêncio = aba antiga. *@
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="checkbox" value="true"
+                                                       name="tieBreakNaPenultima" id="pdzTieNaPenultima"
+                                                       checked="@Model.TieBreakNaPenultima" />
+                                                <input type="hidden" name="tieBreakNaPenultima" value="false" />
+                                                <label class="form-check-label small" for="pdzTieNaPenultima">
+                                                    Tie-break no empate da penúltima (até 6: 5x5 vira tie-break e fecha 6x5)
+                                                </label>
+                                            </div>
                                             @* A FINAL SOZINHA (Felipe, 12/09/2026). Fica DENTRO deste
                                                card, e não numa quarta coluna, porque as três colunas já
                                                apertam no celular — e porque o desvio é exceção do bloco

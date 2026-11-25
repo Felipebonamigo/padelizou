@@ -1367,6 +1367,8 @@ namespace Padelizou.Controllers
             // Nulo = o campo não veio, e o que está gravado FICA.
             bool? finalSeparada = null,
             int? setsSoDaFinal = null, int? gamesSoDaFinal = null,
+            // Torneio.TieBreakNaPenultima (25/11/2026). `bool?` pelo mesmo motivo do de cima.
+            bool? tieBreakNaPenultima = null,
             int? pontosTieBreakSoDaFinal = null,
             bool? mesmaDuracaoEmTodasAsFases = null,
             int? tempoMataMataMinutos = null, int? tempoSemifinalMinutos = null, int? tempoFinalMinutos = null,
@@ -1685,6 +1687,7 @@ namespace Padelizou.Controllers
             torneio.PontosTieBreakGrupos = TieBreakDoJogo.AlvoValido(pontosTieBreakGrupos ?? torneio.PontosTieBreakGrupos);
             torneio.PontosTieBreakMataMata = TieBreakDoJogo.AlvoValido(pontosTieBreakMataMata ?? torneio.PontosTieBreakMataMata);
             torneio.PontosTieBreakFinal = TieBreakDoJogo.AlvoValido(pontosTieBreakFinal ?? torneio.PontosTieBreakFinal);
+            torneio.TieBreakNaPenultima = tieBreakNaPenultima ?? torneio.TieBreakNaPenultima;
 
             // A REGRA PRÓPRIA DA FINAL. Os três só mexem quando a caixa VEIO no formulário —
             // nulo é a aba antiga em cache, e aí o que está gravado fica (ver o comentário na

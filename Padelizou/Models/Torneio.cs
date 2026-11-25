@@ -188,6 +188,13 @@ public partial class Torneio
     // ⚠️ SÓ VALE EM FASE DE NÚMERO ÍMPAR DE GAMES. Num jogo até 6 o 5x5 continua indo pro 7º
     // game (o "vencer por dois" que já está em quadra), então um 10 gravado aqui fica INERTE —
     // e as telas avisam. Ver Services/TieBreakDoJogo.PodeAcontecer.
+    // TIE-BREAK NO EMPATE DA PENÚLTIMA (25/11/2026) — 🗣️ organizador do Treta: "um set até 6.
+    // Tie em 5:5". Ligado, o limite PAR deixa de estender: no até 6 o 5x5 abre o tie-break e
+    // fecha 6x5 — o mesmo do até 9, que fecha 9x8. Desligado (todo torneio que já existia) é a
+    // regra de sempre: 5x5 vai pro 7º game, 6x6 abre o tie-break e fecha 7x6. Quem lê é
+    // FormatoDaPartida (o `Formato` carrega) e a Mesa offline (config `tieNaPenultima`).
+    public bool TieBreakNaPenultima { get; set; }
+
     public int PontosTieBreakGrupos { get; set; }
     public int PontosTieBreakMataMata { get; set; }
     public int PontosTieBreakFinal { get; set; }

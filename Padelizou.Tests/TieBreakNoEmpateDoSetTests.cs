@@ -36,7 +36,7 @@ public class TieBreakNoEmpateDoSetTests
         Assert.Equal((6, 7), TieBreakDoJogo.GamesAoFechar(Ate(6, 7), 4, 7));
         Assert.Equal((7, 6), TieBreakDoJogo.GamesAoFechar(Ate(6, 9), 9, 7));
         Assert.Null(TieBreakDoJogo.GamesAoFechar(Ate(6, 9), 7, 5)); // até 9 não fecha no 7
-        Assert.True(FormatoDaPartida.PodeEncerrar(6, 7, 6));
+        Assert.True(FormatoDaPartida.PodeEncerrar(6, 7, 6, tieBreakNaPenultima: false));
     }
 
     [Fact]

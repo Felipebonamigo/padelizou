@@ -216,6 +216,8 @@
         torneioId: @ViewBag.TorneioId,
         limiteGames: @Padelizou.Services.FormatoDaPartida.De(torneioDaMesa, Padelizou.Services.FasesTorneio.FaseDeGrupos).Games,
         contagem: "@contagemDaMesa",
+        // Torneio.TieBreakNaPenultima: o até 6 para de estender (5x5 abre o tie-break, fecha 6x5).
+        tieNaPenultima: @((torneioDaMesa?.TieBreakNaPenultima ?? false) ? "true" : "false"),
         partidas: [@Html.Raw(string.Join(",", partidasDaMesa))]
     });
 </script>

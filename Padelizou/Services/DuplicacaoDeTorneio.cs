@@ -30,6 +30,7 @@ public static class DuplicacaoDeTorneio
         nameof(Torneio.GamesSoDaFinal),
         nameof(Torneio.PontosTieBreakSoDaFinal),
         nameof(Torneio.ContagemDeGames),
+        nameof(Torneio.TieBreakNaPenultima),
         // Até quantos pontos vai o tie-break do 8x8, por fase: é formato, como sets e games —
         // a 2ª edição do mesmo torneio joga com a mesma regra de desempate.
         nameof(Torneio.PontosTieBreakGrupos),
