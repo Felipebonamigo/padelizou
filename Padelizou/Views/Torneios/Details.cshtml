@@ -6889,6 +6889,23 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                             bool temGrupos = categoria.GruposTorneio.Any();
                         }
 
+                        @* Treta (TRETA.md): a chave DTN é invertida — sem o aviso, o quadro lê
+                           como um mata-mata comum e o "vencedor" destacado parece quem avança. *@
+                        @if (categoria.PapelDaChave == Padelizou.Services.ChaveDtn.Dtn)
+                        {
+                            <div class="alert alert-warning py-2 mb-3 aviso-dtn">
+                                <strong>Chave DTN — mata-mata invertido.</strong>
+                                Aqui quem <strong>perde</strong> avança. Quem perder a final leva o DTN.
+                            </div>
+                        }
+                        else if (categoria.PapelDaChave == Padelizou.Services.ChaveDtn.Finalissima)
+                        {
+                            <div class="alert alert-warning py-2 mb-3 aviso-dtn">
+                                <strong>Finalíssima DTN.</strong>
+                                As duplas que perderam o DTN, com os parceiros trocados. A dupla vencedora escolhe quem leva o troféu.
+                            </div>
+                        }
+
                         @* Com o mata-mata em andamento a CHAVE vem primeiro (order do flex,
                            sem duplicar markup): é ela que está em jogo — pra vê-la no celular
                            rolava-se TODOS os grupos, que a essa altura são história. *@

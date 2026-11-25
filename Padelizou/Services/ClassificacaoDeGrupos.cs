@@ -260,6 +260,9 @@ public static class ClassificacaoDeGrupos
     // coisa antes do deploy e outra depois, com os mesmos jogos — e a chave montada ontem
     // deixaria de casar com a tabela de hoje. `DesempateDoGrupoTests` crava a ordem de saída
     // justamente pra travar isso.
+    // O mesmo sorteio, pra quem compara duplas FORA de um grupo (a DTN do Treta, ChaveDtn).
+    public static uint SorteioEstavel(Dupla dupla) => Sorteio(dupla);
+
     private static uint Sorteio(Dupla dupla)
     {
         uint hash = 2166136261;
