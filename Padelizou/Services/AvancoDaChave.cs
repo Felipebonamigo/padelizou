@@ -250,8 +250,13 @@ public static class AvancoDaChave
             var partidasDeGrupo = partidas.Where(p => FasesTorneio.EhFaseDeGrupos(p.Fase)).ToList();
             var pontos = await ClassificacaoDeGrupos.PontosSePrecisarAsync(
                 duplas, partidasDeGrupo, buscarPontos);
-            noQuadro = ChaveamentoMataMata.OrdemDosByes(ClassificacaoDeGrupos.Calcular(
-                    duplas, partidasDeGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria)))
+            var classificadosDoQuadro = ClassificacaoDeGrupos.Calcular(
+                duplas, partidasDeGrupo, pontos, ClassificacaoDeGrupos.VagasPorGrupo(categoria));
+            // A MESMA ordem com que a abertura escolheu quem folga — pela campanha, quando a
+            // categoria pediu (Services/AberturaPelaCampanha).
+            noQuadro = (AberturaPelaCampanha.Ligada(categoria)
+                    ? ChaveamentoMataMata.OrdemDosByesPelaCampanha(classificadosDoQuadro)
+                    : ChaveamentoMataMata.OrdemDosByes(classificadosDoQuadro))
                 .Select(c => c.DuplaId)
                 .ToList();
         }

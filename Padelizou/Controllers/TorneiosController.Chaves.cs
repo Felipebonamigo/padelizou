@@ -1082,6 +1082,14 @@ namespace Padelizou.Controllers
             var categoria = torneio.Categorias.FirstOrDefault(c => c.Id == categoriaId);
             if (categoria == null) return NotFound();
 
+            // Folga pela campanha (Services/AberturaPelaCampanha) não tem "previsto" por letra:
+            // refazer pelo padrão desfaria justamente a escolha da campanha.
+            if (AberturaPelaCampanha.Ligada(categoria))
+            {
+                TempData["Erro"] = $"{categoria.Nome}: a folga desta categoria sai da campanha — não há chave prevista por grupo pra refazer.";
+                return ParaAsChaves(id);
+            }
+
             // O previsto: o desenho da categoria quando existe, senão o que a prévia mostra —
             // que é a MESMA chamada do bloco de chaveamento no Details.cshtml.
             var grupos = categoria.GruposTorneio.OrderBy(g => g.Nome).ToList();
