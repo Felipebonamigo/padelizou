@@ -226,8 +226,17 @@ public static class AvancoDaChave
         {
             // O mesmo filtro do sorteio: dupla sem parceiro ou na lista de espera nunca
             // entrou na chave, e não pode entrar por esta porta.
+            // Treta (27/11/2026): na DTN, o quadro são só as CÓPIAS das duplas do módulo. As duplas
+            // mistas da final trocada (FinalissimaDtn.TrocarFinalAsync) entram na categoria depois e
+            // não jogaram a 1ª rodada — sem este filtro virariam "folga".
+            var dasOrigens = categoria.PapelDaChave == ChaveDtn.Dtn && categoria.CategoriaDeOrigemId is int modulo
+                ? (await context.Duplas.Where(d => d.CategoriaId == modulo)
+                        .Select(d => new { d.Jogador1Id, d.Jogador2Id }).ToListAsync())
+                    .Select(d => (d.Jogador1Id, d.Jogador2Id)).ToHashSet()
+                : null;
             noQuadro = duplas
                 .Where(d => !ForaDoSorteio.FicaDeFora(d))
+                .Where(d => dasOrigens == null || dasOrigens.Contains((d.Jogador1Id, d.Jogador2Id)))
                 .OrderBy(d => d.Id)
                 .Select(d => d.Id)
                 .ToList();

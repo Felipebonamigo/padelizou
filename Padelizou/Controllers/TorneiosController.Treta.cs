@@ -171,5 +171,19 @@ namespace Padelizou.Controllers
                 : $"{categoria.Nome}: o sorteio vai dividir em {categoria.QuantidadeGrupos} grupo(s).";
             return Voltar();
         }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // A final DTN do módulo SEM Finalíssima também troca os parceiros (Services/FinalissimaDtn).
+        public async Task<IActionResult> TrocarParceirosDaFinalDtn(int id, int finalId, int direitaDaPrimeira, int direitaDaSegunda)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var erro = await new FinalissimaDtn(_context).TrocarFinalAsync(id, finalId, direitaDaPrimeira, direitaDaSegunda);
+            if (erro != null) TempData["Erro"] = erro;
+            else TempData["Sucesso"] = "Final DTN com os parceiros trocados.";
+            return RedirectToAction("Details", new { id });
+        }
 }
 }

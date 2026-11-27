@@ -252,6 +252,77 @@ public class FinalissimaDtn
         return null;
     }
 
+    // ── A FINAL DTN TROCADA, NO MÓDULO SEM FINALÍSSIMA (27/11/2026) ──────────────────────
+    //
+    // 🗣️ Felipe, pelo Treta: "e final do módulo preto também inverte as duplas. Mesmo sistema da
+    // finalíssima". O módulo SEM par de Finalíssima decide o troféu na própria final DTN — e ela
+    // também é jogada com os parceiros trocados (direita com direita). O robô cria a final como
+    // sempre; antes de ela começar, quem organiza confirma a troca e o MESMO jogo (hora, quadra)
+    // passa a ser entre as duplas mistas.
+    //
+    // "Ainda não trocada" = as duas duplas do jogo são as cópias do módulo (mesmos dois
+    // jogadores de uma dupla inscrita). Depois da troca, nenhuma é — e o card some.
+    public record FinalParaTrocar(Categoria Dtn, Partida Final, Dupla Dupla1, Dupla Dupla2, Proposta Proposta);
+
+    public async Task<List<FinalParaTrocar>> FinaisParaTrocarAsync(int torneioId)
+    {
+        var comPar = (await ParesAsync(torneioId)).SelectMany(p => new[] { p.Item1.Id, p.Item2.Id }).ToHashSet();
+        var dtns = await _context.Categorias.AsNoTracking()
+            .Where(c => c.TorneioId == torneioId && c.PapelDaChave == ChaveDtn.Dtn && c.CategoriaDeOrigemId != null)
+            .ToListAsync();
+
+        var lista = new List<FinalParaTrocar>();
+        foreach (var dtn in dtns.Where(d => !comPar.Contains(d.CategoriaDeOrigemId!.Value)))
+        {
+            var final = await _context.Partidas.AsNoTracking()
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
+                .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                .FirstOrDefaultAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Final"
+                    && p.Status == "Agendada" && p.GamesDupla1 == null && p.GamesDupla2 == null);
+            if (final == null) continue;
+
+            int moduloId = dtn.CategoriaDeOrigemId!.Value;
+            bool ehCopia(Dupla d) => _context.Duplas.Any(o => o.CategoriaId == moduloId
+                && o.Jogador1Id == d.Jogador1Id && o.Jogador2Id == d.Jogador2Id);
+            if (!ehCopia(final.Dupla1) || !ehCopia(final.Dupla2)) continue;
+
+            lista.Add(new FinalParaTrocar(dtn, final, final.Dupla1, final.Dupla2, ProporTroca(final.Dupla1, final.Dupla2)));
+        }
+        return lista;
+    }
+
+    // Devolve o motivo da recusa, ou null quando trocou. Quem chama já conferiu que é organizador.
+    public async Task<string?> TrocarFinalAsync(int torneioId, int finalId, int direitaDaPrimeira, int direitaDaSegunda)
+    {
+        var alvo = (await FinaisParaTrocarAsync(torneioId)).FirstOrDefault(f => f.Final.Id == finalId);
+        if (alvo == null) return "Essa final já foi trocada, já começou, ou não é de DTN sem Finalíssima.";
+        if (!Joga(alvo.Dupla1, direitaDaPrimeira) || !Joga(alvo.Dupla2, direitaDaSegunda))
+            return "Escolha, em cada dupla, um dos dois atletas pra jogar na direita.";
+
+        var (nova1, nova2) = Montar(alvo.Dupla1, direitaDaPrimeira, alvo.Dupla2, direitaDaSegunda);
+        var dupla1 = new Dupla
+        {
+            CategoriaId = alvo.Dtn.Id, Jogador1Id = nova1.Esquerda, Jogador2Id = nova1.Direita,
+            LadoJogador1 = LadoNaQuadra.Esquerda, Pago = true,
+        };
+        var dupla2 = new Dupla
+        {
+            CategoriaId = alvo.Dtn.Id, Jogador1Id = nova2.Esquerda, Jogador2Id = nova2.Direita,
+            LadoJogador1 = LadoNaQuadra.Esquerda, Pago = true,
+        };
+        _context.Duplas.AddRange(dupla1, dupla2);
+        await _context.SaveChangesAsync();
+
+        // O MESMO jogo: hora, quadra e código ficam; só as duplas mudam.
+        var final = await _context.Partidas.FirstAsync(p => p.Id == finalId);
+        final.Dupla1Id = dupla1.Id;
+        final.Dupla2Id = dupla2.Id;
+        await _context.SaveChangesAsync();
+        return null;
+    }
+
     // ── A tela (Details) ────────────────────────────────────────────────────────────────
 
     // O que o card do Treta mostra. Pendentes só pra quem organiza; troféus pra todo mundo,
@@ -259,7 +330,7 @@ public class FinalissimaDtn
     // quem organiza sempre).
     public record LinhaDoTrofeu(Decisivo Decisivo, bool PodeEscolher);
     public record Painel(IReadOnlyList<Pendente> Pendentes, IReadOnlyList<LinhaDoTrofeu> Trofeus,
-        IReadOnlyDictionary<int, string> Nomes);
+        IReadOnlyDictionary<int, string> Nomes, IReadOnlyList<FinalParaTrocar>? FinaisParaTrocar = null);
 
     public async Task<Painel?> PainelAsync(int torneioId, int? jogadorLogadoId, bool ehOrganizador)
     {
@@ -268,21 +339,24 @@ public class FinalissimaDtn
             return null;
 
         var pendentes = ehOrganizador ? await PendentesAsync(torneioId) : new List<Pendente>();
+        var finaisParaTrocar = ehOrganizador ? await FinaisParaTrocarAsync(torneioId) : new List<FinalParaTrocar>();
         var trofeus = (await DecisivosAsync(torneioId))
             .Select(d => new LinhaDoTrofeu(d, ehOrganizador
                 || (jogadorLogadoId is int eu && d.Vencedores.Contains(eu) && d.Categoria.TrofeuDtnJogadorId == null)))
             .ToList();
-        if (pendentes.Count == 0 && trofeus.Count == 0) return null;
+        if (pendentes.Count == 0 && trofeus.Count == 0 && finaisParaTrocar.Count == 0) return null;
 
         var ids = pendentes.SelectMany(p => new[] { p.Perdedora1.Jogador1Id, p.Perdedora1.Jogador2Id ?? 0,
                                                     p.Perdedora2.Jogador1Id, p.Perdedora2.Jogador2Id ?? 0 })
             .Concat(trofeus.SelectMany(t => t.Decisivo.Vencedores.Concat(t.Decisivo.Perdedores)))
             .Concat(trofeus.Select(t => t.Decisivo.Categoria.TrofeuDtnJogadorId ?? 0))
+            .Concat(finaisParaTrocar.SelectMany(f => new[] { f.Dupla1.Jogador1Id, f.Dupla1.Jogador2Id ?? 0,
+                                                            f.Dupla2.Jogador1Id, f.Dupla2.Jogador2Id ?? 0 }))
             .Where(id => id > 0).Distinct().ToList();
         var nomes = await _context.Jogadores.AsNoTracking()
             .Where(j => ids.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id, j => j.NomeNaTela);
 
-        return new Painel(pendentes, trofeus, nomes);
+        return new Painel(pendentes, trofeus, nomes, finaisParaTrocar);
     }
 }
