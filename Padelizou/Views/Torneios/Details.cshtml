@@ -5348,8 +5348,19 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar nº de grupos</button>
                                             </form>
                                         }
+                                        else if (!cat.DeTimes && !cat.ChaveDireta && cat.PapelDaChave == null)
+                                        {
+                                            @* 🗣️ Rafael: "não tava dando pra editar" — o campo sumia sem dizer por quê. *@
+                                            <span class="small text-muted" title="Pra mudar o nº de grupos: Recolher as Chaves → Desfazer e Sortear de Novo">
+                                                <i class="bi bi-lock-fill"></i> grupos já sorteados — pra mudar, desfaça o sorteio
+                                            </span>
+                                        }
 
-                                        @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
+                                        @* Vazia de verdade sai em qualquer fase (CategoriasDoTorneio.MotivoParaNaoRemover,
+                                           27/11/2026); a ação confere grupo e jogo no banco. *@
+                                        @if (inscritosNaCat == 0 && Model.Categorias.Count > 1
+                                             && (cat.GruposTorneio == null || cat.GruposTorneio.Count == 0)
+                                             && cat.PapelDaChave == null)
                                         {
                                             <form asp-controller="Torneios" asp-action="RemoverCategoria" method="post"
                                                   data-confirmar-tom="perigo"

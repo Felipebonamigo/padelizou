@@ -24,13 +24,13 @@ public class CategoriasDoTorneioTests
 
     [Fact]
     public void Categoria_vazia_com_inscricoes_abertas_pode_sair()
-        => Assert.Null(CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(0), Torneio()));
+        => Assert.Null(CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(0), Torneio(), temGrupoOuJogo: false));
 
     [Fact]
     public void Categoria_com_inscrito_nao_sai()
     {
         // Não é "editar o torneio", é apagar a inscrição de alguém que já pagou.
-        var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(3), Torneio());
+        var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(3), Torneio(), temGrupoOuJogo: false);
 
         Assert.Contains("3 inscrição", motivo);
         Assert.Contains("Remova os inscritos primeiro", motivo);
@@ -40,13 +40,23 @@ public class CategoriasDoTorneioTests
     [InlineData("Chaves em Sorteio")]
     [InlineData("Em Andamento")]
     [InlineData("Finalizado")]
-    public void Depois_do_sorteio_nao_sai_nem_vazia(string status)
+    public void Depois_do_sorteio_categoria_com_grupo_ou_jogo_nao_sai(string status)
     {
         // Existem grupos e jogos apontando pra categoria: removê-la derrubaria a chave.
-        var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(0), Torneio(status));
+        var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(0), Torneio(status), temGrupoOuJogo: true);
 
-        Assert.Contains("fase de inscrições", motivo);
+        Assert.Contains("grupos ou jogos", motivo);
     }
+
+    // 🗣️ Rafael (Treta, 27/11/2026): "não consegui excluir essas categorias testes". Criou "Mód
+    // Branco/Preto/Verde" e "Teste" com o torneio já sorteado, e elas ficaram presas: a régua
+    // era a FASE, não o que aponta pra categoria. Vazia de verdade (sem inscrito, sem grupo, sem
+    // jogo), nada cai junto — sai em qualquer fase.
+    [Theory]
+    [InlineData("Chaves em Sorteio")]
+    [InlineData("Em Andamento")]
+    public void Depois_do_sorteio_categoria_vazia_de_verdade_sai(string status)
+        => Assert.Null(CategoriasDoTorneio.MotivoParaNaoRemover(Categoria(0), Torneio(status), temGrupoOuJogo: false));
 
     [Fact]
     public void Torneio_nao_pode_ficar_sem_categoria_nenhuma()

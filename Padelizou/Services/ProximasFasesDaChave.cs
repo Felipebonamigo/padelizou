@@ -121,7 +121,8 @@ public static class ProximasFasesDaChave
         IReadOnlyList<PartidaDaChave> partidasDeMataMata,
         IReadOnlyList<string> byes,
         string categoria = "",
-        int? categoriaId = null)
+        int? categoriaId = null,
+        bool invertida = false)
     {
         if (partidasDeMataMata.Count == 0) return CadeiaDeFases.Vazia;
 
@@ -156,8 +157,9 @@ public static class ProximasFasesDaChave
             .Where(p => p.Vencedor != null && numeroNaFase.ContainsKey(p.Id))
             .ToDictionary(p => (p.Fase, numeroNaFase[p.Id]), p => p.Vencedor!);
 
+        // Na DTN já nascida quem segue é o perdedor (o nome do vencedor não serve de nada ali).
         var lados = daFase
-            .Select((_, i) => LadoDoVencedor(primeiraFase, i + 1, vencedores))
+            .Select((_, i) => invertida ? LadoDoPerdedor(primeiraFase, i + 1) : LadoDoVencedor(primeiraFase, i + 1, vencedores))
             .Concat(byes.Select(b => new Lado(b)))
             .ToList();
 
@@ -175,7 +177,7 @@ public static class ProximasFasesDaChave
         // 2 prevista abria depois DELA, e a troca ⇄ entre as duas era recusada culpando a fase
         // anterior. O irmão real sai do piso desta rodada e entra no da seguinte
         // (ReservaNaFaseQueNasceuPelaMetadeTests).
-        var rodadas = Encadear(lados, jaSaoReais, vencedores);
+        var rodadas = Encadear(lados, jaSaoReais, invertida ? null : vencedores, invertida);
         var faseQueSegue = rodadas.FirstOrDefault()?.Fase;
         var irmaos = partidasDeMataMata.Where(p => p.Fase == faseQueSegue).ToList();
         if (irmaos.Count > 0)
@@ -196,6 +198,57 @@ public static class ProximasFasesDaChave
     //
     // Os confrontos da primeira rodada saem do mesmo motor da aba de chaves
     // (Services/ChaveProjetada), que por sua vez usa o do sorteio de verdade.
+    // ---- Entrada 3: a CHAVE DTN que ainda vai nascer (27/11/2026, TRETA.md) ----
+    //
+    // 🗣️ Rafael (Treta): "só não tem os jogos da DTN previstos". A DTN nasce quando os grupos do
+    // módulo fecham (RoboDoChaveamento.Dtn) — antes disso não se sabe QUEM vai, mas se sabe
+    // QUANTOS e o formato: o último de cada grupo, chave direta do pior pro melhor, quem PERDE
+    // avança. É isso que a prévia promete, com hora na mesma grade das outras categorias.
+    //
+    // Rótulos: com 2 vagas (2 grupos) cada uma é a colocação do grupo ("4º do Grupo A"); com
+    // mais, a ordem entre os últimos só sai da campanha — "Melhor último", "Pior último".
+    // A cadeia não tem CategoriaId: a categoria DTN ainda não existe, e reserva de horário presa
+    // ao módulo cairia na Final do Principal (mesma fase, mesmo número).
+    public static CadeiaDeFases DaDtn(IReadOnlyList<string> grupos, IReadOnlyList<int> duplasPorGrupo,
+        int classificadosPorGrupo, int duplasNoDtnPorGrupo, DateTime? fimDosGrupos, string categoria)
+    {
+        // As vagas, grupo a grupo: os últimos `duplasNoDtnPorGrupo`, sem invadir o Principal.
+        var vagasPorGrupo = new List<Lado>();
+        for (int g = 0; g < grupos.Count; g++)
+        {
+            int tamanho = g < duplasPorGrupo.Count ? duplasPorGrupo[g] : 0;
+            for (int pos = Math.Max(classificadosPorGrupo, tamanho - duplasNoDtnPorGrupo) + 1; pos <= tamanho; pos++)
+                vagasPorGrupo.Add(new Lado($"{pos}º do {grupos[g]}", DeQualGrupo: grupos[g]));
+        }
+        int n = vagasPorGrupo.Count;
+        if (n < 2) return CadeiaDeFases.Vazia;
+
+        // Do pior pro melhor, como o robô ordena — com 2 vagas a ordem não muda o jogo.
+        var doPiorProMelhor = n == 2
+            ? vagasPorGrupo
+            : Enumerable.Range(0, n).Select(k => new Lado(
+                  k == 0 ? "Pior último" : k == n - 1 ? "Melhor último" : $"{n - k}º melhor último",
+                  DeQualGrupo: grupos.FirstOrDefault())).ToList();
+
+        var abertura = ChaveamentoMataMata.MontarChaveDireta(Enumerable.Range(0, n).ToList());
+        var primeira = new RodadaQueVem(abertura.Fase,
+            abertura.Confrontos.Select(c => (doPiorProMelhor[c.Dupla1Id], doPiorProMelhor[c.Dupla2Id])).ToList());
+
+        var rodadas = new List<RodadaQueVem> { primeira };
+        if (abertura.Fase != "Final")
+        {
+            var lados = abertura.Confrontos
+                .Select((_, i) => LadoDoPerdedor(abertura.Fase, i + 1))
+                .Concat(abertura.Byes.Select(id => doPiorProMelhor[id]))
+                .ToList();
+            rodadas.AddRange(Encadear(lados, invertida: true));
+        }
+        return new CadeiaDeFases(categoria, fimDosGrupos, rodadas);
+    }
+
+    // Na chave invertida (DTN), quem segue é quem PERDEU.
+    private static Lado LadoDoPerdedor(string fase, int numero) => new($"Perdedor {fase} {numero}", fase, numero);
+
     public static CadeiaDeFases MontarDosGrupos(
         IReadOnlyList<string> grupos,
         int classificadosPorGrupo,
@@ -269,7 +322,8 @@ public static class ProximasFasesDaChave
 
     private static List<RodadaQueVem> Encadear(
         List<Lado> lados, IReadOnlyDictionary<string, HashSet<int>>? jaSaoReais = null,
-        IReadOnlyDictionary<(string Fase, int Numero), string>? vencedores = null)
+        IReadOnlyDictionary<(string Fase, int Numero), string>? vencedores = null,
+        bool invertida = false)
     {
         var rodadas = new List<RodadaQueVem>();
 
@@ -300,7 +354,7 @@ public static class ProximasFasesDaChave
                     faltam.Select(x => x.Confronto).ToList(),
                     faltam.Select(x => x.Numero).ToList()));
 
-            lados = confrontos.Select((_, i) => LadoDoVencedor(fase, i + 1, vencedores)).ToList();
+            lados = confrontos.Select((_, i) => invertida ? LadoDoPerdedor(fase, i + 1) : LadoDoVencedor(fase, i + 1, vencedores)).ToList();
 
             if (fase == "Final") break;
         }

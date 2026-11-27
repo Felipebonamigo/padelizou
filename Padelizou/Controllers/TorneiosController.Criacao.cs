@@ -1228,7 +1228,12 @@ namespace Padelizou.Controllers
             int torneioId = categoria.TorneioId;
             if (!await EhOrganizadorAsync(torneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
 
-            var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(categoria, categoria.Torneio);
+            bool temGrupoOuJogo =
+                await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId)
+                || await _context.Set<GrupoTorneio>().AnyAsync(g => g.CategoriaId == categoriaId)
+                // Inscrição do Americano individual mora fora de `Duplas`.
+                || await _context.InscricoesAmericanas.AnyAsync(i => i.CategoriaId == categoriaId);
+            var motivo = CategoriasDoTorneio.MotivoParaNaoRemover(categoria, categoria.Torneio, temGrupoOuJogo);
             if (motivo == null)
             {
                 var quantasSobram = await _context.Categorias.CountAsync(c => c.TorneioId == torneioId) - 1;

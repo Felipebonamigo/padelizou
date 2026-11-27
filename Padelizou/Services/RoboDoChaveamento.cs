@@ -1025,6 +1025,16 @@ public partial class RoboDoChaveamento
                     // E quem já venceu um jogo de mata-mata que já existe (11/11/2026): a vaga
                     // "Vencedor Quartas de Final 1" vira o nome dele (VencedorJaApareceNaPreviaTests).
                     VencedoresDaCategoria(partidas, categoria.Id)));
+
+                // Treta: a DTN que esta categoria vai gerar quando os grupos fecharem (TRETA.md).
+                if (categoria.DuplasNoDtnPorGrupo > 0 && categoria.PapelDaChave == null)
+                    cadeias.Add(ProximasFasesDaChave.DaDtn(
+                        gruposEmOrdem.Select(g => g.Nome).ToList(),
+                        gruposEmOrdem.Select(g => g.Duplas.Count).ToList(),
+                        ClassificacaoDeGrupos.VagasPorGrupo(categoria),
+                        categoria.DuplasNoDtnPorGrupo,
+                        fimDosGrupos,
+                        ChaveDtn.NomeDaDtn(categoria.Nome)));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
@@ -1083,7 +1093,9 @@ public partial class RoboDoChaveamento
                         p.HorarioPrevisto, p.NumeroNaFase, NomeDoVencedor(p))).ToList(),
                     byes!,
                     porCategoria.First().Categoria.Nome,
-                    porCategoria.Key));
+                    porCategoria.Key,
+                    // Na DTN quem segue é o PERDEDOR (Services/ChaveDtn).
+                    invertida: porCategoria.First().Categoria.PapelDaChave == ChaveDtn.Dtn));
             }
 
             // A prévia da chave é desenhada no Razor, e o `ClassificadosJaConhecidos.De` de lá
