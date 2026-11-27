@@ -91,6 +91,11 @@ namespace Padelizou.Controllers
 
             foreach (var categoria in torneio.Categorias)
             {
+                // Treta: DTN e Finalíssima não se sorteiam — o robô as monta (Services/ChaveDtn).
+                // A DTN pode estar aqui VAZIA, criada pra prévia: tratá-la como chave direta
+                // recusaria o sorteio inteiro por "duplas insuficientes".
+                if (categoria.PapelDaChave != null) continue;
+
                 // ---- Ramo de TIMES: grupos definidos pelo organizador, sorteio aleatório ----
                 // (time não tem ranking de pontos — cabeça de chave aqui seria loteria fingida)
                 if (categoria.DeTimes)
@@ -378,6 +383,11 @@ namespace Padelizou.Controllers
             // AprovarChaves.
             torneio.Status = AprovacaoDeChaves.Pendente;
             await _context.SaveChangesAsync();
+
+            // Treta: a categoria DTN nasce vazia já no sorteio, pra prévia ter onde prender a troca
+            // de horário/quadra (Services/ChaveDtn.GarantirCategoriaAsync).
+            foreach (var modulo in torneio.Categorias.Where(c => c.DuplasNoDtnPorGrupo > 0 && c.PapelDaChave == null).ToList())
+                await ChaveDtn.GarantirCategoriaAsync(_context, modulo);
 
             // ── E DEPOIS, PELA GRADE DE VERDADE ────────────────────────────────────────────
             // A conta de vagas não enxerga que a final espera a semifinal, nem a dupla presa a um

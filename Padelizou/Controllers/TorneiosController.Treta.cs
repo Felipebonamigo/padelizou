@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using padelizou.Models;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -82,6 +83,19 @@ namespace Padelizou.Controllers
             if (par != null && par.DuplasNoDtnPorGrupo <= 0) par.DuplasNoDtnPorGrupo = categoria.DuplasNoDtnPorGrupo > 0 ? categoria.DuplasNoDtnPorGrupo : 1;
 
             await _context.SaveChangesAsync();
+
+            // Com os grupos já sorteados, a categoria DTN nasce agora (vazia) — é o que dá à
+            // prévia os botões de horário e quadra. Desligado, sai a que ainda está vazia.
+            if (categoria.DuplasNoDtnPorGrupo > 0)
+            {
+                if (await _context.Set<GrupoTorneio>().AnyAsync(g => g.CategoriaId == categoria.Id))
+                    await ChaveDtn.GarantirCategoriaAsync(_context, categoria);
+            }
+            else
+            {
+                await ChaveDtn.TirarCategoriaVaziaAsync(_context, categoria);
+            }
+
             TempData["Sucesso"] = categoria.DuplasNoDtnPorGrupo == 0
                 ? $"\"{categoria.Nome}\" ficou sem DTN."
                 : $"\"{categoria.Nome}\": os {categoria.DuplasNoDtnPorGrupo} último(s) de cada grupo vão pro DTN"

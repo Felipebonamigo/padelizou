@@ -988,6 +988,12 @@ public partial class RoboDoChaveamento
                 .GroupBy(p => p.CategoriaId)
                 .ToDictionary(g => g.Key, g => g.Max(p => p.HorarioPrevisto!.Value));
 
+            // As categorias DTN que já existem (vazias), por módulo de origem.
+            var dtnPorModulo = await _context.Categorias
+                .Where(c => c.TorneioId == torneioId && c.PapelDaChave == ChaveDtn.Dtn && c.CategoriaDeOrigemId != null)
+                .Select(c => new { Origem = c.CategoriaDeOrigemId!.Value, c.Id })
+                .ToDictionaryAsync(x => x.Origem, x => (int?)x.Id);
+
             foreach (var categoria in aindaEmGrupos.Where(c => c.GruposTorneio.Count > 0))
             {
                 // ⚠️ O ranking do desempate de grupo, e ele vai TAMBÉM pra view: o
@@ -1027,6 +1033,8 @@ public partial class RoboDoChaveamento
                     VencedoresDaCategoria(partidas, categoria.Id)));
 
                 // Treta: a DTN que esta categoria vai gerar quando os grupos fecharem (TRETA.md).
+                // Com o Id da categoria DTN vazia, quando ela já existe: é ele que deixa trocar
+                // horário/quadra na prévia (ChaveDtn.GarantirCategoriaAsync).
                 if (categoria.DuplasNoDtnPorGrupo > 0 && categoria.PapelDaChave == null)
                     cadeias.Add(ProximasFasesDaChave.DaDtn(
                         gruposEmOrdem.Select(g => g.Nome).ToList(),
@@ -1034,7 +1042,8 @@ public partial class RoboDoChaveamento
                         ClassificacaoDeGrupos.VagasPorGrupo(categoria),
                         categoria.DuplasNoDtnPorGrupo,
                         fimDosGrupos,
-                        ChaveDtn.NomeDaDtn(categoria.Nome)));
+                        ChaveDtn.NomeDaDtn(categoria.Nome),
+                        dtnPorModulo.GetValueOrDefault(categoria.Id)));
             }
 
             // Categoria por categoria: cada uma tem a própria chave, e misturá-las cruzaria
