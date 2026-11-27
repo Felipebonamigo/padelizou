@@ -14,13 +14,16 @@ namespace Padelizou.Services;
 public static class CategoriasDoTorneio
 {
     // Por que esta categoria NÃO pode sair, ou null quando pode.
-    public static string? MotivoParaNaoRemover(Categoria categoria, Torneio torneio)
+    //
+    // ⚠️ A RÉGUA É O QUE APONTA PRA CATEGORIA, NÃO A FASE (27/11/2026). 🗣️ Rafael (Treta): "não
+    // consegui excluir essas categorias testes" — criadas com o torneio já sorteado, ficavam
+    // presas. Grupo ou jogo nela = recusa (removê-la derrubaria a chave); vazia de verdade sai
+    // em qualquer fase. `temGrupoOuJogo` vem do BANCO, perguntado por quem chama: navegação não
+    // carregada leria vazio e liberaria o que não devia.
+    public static string? MotivoParaNaoRemover(Categoria categoria, Torneio torneio, bool temGrupoOuJogo)
     {
-        // Depois do sorteio existem grupos e jogos apontando pra categoria: removê-la
-        // derrubaria a chave inteira, não só a inscrição.
-        if (torneio.Status != "Inscrições Abertas")
-            return $"O torneio já saiu da fase de inscrições — a categoria \"{categoria.Nome}\" "
-                 + "não pode mais ser removida.";
+        if (temGrupoOuJogo)
+            return $"A categoria \"{categoria.Nome}\" já tem grupos ou jogos — removê-la derrubaria a chave.";
 
         var inscritos = categoria.Duplas.Count;
         if (inscritos > 0)
