@@ -1,6 +1,6 @@
 # Treta — formato com chave DTN e Finalíssima
 
-> **Implementado em 25/11/2026** (aprovado: "pode fazer tudo"), branch
+> **Publicado em dev e prod** (#468, #469, #472, #473 — 25 a 27/11/2026). Implementado (aprovado: "pode fazer tudo") na branch
 > `claude/determined-heisenberg-5212c2`. Base: o PDF "Treta Chaves e DTN" + respostas do
 > organizador. Migrations `TretaChaveDtn` e `TieBreakNaPenultima` (só aditivas).
 >
