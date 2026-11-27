@@ -5334,6 +5334,21 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                             </form>
                                         }
 
+                                        @* QUANTOS GRUPOS NO SORTEIO (27/11/2026, Services/SorteioDosGrupos). Só antes
+                                           do sorteio da categoria; vazio = a regra de sempre (grupos de 3). *@
+                                        @if (!cat.DeTimes && !cat.ChaveDireta && cat.PapelDaChave == null
+                                             && (cat.GruposTorneio == null || cat.GruposTorneio.Count == 0))
+                                        {
+                                            <form asp-controller="Torneios" asp-action="DefinirQuantidadeDeGrupos" method="post"
+                                                  class="d-flex gap-1 align-items-center flex-wrap">
+                                                <input type="hidden" name="categoriaId" value="@cat.Id" />
+                                                <input type="number" name="quantidade" min="1" max="@Padelizou.Services.SorteioDosGrupos.Maximo"
+                                                       value="@cat.QuantidadeGrupos" class="form-control form-control-sm" style="width: 96px;"
+                                                       placeholder="Auto" title="Quantos grupos no sorteio (vazio = grupos de 3)" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary">Salvar nº de grupos</button>
+                                            </form>
+                                        }
+
                                         @if (Model.Status == "Inscrições Abertas" && inscritosNaCat == 0 && Model.Categorias.Count > 1)
                                         {
                                             <form asp-controller="Torneios" asp-action="RemoverCategoria" method="post"
