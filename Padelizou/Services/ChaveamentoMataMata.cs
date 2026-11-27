@@ -90,6 +90,14 @@ public static class ChaveamentoMataMata
     public static IEnumerable<Classificado> OrdemDosByes(IEnumerable<Classificado> classificados) =>
         classificados.OrderBy(c => c.Posicao).ThenBy(c => c.Jogos).ThenBy(c => c.Grupo);
 
+    // A EXCEÇÃO À REGRA ACIMA (27/11/2026, Services/AberturaPelaCampanha): na categoria que pediu
+    // "folga pros melhores 1ºs", a campanha DECIDE o bye — 🗣️ Rafael (Treta): "os escolhidos para
+    // ir direto pra semi são os melhores 1ºs, e não exatamente o A1". Posição, vitórias, saldo;
+    // empate que sobra vai pela ordem dos grupos. Só vale com a opção ligada.
+    public static IEnumerable<Classificado> OrdemDosByesPelaCampanha(IEnumerable<Classificado> classificados) =>
+        classificados.OrderBy(c => c.Posicao).ThenByDescending(c => c.Vitorias)
+            .ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo);
+
     // Monta a primeira fase do mata-mata. Fase vazia = nada a gerar (sem classificados).
     //
     // Byes: as vagas do quadro que sobram vão pra quem OrdemDosByes manda — eles entram
@@ -97,7 +105,8 @@ public static class ChaveamentoMataMata
     // (Services/AvancoDaChave). classificadosPorGrupo é 2 no padrão; a categoria de TIMES
     // passa o número que o organizador decidiu.
     public static (string Fase, List<Confronto> Confrontos, List<int> Byes) MontarPrimeiraFase(
-        List<Classificado> classificados, int classificadosPorGrupo = 2, string? cruzamentoDesenhado = null)
+        List<Classificado> classificados, int classificadosPorGrupo = 2, string? cruzamentoDesenhado = null,
+        bool folgaPelaCampanha = false)
     {
         // ⚠️ O DESENHO À MÃO ENTRA AQUI, E SÓ AQUI (10/09/2026, Services/CruzamentoDoMataMata).
         // Este método é o motor ÚNICO — a prévia (ChaveProjetada) e o mata-mata de verdade
@@ -128,7 +137,8 @@ public static class ChaveamentoMataMata
         // a maior potência que coubesse DENTRO e eliminava os piores 2ºs sem mata-mata
         // nenhum — com 3 grupos, duas duplas classificadas iam embora sem jogar.
         int quadro = MenorPotenciaDe2APartirDe(candidatos.Count);
-        var passamDireto = OrdemDosByes(candidatos).Take(quadro - candidatos.Count).ToList();
+        var passamDireto = (folgaPelaCampanha ? OrdemDosByesPelaCampanha(candidatos) : OrdemDosByes(candidatos))
+            .Take(quadro - candidatos.Count).ToList();
         var cabecas = candidatos.Except(passamDireto).ToList();
 
         var confrontos = Semear(cabecas, passamDireto)

@@ -7094,6 +7094,34 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
                                 </div>
                             </div>
                         }
+                        @* ═══ FOLGA PROS MELHORES 1ºs, PELA CAMPANHA (27/11/2026) ═══════════════
+                           Services/AberturaPelaCampanha. Vale depois da aprovação também (a regra age
+                           quando os grupos fecham); some quando o mata-mata da categoria nasce. *@
+                        @if (ViewBag.PodeAprovarChaves == true && categoria.GruposTorneio.Count > 0 && !chaveJaComecou
+                             && categoria.PapelDaChave == null)
+                        {
+                            bool pelaCampanha = Padelizou.Services.AberturaPelaCampanha.Ligada(categoria);
+                            <form asp-controller="Torneios" asp-action="AberturaPelaCampanhaDaCategoria" method="post"
+                                  class="alert @(pelaCampanha ? "alert-success" : "alert-light border") py-2 mb-3 d-flex flex-wrap gap-2 align-items-center">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <input type="hidden" name="categoriaId" value="@categoria.Id" />
+                                <input type="hidden" name="ligar" value="@(pelaCampanha ? "false" : "true")" />
+                                <span class="small flex-grow-1">
+                                    @if (pelaCampanha)
+                                    {
+                                        <strong>Folga pros melhores 1ºs, pela campanha.</strong>
+                                        <span>Quando todos os grupos acabarem, quem folga é quem fez a melhor campanha (vitórias → saldo), e não o 1º de um grupo fixo. A prévia abaixo é só um exemplo.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Quem folga na primeira eliminatória segue o grupo (1º do A, do B…).</span>
+                                    }
+                                </span>
+                                <button type="submit" class="btn btn-sm @(pelaCampanha ? "btn-outline-secondary" : "btn-outline-dark")">
+                                    @(pelaCampanha ? "Voltar a seguir o grupo" : "Folga pros melhores 1ºs")
+                                </button>
+                            </form>
+                        }
                         @* ═══ O CHAVEAMENTO DESENHADO À MÃO (10/09/2026) ═══════════════════════
                            🗣️ "permita alterar na mao o chaveamento, como funciona a chave de cada um,
                            se o primeiro passar quem enfrenta" — e "cuidado para nao mexer nada no que

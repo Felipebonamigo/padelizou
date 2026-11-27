@@ -88,5 +88,35 @@ namespace Padelizou.Controllers
                   + (par != null ? $", com Finalíssima contra \"{par.Nome}\"." : ".");
             return RedirectToAction("Details", "Torneios", new { id = categoria.TorneioId }, fragment: $"categoria-{categoria.Id}");
         }
-    }
+    
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // Folga pros melhores 1ºs (Services/AberturaPelaCampanha). Diferente do desenho à mão, vale
+        // DEPOIS da aprovação também: a regra só age quando os grupos fecham. Trava quando o
+        // mata-mata da categoria já nasceu — aí a abertura já foi decidida.
+        public async Task<IActionResult> AberturaPelaCampanhaDaCategoria(int id, int categoriaId, bool ligar)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var categoria = await _context.Categorias.FirstOrDefaultAsync(c => c.Id == categoriaId && c.TorneioId == id);
+            if (categoria == null) return NotFound();
+
+            bool mataMataNasceu = await _context.Partidas.AnyAsync(p => p.CategoriaId == categoriaId
+                && !(p.Fase == "Fase de Grupos" || p.Fase.StartsWith("Grupo ")));
+            if (mataMataNasceu)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: o mata-mata já começou — a abertura não muda mais.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Desligar devolve ao de sempre: nulo, e o robô grava o desenho por colocação.
+            categoria.CruzamentoDoMataMata = ligar ? AberturaPelaCampanha.Marca : null;
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = ligar
+                ? $"{categoria.Nome}: as folgas vão pros melhores 1ºs, pela campanha, quando todos os grupos fecharem."
+                : $"{categoria.Nome}: as folgas voltam a seguir o cruzamento por grupo.";
+            return RedirectToAction("Details", new { id });
+        }
+}
 }

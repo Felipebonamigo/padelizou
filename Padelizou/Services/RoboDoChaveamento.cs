@@ -89,6 +89,14 @@ public partial class RoboDoChaveamento
         // desenhadas — o jogo nasce assim que os DOIS grupos dele fecham, que é o pedido de
         // 11/09/2026. Efeito colateral desejado, mas efeito colateral: está escrito aqui pra
         // ninguém descobrir isso na quadra.
+        // Folga pros melhores 1ºs (Services/AberturaPelaCampanha): sem desenho por letra — o
+        // motor de campanha, com a fase de grupos inteira fechada.
+        if (AberturaPelaCampanha.Ligada(categoria))
+        {
+            await MontarMataMataDosGruposSemDesenhoAsync(categoria, torneioId, partidasDeGrupo);
+            return;
+        }
+
         var desenho = CruzamentoDoMataMata.Ler(categoria.CruzamentoDoMataMata);
 
         if (desenho == null)
@@ -165,7 +173,8 @@ public partial class RoboDoChaveamento
         //    O cruzamento desenhado à mão, quando existe, manda no lugar da semeadura — a
         //    decisão mora dentro do MontarPrimeiraFase, pra prévia e sorteio não divergirem.
         var (nomeFase, confrontos, _) = ChaveamentoMataMata.MontarPrimeiraFase(
-            classificados, classificamPorGrupo, categoria.CruzamentoDoMataMata);
+            classificados, classificamPorGrupo, categoria.CruzamentoDoMataMata,
+            folgaPelaCampanha: AberturaPelaCampanha.Ligada(categoria));
         if (confrontos.Count == 0) return;
 
         var jogosDoMataMata = confrontos
