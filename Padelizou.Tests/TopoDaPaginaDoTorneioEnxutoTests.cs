@@ -94,7 +94,10 @@ public class TopoDaPaginaDoTorneioEnxutoTests
         // com as legendas; agora é uma.
         var topo = TestInfra.SemComentarios(AcimaDasAbas());
 
+        // Desde 27/11/2026 o cartaz mora DENTRO do "Compartilhar" (TelaDoTorneioEnxutaTests): a
+        // linha é a do Compartilhar com as Fotos — do fim dele até as fotos, nada fecha a linha.
         var cartaz = topo.IndexOf("Cartaz pra divulgar", StringComparison.Ordinal);
+        cartaz = topo.IndexOf("</details>", cartaz, StringComparison.Ordinal);
         var fotos = topo.IndexOf("Ver as fotos do torneio", StringComparison.Ordinal);
         Assert.True(cartaz >= 0 && fotos > cartaz, "Não achei os dois botões, nessa ordem.");
 
