@@ -370,59 +370,20 @@
 
 
 @* Recado do organizador. Fica antes das abas porque é aviso ("levem bola", "confirma no
-   grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito. *@
+   grupo") — perdido lá embaixo, não seria lido por quem ele foi escrito.
+   🧹 NUMA LINHA SÓ, com "ver mais" (27/11/2026, Felipe: *"poluído demais até chegar no
+   torneio"*): a prévia já diz do que se trata; o texto inteiro está a um toque. *@
 @if (!string.IsNullOrWhiteSpace(Model.RecadoAosInscritos))
 {
-    <div class="alert alert-info border-0 d-flex align-items-start gap-2">
-        <i class="bi bi-megaphone-fill fs-5"></i>
-        <div>
-            <strong class="d-block">Recado do organizador</strong>
-            <span style="white-space: pre-line;">@Model.RecadoAosInscritos</span>
-        </div>
-    </div>
-}
-
-@* A CAMISETA DE BRINDE do próprio atleta (04/11/2026): só pra quem está inscrito e só com o
-   brinde ligado. Escolher é opcional; depois da data limite fica só a leitura. *@
-@if (Model.OfereceCamiseta && ViewBag.EstouInscritoNesteTorneio == true)
-{
-    var minhaCamiseta = ViewBag.MinhaCamiseta as string;
-    var aceitaCamiseta = Padelizou.Services.CamisetaDeBrinde.AceitaEscolha(Model, DateTime.Now);
-    <div class="alert alert-success border-0 d-flex align-items-start gap-2">
-        <i class="bi bi-gift-fill fs-5"></i>
-        <div class="flex-grow-1">
-            <strong class="d-block">Camiseta de brinde</strong>
-            @if (aceitaCamiseta)
-            {
-                <form asp-controller="Torneios" asp-action="EscolherCamiseta" method="post" class="d-flex flex-wrap gap-2 align-items-center mt-1">
-                    <input type="hidden" name="id" value="@Model.Id" />
-                    <select name="tamanho" class="form-select form-select-sm" style="max-width: 200px;" aria-label="Tamanho da camiseta">
-                        <option value="">@(minhaCamiseta == null ? "Escolha seu tamanho" : "Não quero camiseta")</option>
-                        @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
-                        {
-                            <option value="@codigo" selected="@(codigo == (minhaCamiseta ?? ViewBag.MeuTamanhoDoPerfil as string))">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
-                        }
-                    </select>
-                    <button type="submit" class="btn btn-success btn-sm fw-bold">Salvar</button>
-                </form>
-                <div class="small mt-1">
-                    @(minhaCamiseta == null ? "Você ainda não escolheu." : $"Sua escolha: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}.")
-                    @if (Model.CamisetaEscolhaAte is DateTime ateCamiseta)
-                    {
-                        <span>Dá pra escolher ou trocar até @ateCamiseta.ToString("dd/MM").</span>
-                    }
-                </div>
-            }
-            else
-            {
-                <span>
-                    @(minhaCamiseta == null
-                        ? "O prazo pra escolher a camiseta acabou e você não escolheu. Fale com o organizador."
-                        : $"Sua camiseta: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}. O prazo pra trocar já acabou.")
-                </span>
-            }
-        </div>
-    </div>
+    <details class="pdz-recado alert alert-info border-0 py-2">
+        <summary class="d-flex align-items-center gap-2">
+            <i class="bi bi-megaphone-fill"></i>
+            <strong class="flex-shrink-0">Recado:</strong>
+            <span class="pdz-recado-previa">@Model.RecadoAosInscritos</span>
+            <span class="pdz-recado-mais small text-decoration-underline flex-shrink-0">ver mais</span>
+        </summary>
+        <div class="mt-2" style="white-space: pre-line;">@Model.RecadoAosInscritos</div>
+    </details>
 }
 
 @* ── O CARTAZ DE DIVULGAÇÃO ───────────────────────────────────────────────────────────
@@ -475,22 +436,34 @@
    "Sugestão ou bug" do rodapé. *@
 @if (cartazNoTopo || podeConvidar || linkDasFotos != null)
 {
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        @if (cartazNoTopo)
+    <div class="d-flex flex-wrap align-items-start gap-2 mb-3">
+        @* 🧹 CARTAZ E CONVIDAR NUM BOTÃO SÓ (27/11/2026): os dois são "chamar gente pro torneio",
+           e eram dois botões grandes na primeira dobra. As duas réguas continuam separadas. *@
+        @if (cartazNoTopo || podeConvidar)
         {
-            <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
-               class="btn btn-outline-primary rounded-pill px-3"
-               title="Arte pronta pra postar, com o QR que leva direto pra cá.">
-                <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
-            </a>
-        }
-        @if (podeConvidar)
-        {
-            <button type="button" class="btn btn-success rounded-pill px-3"
-                    data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio"
-                    title="Manda o link da inscrição pra quem você quer no torneio.">
-                <i class="bi bi-person-plus-fill"></i> Convidar
-            </button>
+            <details class="pdz-compartilhar">
+                <summary class="btn btn-success rounded-pill px-3">
+                    <i class="bi bi-share-fill"></i> Compartilhar
+                </summary>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    @if (podeConvidar)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3"
+                                data-bs-toggle="modal" data-bs-target="#modalConvidarPraOTorneio"
+                                title="Manda o link da inscrição pra quem você quer no torneio.">
+                            <i class="bi bi-person-plus-fill"></i> Convidar
+                        </button>
+                    }
+                    @if (cartazNoTopo)
+                    {
+                        <a asp-controller="Cartoes" asp-action="Cartaz" asp-route-id="@Model.Id"
+                           class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                           title="Arte pronta pra postar, com o QR que leva direto pra cá.">
+                            <i class="bi bi-megaphone-fill"></i> Cartaz pra divulgar
+                        </a>
+                    }
+                </div>
+            </details>
         }
         @* PRA TODO MUNDO, de propósito, ao contrário dos dois de cima: álbum de torneio é
            divulgação — quem não jogou ver a foto é o que puxa gente pro próximo. *@
@@ -575,27 +548,6 @@
             }
         }
     </script>
-}
-
-@* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
-   Quem está inscrito (e quem organiza) ganha o botão de entrar; pra todo o resto ele não
-   existe — nem escondido, nem no código-fonte. Esta página abre sem login, e convite de
-   grupo é chave de porta: quem tem o link entra, e o organizador só descobre depois.
-
-   Quem decide se ESTA pessoa pode ver é o controller (ViewBag.PodeVerOGrupoDoWhats); o link
-   só sai pelo serviço, que confere o endereço de novo na hora de mostrar. A view nunca lê
-   Model.LinkGrupoWhatsApp num href — se ler, o portão deixa de existir. *@
-@if (Padelizou.Services.GrupoDoTorneioNoWhatsApp.LinkPara(Model, ViewBag.PodeVerOGrupoDoWhats == true) is { } linkDoGrupo)
-{
-    <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-3">
-        <a href="@linkDoGrupo" target="_blank" rel="noopener noreferrer"
-           class="btn btn-success rounded-pill px-3">
-            <i class="bi bi-whatsapp"></i> Entrar no grupo do torneio
-        </a>
-        <small class="text-muted">
-            É onde o organizador avisa mudança de horário e chama pra quadra.
-        </small>
-    </div>
 }
 
 @* ── OS CARDS DE CAMPEÃO ──────────────────────────────────────────────────────────────
@@ -755,35 +707,6 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
    pra /Torneios/Palpiteiros, e tirar o botão sem mais nada deixaria a página alcançável só
    por quem digitasse a URL — ela existe justamente pra ser mandada no grupo. *@
 
-@* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
-   "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
-   (decisão do Felipe, 10/08/2026): é quem se inscreveu que fica olhando a chave encher
-   pra saber contra quem vai jogar. Pra quem só passou na página, o mesmo aviso é ruído —
-   e cada seguidor a mais multiplica uma rajada que num torneio grande já é grande.
-
-   ⚠️ A tela esconde, mas quem RECUSA é o servidor (TorneiosController.Seguir): botão
-   escondido nunca foi trava. *@
-@if (ViewBag.EstouInscritoNesteTorneio == true)
-{
-    var jaSigo = ViewBag.SigoEsteTorneio == true;
-
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <form asp-controller="Torneios"
-              asp-action="@(jaSigo ? "DeixarDeSeguirTorneio" : "SeguirTorneio")"
-              asp-route-id="@Model.Id" method="post">
-            <button type="submit" class="btn @(jaSigo ? "btn-outline-secondary" : "btn-outline-primary") rounded-pill px-3">
-                <i class="bi @(jaSigo ? "bi-bell-slash" : "bi-bell")"></i>
-                @(jaSigo ? "Parar de receber avisos" : "Seguir este torneio")
-            </button>
-        </form>
-        <small class="text-muted">
-            @(jaSigo
-                ? "Você recebe um aviso a cada dupla que entra."
-                : "Receba um aviso no celular a cada inscrição nova.")
-        </small>
-    </div>
-}
-
 @* ── PAGAR AGORA: a MINHA inscrição está sem pagamento ────────────────────────────────
    Só aparece em torneio que cobra pelo site e que não exige pagamento na hora de entrar —
    ali a vaga já é sua e o dinheiro vem depois. Até 08/08/2026 esse arranjo não tinha saída
@@ -799,249 +722,394 @@ else if (ViewBag.TemEnqueteDoTorneio == true)
        pessoal (o prazo de pagamento) e o que é informação do torneio (o selo). *@
     var meuJogadorId = ViewBag.MeuJogadorId as int?;
 }
-@if (minhasNaoPagas.Count > 0)
-{
-    <div class="alert alert-warning border-0 shadow-sm">
-        <p class="fw-bold mb-1">
-            <i class="bi bi-cash-coin"></i>
-            @(minhasNaoPagas.Count == 1
-                ? "Sua inscrição está sem pagamento"
-                : $"Suas {minhasNaoPagas.Count} inscrições estão sem pagamento")
-        </p>
-        <p class="small mb-3">
-            @(minhasNaoPagas.Count == 1 ? "A vaga já é sua" : "As vagas já são suas") —
-            o pagamento é o que falta.
-            @if (minhasNaoPagas.Count > 1)
-            {
-                @* 🗣️ O PEDIDO QUE ORIGINOU ISTO (29/09/2026), de quem estava em duas
-                   categorias e leu o total de UMA delas como o das duas: "eu imagino que
-                   esses 250 é para as duas categorias... as vezes é preciso dizer o óbvio". *@
-                <text><strong>São cobranças separadas, uma por categoria.</strong></text>
-            }
-            @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
-            {
-                <text><strong>@prazoDaMinha.</strong></text>
-            }
-        </p>
+@* ── SUA INSCRIÇÃO: TUDO QUE É DA PESSOA, NUM QUADRO SÓ ────────────────────────────────
+   🗣️ Felipe, 27/11/2026: *"essa sessão 'sua inscrição' pode vir minimizada com a opção de
+   expandir"*. Camiseta, pagamento, Pix, grupo do WhatsApp e avisos eram cinco blocos soltos
+   entre o cabeçalho e as abas — e quem abre a página quer ver os jogos.
 
-        @foreach (var inscricao in minhasNaoPagas)
-        {
-            <div class="bg-white rounded-3 p-3 mb-2">
-                <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
-                    <div>
-                        <div class="fw-bold">@inscricao.Categoria</div>
-                        <div class="small text-muted">@inscricao.Quem</div>
-                    </div>
-                    <div class="text-end">
-                        <div class="fw-bold fs-5">@inscricao.Falta.ToString("C")</div>
-                        @* O que JÁ ENTROU aparece junto desde 06/10/2026: sem isto, quem pagou
-                           a própria metade vê um valor menor que o anunciado e acha que o
-                           sistema errou. O total continua na tela, que é o número que a pessoa
-                           reconhece do anúncio do torneio. *@
-                        @if (inscricao.JaPago > 0m)
+   O RESUMO FICA NA LINHA FECHADA (os chips): fechado não é escondido. Pendência aparece ali
+   ("⚠️ pagamento pendente"), e pagamento pelo site pendente ABRE o quadro sozinho — dinheiro
+   que falta não pode depender de alguém lembrar de tocar.
+
+   ⚠️ Cada bloco aqui dentro continua com o SEU portão (os @if de sempre); o quadro só existe
+   quando algum deles tem o que mostrar. As variáveis abaixo são o portão de cada um, lido uma
+   vez só. *@
+@{
+    var estouInscrito = ViewBag.EstouInscritoNesteTorneio == true;
+    var mostraCamiseta = Model.OfereceCamiseta && estouInscrito;
+    var linkDoGrupo = Padelizou.Services.GrupoDoTorneioNoWhatsApp.LinkPara(Model, ViewBag.PodeVerOGrupoDoWhats == true);
+    var mostraPix = Padelizou.Services.PixDoOrganizador.ApareceParaMim(Model, ViewBag.DevoAlgumaNesteTorneio == true);
+    var pixPendente = mostraPix && estouInscrito && ViewBag.JaPagueiNesteTorneio != true;
+    var camisetaEscolhida = ViewBag.MinhaCamiseta as string;
+}
+@if (estouInscrito || mostraPix || linkDoGrupo != null || minhasNaoPagas.Count > 0)
+{
+    <details class="pdz-sua-inscricao card border-0 shadow-sm rounded-4 mb-3" open="@(minhasNaoPagas.Count > 0)">
+        <summary class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+            <span class="fw-bold"><i class="bi bi-person-badge-fill"></i> @(estouInscrito ? "Sua inscrição" : "Inscrição")</span>
+            @if (minhasNaoPagas.Count > 0)
+            {
+                <span class="badge rounded-pill text-bg-warning">⚠️ pagamento pendente</span>
+            }
+            @if (pixPendente)
+            {
+                <span class="badge rounded-pill text-bg-warning">⚠️ Pix pendente</span>
+            }
+            else if (mostraPix)
+            {
+                <span class="badge rounded-pill text-bg-light">Pix do organizador</span>
+            }
+            @if (mostraCamiseta)
+            {
+                <span class="badge rounded-pill text-bg-light">👕 @(camisetaEscolhida == null ? "escolher tamanho" : Padelizou.Services.CamisetaDeBrinde.NomeDo(camisetaEscolhida))</span>
+            }
+            @if (linkDoGrupo != null)
+            {
+                <span class="badge rounded-pill text-bg-light">💬 grupo</span>
+            }
+            <i class="bi bi-chevron-down ms-auto pdz-sua-inscricao-seta"></i>
+        </summary>
+        <div class="card-body pt-0">
+            @* A CAMISETA DE BRINDE do próprio atleta (04/11/2026): só pra quem está inscrito e só com o
+               brinde ligado. Escolher é opcional; depois da data limite fica só a leitura. *@
+            @if (mostraCamiseta)
+            {
+                var minhaCamiseta = ViewBag.MinhaCamiseta as string;
+                var aceitaCamiseta = Padelizou.Services.CamisetaDeBrinde.AceitaEscolha(Model, DateTime.Now);
+                <div class="alert alert-success border-0 d-flex align-items-start gap-2">
+                    <i class="bi bi-gift-fill fs-5"></i>
+                    <div class="flex-grow-1">
+                        <strong class="d-block">Camiseta de brinde</strong>
+                        @if (aceitaCamiseta)
                         {
-                            <div class="small">
-                                <span class="badge bg-success-subtle text-success-emphasis">
-                                    já pago @inscricao.JaPago.ToString("C")
-                                </span>
+                            <form asp-controller="Torneios" asp-action="EscolherCamiseta" method="post" class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <select name="tamanho" class="form-select form-select-sm" style="max-width: 200px;" aria-label="Tamanho da camiseta">
+                                    <option value="">@(minhaCamiseta == null ? "Escolha seu tamanho" : "Não quero camiseta")</option>
+                                    @foreach (var codigo in Padelizou.Services.CamisetaDeBrinde.Oferecidos(Model))
+                                    {
+                                        <option value="@codigo" selected="@(codigo == (minhaCamiseta ?? ViewBag.MeuTamanhoDoPerfil as string))">@Padelizou.Services.CamisetaDeBrinde.NomeDo(codigo)</option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn btn-success btn-sm fw-bold">Salvar</button>
+                            </form>
+                            <div class="small mt-1">
+                                @(minhaCamiseta == null ? "Você ainda não escolheu." : $"Sua escolha: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}.")
+                                @if (Model.CamisetaEscolhaAte is DateTime ateCamiseta)
+                                {
+                                    <span>Dá pra escolher ou trocar até @ateCamiseta.ToString("dd/MM").</span>
+                                }
                             </div>
-                            <div class="small text-muted">de @inscricao.Valor.ToString("C") no total</div>
                         }
-                        else if (inscricao.Conta is { } conta)
+                        else
                         {
-                            @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
-                               parcial, ajuste na mão). Aí o valor vai sozinho: conta que não
-                               fecha ao lado do número ensina o jogador a desconfiar dos dois. *@
-                            <div class="small text-muted">@conta</div>
+                            <span>
+                                @(minhaCamiseta == null
+                                    ? "O prazo pra escolher a camiseta acabou e você não escolheu. Fale com o organizador."
+                                    : $"Sua camiseta: {Padelizou.Services.CamisetaDeBrinde.NomeDo(minhaCamiseta)}. O prazo pra trocar já acabou.")
+                            </span>
                         }
                     </div>
                 </div>
+            }
 
-                <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
-                    <input type="hidden" name="torneioId" value="@Model.Id" />
-                    @if (inscricao.DuplaId is int duplaPagar)
-                    {
-                        <input type="hidden" name="duplaId" value="@duplaPagar" />
-                    }
-                    else
-                    {
-                        <input type="hidden" name="inscricaoAmericanaId" value="@inscricao.InscricaoAmericanaId" />
-                    }
+            @if (minhasNaoPagas.Count > 0)
+            {
+                <div class="alert alert-warning border-0 shadow-sm">
+                    <p class="fw-bold mb-1">
+                        <i class="bi bi-cash-coin"></i>
+                        @(minhasNaoPagas.Count == 1
+                            ? "Sua inscrição está sem pagamento"
+                            : $"Suas {minhasNaoPagas.Count} inscrições estão sem pagamento")
+                    </p>
+                    <p class="small mb-3">
+                        @(minhasNaoPagas.Count == 1 ? "A vaga já é sua" : "As vagas já são suas") —
+                        o pagamento é o que falta.
+                        @if (minhasNaoPagas.Count > 1)
+                        {
+                            @* 🗣️ O PEDIDO QUE ORIGINOU ISTO (29/09/2026), de quem estava em duas
+                               categorias e leu o total de UMA delas como o das duas: "eu imagino que
+                               esses 250 é para as duas categorias... as vezes é preciso dizer o óbvio". *@
+                            <text><strong>São cobranças separadas, uma por categoria.</strong></text>
+                        }
+                        @if (Padelizou.Services.PrazoParaPagar.Frase(Model) is { } prazoDaMinha)
+                        {
+                            <text><strong>@prazoDaMinha.</strong></text>
+                        }
+                    </p>
 
-                    @{
-                        ViewData["ForcarEscolhaDeForma"] = true;
-                        @* Sem sufixo próprio, o label da SEGUNDA inscrição marcaria o rádio da
-                           primeira — ids iguais no mesmo documento. Ver _EscolhaFormaPagamento. *@
-                        ViewData["SufixoDaForma"] =
-                            $"insc{inscricao.DuplaId ?? inscricao.InscricaoAmericanaId}";
-                    }
-                    <partial name="_EscolhaFormaPagamento" model="Model" />
-                    @{
-                        ViewData["ForcarEscolhaDeForma"] = null;
-                        ViewData["SufixoDaForma"] = null;
-                    }
-
-                    @* 🗣️ "faz a opção de pagar somente o seu ou o da dupla" (Felipe,
-                       06/10/2026). Os dois botões mandam a MESMA ação, mudando só a escolha —
-                       o valor é calculado no servidor (Services/QuitacaoDaInscricao). Só
-                       aparecem os dois quando há o que dividir: faltando a parte de uma
-                       pessoa, dois botões com o mesmo valor seriam uma escolha falsa. *@
-                    @if (inscricao.PodeEscolherMinhaParte)
+                    @foreach (var inscricao in minhasNaoPagas)
                     {
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button type="submit" name="oQuePagar"
-                                    value="@Padelizou.Services.QuitacaoDaInscricao.MinhaParte"
-                                    class="btn btn-outline-primary rounded-pill">
-                                <i class="bi bi-person me-1"></i>
-                                Pagar só a minha parte (@inscricao.MinhaParte.ToString("C"))
-                            </button>
-                            <button type="submit" name="oQuePagar"
-                                    value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
-                                    class="btn btn-padel rounded-pill">
-                                <i class="bi bi-people me-1"></i>
-                                Pagar a dupla (@inscricao.Falta.ToString("C"))
-                            </button>
+                        <div class="bg-white rounded-3 p-3 mb-2">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
+                                <div>
+                                    <div class="fw-bold">@inscricao.Categoria</div>
+                                    <div class="small text-muted">@inscricao.Quem</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold fs-5">@inscricao.Falta.ToString("C")</div>
+                                    @* O que JÁ ENTROU aparece junto desde 06/10/2026: sem isto, quem pagou
+                                       a própria metade vê um valor menor que o anunciado e acha que o
+                                       sistema errou. O total continua na tela, que é o número que a pessoa
+                                       reconhece do anúncio do torneio. *@
+                                    @if (inscricao.JaPago > 0m)
+                                    {
+                                        <div class="small">
+                                            <span class="badge bg-success-subtle text-success-emphasis">
+                                                já pago @inscricao.JaPago.ToString("C")
+                                            </span>
+                                        </div>
+                                        <div class="small text-muted">de @inscricao.Valor.ToString("C") no total</div>
+                                    }
+                                    else if (inscricao.Conta is { } conta)
+                                    {
+                                        @* Vem nula quando nenhuma conta conhecida reproduz o total (estorno
+                                           parcial, ajuste na mão). Aí o valor vai sozinho: conta que não
+                                           fecha ao lado do número ensina o jogador a desconfiar dos dois. *@
+                                        <div class="small text-muted">@conta</div>
+                                    }
+                                </div>
+                            </div>
+
+                            <form asp-controller="Torneios" asp-action="PagarInscricao" method="post">
+                                <input type="hidden" name="torneioId" value="@Model.Id" />
+                                @if (inscricao.DuplaId is int duplaPagar)
+                                {
+                                    <input type="hidden" name="duplaId" value="@duplaPagar" />
+                                }
+                                else
+                                {
+                                    <input type="hidden" name="inscricaoAmericanaId" value="@inscricao.InscricaoAmericanaId" />
+                                }
+
+                                @{
+                                    ViewData["ForcarEscolhaDeForma"] = true;
+                                    @* Sem sufixo próprio, o label da SEGUNDA inscrição marcaria o rádio da
+                                       primeira — ids iguais no mesmo documento. Ver _EscolhaFormaPagamento. *@
+                                    ViewData["SufixoDaForma"] =
+                                        $"insc{inscricao.DuplaId ?? inscricao.InscricaoAmericanaId}";
+                                }
+                                <partial name="_EscolhaFormaPagamento" model="Model" />
+                                @{
+                                    ViewData["ForcarEscolhaDeForma"] = null;
+                                    ViewData["SufixoDaForma"] = null;
+                                }
+
+                                @* 🗣️ "faz a opção de pagar somente o seu ou o da dupla" (Felipe,
+                                   06/10/2026). Os dois botões mandam a MESMA ação, mudando só a escolha —
+                                   o valor é calculado no servidor (Services/QuitacaoDaInscricao). Só
+                                   aparecem os dois quando há o que dividir: faltando a parte de uma
+                                   pessoa, dois botões com o mesmo valor seriam uma escolha falsa. *@
+                                @if (inscricao.PodeEscolherMinhaParte)
+                                {
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button type="submit" name="oQuePagar"
+                                                value="@Padelizou.Services.QuitacaoDaInscricao.MinhaParte"
+                                                class="btn btn-outline-primary rounded-pill">
+                                            <i class="bi bi-person me-1"></i>
+                                            Pagar só a minha parte (@inscricao.MinhaParte.ToString("C"))
+                                        </button>
+                                        <button type="submit" name="oQuePagar"
+                                                value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                                class="btn btn-padel rounded-pill">
+                                            <i class="bi bi-people me-1"></i>
+                                            Pagar a dupla (@inscricao.Falta.ToString("C"))
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <button type="submit" name="oQuePagar"
+                                            value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
+                                            class="btn btn-padel rounded-pill">
+                                        <i class="bi bi-credit-card me-1"></i>
+                                        Pagar @inscricao.Falta.ToString("C")
+                                    </button>
+                                }
+                            </form>
                         </div>
                     }
-                    else
+                </div>
+            }
+
+            @* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
+               chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
+               disso — por isso o aviso de acertar o comprovante com o organizador. *@
+            @if (mostraPix)
+            {
+                @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
+                   MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
+                var quemRecebe = ViewBag.QuemRecebeOPix as Padelizou.Models.Jogador;
+                var zapDoOrganizador = quemRecebe != null
+                    && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(quemRecebe.Celular)
+                    ? Padelizou.Services.WhatsAppLinkHelper.GerarLink(
+                        quemRecebe.Celular,
+                        Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
+                    : null;
+
+                @* ── RECOLHIDO PRA QUEM JÁ PAGOU ─────────────────────────────────────────────────────
+                   🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
+                   ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
+                   da tela.
+
+                   ⚠️ `<details>` E NÃO UM `if` QUE APAGA — **ENQUANTO A CHAVE NÃO SAI**. Quem diz que a
+                   inscrição está paga é o organizador virando o `Pago` na mão (muita gente paga em
+                   dinheiro na quadra), e antes de publicar uma marcação errada dele não tira o caminho de
+                   ninguém: recolhido, a chave continua a um toque.
+
+                   ⚠️ DEPOIS DE PUBLICADO A PROMESSA ACIMA NÃO VALE MAIS, e isso é escolha, não descuido
+                   (Felipe, 10/09/2026: *"remover a parte de Pix do organizador quando o torneio já foi
+                   publicado"*). O portão de cima é o `ApareceParaMim`: publicada a chave, o card só existe
+                   pra quem o sistema acha que DEVE. Marcado como pago por engano, o jogador fica sem
+                   caminho pro Pix nesta tela — o conserto é o organizador desmarcar o `Pago`, e o caminho
+                   que sobra pra ele é o botão "Cobrar no WhatsApp" da aba Pagamentos. O comentário antigo
+                   daqui seguia prometendo o contrário; ficava a documentação de um comportamento que a
+                   tela não tem mais.
+
+                   O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
+                   aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
+                bool pixRecolhido = ViewBag.JaPagueiNesteTorneio == true;
+
+                <details class="alert alert-success border-0 pdz-pix" open="@(pixRecolhido ? null : "open")">
+                    <summary class="fw-bold">
+                        @if (pixRecolhido)
+                        {
+                            <text><i class="bi bi-check-circle-fill"></i> Inscrição paga — ver o Pix do organizador</text>
+                        }
+                        else
+                        {
+                            <text><i class="bi bi-qr-code"></i> Pix do organizador</text>
+                        }
+                    </summary>
+
+                    @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
+                       valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
+                       mostra o preço POR PESSOA — e numa inscrição de dupla pagava metade. *@
+                    <p class="mb-2">
+                        <span class="fs-5 fw-bold">
+                            @Padelizou.Services.PixDoOrganizador.ValorDaInscricao(Model).ToString("C")
+                        </span>
+                        @if (Padelizou.Services.PixDoOrganizador.ValePorPessoaEPorInscricao(Model))
+                        {
+                            <span class="small">
+                                a inscrição da dupla —
+                                @Padelizou.Services.PixDoOrganizador.ValorPorPessoa(Model).ToString("C") por pessoa
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="small">por pessoa</span>
+                        }
+                    </p>
+                    @if (Padelizou.Services.PixDoOrganizador.OTotalPodeVariar(Model))
                     {
-                        <button type="submit" name="oQuePagar"
-                                value="@Padelizou.Services.QuitacaoDaInscricao.ADupla"
-                                class="btn btn-padel rounded-pill">
-                            <i class="bi bi-credit-card me-1"></i>
-                            Pagar @inscricao.Falta.ToString("C")
-                        </button>
+                        @* O card não sabe quantas categorias esta pessoa vai pegar nem que impedimentos
+                           vai marcar. Prometer um total exato aqui seria mandar pagar errado num Pix que
+                           o Padelizou não vê e não conserta. *@
+                        <p class="small text-muted mb-2">
+                            @if (Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) is string segundaNoPix)
+                            {
+                                <strong>@segundaNoPix.</strong>
+                            }
+                            Esse é o valor base: impedimento de horário soma@(Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) == null ? ", e a segunda categoria pode ter outro preço" : "").
+                            Na dúvida, confirme com o organizador antes de mandar.
+                        </p>
                     }
-                </form>
-            </div>
-        }
-    </div>
-}
 
-@* A chave Pix só existe no "por fora": nas formas pelo site o jogador paga no checkout, e uma
-   chave na tela seria um segundo caminho pro mesmo dinheiro. O Padelizou não confere nada
-   disso — por isso o aviso de acertar o comprovante com o organizador. *@
-@if (Padelizou.Services.PixDoOrganizador.ApareceParaMim(Model, ViewBag.DevoAlgumaNesteTorneio == true))
-{
-    @* Quem recebe o comprovante vem do controller (ViewBag.QuemRecebeOPix), guardado pela
-       MESMA condição deste @if — as duas saem de PixDoOrganizador de propósito. *@
-    var quemRecebe = ViewBag.QuemRecebeOPix as Padelizou.Models.Jogador;
-    var zapDoOrganizador = quemRecebe != null
-        && Padelizou.Services.WhatsAppLinkHelper.NumeroValido(quemRecebe.Celular)
-        ? Padelizou.Services.WhatsAppLinkHelper.GerarLink(
-            quemRecebe.Celular,
-            Padelizou.Services.PixDoOrganizador.Mensagem(Model.Nome, ViewBag.MeuNome as string))
-        : null;
+                    <div class="input-group input-group-sm mb-2" style="max-width: 34rem;">
+                        <input type="text" class="form-control" id="campoPixTorneio" readonly
+                               value="@Model.ChavePixOrganizador" onclick="this.select();" />
+                        <button class="btn btn-outline-secondary" type="button" onclick="pdzCopiarPix(this);">Copiar</button>
+                    </div>
+                    <p class="small mb-2 text-muted">
+                        O pagamento é combinado direto com o organizador — o Padelizou não recebe nem
+                        confere. Mande o comprovante pra ele depois de pagar.
+                    </p>
+                    @* O botão SÓ existe com número válido. Sem ele o texto acima continua pedindo o
+                       comprovante — o que é verdade —, mas a tela não promete um caminho que não tem. *@
+                    @if (zapDoOrganizador != null)
+                    {
+                        <a href="@zapDoOrganizador" target="_blank" rel="noopener"
+                           class="btn btn-success btn-sm rounded-pill fw-bold">
+                            <i class="bi bi-whatsapp me-1"></i>
+                            Enviar o comprovante pro @(quemRecebe!.ComoChamar) no WhatsApp
+                        </a>
+                        <p class="small text-muted mb-0 mt-2">
+                            @* O wa.me não anexa arquivo: a conversa abre com o texto pronto e a foto do
+                               comprovante vai pelo próprio WhatsApp. Dizer isso aqui evita a pessoa achar
+                               que o comprovante foi junto e não mandar nada. *@
+                            A conversa abre já escrita — é só anexar a foto do comprovante.
+                        </p>
+                    }
+                </details>
 
-    @* ── RECOLHIDO PRA QUEM JÁ PAGOU ─────────────────────────────────────────────────────
-       🗣️ Emerson Pisoni, 10/09/2026: *"Se o cara já pagou, daria pra tirar info do pagamento,
-       ocupa muito espaço"* — no celular dele este bloco empurrava as abas do torneio pra fora
-       da tela.
-
-       ⚠️ `<details>` E NÃO UM `if` QUE APAGA — **ENQUANTO A CHAVE NÃO SAI**. Quem diz que a
-       inscrição está paga é o organizador virando o `Pago` na mão (muita gente paga em
-       dinheiro na quadra), e antes de publicar uma marcação errada dele não tira o caminho de
-       ninguém: recolhido, a chave continua a um toque.
-
-       ⚠️ DEPOIS DE PUBLICADO A PROMESSA ACIMA NÃO VALE MAIS, e isso é escolha, não descuido
-       (Felipe, 10/09/2026: *"remover a parte de Pix do organizador quando o torneio já foi
-       publicado"*). O portão de cima é o `ApareceParaMim`: publicada a chave, o card só existe
-       pra quem o sistema acha que DEVE. Marcado como pago por engano, o jogador fica sem
-       caminho pro Pix nesta tela — o conserto é o organizador desmarcar o `Pago`, e o caminho
-       que sobra pra ele é o botão "Cobrar no WhatsApp" da aba Pagamentos. O comentário antigo
-       daqui seguia prometendo o contrário; ficava a documentação de um comportamento que a
-       tela não tem mais.
-
-       O `open` sai por atributo condicional: nulo faz o Razor não escrever o atributo, e é
-       aberto que o card nasce pra quem ainda deve — e pra quem nem se inscreveu ainda. *@
-    bool pixRecolhido = ViewBag.JaPagueiNesteTorneio == true;
-
-    <details class="alert alert-success border-0 pdz-pix" open="@(pixRecolhido ? null : "open")">
-        <summary class="fw-bold">
-            @if (pixRecolhido)
-            {
-                <text><i class="bi bi-check-circle-fill"></i> Inscrição paga — ver o Pix do organizador</text>
+                <script>
+                    function pdzCopiarPix(botao) {
+                        var campo = document.getElementById('campoPixTorneio');
+                        campo.select();
+                        // O clipboard falha calado em celular antigo; o select() acima garante que dá
+                        // pra copiar à mão quando isto não funcionar.
+                        navigator.clipboard?.writeText(campo.value).then(function () {
+                            var antes = botao.textContent;
+                            botao.textContent = 'Copiado!';
+                            setTimeout(function () { botao.textContent = antes; }, 1500);
+                        }).catch(function () { });
+                    }
+                </script>
             }
-            else
-            {
-                <text><i class="bi bi-qr-code"></i> Pix do organizador</text>
-            }
-        </summary>
 
-        @* QUANTO MANDAR. Vem antes da chave de propósito: a ordem em que se paga é decidir o
-           valor, copiar a chave, mandar. Sem este número a pessoa subia até o cabeçalho — que
-           mostra o preço POR PESSOA — e numa inscrição de dupla pagava metade. *@
-        <p class="mb-2">
-            <span class="fs-5 fw-bold">
-                @Padelizou.Services.PixDoOrganizador.ValorDaInscricao(Model).ToString("C")
-            </span>
-            @if (Padelizou.Services.PixDoOrganizador.ValePorPessoaEPorInscricao(Model))
-            {
-                <span class="small">
-                    a inscrição da dupla —
-                    @Padelizou.Services.PixDoOrganizador.ValorPorPessoa(Model).ToString("C") por pessoa
-                </span>
-            }
-            else
-            {
-                <span class="small">por pessoa</span>
-            }
-        </p>
-        @if (Padelizou.Services.PixDoOrganizador.OTotalPodeVariar(Model))
-        {
-            @* O card não sabe quantas categorias esta pessoa vai pegar nem que impedimentos
-               vai marcar. Prometer um total exato aqui seria mandar pagar errado num Pix que
-               o Padelizou não vê e não conserta. *@
-            <p class="small text-muted mb-2">
-                @if (Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) is string segundaNoPix)
-                {
-                    <strong>@segundaNoPix.</strong>
-                }
-                Esse é o valor base: impedimento de horário soma@(Padelizou.Services.PrecoDaInscricao.FraseDaSegunda(Model) == null ? ", e a segunda categoria pode ter outro preço" : "").
-                Na dúvida, confirme com o organizador antes de mandar.
-            </p>
-        }
+            @* ── O GRUPO DO TORNEIO NO WHATSAPP ───────────────────────────────────────────────────
+               Quem está inscrito (e quem organiza) ganha o botão de entrar; pra todo o resto ele não
+               existe — nem escondido, nem no código-fonte. Esta página abre sem login, e convite de
+               grupo é chave de porta: quem tem o link entra, e o organizador só descobre depois.
 
-        <div class="input-group input-group-sm mb-2" style="max-width: 34rem;">
-            <input type="text" class="form-control" id="campoPixTorneio" readonly
-                   value="@Model.ChavePixOrganizador" onclick="this.select();" />
-            <button class="btn btn-outline-secondary" type="button" onclick="pdzCopiarPix(this);">Copiar</button>
+               Quem decide se ESTA pessoa pode ver é o controller (ViewBag.PodeVerOGrupoDoWhats); o link
+               só sai pelo serviço, que confere o endereço de novo na hora de mostrar. A view nunca lê
+               Model.LinkGrupoWhatsApp num href — se ler, o portão deixa de existir. *@
+            @if (linkDoGrupo != null)
+            {
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-3">
+                    <a href="@linkDoGrupo" target="_blank" rel="noopener noreferrer"
+                       class="btn btn-success rounded-pill px-3">
+                        <i class="bi bi-whatsapp"></i> Entrar no grupo do torneio
+                    </a>
+                    <small class="text-muted">
+                        É onde o organizador avisa mudança de horário e chama pra quadra.
+                    </small>
+                </div>
+            }
+
+            @* ── SEGUIR O TORNEIO ─────────────────────────────────────────────────────────────────
+               "Me avise a cada inscrição nova nesta chave." Só aparece pra quem JÁ ESTÁ INSCRITO
+               (decisão do Felipe, 10/08/2026): é quem se inscreveu que fica olhando a chave encher
+               pra saber contra quem vai jogar. Pra quem só passou na página, o mesmo aviso é ruído —
+               e cada seguidor a mais multiplica uma rajada que num torneio grande já é grande.
+
+               ⚠️ A tela esconde, mas quem RECUSA é o servidor (TorneiosController.Seguir): botão
+               escondido nunca foi trava. *@
+            @if (estouInscrito)
+            {
+                var jaSigo = ViewBag.SigoEsteTorneio == true;
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <form asp-controller="Torneios"
+                          asp-action="@(jaSigo ? "DeixarDeSeguirTorneio" : "SeguirTorneio")"
+                          asp-route-id="@Model.Id" method="post">
+                        <button type="submit" class="btn @(jaSigo ? "btn-outline-secondary" : "btn-outline-primary") rounded-pill px-3">
+                            <i class="bi @(jaSigo ? "bi-bell-slash" : "bi-bell")"></i>
+                            @(jaSigo ? "Parar de receber avisos" : "Seguir este torneio")
+                        </button>
+                    </form>
+                    <small class="text-muted">
+                        @(jaSigo
+                            ? "Você recebe um aviso a cada dupla que entra."
+                            : "Receba um aviso no celular a cada inscrição nova.")
+                    </small>
+                </div>
+            }
         </div>
-        <p class="small mb-2 text-muted">
-            O pagamento é combinado direto com o organizador — o Padelizou não recebe nem
-            confere. Mande o comprovante pra ele depois de pagar.
-        </p>
-        @* O botão SÓ existe com número válido. Sem ele o texto acima continua pedindo o
-           comprovante — o que é verdade —, mas a tela não promete um caminho que não tem. *@
-        @if (zapDoOrganizador != null)
-        {
-            <a href="@zapDoOrganizador" target="_blank" rel="noopener"
-               class="btn btn-success btn-sm rounded-pill fw-bold">
-                <i class="bi bi-whatsapp me-1"></i>
-                Enviar o comprovante pro @(quemRecebe!.ComoChamar) no WhatsApp
-            </a>
-            <p class="small text-muted mb-0 mt-2">
-                @* O wa.me não anexa arquivo: a conversa abre com o texto pronto e a foto do
-                   comprovante vai pelo próprio WhatsApp. Dizer isso aqui evita a pessoa achar
-                   que o comprovante foi junto e não mandar nada. *@
-                A conversa abre já escrita — é só anexar a foto do comprovante.
-            </p>
-        }
+        <span hidden data-fim-sua-inscricao></span>
     </details>
-
-    <script>
-        function pdzCopiarPix(botao) {
-            var campo = document.getElementById('campoPixTorneio');
-            campo.select();
-            // O clipboard falha calado em celular antigo; o select() acima garante que dá
-            // pra copiar à mão quando isto não funcionar.
-            navigator.clipboard?.writeText(campo.value).then(function () {
-                var antes = botao.textContent;
-                botao.textContent = 'Copiado!';
-                setTimeout(function () { botao.textContent = antes; }, 1500);
-            }).catch(function () { });
-        }
-    </script>
 }
 
 @* ⚠️ O `id` É CONTRATO COM O JS, e guarda uma falha calada (14/09/2026). O "Finalizar" do
