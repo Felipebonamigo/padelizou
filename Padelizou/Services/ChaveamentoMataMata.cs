@@ -94,9 +94,18 @@ public static class ChaveamentoMataMata
     // "folga pros melhores 1ºs", a campanha DECIDE o bye — 🗣️ Rafael (Treta): "os escolhidos para
     // ir direto pra semi são os melhores 1ºs, e não exatamente o A1". Posição, vitórias, saldo;
     // empate que sobra vai pela ordem dos grupos. Só vale com a opção ligada.
+    //
+    // ⚠️ POR JOGO, e não em número absoluto (27/11/2026): com grupos de tamanhos diferentes (3/3/4)
+    // o 1º do grupo de 4 jogou um jogo a mais e levaria a folga sempre. Aproveitamento e saldo por
+    // jogo; com grupos iguais dá a mesma ordem de antes.
     public static IEnumerable<Classificado> OrdemDosByesPelaCampanha(IEnumerable<Classificado> classificados) =>
-        classificados.OrderBy(c => c.Posicao).ThenByDescending(c => c.Vitorias)
-            .ThenByDescending(c => c.Saldo).ThenBy(c => c.Grupo);
+        classificados.OrderBy(c => c.Posicao)
+            .ThenByDescending(c => PorJogo(c.Vitorias, c.Jogos))
+            .ThenByDescending(c => PorJogo(c.Saldo, c.Jogos))
+            .ThenBy(c => c.Grupo);
+
+    // Valor por jogo; sem jogo, o número cru (prévia, em que ninguém jogou).
+    public static decimal PorJogo(int valor, int jogos) => jogos > 0 ? (decimal)valor / jogos : valor;
 
     // Monta a primeira fase do mata-mata. Fase vazia = nada a gerar (sem classificados).
     //

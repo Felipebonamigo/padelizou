@@ -49,10 +49,12 @@ public static class ChaveDtn
             for (int i = primeiro; i < ranking.Count; i++) vao.Add(ranking[i]);
         }
 
+        // POR JOGO (27/11/2026): com grupos de tamanhos diferentes (3/3/4) o último do grupo de 4
+        // jogou mais e, em número absoluto, seria sempre o "pior". Com grupos iguais, mesma ordem.
         return vao
-            .OrderBy(l => l.Vitorias)
-            .ThenBy(l => l.Saldo)
-            .ThenBy(l => l.GamesPro)
+            .OrderBy(l => ChaveamentoMataMata.PorJogo(l.Vitorias, l.Jogos))
+            .ThenBy(l => ChaveamentoMataMata.PorJogo(l.Saldo, l.Jogos))
+            .ThenBy(l => ChaveamentoMataMata.PorJogo(l.GamesPro, l.Jogos))
             .ThenBy(l => ClassificacaoDeGrupos.SorteioEstavel(l.Dupla))
             .Select(l => l.Dupla.Id)
             .ToList();

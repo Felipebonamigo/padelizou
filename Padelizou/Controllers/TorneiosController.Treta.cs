@@ -118,5 +118,44 @@ namespace Padelizou.Controllers
                 : $"{categoria.Nome}: as folgas voltam a seguir o cruzamento por grupo.";
             return RedirectToAction("Details", new { id });
         }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // QUANTOS GRUPOS NO SORTEIO (Services/SorteioDosGrupos). Só antes do sorteio da categoria:
+        // depois os grupos existem, e mudar o número não os refaz.
+        public async Task<IActionResult> DefinirQuantidadeDeGrupos(int categoriaId, int? quantidade)
+        {
+            var categoria = await _context.Categorias.Include(c => c.GruposTorneio)
+                .FirstOrDefaultAsync(c => c.Id == categoriaId);
+            if (categoria == null) return NotFound();
+            if (!await EhOrganizadorAsync(categoria.TorneioId, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            IActionResult Voltar() => RedirectToAction("Details", "Torneios",
+                new { id = categoria.TorneioId }, fragment: $"categoria-{categoria.Id}");
+
+            if (categoria.DeTimes || categoria.PapelDaChave != null || categoria.ChaveDireta)
+            {
+                TempData["Erro"] = "Essa categoria não sorteia grupos por aqui.";
+                return Voltar();
+            }
+            if (categoria.GruposTorneio.Count > 0)
+            {
+                TempData["Erro"] = $"{categoria.Nome}: os grupos já foram sorteados.";
+                return Voltar();
+            }
+            if (quantidade is int q && (q < 1 || q > SorteioDosGrupos.Maximo))
+            {
+                TempData["Erro"] = $"Escolha de 1 a {SorteioDosGrupos.Maximo} grupos.";
+                return Voltar();
+            }
+
+            categoria.QuantidadeGrupos = quantidade is > 0 ? quantidade : null;
+            await _context.SaveChangesAsync();
+            TempData["Sucesso"] = categoria.QuantidadeGrupos == null
+                ? $"{categoria.Nome}: o sorteio volta a montar grupos de 3."
+                : $"{categoria.Nome}: o sorteio vai dividir em {categoria.QuantidadeGrupos} grupo(s).";
+            return Voltar();
+        }
 }
 }

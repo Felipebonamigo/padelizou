@@ -217,7 +217,14 @@ namespace Padelizou.Controllers
                 int n = duplasOrdenadas.Count;
                 var gruposDeDuplas = new List<List<Dupla>>();
 
-                if (n < 3)
+                // QUANTOS GRUPOS, quando o organizador disse (Services/SorteioDosGrupos, 27/11/2026):
+                // a mesma régua de faixas, em N grupos. Número que não fecha (menos de 2 duplas
+                // por grupo) cai na regra de sempre em vez de travar o sorteio.
+                if (categoria.QuantidadeGrupos is int quantosGrupos && SorteioDosGrupos.Valido(quantosGrupos, n))
+                {
+                    gruposDeDuplas.AddRange(SorteioDosGrupos.EmGrupos(duplasOrdenadas, quantosGrupos));
+                }
+                else if (n < 3)
                 {
                     gruposDeDuplas.Add(duplasOrdenadas); // 2 duplas: só dá pra ter a chave direta 1x2
                 }
@@ -2546,7 +2553,9 @@ namespace Padelizou.Controllers
                 // fechada que o sorteio deixa de fora. Num cenário com uma sozinha e uma na espera
                 // os dois erros se cancelavam — foi assim que a suíte ficou verde.
                 int daCategoria = categoria.Duplas.Count(d => !ForaDoSorteio.FicaDeFora(d));
-                var (g, jogos) = PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
+                var (g, jogos) = categoria.QuantidadeGrupos is int pedidos && SorteioDosGrupos.Valido(pedidos, daCategoria)
+                    ? (pedidos, CategoriaDeTimes.JogosDeGrupo(daCategoria, pedidos))   // o mesmo do sorteio
+                    : PrevisaoDoTorneio.FaseDeGrupos(daCategoria);
 
                 duplas += daCategoria;
                 grupos += g;
