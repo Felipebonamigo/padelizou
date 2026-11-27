@@ -4356,3 +4356,19 @@ a.pdz-grupo-jogo[href]:focus-visible {
 .pdz-reacao-mais {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", sans-serif;
 }
+
+/* A PÁGINA DO TORNEIO ENXUTA ATÉ AS ABAS (27/11/2026) — Details.cshtml.
+   Recado numa linha com "ver mais"; "Compartilhar" que abre Convidar/Cartaz; e "Sua inscrição"
+   recolhida, com o resumo em chips na linha fechada. */
+.pdz-recado > summary,
+.pdz-compartilhar > summary,
+.pdz-sua-inscricao > summary { list-style: none; cursor: pointer; }
+.pdz-recado > summary::-webkit-details-marker,
+.pdz-compartilhar > summary::-webkit-details-marker,
+.pdz-sua-inscricao > summary::-webkit-details-marker { display: none; }
+.pdz-recado-previa { min-width: 0; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pdz-recado[open] .pdz-recado-previa,
+.pdz-recado[open] .pdz-recado-mais { display: none; }
+.pdz-sua-inscricao .badge { font-weight: 600; white-space: nowrap; }
+.pdz-sua-inscricao-seta { transition: transform .15s; }
+.pdz-sua-inscricao[open] .pdz-sua-inscricao-seta { transform: rotate(180deg); }
