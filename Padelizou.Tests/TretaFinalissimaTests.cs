@@ -632,10 +632,42 @@ public class FinalDtnTrocadaDoModuloSemParTests
             .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, paraTrocar.Dupla1.Jogador1Id, paraTrocar.Dupla2.Jogador1Id));
 
         var final = await ctx.Partidas.FirstAsync(p => p.Id == paraTrocar.Final.Id);
-        final.Status = "AoVivo";
+        final.Status = "Finalizada";
+        final.VencedorId = final.Dupla1Id;
+        final.GamesDupla1 = 6;
+        final.GamesDupla2 = 3;
         await ctx.SaveChangesAsync();
         ctx.ChangeTracker.Clear();
         Assert.Empty(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+    }
+
+    // 🗣️ Rafael, 28/11: "Eu reabri o jogo, mas não aparece mais a opção de trocar". Reabrir põe a
+    // final AO VIVO com o placar na tela — e o card só olhava jogo por começar. Felipe: a troca vale
+    // até a final ser finalizada, e o placar fica pra quem organiza corrigir.
+    [Fact]
+    public async Task Final_reaberta_ainda_troca_e_o_placar_fica()
+    {
+        var (ctx, torneio, _, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var antes = (await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id)).Single();
+        var final = await ctx.Partidas.FirstAsync(p => p.Id == antes.Final.Id);
+        final.Status = "AoVivo";
+        final.GamesDupla1 = 4;
+        final.GamesDupla2 = 2;
+        final.HorarioInicioReal = new DateTime(2026, 12, 5, 15, 0, 0);
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var paraTrocar = Assert.Single(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+        await TestInfra.NovoTorneiosController(ctx, org.Id)
+            .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, paraTrocar.Dupla1.Jogador1Id, paraTrocar.Dupla2.Jogador1Id);
+        ctx.ChangeTracker.Clear();
+
+        var depois = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.Id == antes.Final.Id);
+        Assert.NotEqual(antes.Dupla1.Id, depois.Dupla1Id);
+        Assert.Equal("AoVivo", depois.Status);
+        Assert.Equal(4, depois.GamesDupla1);
+        Assert.Equal(2, depois.GamesDupla2);
     }
 
     [Fact]
