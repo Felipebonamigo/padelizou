@@ -257,7 +257,7 @@ public class FinalissimaDtn
     // 🗣️ Felipe, pelo Treta: "e final do módulo preto também inverte as duplas. Mesmo sistema da
     // finalíssima". O módulo SEM par de Finalíssima decide o troféu na própria final DTN — e ela
     // também é jogada com os parceiros trocados (direita com direita). O robô cria a final como
-    // sempre; antes de ela começar, quem organiza confirma a troca e o MESMO jogo (hora, quadra)
+    // sempre; até ela ser finalizada (inclusive reaberta), quem organiza confirma a troca e o MESMO jogo (hora, quadra)
     // passa a ser entre as duplas mistas.
     //
     // "Ainda não trocada" = as duas duplas do jogo são as cópias do módulo (mesmos dois
@@ -279,8 +279,11 @@ public class FinalissimaDtn
                 .Include(p => p.Dupla1).ThenInclude(d => d.Jogador2)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador1)
                 .Include(p => p.Dupla2).ThenInclude(d => d.Jogador2)
+                // Até FINALIZAR, e não só por começar (28/11/2026): 🗣️ Rafael reabriu a final pra
+                // trocar e o card tinha sumido. Reabrir põe o jogo AO VIVO com o placar; a troca
+                // mexe só nas duplas, e o placar fica pra quem organiza corrigir.
                 .FirstOrDefaultAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Final"
-                    && p.Status == "Agendada" && p.GamesDupla1 == null && p.GamesDupla2 == null);
+                    && p.Status != "Finalizada" && p.VencedorId == null);
             if (final == null) continue;
 
             int moduloId = dtn.CategoriaDeOrigemId!.Value;
@@ -297,7 +300,7 @@ public class FinalissimaDtn
     public async Task<string?> TrocarFinalAsync(int torneioId, int finalId, int direitaDaPrimeira, int direitaDaSegunda)
     {
         var alvo = (await FinaisParaTrocarAsync(torneioId)).FirstOrDefault(f => f.Final.Id == finalId);
-        if (alvo == null) return "Essa final já foi trocada, já começou, ou não é de DTN sem Finalíssima.";
+        if (alvo == null) return "Essa final já foi trocada, já foi finalizada, ou não é de DTN sem Finalíssima.";
         if (!Joga(alvo.Dupla1, direitaDaPrimeira) || !Joga(alvo.Dupla2, direitaDaSegunda))
             return "Escolha, em cada dupla, um dos dois atletas pra jogar na direita.";
 
