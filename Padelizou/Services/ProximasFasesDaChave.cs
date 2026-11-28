@@ -207,10 +207,12 @@ public static class ProximasFasesDaChave
     //
     // Rótulos: com 2 vagas (2 grupos) cada uma é a colocação do grupo ("4º do Grupo A"); com
     // mais, a ordem entre os últimos só sai da campanha — "Melhor último", "Pior último".
-    // A cadeia não tem CategoriaId: a categoria DTN ainda não existe, e reserva de horário presa
-    // ao módulo cairia na Final do Principal (mesma fase, mesmo número).
+    // O CategoriaId é o da categoria DTN VAZIA, quando ela já existe (ChaveDtn.GarantirCategoriaAsync):
+    // é nela que a troca de horário/quadra prende a reserva. Nunca o do módulo — a reserva cairia
+    // na Final do Principal (mesma fase, mesmo número).
     public static CadeiaDeFases DaDtn(IReadOnlyList<string> grupos, IReadOnlyList<int> duplasPorGrupo,
-        int classificadosPorGrupo, int duplasNoDtnPorGrupo, DateTime? fimDosGrupos, string categoria)
+        int classificadosPorGrupo, int duplasNoDtnPorGrupo, DateTime? fimDosGrupos, string categoria,
+        int? categoriaDaDtnId = null)
     {
         // As vagas, grupo a grupo: os últimos `duplasNoDtnPorGrupo`, sem invadir o Principal.
         var vagasPorGrupo = new List<Lado>();
@@ -243,7 +245,7 @@ public static class ProximasFasesDaChave
                 .ToList();
             rodadas.AddRange(Encadear(lados, invertida: true));
         }
-        return new CadeiaDeFases(categoria, fimDosGrupos, rodadas);
+        return new CadeiaDeFases(categoria, fimDosGrupos, rodadas, categoriaDaDtnId);
     }
 
     // Na chave invertida (DTN), quem segue é quem PERDEU.

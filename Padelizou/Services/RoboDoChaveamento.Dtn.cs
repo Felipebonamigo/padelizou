@@ -21,9 +21,15 @@ public partial class RoboDoChaveamento
         if (modulo.DuplasNoDtnPorGrupo <= 0 || modulo.PapelDaChave != null) return;
         if (partidasDeGrupo.Count == 0 || partidasDeGrupo.Any(p => p.Status != "Finalizada")) return;
 
-        bool jaExiste = await _context.Categorias.AnyAsync(c =>
+        // A DTN pode já existir VAZIA (criada no sorteio pra prévia ter onde prender a reserva de
+        // horário — ChaveDtn.GarantirCategoriaAsync). Vazia, é aqui que ela é preenchida; com
+        // dupla ou jogo, já foi montada e não se monta de novo.
+        var existente = await _context.Categorias.FirstOrDefaultAsync(c =>
             c.CategoriaDeOrigemId == modulo.Id && c.PapelDaChave == ChaveDtn.Dtn);
-        if (jaExiste) return;
+        if (existente != null
+            && (await _context.Duplas.AnyAsync(d => d.CategoriaId == existente.Id)
+                || await _context.Partidas.AnyAsync(p => p.CategoriaId == existente.Id)))
+            return;
 
         var grupos = modulo.GruposTorneio.OrderBy(g => g.Nome).ToList();
         var duplasDosGrupos = grupos.SelectMany(g => g.Duplas).ToList();
@@ -38,19 +44,7 @@ public partial class RoboDoChaveamento
             rankings, modulo.DuplasNoDtnPorGrupo, ClassificacaoDeGrupos.VagasPorGrupo(modulo));
         if (ChaveamentoMataMata.ProblemaNaChaveDireta(doPiorProMelhor.Count) != null) return;
 
-        var dtn = new Categoria
-        {
-            TorneioId = modulo.TorneioId,
-            Nome = ChaveDtn.NomeDaDtn(modulo.Nome),
-            Codigo = ChaveDtn.CodigoDaDtn(modulo.Codigo),
-            ChaveDireta = true,
-            PapelDaChave = ChaveDtn.Dtn,
-            CategoriaDeOrigemId = modulo.Id,
-            ClubeId = modulo.ClubeId,
-            EliminatoriaNoSabadoANoite = modulo.EliminatoriaNoSabadoANoite,
-            PodeJogarNaSedeExtra = modulo.PodeJogarNaSedeExtra,
-        };
-        _context.Categorias.Add(dtn);
+        var dtn = existente ?? await ChaveDtn.GarantirCategoriaAsync(_context, modulo);
 
         // Uma a uma e salvando: o Id da cópia segue a ordem do pior pro melhor, que é a ordem
         // em que a chave direta (AvancoDaChave.ByesDaCategoriaAsync) lê quem folgou.

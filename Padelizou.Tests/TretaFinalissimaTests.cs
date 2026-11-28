@@ -502,3 +502,179 @@ public class TraducaoDasConsultasDoTretaTests
         Assert.Contains("SELECT", sql);
     }
 }
+
+// A FINAL DTN DO MÓDULO SEM FINALÍSSIMA TAMBÉM TROCA OS PARCEIROS (27/11/2026).
+// 🗣️ Felipe, pelo Treta: "e final do módulo preto também inverte as duplas. Mesmo sistema da
+// finalíssima". O robô cria a final DTN como sempre; antes de ela começar, quem organiza confirma a
+// troca direita com direita (FinalissimaDtn.FinaisParaTrocarAsync / TrocarFinalAsync) e o jogo passa
+// a ser entre as duplas mistas. O troféu segue saindo dessa final.
+public class FinalDtnTrocadaDoModuloSemParTests
+{
+    private static async Task<(DbPadelContext ctx, Torneio torneio, Categoria preto, Jogador org)> PretoNaFinalDtnAsync(bool comPar = false)
+    {
+        var ctx = TestInfra.NovoContexto();
+        var org = new Jogador { Nome = "Organizador", Cpf = "99900000099" };
+        ctx.Jogadores.Add(org);
+        var sabado = new DateTime(2026, 12, 5);
+        var torneio = new Torneio
+        {
+            Nome = "Treta", Codigo = "TRETA", Status = "Fase de Grupos", ForaDoRanking = true,
+            DataInicio = sabado.AddHours(9), DataFim = sabado.AddDays(1),
+            HoraInicioDoDia = new TimeSpan(9, 0, 0), HoraInicioDiasSeguintes = new TimeSpan(9, 0, 0),
+            HoraFimDoDia = new TimeSpan(22, 0, 0), QuantidadeQuadras = 2, TempoPrevistoPartidaMinutos = 30,
+        };
+        ctx.Torneios.Add(torneio);
+        var preto = new Categoria { Nome = "Preto", Codigo = "PT", Torneio = torneio, ClassificadosPorGrupo = 2, DuplasNoDtnPorGrupo = 1 };
+        var outro = new Categoria { Nome = "Branco", Codigo = "BR", Torneio = torneio, ClassificadosPorGrupo = 2, DuplasNoDtnPorGrupo = 1 };
+        ctx.Categorias.AddRange(preto, outro);
+        ctx.SaveChanges();
+        if (comPar) preto.ParDaFinalissimaId = outro.Id;
+        ctx.TorneioOrganizadores.Add(new TorneioOrganizador { TorneioId = torneio.Id, JogadorId = org.Id, NivelAcesso = "Criador" });
+        ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = "Q1" });
+        ctx.Quadras.Add(new Quadra { TorneioId = torneio.Id, Nome = "Q2" });
+        int n = 1;
+        for (int g = 0; g < 3; g++)
+        {
+            string letra = ((char)('A' + g)).ToString();
+            var grupo = new GrupoTorneio { Categoria = preto, Nome = "Grupo " + letra };
+            ctx.Add(grupo);
+            var doGrupo = new List<Dupla>();
+            for (int i = 0; i < 3; i++)
+            {
+                var j1 = TestInfra.NovoJogador(n++);
+                var j2 = TestInfra.NovoJogador(n++);
+                j2.LadoQuadra = "Esquerda";
+                ctx.Jogadores.AddRange(j1, j2);
+                var d = new Dupla { Categoria = preto, Jogador1 = j1, Jogador2 = j2, GrupoTorneio = grupo, Grupo = letra, Pago = true, LadoJogador1 = "Direita" };
+                ctx.Duplas.Add(d);
+                doGrupo.Add(d);
+            }
+            for (int i = 0; i < 3; i++)
+                for (int j = i + 1; j < 3; j++)
+                    ctx.Partidas.Add(new Partida
+                    {
+                        TorneioId = torneio.Id, Categoria = preto, Dupla1 = doGrupo[i], Dupla2 = doGrupo[j],
+                        Codigo = Guid.NewGuid().ToString()[..6], Fase = "Grupo " + letra, Status = "Finalizada",
+                        GamesDupla1 = 6, GamesDupla2 = g, SetsDupla1 = 1, SetsDupla2 = 0,
+                    });
+        }
+        ctx.SaveChanges();
+        foreach (var p in ctx.Partidas.ToList()) p.VencedorId = p.Dupla1Id;
+        ctx.SaveChanges();
+        ctx.ChangeTracker.Clear();
+
+        var robo = new RoboDoChaveamento(ctx, TestInfra.EstatisticasFalsas());
+        await robo.MontarMataMataDosGruposAsync(preto.Id, torneio.Id);
+        ctx.ChangeTracker.Clear();
+        var semi = await ctx.Partidas.FirstAsync(p => p.Categoria.PapelDaChave == ChaveDtn.Dtn && p.Fase == "Semifinal");
+        semi.Status = "Finalizada";
+        semi.VencedorId = semi.Dupla1Id;
+        semi.GamesDupla1 = 6;
+        semi.GamesDupla2 = 3;
+        await ctx.SaveChangesAsync();
+        await TestInfra.NovoEncerramento(ctx).AplicarAsync(semi, acabouDeTerminar: true, new EncerramentoDaPartida.LinksDoAviso(null, null));
+        ctx.ChangeTracker.Clear();
+        return (ctx, torneio, preto, org);
+    }
+
+    [Fact]
+    public async Task A_final_DTN_do_Preto_aparece_pra_trocar_os_parceiros()
+    {
+        var (ctx, torneio, _, _) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+
+        var paraTrocar = Assert.Single(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+        Assert.Equal("Final", paraTrocar.Final.Fase);
+        Assert.True(paraTrocar.Proposta.Certa);
+    }
+
+    [Fact]
+    public async Task Trocar_poe_as_duplas_mistas_no_mesmo_jogo()
+    {
+        var (ctx, torneio, _, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var paraTrocar = (await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id)).Single();
+        var (a, b) = (paraTrocar.Dupla1, paraTrocar.Dupla2);
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id)
+            .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, a.Jogador1Id, b.Jogador1Id);
+        ctx.ChangeTracker.Clear();
+
+        var final = await ctx.Partidas.Include(p => p.Dupla1).Include(p => p.Dupla2).FirstAsync(p => p.Id == paraTrocar.Final.Id);
+        var pares = new[] { (final.Dupla1.Jogador1Id, final.Dupla1.Jogador2Id), (final.Dupla2.Jogador1Id, final.Dupla2.Jogador2Id) };
+        // E₁ + D₂ × E₂ + D₁
+        Assert.Contains((a.Jogador2Id!.Value, (int?)b.Jogador1Id), pares);
+        Assert.Contains((b.Jogador2Id!.Value, (int?)a.Jogador1Id), pares);
+        // E não aparece de novo pra trocar.
+        Assert.Empty(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+    }
+
+    [Fact]
+    public async Task Modulo_com_Finalissima_nao_troca_na_propria_final()
+    {
+        var (ctx, torneio, _, _) = await PretoNaFinalDtnAsync(comPar: true);
+        using var _c = ctx;
+
+        Assert.Empty(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+    }
+
+    [Fact]
+    public async Task Final_ja_comecada_nao_troca_e_quem_nao_organiza_nao_troca()
+    {
+        var (ctx, torneio, _, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var paraTrocar = (await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id)).Single();
+
+        var intruso = TestInfra.NovoJogador(999);
+        ctx.Jogadores.Add(intruso);
+        await ctx.SaveChangesAsync();
+        Assert.IsType<Microsoft.AspNetCore.Mvc.ForbidResult>(await TestInfra.NovoTorneiosController(ctx, intruso.Id)
+            .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, paraTrocar.Dupla1.Jogador1Id, paraTrocar.Dupla2.Jogador1Id));
+
+        var final = await ctx.Partidas.FirstAsync(p => p.Id == paraTrocar.Final.Id);
+        final.Status = "AoVivo";
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+        Assert.Empty(await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id));
+    }
+
+    [Fact]
+    public async Task O_trofeu_sai_da_final_trocada()
+    {
+        var (ctx, torneio, _, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var paraTrocar = (await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id)).Single();
+        await TestInfra.NovoTorneiosController(ctx, org.Id)
+            .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, paraTrocar.Dupla1.Jogador1Id, paraTrocar.Dupla2.Jogador1Id);
+        ctx.ChangeTracker.Clear();
+        var final = await ctx.Partidas.Include(p => p.Dupla2).FirstAsync(p => p.Id == paraTrocar.Final.Id);
+        final.Status = "Finalizada";
+        final.VencedorId = final.Dupla1Id;
+        final.GamesDupla1 = 6;
+        final.GamesDupla2 = 3;
+        await ctx.SaveChangesAsync();
+        ctx.ChangeTracker.Clear();
+
+        var decisivo = Assert.Single(await new FinalissimaDtn(ctx).DecisivosAsync(torneio.Id));
+        Assert.Contains(final.Dupla2.Jogador1Id, decisivo.Perdedores);
+    }
+
+    [Fact]
+    public async Task As_duplas_mistas_nao_viram_folga_no_quadro_da_DTN()
+    {
+        // A DTN é chave direta, e o bye dela sai de "quem da categoria não jogou a 1ª rodada".
+        // As duas duplas mistas da troca entram na categoria — sem cuidado, viravam folga.
+        var (ctx, torneio, _, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var paraTrocar = (await new FinalissimaDtn(ctx).FinaisParaTrocarAsync(torneio.Id)).Single();
+        var byesAntes = await AvancoDaChave.ByesDaCategoriaAsync(ctx, paraTrocar.Dtn.Id, TestInfra.SemPontosDoRanking);
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id)
+            .TrocarParceirosDaFinalDtn(torneio.Id, paraTrocar.Final.Id, paraTrocar.Dupla1.Jogador1Id, paraTrocar.Dupla2.Jogador1Id);
+        ctx.ChangeTracker.Clear();
+
+        var byesDepois = await AvancoDaChave.ByesDaCategoriaAsync(ctx, paraTrocar.Dtn.Id, TestInfra.SemPontosDoRanking);
+        Assert.Single(byesAntes);
+        Assert.Equal(byesAntes, byesDepois);
+    }
+}

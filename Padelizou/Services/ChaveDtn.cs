@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Padelizou.Models;
 
 namespace Padelizou.Services;
@@ -58,5 +59,50 @@ public static class ChaveDtn
             .ThenBy(l => ClassificacaoDeGrupos.SorteioEstavel(l.Dupla))
             .Select(l => l.Dupla.Id)
             .ToList();
+    }
+
+    // A CATEGORIA DTN DO MÓDULO, criada VAZIA se ainda não existe (27/11/2026).
+    //
+    // 🗣️ Rafael: "os DTN não dá pra mudar horário/quadra". A troca na prévia grava uma reserva
+    // presa a (categoria, fase, número); sem a categoria DTN existir, não havia onde prender. Ela
+    // nasce vazia no sorteio (ou ao salvar o DTN), a prévia leva o Id dela, e o robô só a
+    // PREENCHE quando os grupos fecham (RoboDoChaveamento.Dtn) — e a reserva vale.
+    //
+    // Vazia ela não aparece em inscrição, dinheiro nem ranking (o papel já tira de tudo).
+    public static async Task<Categoria> GarantirCategoriaAsync(DbPadelContext ctx, Categoria modulo)
+    {
+        var dtn = await ctx.Categorias.FirstOrDefaultAsync(c =>
+            c.CategoriaDeOrigemId == modulo.Id && c.PapelDaChave == Dtn);
+        if (dtn != null) return dtn;
+
+        dtn = new Categoria
+        {
+            TorneioId = modulo.TorneioId,
+            Nome = NomeDaDtn(modulo.Nome),
+            Codigo = CodigoDaDtn(modulo.Codigo),
+            ChaveDireta = true,
+            PapelDaChave = Dtn,
+            CategoriaDeOrigemId = modulo.Id,
+            ClubeId = modulo.ClubeId,
+            EliminatoriaNoSabadoANoite = modulo.EliminatoriaNoSabadoANoite,
+            PodeJogarNaSedeExtra = modulo.PodeJogarNaSedeExtra,
+        };
+        ctx.Categorias.Add(dtn);
+        await ctx.SaveChangesAsync();
+        return dtn;
+    }
+
+    // O desligar: tira a DTN que ainda está VAZIA (sem dupla, sem jogo, sem reserva gravada nela
+    // fica a reserva — ela cai junto por cascade). Com jogo, fica: aí a chave já existe.
+    public static async Task TirarCategoriaVaziaAsync(DbPadelContext ctx, Categoria modulo)
+    {
+        var dtn = await ctx.Categorias.FirstOrDefaultAsync(c =>
+            c.CategoriaDeOrigemId == modulo.Id && c.PapelDaChave == Dtn);
+        if (dtn == null) return;
+        bool temAlgo = await ctx.Duplas.AnyAsync(d => d.CategoriaId == dtn.Id)
+                    || await ctx.Partidas.AnyAsync(p => p.CategoriaId == dtn.Id);
+        if (temAlgo) return;
+        ctx.Categorias.Remove(dtn);
+        await ctx.SaveChangesAsync();
     }
 }

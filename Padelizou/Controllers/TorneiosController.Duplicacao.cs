@@ -105,8 +105,9 @@ namespace Padelizou.Controllers
             // PassamPorGrupo: eles são escolhidos NA HORA do sorteio, quando o organizador já
             // sabe quantos se inscreveram — copiá-los travaria a divisão da edição nova no
             // tamanho da antiga.
+            // DTN e Finalíssima (Treta) ficam de fora: são geradas pelo robô a cada edição.
             var categoriasOriginais = await _context.Categorias
-                .Where(c => c.TorneioId == id).OrderBy(c => c.Id).ToListAsync();
+                .Where(c => c.TorneioId == id && c.PapelDaChave == null).OrderBy(c => c.Id).ToListAsync();
             var categoriaNovaDaAntiga = new Dictionary<int, Categoria>();
             foreach (var c in categoriasOriginais)
             {

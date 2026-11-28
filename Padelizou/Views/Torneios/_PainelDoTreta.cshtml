@@ -54,6 +54,45 @@
             </form>
         }
 
+        @* A final DTN do módulo SEM Finalíssima também troca os parceiros (27/11/2026). *@
+        @foreach (var f in Model.FinaisParaTrocar ?? Array.Empty<Padelizou.Services.FinalissimaDtn.FinalParaTrocar>())
+        {
+            var d1 = f.Dupla1;
+            var d2 = f.Dupla2;
+            <form asp-action="TrocarParceirosDaFinalDtn" asp-route-id="@f.Dtn.TorneioId" method="post" class="mb-4">
+                <input type="hidden" name="finalId" value="@f.Final.Id" />
+                <div class="fw-semibold mb-1">Final da @f.Dtn.Nome — trocar os parceiros</div>
+                <p class="small text-muted mb-2">
+                    Como na Finalíssima: troca o atleta do mesmo lado (direita com direita). O jogo continua no mesmo horário e quadra.
+                    @if (!f.Proposta.Certa)
+                    {
+                        <span class="text-danger d-block">O lado de alguém não está no cadastro — confira antes de trocar.</span>
+                    }
+                </p>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Direita — @d1.NomeDeExibicao</label>
+                        <select name="direitaDaPrimeira" class="form-select form-select-sm">
+                            @foreach (var j in new[] { d1.Jogador1Id, d1.Jogador2Id ?? d1.Jogador1Id }.Distinct())
+                            {
+                                <option value="@j" selected="@(j == f.Proposta.DireitaDaPrimeira)">@Nome(j)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Direita — @d2.NomeDeExibicao</label>
+                        <select name="direitaDaSegunda" class="form-select form-select-sm">
+                            @foreach (var j in new[] { d2.Jogador1Id, d2.Jogador2Id ?? d2.Jogador1Id }.Distinct())
+                            {
+                                <option value="@j" selected="@(j == f.Proposta.DireitaDaSegunda)">@Nome(j)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-dark">Trocar os parceiros da final</button>
+            </form>
+        }
+
         @foreach (var t in Model.Trofeus)
         {
             var cat = t.Decisivo.Categoria;

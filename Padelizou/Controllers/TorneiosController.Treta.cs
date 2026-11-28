@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using padelizou.Models;
 using Padelizou.Models;
 using Padelizou.Services;
 
@@ -82,6 +83,19 @@ namespace Padelizou.Controllers
             if (par != null && par.DuplasNoDtnPorGrupo <= 0) par.DuplasNoDtnPorGrupo = categoria.DuplasNoDtnPorGrupo > 0 ? categoria.DuplasNoDtnPorGrupo : 1;
 
             await _context.SaveChangesAsync();
+
+            // Com os grupos já sorteados, a categoria DTN nasce agora (vazia) — é o que dá à
+            // prévia os botões de horário e quadra. Desligado, sai a que ainda está vazia.
+            if (categoria.DuplasNoDtnPorGrupo > 0)
+            {
+                if (await _context.Set<GrupoTorneio>().AnyAsync(g => g.CategoriaId == categoria.Id))
+                    await ChaveDtn.GarantirCategoriaAsync(_context, categoria);
+            }
+            else
+            {
+                await ChaveDtn.TirarCategoriaVaziaAsync(_context, categoria);
+            }
+
             TempData["Sucesso"] = categoria.DuplasNoDtnPorGrupo == 0
                 ? $"\"{categoria.Nome}\" ficou sem DTN."
                 : $"\"{categoria.Nome}\": os {categoria.DuplasNoDtnPorGrupo} último(s) de cada grupo vão pro DTN"
@@ -156,6 +170,20 @@ namespace Padelizou.Controllers
                 ? $"{categoria.Nome}: o sorteio volta a montar grupos de 3."
                 : $"{categoria.Nome}: o sorteio vai dividir em {categoria.QuantidadeGrupos} grupo(s).";
             return Voltar();
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // A final DTN do módulo SEM Finalíssima também troca os parceiros (Services/FinalissimaDtn).
+        public async Task<IActionResult> TrocarParceirosDaFinalDtn(int id, int finalId, int direitaDaPrimeira, int direitaDaSegunda)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var erro = await new FinalissimaDtn(_context).TrocarFinalAsync(id, finalId, direitaDaPrimeira, direitaDaSegunda);
+            if (erro != null) TempData["Erro"] = erro;
+            else TempData["Sucesso"] = "Final DTN com os parceiros trocados.";
+            return RedirectToAction("Details", new { id });
         }
 }
 }
