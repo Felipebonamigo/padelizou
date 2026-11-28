@@ -677,4 +677,97 @@ public class FinalDtnTrocadaDoModuloSemParTests
         Assert.Single(byesAntes);
         Assert.Equal(byesAntes, byesDepois);
     }
+
+    // ── SUBSTITUIR DUPLA NA DTN (28/11/2026) ──────────────────────────────────────────────
+    // 🗣️ Rafael, no dia: "tivemos W.O. no módulo preto e elas foram pro DTN como pior dupla"; Felipe
+    // escolheu: quem organiza troca na mão. Troca os ATLETAS da cópia da DTN pelos de outra dupla do
+    // módulo — o jogo, a hora e a chave ficam. Só enquanto a cópia não jogou nada na DTN.
+
+    private static async Task<(Dupla Bye, Dupla Fora)> ByeEUmaDeForaAsync(DbPadelContext ctx, Categoria preto)
+    {
+        var dtn = await ctx.Categorias.AsNoTracking().FirstAsync(c => c.CategoriaDeOrigemId == preto.Id && c.PapelDaChave == ChaveDtn.Dtn);
+        var final = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Final");
+        var semi = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Semifinal");
+        int byeId = new[] { final.Dupla1Id, final.Dupla2Id }.Single(id => id != semi.Dupla1Id && id != semi.Dupla2Id);
+        var bye = await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == byeId);
+        var naDtn = await ctx.Duplas.AsNoTracking().Where(d => d.CategoriaId == dtn.Id)
+            .Select(d => new { d.Jogador1Id, d.Jogador2Id }).ToListAsync();
+        var fora = (await ctx.Duplas.AsNoTracking().Where(d => d.CategoriaId == preto.Id).ToListAsync())
+            .First(d => !naDtn.Any(x => x.Jogador1Id == d.Jogador1Id && x.Jogador2Id == d.Jogador2Id));
+        return (bye, fora);
+    }
+
+    [Fact]
+    public async Task Organizador_substitui_a_dupla_que_deu_WO_por_outra_do_modulo()
+    {
+        var (ctx, torneio, preto, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var (bye, fora) = await ByeEUmaDeForaAsync(ctx, preto);
+
+        await TestInfra.NovoTorneiosController(ctx, org.Id).SubstituirDuplaNaDtn(torneio.Id, bye.Id, fora.Id);
+        ctx.ChangeTracker.Clear();
+
+        var depois = await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == bye.Id);
+        Assert.Equal(fora.Jogador1Id, depois.Jogador1Id);
+        Assert.Equal(fora.Jogador2Id, depois.Jogador2Id);
+    }
+
+    [Fact]
+    public async Task Quem_ja_jogou_na_DTN_nao_e_substituido()
+    {
+        var (ctx, torneio, preto, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var (_, fora) = await ByeEUmaDeForaAsync(ctx, preto);
+        var dtn = await ctx.Categorias.AsNoTracking().FirstAsync(c => c.CategoriaDeOrigemId == preto.Id && c.PapelDaChave == ChaveDtn.Dtn);
+        var semi = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Semifinal");
+        var antes = await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == semi.Dupla1Id);
+
+        var erro = await new FinalissimaDtn(ctx).SubstituirNaDtnAsync(torneio.Id, semi.Dupla1Id, fora.Id);
+
+        Assert.NotNull(erro);
+        Assert.Equal(antes.Jogador1Id, (await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == semi.Dupla1Id)).Jogador1Id);
+    }
+
+    [Fact]
+    public async Task Dupla_que_ja_esta_na_DTN_nao_entra_de_novo()
+    {
+        var (ctx, torneio, preto, _) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var (bye, _) = await ByeEUmaDeForaAsync(ctx, preto);
+        var dtn = await ctx.Categorias.AsNoTracking().FirstAsync(c => c.CategoriaDeOrigemId == preto.Id && c.PapelDaChave == ChaveDtn.Dtn);
+        var semi = await ctx.Partidas.AsNoTracking().FirstAsync(p => p.CategoriaId == dtn.Id && p.Fase == "Semifinal");
+        var copiaDaSemi = await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == semi.Dupla1Id);
+        var originalDaSemi = await ctx.Duplas.AsNoTracking().FirstAsync(d => d.CategoriaId == preto.Id
+            && d.Jogador1Id == copiaDaSemi.Jogador1Id && d.Jogador2Id == copiaDaSemi.Jogador2Id);
+
+        Assert.NotNull(await new FinalissimaDtn(ctx).SubstituirNaDtnAsync(torneio.Id, bye.Id, originalDaSemi.Id));
+    }
+
+    [Fact]
+    public async Task Quem_nao_organiza_nao_substitui()
+    {
+        var (ctx, torneio, preto, _) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var (bye, fora) = await ByeEUmaDeForaAsync(ctx, preto);
+        var intruso = TestInfra.NovoJogador(999);
+        ctx.Jogadores.Add(intruso);
+        await ctx.SaveChangesAsync();
+
+        Assert.IsType<ForbidResult>(await TestInfra.NovoTorneiosController(ctx, intruso.Id).SubstituirDuplaNaDtn(torneio.Id, bye.Id, fora.Id));
+        Assert.Equal(bye.Jogador1Id, (await ctx.Duplas.AsNoTracking().FirstAsync(d => d.Id == bye.Id)).Jogador1Id);
+    }
+
+    [Fact]
+    public async Task O_card_lista_quem_pode_ser_substituido()
+    {
+        var (ctx, torneio, preto, org) = await PretoNaFinalDtnAsync();
+        using var _c = ctx;
+        var (bye, fora) = await ByeEUmaDeForaAsync(ctx, preto);
+
+        var painel = await new FinalissimaDtn(ctx).PainelAsync(torneio.Id, org.Id, ehOrganizador: true);
+
+        var sub = Assert.Single(painel!.Substituiveis!);
+        Assert.Contains(sub.NaDtn, d => d.Id == bye.Id);
+        Assert.Contains(sub.DoModulo, d => d.Id == fora.Id);
+    }
 }

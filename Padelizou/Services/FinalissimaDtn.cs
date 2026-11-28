@@ -323,6 +323,66 @@ public class FinalissimaDtn
         return null;
     }
 
+    // ── SUBSTITUIR DUPLA NA DTN (28/11/2026) ──────────────────────────────────────────────
+    //
+    // 🗣️ Rafael, no dia do Treta: "tivemos W.O. no módulo preto e elas foram pro DTN como pior
+    // dupla"; Felipe escolheu que quem organiza troca na mão (não uma regra automática de W.O.).
+    // Troca os ATLETAS da cópia que está na DTN pelos de outra dupla do módulo: o jogo, a hora, a
+    // quadra e o lugar na chave ficam. Só pra cópia que ainda NÃO jogou nada na DTN — mexer em quem
+    // já jogou reescreveria resultado.
+    public record Substituivel(Categoria Dtn, IReadOnlyList<Dupla> NaDtn, IReadOnlyList<Dupla> DoModulo);
+
+    public async Task<List<Substituivel>> SubstituiveisAsync(int torneioId)
+    {
+        var dtns = await _context.Categorias.AsNoTracking()
+            .Where(c => c.TorneioId == torneioId && c.PapelDaChave == ChaveDtn.Dtn && c.CategoriaDeOrigemId != null)
+            .ToListAsync();
+        var lista = new List<Substituivel>();
+        foreach (var dtn in dtns)
+        {
+            var naDtn = await _context.Duplas.AsNoTracking().Include(d => d.Jogador1).Include(d => d.Jogador2)
+                .Where(d => d.CategoriaId == dtn.Id).ToListAsync();
+            if (naDtn.Count == 0) continue;
+            var jaJogaram = await JaJogaramAsync(dtn.Id);
+            var trocaveis = naDtn.Where(d => !jaJogaram.Contains(d.Id)).ToList();
+            if (trocaveis.Count == 0) continue;
+
+            var pares = naDtn.Select(d => (d.Jogador1Id, d.Jogador2Id)).ToHashSet();
+            var doModulo = (await _context.Duplas.AsNoTracking().Include(d => d.Jogador1).Include(d => d.Jogador2)
+                    .Where(d => d.CategoriaId == dtn.CategoriaDeOrigemId!.Value).ToListAsync())
+                .Where(d => !pares.Contains((d.Jogador1Id, d.Jogador2Id)) && d.Jogador2Id != null)
+                .OrderBy(d => d.Id)
+                .ToList();
+            if (doModulo.Count == 0) continue;
+            lista.Add(new Substituivel(dtn, trocaveis, doModulo));
+        }
+        return lista;
+    }
+
+    // Duplas da DTN com jogo já começado ou acabado.
+    private async Task<HashSet<int>> JaJogaramAsync(int dtnId) =>
+        (await _context.Partidas.AsNoTracking()
+            .Where(p => p.CategoriaId == dtnId && p.Status != "Agendada")
+            .Select(p => new { p.Dupla1Id, p.Dupla2Id }).ToListAsync())
+        .SelectMany(p => new[] { p.Dupla1Id, p.Dupla2Id }).ToHashSet();
+
+    // Devolve o motivo da recusa, ou null quando trocou. Quem chama já conferiu que é organizador.
+    public async Task<string?> SubstituirNaDtnAsync(int torneioId, int copiaId, int duplaDoModuloId)
+    {
+        var alvo = (await SubstituiveisAsync(torneioId))
+            .FirstOrDefault(s => s.NaDtn.Any(d => d.Id == copiaId));
+        if (alvo == null) return "Essa dupla não está na DTN, ou já jogou — não dá mais pra trocar.";
+        var nova = alvo.DoModulo.FirstOrDefault(d => d.Id == duplaDoModuloId);
+        if (nova == null) return "Escolha uma dupla do módulo que ainda não esteja na DTN.";
+
+        var copia = await _context.Duplas.FirstAsync(d => d.Id == copiaId);
+        copia.Jogador1Id = nova.Jogador1Id;
+        copia.Jogador2Id = nova.Jogador2Id;
+        copia.LadoJogador1 = nova.LadoJogador1;
+        await _context.SaveChangesAsync();
+        return null;
+    }
+
     // ── A tela (Details) ────────────────────────────────────────────────────────────────
 
     // O que o card do Treta mostra. Pendentes só pra quem organiza; troféus pra todo mundo,
@@ -330,7 +390,8 @@ public class FinalissimaDtn
     // quem organiza sempre).
     public record LinhaDoTrofeu(Decisivo Decisivo, bool PodeEscolher);
     public record Painel(IReadOnlyList<Pendente> Pendentes, IReadOnlyList<LinhaDoTrofeu> Trofeus,
-        IReadOnlyDictionary<int, string> Nomes, IReadOnlyList<FinalParaTrocar>? FinaisParaTrocar = null);
+        IReadOnlyDictionary<int, string> Nomes, IReadOnlyList<FinalParaTrocar>? FinaisParaTrocar = null,
+        IReadOnlyList<Substituivel>? Substituiveis = null);
 
     public async Task<Painel?> PainelAsync(int torneioId, int? jogadorLogadoId, bool ehOrganizador)
     {
@@ -340,11 +401,12 @@ public class FinalissimaDtn
 
         var pendentes = ehOrganizador ? await PendentesAsync(torneioId) : new List<Pendente>();
         var finaisParaTrocar = ehOrganizador ? await FinaisParaTrocarAsync(torneioId) : new List<FinalParaTrocar>();
+        var substituiveis = ehOrganizador ? await SubstituiveisAsync(torneioId) : new List<Substituivel>();
         var trofeus = (await DecisivosAsync(torneioId))
             .Select(d => new LinhaDoTrofeu(d, ehOrganizador
                 || (jogadorLogadoId is int eu && d.Vencedores.Contains(eu) && d.Categoria.TrofeuDtnJogadorId == null)))
             .ToList();
-        if (pendentes.Count == 0 && trofeus.Count == 0 && finaisParaTrocar.Count == 0) return null;
+        if (pendentes.Count == 0 && trofeus.Count == 0 && finaisParaTrocar.Count == 0 && substituiveis.Count == 0) return null;
 
         var ids = pendentes.SelectMany(p => new[] { p.Perdedora1.Jogador1Id, p.Perdedora1.Jogador2Id ?? 0,
                                                     p.Perdedora2.Jogador1Id, p.Perdedora2.Jogador2Id ?? 0 })
@@ -357,6 +419,6 @@ public class FinalissimaDtn
             .Where(j => ids.Contains(j.Id))
             .ToDictionaryAsync(j => j.Id, j => j.NomeNaTela);
 
-        return new Painel(pendentes, trofeus, nomes, finaisParaTrocar);
+        return new Painel(pendentes, trofeus, nomes, finaisParaTrocar, substituiveis);
     }
 }

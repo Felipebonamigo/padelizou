@@ -93,6 +93,39 @@
             </form>
         }
 
+        @* Substituir dupla na DTN (28/11/2026) — ex.: quem deu W.O. nos grupos. Só quem ainda não jogou na DTN. *@
+        @foreach (var sub in Model.Substituiveis ?? Array.Empty<Padelizou.Services.FinalissimaDtn.Substituivel>())
+        {
+            <form asp-action="SubstituirDuplaNaDtn" asp-route-id="@sub.Dtn.TorneioId" method="post" class="mb-4"
+                  data-confirmar-titulo="Trocar a dupla na DTN?"
+                  data-confirmar="O jogo, a hora e a quadra ficam; muda quem joga."
+                  data-confirmar-ok="Trocar">
+                <div class="fw-semibold mb-1">@sub.Dtn.Nome — substituir dupla</div>
+                <p class="small text-muted mb-2">Ex.: quem levou W.O. nos grupos. Só quem ainda não jogou na DTN.</p>
+                <div class="row g-2 mb-2">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Sai</label>
+                        <select name="copiaId" class="form-select form-select-sm">
+                            @foreach (var d in sub.NaDtn)
+                            {
+                                <option value="@d.Id">@d.NomeDeExibicao</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1">Entra</label>
+                        <select name="duplaDoModuloId" class="form-select form-select-sm">
+                            @foreach (var d in sub.DoModulo)
+                            {
+                                <option value="@d.Id">@d.NomeDeExibicao</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-sm btn-outline-dark">Trocar a dupla</button>
+            </form>
+        }
+
         @foreach (var t in Model.Trofeus)
         {
             var cat = t.Decisivo.Categoria;
