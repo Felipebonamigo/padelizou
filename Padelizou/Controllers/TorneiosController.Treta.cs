@@ -185,5 +185,19 @@ namespace Padelizou.Controllers
             else TempData["Sucesso"] = "Final DTN com os parceiros trocados.";
             return RedirectToAction("Details", new { id });
         }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        // Troca na mão a dupla da DTN (ex.: quem deu W.O. nos grupos) — Services/FinalissimaDtn.
+        public async Task<IActionResult> SubstituirDuplaNaDtn(int id, int copiaId, int duplaDoModuloId)
+        {
+            if (!await EhOrganizadorAsync(id, ObterJogadorIdLogado() ?? 0)) return Forbid();
+
+            var erro = await new FinalissimaDtn(_context).SubstituirNaDtnAsync(id, copiaId, duplaDoModuloId);
+            if (erro != null) TempData["Erro"] = erro;
+            else TempData["Sucesso"] = "Dupla trocada na DTN.";
+            return RedirectToAction("Details", new { id });
+        }
 }
 }
